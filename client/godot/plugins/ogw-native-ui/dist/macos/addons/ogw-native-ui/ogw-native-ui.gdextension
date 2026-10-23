@@ -1,0 +1,8 @@
+[configuration]
+
+entry_symbol = "ogw_native_ui_init"
+compatibility_minimum = "4.7"
+
+[libraries]
+
+macos = "res://addons/ogw-native-ui/macos/libogw-native-ui.macos.dylib"

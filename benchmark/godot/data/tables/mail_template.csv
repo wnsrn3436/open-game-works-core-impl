@@ -1,0 +1,4 @@
+,,
+All,Client,Client
+id(key),tstring<id>,tstring<id>
+id,title,body

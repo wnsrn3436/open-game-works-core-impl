@@ -1,0 +1,28 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://core/scene_core/tests/support/scene_stub.gd" id="1_scene"]
+[ext_resource type="Script" path="res://core/safe_area_core/safe_area_ignore.gd" id="2_ignore"]
+
+[node name="SceneUIIgnore" type="Node" node_paths=PackedStringArray("probe", "ui_root")]
+script = ExtResource("1_scene")
+probe = NodePath("Probe")
+ui_root = NodePath("UI")
+
+[node name="Probe" type="Node2D" parent="."]
+
+[node name="UI" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Background" type="Control" parent="UI"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="SafeAreaIgnore" type="Node" parent="UI/Background"]
+script = ExtResource("2_ignore")

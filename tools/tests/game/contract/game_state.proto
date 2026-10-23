@@ -1,0 +1,26 @@
+syntax = "proto3";
+package game;
+
+// Shared boss of a core test: a game state kind for the game state snapshot tests
+message CloneBossGameState {
+  // Boss key.
+  int64 key = 1;
+  // Remaining HP.
+  int64 hp = 2;
+  // Damage dealt per guild member.
+  repeated int64 damages = 3;
+}
+
+// Raid of a core test: a second game state kind, so a test can tell kinds apart
+message CloneRaidGameState {
+  // Raid key.
+  int64 key = 1;
+  // Stage reached.
+  int64 stage = 2;
+}
+
+// A game state row that a server core test locks.
+message CoreTestGameState {
+  // Row key.
+  int64 key = 1;
+}

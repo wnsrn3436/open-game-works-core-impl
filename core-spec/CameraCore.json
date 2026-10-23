@@ -1,0 +1,188 @@
+{
+  "name": "CameraCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "UtilCore",
+    "EventCore",
+    "TimeCore",
+    "ResourceCore",
+    "ResolutionCore",
+    "TweenCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "CameraCore.minZoom",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "CameraCore.maxZoom",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "CameraCore.shakeMaxOffset",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "CameraCore.shakeMaxRotationDeg",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "CameraCore.shakeFrequencyHz",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "CameraCore.shakeDecayPerSecond",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "TweenCore.maxDurationMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [
+    {
+      "left": "CameraCore.minZoom",
+      "factor": 1,
+      "right": "CameraCore.maxZoom"
+    }
+  ],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "attach_camera",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "detach_camera",
+      "inputs": []
+    },
+    {
+      "name": "has_camera",
+      "inputs": []
+    },
+    {
+      "name": "is_3d_camera",
+      "inputs": []
+    },
+    {
+      "name": "follow",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "stop_follow",
+      "inputs": []
+    },
+    {
+      "name": "move_to",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "move_by_preset",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "stop_move",
+      "inputs": []
+    },
+    {
+      "name": "snap_to",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "zoom_to",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_zoom",
+      "inputs": []
+    },
+    {
+      "name": "set_bounds",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "clear_bounds",
+      "inputs": []
+    },
+    {
+      "name": "shake",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "stop_shake",
+      "inputs": []
+    },
+    {
+      "name": "set_shake_scale",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_view_center",
+      "inputs": []
+    },
+    {
+      "name": "screen_to_world",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "world_to_screen",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

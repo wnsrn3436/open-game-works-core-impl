@@ -1,0 +1,25 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://core/ui_core/ui_popup.gd" id="1_popup"]
+[ext_resource type="Script" path="res://core/ui_core/ui_button.gd" id="2_button"]
+
+[node name="TutorialTestCoverPopup" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_popup")
+
+[node name="CloseButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 600.0
+offset_right = 200.0
+offset_bottom = 660.0
+text = "Close"
+
+[node name="UIButton" type="Node" parent="CloseButton"]
+script = ExtResource("2_button")

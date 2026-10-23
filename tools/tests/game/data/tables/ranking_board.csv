@@ -1,0 +1,16 @@
+,,,,,,,,
+All,Client,All,All,All,All,All,All,Server
+id(key),tstring<id>,enum<RankingOrder>,enum<RankingUpdateMode>,enum<RankingEntity>,enum<ResetCycle>?,ref<live_event.id>?,int,ref<mail_template.id>?
+id,name,sort_direction,update_mode,entity,cycle,live_event,size,reward_mail
+[admin_board],Admin board,Desc,Best,User,null,null,100,null
+[rk_daily],Daily ranking,Desc,Best,User,Daily,null,5,[mail_ranking_reward_mail]
+[rk_daily_asc],Daily ascending ranking,Asc,Best,User,Daily,null,5,null
+[rk_sum],Sum ranking,Desc,Sum,User,null,null,100,null
+[rk_set],Set ranking,Desc,Set,User,null,null,100,null
+[rk_weekly],Weekly ranking,Desc,Best,User,Weekly,null,100,null
+[rk_monthly],Monthly ranking,Desc,Best,User,Monthly,null,100,null
+[rk_event],Event ranking,Desc,Best,User,null,[rk_weekend],10,[mail_ranking_reward_mail]
+[rk_guild_daily],Guild daily ranking,Desc,Sum,Guild,Daily,null,10,[mail_ranking_reward_mail]
+[rk_guild_best],Guild best ranking,Desc,Best,Guild,null,null,100,null
+[rk_guild_event],Guild event ranking,Desc,Best,Guild,null,[rk_weekend],10,null
+[board_rating_weekly],Rating weekly,Desc,Best,User,Weekly,null,100,null

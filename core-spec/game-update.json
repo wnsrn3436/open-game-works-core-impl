@@ -1,0 +1,151 @@
+{
+  "name": "game-update",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "validation",
+    "storage",
+    "server-time",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "environments.<ENV>.secrets.updateSigningKey",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.updatePublicKeys",
+      "type": "array<string>",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "game-update.maxFileBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "game-update.maxDeployListBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "game-update.keepDeployLists",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "game-update.deployListMaxAgeMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "game-update.fileMaxAgeMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "game-update.cacheRefreshMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "game-update.cdnTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "environments.<ENV>.secrets.cdn",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.cdnR2",
+      "type": "object",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.adapters.cdn",
+      "type": "string?",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "routing.externalMaxResponseBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [
+    {
+      "dataType": "none",
+      "description": "the client receives update files from the CDN and sends no user data",
+      "source": "cdn-r2",
+      "purposes": [],
+      "linked": false,
+      "tracking": false,
+      "shared": false,
+      "optional": false,
+      "platforms": [],
+      "condition": null
+    }
+  ],
+  "adapters": [
+    "cdn-r2"
+  ],
+  "operations": [
+    {
+      "name": "is_data_update_ready",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "put_update_file",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "publish_deploy_list",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_deploy_list",
+      "inputs": []
+    },
+    {
+      "name": "get_update_signing_key",
+      "inputs": []
+    },
+    {
+      "name": "prune_update_files",
+      "inputs": []
+    }
+  ]
+}

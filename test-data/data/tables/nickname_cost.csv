@@ -1,0 +1,6 @@
+,,
+All,All,All
+id(key),int,"array<{item_id: ref<item.id>, amount: long}>"
+id,change_number,cost
+[nickname_cost_first_change],1,[nickname_gem] 10
+[nickname_cost_third_change],3,[nickname_gem] 30

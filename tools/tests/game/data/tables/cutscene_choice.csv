@@ -1,0 +1,4 @@
+,,,,,,
+All,Client,Client,Client,Client,Client,Client
+id,int,int,"tstring<id,step,choice>",int,"requirement<id,step,choice>",bool
+id,step,choice,text,next_step,requirement,hide_locked

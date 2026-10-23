@@ -1,0 +1,9 @@
+,,,,,,,,,,,,
+All,All,Client,Client,Client,Client,Client,Client,Client,Client,Client,Client,Client
+id,int,"tstring<id,step>",string,int?,reskey?,reskey?,bool,bool,enum<TutorialComplete>,"requirement<id,step>",enum<TutorialCue>?,bool
+id,step,text,anchor,anchor_key,panel,popup,pointer,restrict_input,complete,complete_requirement,cue,save
+[tutorial_first],1,First tutorial step one,,null,null,null,false,false,Advance,,null,false
+[tutorial_first],2,First tutorial step two,,null,null,null,false,false,Advance,,null,true
+[tutorial_first],3,First tutorial step three,,null,null,null,false,false,Advance,,null,true
+[tutorial_second],1,Second tutorial step one,,null,null,null,false,false,Advance,,null,true
+[tutorial_second],2,Second tutorial step two,,null,null,null,false,false,Advance,,null,true

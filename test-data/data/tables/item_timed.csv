@@ -1,0 +1,6 @@
+,
+All,All
+id(key),duration
+id,duration
+[boost_reject],1h
+[boost_discard],1h

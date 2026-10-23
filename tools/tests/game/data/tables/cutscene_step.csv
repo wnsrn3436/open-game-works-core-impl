@@ -1,0 +1,4 @@
+,,,,,,,,,,,,,,
+All,Client,Client,Client,Client,Client,Client,Client,Client,Client,Client,Client,Client,Client,Client
+id,int,enum<CutsceneCommand>,bool,string,string,ref<cutscene_speaker.id>?,"tstring<id,step>",reskey?,string,duration?,enum<CutsceneCue>?,int?,reskey?,"requirement<id,step>"
+id,step,command,wait,actor,target,speaker,text,resource,animation,duration,cue,next_step,voice,requirement

@@ -1,0 +1,519 @@
+{
+  "name": "storage",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "server-time"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "storage.userLockWaitMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "storage.dbMaxConnections",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "storage.dbAnswerWaitMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "storage.schemaLockWaitMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "storage.schemaAnswerWaitMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "storage.maxShuffleCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "storage.maxPublicReadCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "storage.maxGameStateList",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "storage.userChangeMaxBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "storage.userChangeBatchSize",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "storage.userChangeRetryInitialMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "storage.userChangeRetryFactorPermille",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "storage.userChangeRetryMaxIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "storage.userChangeRetryMaxAttempts",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "environments.<ENV>.secrets.db",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [
+    {
+      "dataType": "gameplay_content",
+      "description": "the state of the game saved in UserState, server state and game state",
+      "source": "module",
+      "purposes": [
+        "app_functionality"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": false,
+      "platforms": [
+        "android",
+        "ios",
+        "web",
+        "windows",
+        "macos",
+        "linux"
+      ],
+      "condition": null
+    }
+  ],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "get_state",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "list_state",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "put_state",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "delete_state",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "put_core_state",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "delete_core_state",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "read_public_state",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_game_state",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "list_game_state",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "put_game_state",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "delete_game_state",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "run_user_transaction",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "run_request_transaction",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "take_response_delta",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "add_item_change",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "add_item_mail",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "run_rollback_transaction",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "run_game_transaction",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "run_savepoint",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "with_hook_change_source",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "check_hook_output",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "run_read_only",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "lock_game_row",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "after_commit",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "on_commit",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "send_user_change",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "register_user_change",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "run_user_changes",
+      "inputs": []
+    },
+    {
+      "name": "db",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "read_db",
+      "inputs": []
+    },
+    {
+      "name": "create_user",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "delete_user",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_user_record",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "set_user_created_at",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "scan_users",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "sample_users",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "read_full_state",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "read_user_rows",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "replace_user_rows",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "read_game_rows",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "sample_game_rows",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "replace_game_rows",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "upgrade_user_rows",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "register_table",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "export_user_rows",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "register_item_converter",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "sweep_expired",
+      "inputs": []
+    },
+    {
+      "name": "random_u32",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "random_int",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "random_weighted",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "random_shuffle",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "create_random",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "make_purpose_seed",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "canonical_json",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,166 @@
+{
+  "name": "nickname",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "item-ledger",
+    "validation",
+    "storage",
+    "server-time",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "nickname.minLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "nickname.maxLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "nickname.allowedScripts",
+      "type": "array<string>",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "nickname.allowedSymbols",
+      "type": "string",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "nicknameUnique",
+      "type": "boolean",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "nickname.changeCooldownMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "nickname.maxLookupCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "admin-api.maxSearchRows",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [
+    {
+      "left": "nickname.minLength",
+      "factor": 1,
+      "right": "nickname.maxLength"
+    }
+  ],
+  "tables": [
+    {
+      "name": "nickname_cost",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int",
+          "name": "change_number"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "array<{item_id: ref<item.id>, amount: long}>",
+          "name": "cost"
+        }
+      ]
+    }
+  ],
+  "usedTables": [
+    "banned_word",
+    "item"
+  ],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [
+    {
+      "dataType": "nickname",
+      "description": "nickname",
+      "source": "module",
+      "purposes": [
+        "app_functionality"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": false,
+      "platforms": [
+        "android",
+        "ios",
+        "web",
+        "windows",
+        "macos",
+        "linux"
+      ],
+      "condition": null
+    }
+  ],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "get_nicknames",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "check_nickname",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "find_user_ids_by_nickname",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "rename_user",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "find_user_by_nickname",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

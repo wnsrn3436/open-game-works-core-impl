@@ -1,0 +1,644 @@
+{
+  "cases": [
+    {
+      "name": "int '1234567' {v} ko",
+      "input": {
+        "kind": "int",
+        "value": "1234567",
+        "text": "{v}",
+        "language": "ko"
+      },
+      "expected": "1234567"
+    },
+    {
+      "name": "int '1234567' {v:n} ja",
+      "input": {
+        "kind": "int",
+        "value": "1234567",
+        "text": "{v:n}",
+        "language": "ja"
+      },
+      "expected": "1,234,567"
+    },
+    {
+      "name": "float '1234.567' {v} en",
+      "input": {
+        "kind": "float",
+        "value": "1234.567",
+        "text": "{v}",
+        "language": "en"
+      },
+      "expected": "1234.57"
+    },
+    {
+      "name": "float '1234.5' {v:n} en",
+      "input": {
+        "kind": "float",
+        "value": "1234.5",
+        "text": "{v:n}",
+        "language": "en"
+      },
+      "expected": "1,234.5"
+    },
+    {
+      "name": "float '-0.001' {v} en",
+      "input": {
+        "kind": "float",
+        "value": "-0.001",
+        "text": "{v}",
+        "language": "en"
+      },
+      "expected": "0"
+    },
+    {
+      "name": "int '1' {v:ordinal} en",
+      "input": {
+        "kind": "int",
+        "value": "1",
+        "text": "{v:ordinal}",
+        "language": "en"
+      },
+      "expected": "1st"
+    },
+    {
+      "name": "int '2' {v:ordinal} en",
+      "input": {
+        "kind": "int",
+        "value": "2",
+        "text": "{v:ordinal}",
+        "language": "en"
+      },
+      "expected": "2nd"
+    },
+    {
+      "name": "int '3' {v:ordinal} en",
+      "input": {
+        "kind": "int",
+        "value": "3",
+        "text": "{v:ordinal}",
+        "language": "en"
+      },
+      "expected": "3rd"
+    },
+    {
+      "name": "int '11' {v:ordinal} en",
+      "input": {
+        "kind": "int",
+        "value": "11",
+        "text": "{v:ordinal}",
+        "language": "en"
+      },
+      "expected": "11th"
+    },
+    {
+      "name": "int '12' {v:ordinal} en",
+      "input": {
+        "kind": "int",
+        "value": "12",
+        "text": "{v:ordinal}",
+        "language": "en"
+      },
+      "expected": "12th"
+    },
+    {
+      "name": "int '13' {v:ordinal} en",
+      "input": {
+        "kind": "int",
+        "value": "13",
+        "text": "{v:ordinal}",
+        "language": "en"
+      },
+      "expected": "13th"
+    },
+    {
+      "name": "int '21' {v:ordinal} en",
+      "input": {
+        "kind": "int",
+        "value": "21",
+        "text": "{v:ordinal}",
+        "language": "en"
+      },
+      "expected": "21st"
+    },
+    {
+      "name": "int '112' {v:ordinal} en",
+      "input": {
+        "kind": "int",
+        "value": "112",
+        "text": "{v:ordinal}",
+        "language": "en"
+      },
+      "expected": "112th"
+    },
+    {
+      "name": "int '-12' {v:ordinal} en",
+      "input": {
+        "kind": "int",
+        "value": "-12",
+        "text": "{v:ordinal}",
+        "language": "en"
+      },
+      "expected": "-12th"
+    },
+    {
+      "name": "int '-23' {v:ordinal} en",
+      "input": {
+        "kind": "int",
+        "value": "-23",
+        "text": "{v:ordinal}",
+        "language": "en"
+      },
+      "expected": "-23rd"
+    },
+    {
+      "name": "int '-3' {v:ordinal} ko",
+      "input": {
+        "kind": "int",
+        "value": "-3",
+        "text": "{v:ordinal}",
+        "language": "ko"
+      },
+      "expected": "-3번째"
+    },
+    {
+      "name": "int '-3' {v:ordinal} ja",
+      "input": {
+        "kind": "int",
+        "value": "-3",
+        "text": "{v:ordinal}",
+        "language": "ja"
+      },
+      "expected": "-3番目"
+    },
+    {
+      "name": "int '-3' {v:ordinal} zh-Hans",
+      "input": {
+        "kind": "int",
+        "value": "-3",
+        "text": "{v:ordinal}",
+        "language": "zh-Hans"
+      },
+      "expected": "第-3"
+    },
+    {
+      "name": "int '3' {v:ordinal} ko-KR",
+      "input": {
+        "kind": "int",
+        "value": "3",
+        "text": "{v:ordinal}",
+        "language": "ko-KR"
+      },
+      "expected": "3번째"
+    },
+    {
+      "name": "int '3' {v:ordinal} zh-Hant-TW",
+      "input": {
+        "kind": "int",
+        "value": "3",
+        "text": "{v:ordinal}",
+        "language": "zh-Hant-TW"
+      },
+      "expected": "3rd"
+    },
+    {
+      "name": "int '266400000' {v:duration} ko",
+      "input": {
+        "kind": "int",
+        "value": "266400000",
+        "text": "{v:duration}",
+        "language": "ko"
+      },
+      "expected": "3일 2시간"
+    },
+    {
+      "name": "int '-500' {v:duration} ko",
+      "input": {
+        "kind": "int",
+        "value": "-500",
+        "text": "{v:duration}",
+        "language": "ko"
+      },
+      "expected": "0초"
+    },
+    {
+      "name": "int '-3723000' {v:duration} ko",
+      "input": {
+        "kind": "int",
+        "value": "-3723000",
+        "text": "{v:duration}",
+        "language": "ko"
+      },
+      "expected": "-1시간 2분"
+    },
+    {
+      "name": "int '266400000' {v:duration} en",
+      "input": {
+        "kind": "int",
+        "value": "266400000",
+        "text": "{v:duration}",
+        "language": "en"
+      },
+      "expected": "3d 2h"
+    },
+    {
+      "name": "int '266400000' {v:duration} zh-Hans",
+      "input": {
+        "kind": "int",
+        "value": "266400000",
+        "text": "{v:duration}",
+        "language": "zh-Hans"
+      },
+      "expected": "3天 2小时"
+    },
+    {
+      "name": "int '1704442140000' {v:date} zh-Hans",
+      "input": {
+        "kind": "int",
+        "value": "1704442140000",
+        "text": "{v:date}",
+        "language": "zh-Hans"
+      },
+      "expected": "2024/1/5"
+    },
+    {
+      "name": "int '1704442140000' {v:datetime} ja",
+      "input": {
+        "kind": "int",
+        "value": "1704442140000",
+        "text": "{v:datetime}",
+        "language": "ja"
+      },
+      "expected": "2024/01/05 08:09"
+    },
+    {
+      "name": "int '1700000000000' {v:date} en",
+      "input": {
+        "kind": "int",
+        "value": "1700000000000",
+        "text": "{v:date}",
+        "language": "en"
+      },
+      "expected": "11/14/2023"
+    },
+    {
+      "name": "int '1' {v:plural:item/items} en",
+      "input": {
+        "kind": "int",
+        "value": "1",
+        "text": "{v:plural:item/items}",
+        "language": "en"
+      },
+      "expected": "item"
+    },
+    {
+      "name": "int '2' {v:plural:item/items} en",
+      "input": {
+        "kind": "int",
+        "value": "2",
+        "text": "{v:plural:item/items}",
+        "language": "en"
+      },
+      "expected": "items"
+    },
+    {
+      "name": "string '사과' {v:으로/로} ko",
+      "input": {
+        "kind": "string",
+        "value": "사과",
+        "text": "{v:으로/로}",
+        "language": "ko"
+      },
+      "expected": "사과로"
+    },
+    {
+      "name": "int '2' {v:으로/로} ko",
+      "input": {
+        "kind": "int",
+        "value": "2",
+        "text": "{v:으로/로}",
+        "language": "ko"
+      },
+      "expected": "2로"
+    },
+    {
+      "name": "string '서울' {v:으로/로} ko",
+      "input": {
+        "kind": "string",
+        "value": "서울",
+        "text": "{v:으로/로}",
+        "language": "ko"
+      },
+      "expected": "서울로"
+    },
+    {
+      "name": "int '7' {v:으로/로} ko",
+      "input": {
+        "kind": "int",
+        "value": "7",
+        "text": "{v:으로/로}",
+        "language": "ko"
+      },
+      "expected": "7로"
+    },
+    {
+      "name": "string 'Seoul' {v:으로/로} ko",
+      "input": {
+        "kind": "string",
+        "value": "Seoul",
+        "text": "{v:으로/로}",
+        "language": "ko"
+      },
+      "expected": "Seoul로"
+    },
+    {
+      "name": "string '집' {v:으로/로} ko",
+      "input": {
+        "kind": "string",
+        "value": "집",
+        "text": "{v:으로/로}",
+        "language": "ko"
+      },
+      "expected": "집으로"
+    },
+    {
+      "name": "string 'HP' {v:이/가} ko",
+      "input": {
+        "kind": "string",
+        "value": "HP",
+        "text": "{v:이/가}",
+        "language": "ko"
+      },
+      "expected": "HP가"
+    },
+    {
+      "name": "string 'Sam' {v:이/가} ko",
+      "input": {
+        "kind": "string",
+        "value": "Sam",
+        "text": "{v:이/가}",
+        "language": "ko"
+      },
+      "expected": "Sam이"
+    },
+    {
+      "name": "string 'cm' {v:이/가} ko",
+      "input": {
+        "kind": "string",
+        "value": "cm",
+        "text": "{v:이/가}",
+        "language": "ko"
+      },
+      "expected": "cm이"
+    },
+    {
+      "name": "int '10' {v:이/가} ko",
+      "input": {
+        "kind": "int",
+        "value": "10",
+        "text": "{v:이/가}",
+        "language": "ko"
+      },
+      "expected": "10이"
+    },
+    {
+      "name": "string '' {v:이/가} ko",
+      "input": {
+        "kind": "string",
+        "value": "",
+        "text": "{v:이/가}",
+        "language": "ko"
+      },
+      "expected": "가"
+    },
+    {
+      "name": "string '!' {v:이/가} ko",
+      "input": {
+        "kind": "string",
+        "value": "!",
+        "text": "{v:이/가}",
+        "language": "ko"
+      },
+      "expected": "!가"
+    },
+    {
+      "name": "int '0' {v:compact} en",
+      "input": {
+        "kind": "int",
+        "value": "0",
+        "text": "{v:compact}",
+        "language": "en"
+      },
+      "expected": "0"
+    },
+    {
+      "name": "int '999' {v:compact} en",
+      "input": {
+        "kind": "int",
+        "value": "999",
+        "text": "{v:compact}",
+        "language": "en"
+      },
+      "expected": "999"
+    },
+    {
+      "name": "int '1234' {v:compact} en",
+      "input": {
+        "kind": "int",
+        "value": "1234",
+        "text": "{v:compact}",
+        "language": "en"
+      },
+      "expected": "1.23K"
+    },
+    {
+      "name": "int '12345' {v:compact} en",
+      "input": {
+        "kind": "int",
+        "value": "12345",
+        "text": "{v:compact}",
+        "language": "en"
+      },
+      "expected": "12.3K"
+    },
+    {
+      "name": "int '999999' {v:compact} en",
+      "input": {
+        "kind": "int",
+        "value": "999999",
+        "text": "{v:compact}",
+        "language": "en"
+      },
+      "expected": "999K"
+    },
+    {
+      "name": "int '1000000' {v:compact} en",
+      "input": {
+        "kind": "int",
+        "value": "1000000",
+        "text": "{v:compact}",
+        "language": "en"
+      },
+      "expected": "1M"
+    },
+    {
+      "name": "int '-1500' {v:compact} en",
+      "input": {
+        "kind": "int",
+        "value": "-1500",
+        "text": "{v:compact}",
+        "language": "en"
+      },
+      "expected": "-1.5K"
+    },
+    {
+      "name": "int '1234' {v:compact} ko",
+      "input": {
+        "kind": "int",
+        "value": "1234",
+        "text": "{v:compact}",
+        "language": "ko"
+      },
+      "expected": "1,234"
+    },
+    {
+      "name": "int '12345' {v:compact} ko",
+      "input": {
+        "kind": "int",
+        "value": "12345",
+        "text": "{v:compact}",
+        "language": "ko"
+      },
+      "expected": "1.23만"
+    },
+    {
+      "name": "int '99999999' {v:compact} ko",
+      "input": {
+        "kind": "int",
+        "value": "99999999",
+        "text": "{v:compact}",
+        "language": "ko"
+      },
+      "expected": "9999만"
+    },
+    {
+      "name": "int '123456789012' {v:compact} ko",
+      "input": {
+        "kind": "int",
+        "value": "123456789012",
+        "text": "{v:compact}",
+        "language": "ko"
+      },
+      "expected": "1234억"
+    },
+    {
+      "name": "int '123456789' {v:compact} ja",
+      "input": {
+        "kind": "int",
+        "value": "123456789",
+        "text": "{v:compact}",
+        "language": "ja"
+      },
+      "expected": "1.23億"
+    },
+    {
+      "name": "int '1234567890123' {v:compact} zh-Hans",
+      "input": {
+        "kind": "int",
+        "value": "1234567890123",
+        "text": "{v:compact}",
+        "language": "zh-Hans"
+      },
+      "expected": "1.23万亿"
+    },
+    {
+      "name": "string '5000000000000000' {v:compact} en",
+      "input": {
+        "kind": "string",
+        "value": "5000000000000000",
+        "text": "{v:compact}",
+        "language": "en"
+      },
+      "expected": "5000T"
+    },
+    {
+      "name": "string '99999999999999999' {v:compact} en",
+      "input": {
+        "kind": "string",
+        "value": "99999999999999999",
+        "text": "{v:compact}",
+        "language": "en"
+      },
+      "expected": "9.99e16"
+    },
+    {
+      "name": "string '12345678901234567890' {v:compact} en",
+      "input": {
+        "kind": "string",
+        "value": "12345678901234567890",
+        "text": "{v:compact}",
+        "language": "en"
+      },
+      "expected": "1.23e19"
+    },
+    {
+      "name": "string '-12345678901234567890' {v:compact} en",
+      "input": {
+        "kind": "string",
+        "value": "-12345678901234567890",
+        "text": "{v:compact}",
+        "language": "en"
+      },
+      "expected": "-1.23e19"
+    },
+    {
+      "name": "string '12a' {v:compact} en",
+      "input": {
+        "kind": "string",
+        "value": "12a",
+        "text": "{v:compact}",
+        "language": "en"
+      },
+      "expected": null
+    },
+    {
+      "name": "string '007' {v:compact} en",
+      "input": {
+        "kind": "string",
+        "value": "007",
+        "text": "{v:compact}",
+        "language": "en"
+      },
+      "expected": null
+    },
+    {
+      "name": "int '1' {v}} en",
+      "input": {
+        "kind": "int",
+        "value": "1",
+        "text": "{v}}",
+        "language": "en"
+      },
+      "expected": "1}"
+    },
+    {
+      "name": "float 'NaN' {v} en",
+      "input": {
+        "kind": "float",
+        "value": "NaN",
+        "text": "{v}",
+        "language": "en"
+      },
+      "expected": null
+    },
+    {
+      "name": "int '253402300800000' {v:date} en",
+      "input": {
+        "kind": "int",
+        "value": "253402300800000",
+        "text": "{v:date}",
+        "language": "en"
+      },
+      "expected": null
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+syntax = "proto3";
+package game;
+
+import "ogw/core.proto";
+
+// Guild state a core test hook writes for a user.
+message GuildTestUserState {
+  // Guild ID the hook saw.
+  int64 guild_id = 1;
+  // Number of guild member changes the hook saw for the user.
+  int64 changes = 2;
+}
+
+// Every field type of the Godot round trip test of the contract tool.
+message ToolTestUserState {
+  // Item ID of the list kind.
+  int64 id = 1;
+  // A 32-bit integer.
+  int32 small = 2;
+  // A 64-bit integer.
+  int64 large = 3;
+  // A 32-bit real.
+  float ratio = 4;
+  // A 64-bit real.
+  double precise = 5;
+  // A flag.
+  bool flag = 6;
+  // A text.
+  string label = 7;
+  // Raw bytes.
+  bytes blob = 8;
+  // An enum value.
+  ToolTestKind kind = 9;
+  // A message.
+  ToolTestPart part = 10;
+  // 32-bit integers.
+  repeated int32 smalls = 11;
+  // 64-bit integers.
+  repeated int64 larges = 12;
+  // 32-bit reals.
+  repeated float ratios = 13;
+  // 64-bit reals.
+  repeated double precises = 14;
+  // Flags.
+  repeated bool flags = 15;
+  // Texts.
+  repeated string labels = 16;
+  // Raw byte lists.
+  repeated bytes blobs = 17;
+  // Enum values.
+  repeated ToolTestKind kinds = 18;
+  // Messages.
+  repeated ToolTestPart parts = 19;
+  // An item amount of the base proto.
+  ogw.core.ItemAmount reward = 20;
+}
+
+// A single kind of the Godot round trip test.
+message ToolTestSingleUserState {
+  // A count.
+  int32 count = 1;
+}
+
+// Kind of the round trip test.
+enum ToolTestKind {
+  TOOL_TEST_KIND_UNSPECIFIED = 0;
+  TOOL_TEST_KIND_SWORD = 1;
+  TOOL_TEST_KIND_SHIELD = 2;
+}
+
+// A nested message of the round trip test: it also nests itself.
+message ToolTestPart {
+  // Item ID of the part.
+  int32 item_id = 1;
+  // Parts inside the part.
+  repeated ToolTestPart children = 2;
+}

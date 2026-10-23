@@ -1,0 +1,10 @@
+kind,table,column,group,min,max,child_table,child_column
+order_column,language,order,,,,,
+order_column,tutorial,order,,,,,
+order_column,tutorial_step,step,id,,,,
+child_exists,tutorial,id,,,,tutorial_step,id
+child_exists,tutorial_step,id,,,,tutorial,id
+order_column,attendance_reward,day,id,,,,
+child_exists,attendance_calendar,id,,,,attendance_reward,id
+child_exists,attendance_reward,id,,,,attendance_calendar,id
+order_column,loot_table,order,id,,,,

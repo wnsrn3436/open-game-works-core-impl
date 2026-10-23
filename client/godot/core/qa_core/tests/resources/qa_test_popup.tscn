@@ -1,0 +1,25 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://core/ui_core/ui_popup.gd" id="1"]
+[ext_resource type="Script" path="res://core/ui_core/ui_button.gd" id="2"]
+
+[node name="QaTestPopup" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1")
+
+[node name="Ok" type="Button" parent="."]
+layout_mode = 0
+offset_left = 500.0
+offset_top = 400.0
+offset_right = 700.0
+offset_bottom = 460.0
+text = "Ok"
+
+[node name="UIButton" type="Node" parent="Ok"]
+script = ExtResource("2")

@@ -1,0 +1,9 @@
+,,,
+All,All,All,All
+id(key),enum<RemoteConfigType>,string,bool
+id,type,default_value,client
+[rc_flag],Bool,false,true
+[rc_count],Int,10,true
+[rc_title],String,hello,true
+[rc_threshold],Int,7,false
+[rc_hidden_flag],Bool,true,false

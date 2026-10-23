@@ -1,0 +1,195 @@
+{
+  "name": "validation",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "storage",
+    "item-ledger"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "supportedLanguages",
+      "type": "array<string>",
+      "source": "game",
+      "owner": "none"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "banned_word",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "string",
+          "name": "word"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "enum<BannedWordMatch>",
+          "name": "match"
+        }
+      ]
+    }
+  ],
+  "usedTables": [],
+  "enums": [
+    {
+      "type": "BannedWordMatch",
+      "elements": [
+        "Contains",
+        "Exact"
+      ]
+    }
+  ],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "validate_request",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "validate_message",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_in_range",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "has_table_id",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_unique",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_plain_text",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "normalize_text",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "check_text",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_kind_consistent",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "floor_div",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "floor_mod",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "apply_permille",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "big_floor_div",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "big_apply_permille",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_platform",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "parse_version",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "compare_versions",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "register_requirement_judge",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "evaluate_requirement",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

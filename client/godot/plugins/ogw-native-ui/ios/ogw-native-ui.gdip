@@ -1,0 +1,17 @@
+[config]
+
+name="OgwNativeUi"
+binary="ogw-native-ui.xcframework"
+initialization="ogw_native_ui_init"
+deinitialization="ogw_native_ui_deinit"
+
+[dependencies]
+
+linked=[]
+embedded=[]
+system=["StoreKit.framework", "UIKit.framework"]
+capabilities=[]
+files=[]
+linker_flags=[]
+
+[plist]

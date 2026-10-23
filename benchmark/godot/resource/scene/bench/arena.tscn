@@ -1,0 +1,99 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://features/bench/bench_arena_scene.gd" id="1_script"]
+[ext_resource type="Script" path="res://core/safe_area_core/safe_area_ignore.gd" id="2_script"]
+[ext_resource type="Script" path="res://features/bench/bench_arena_field.gd" id="3_script"]
+[ext_resource type="Script" path="res://core/ui_core/ui_button.gd" id="4_script"]
+[ext_resource type="Script" path="res://core/ui_core/ui_anchor.gd" id="5_script"]
+
+[node name="Arena" type="Node" node_paths=PackedStringArray("ui_root", "title_label", "notice_button", "lobby_button", "notice_click", "lobby_click")]
+script = ExtResource("1_script")
+ui_root = NodePath("UI")
+title_label = NodePath("UI/Title")
+notice_button = NodePath("UI/Buttons/Notice")
+lobby_button = NodePath("UI/Buttons/Lobby")
+notice_click = NodePath("UI/Buttons/Notice/UIButton")
+lobby_click = NodePath("UI/Buttons/Lobby/UIButton")
+
+[node name="UI" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Background" type="ColorRect" parent="UI"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.05, 0.05, 0.08, 1)
+
+[node name="SafeAreaIgnore" type="Node" parent="UI/Background"]
+script = ExtResource("2_script")
+
+[node name="Field" type="Control" parent="UI"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_script")
+
+[node name="Title" type="Label" parent="UI"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 72.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 40
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Buttons" type="HBoxContainer" parent="UI"]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -100.0
+offset_right = 260.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 24
+alignment = 1
+
+[node name="Notice" type="Button" parent="UI/Buttons"]
+custom_minimum_size = Vector2(240, 64)
+size_flags_horizontal = 3
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+
+[node name="UIButton" type="Node" parent="UI/Buttons/Notice"]
+script = ExtResource("4_script")
+
+[node name="UIAnchor" type="Node" parent="UI/Buttons/Notice"]
+script = ExtResource("5_script")
+anchor_name = "bench_notice_open"
+
+[node name="Lobby" type="Button" parent="UI/Buttons"]
+custom_minimum_size = Vector2(240, 64)
+size_flags_horizontal = 3
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+
+[node name="UIButton" type="Node" parent="UI/Buttons/Lobby"]
+script = ExtResource("4_script")
+
+[node name="UIAnchor" type="Node" parent="UI/Buttons/Lobby"]
+script = ExtResource("5_script")
+anchor_name = "bench_lobby_back"

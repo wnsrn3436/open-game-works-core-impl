@@ -1,0 +1,99 @@
+{
+  "name": "SceneCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "ResourceCore",
+    "PoolCore",
+    "SafeAreaCore",
+    "InputBlockCore",
+    "ScreenEffectCore",
+    "UICore",
+    "MessageCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "loadingScreen",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "SceneCore.loadingMinDisplayMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "SceneCore.prepareRetryCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [
+    {
+      "table": "reserved_string",
+      "id": "[scene_prepare_failed]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[scene_retry]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[scene_restart]",
+      "requiredWhen": null,
+      "rowOf": null
+    }
+  ],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "change_scene",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "boot_change_scene",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "current_scene_key",
+      "inputs": []
+    },
+    {
+      "name": "current_scope",
+      "inputs": []
+    },
+    {
+      "name": "current_root_panel_key",
+      "inputs": []
+    },
+    {
+      "name": "is_transitioning",
+      "inputs": []
+    }
+  ]
+}

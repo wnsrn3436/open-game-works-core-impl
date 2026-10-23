@@ -1,0 +1,21 @@
+,,,,,,,,,,,
+All,Client,Client,All,All,All,All,All,All,All,All,All
+id(key),tstring<id>,tstring<id>,ref<mission_counter.id>,long,enum<ResetCycle>?,requirement,"array<{item_id: ref<item.id>, amount: long}>",bool,datetime?,datetime?,ref<live_event.id>?
+id,name,desc,counter,target,reset,requirement,reward,extra_grant,start_at,end_at,live_event
+[mission_sum_daily],,,[mission_count_sum],10,Daily,,[mission_gold] 100,false,null,null,null
+[mission_sum_weekly],,,[mission_count_sum],10,Weekly,,[mission_gold] 10,false,null,null,null
+[mission_sum_monthly],,,[mission_count_sum],10,Monthly,,[mission_gold] 10,false,null,null,null
+[mission_sum_forever],,,[mission_count_sum],10,null,,[mission_gold] 10,false,null,null,null
+[mission_max],,,[mission_count_max],10,null,,[mission_gold] 10,false,null,null,null
+[mission_other],,,[mission_count_other],5,null,,[mission_gold] 1,false,null,null,null
+[mission_locked],,,[mission_count_locked],3,null,MissionGate(),[mission_gold] 30,false,null,null,null
+[mission_open],,,[mission_count_open],3,null,,"[mission_gold] 3, [mission_gem] 2",false,null,null,null
+[mission_window],,,[mission_count_window],3,null,,[mission_gold] 1,false,2027-01-01T00:00:00Z,2027-01-02T00:00:00Z,null
+[mission_overflow],,,[mission_count_overflow],1,Daily,,[mission_gem] 100,false,null,null,null
+[mission_event],,,[mission_count_event],2,null,,[mission_gold] 7,false,null,null,[mission_event_weekly]
+[mission_extra],,,[mission_count_extra],1,null,,[mission_gold] 5,true,null,null,null
+[mission_extra_only],,,[mission_count_extra],2,null,,,true,null,null,null
+[mission_after],,,[mission_count_after],1,Daily,,[mission_gold] 1,false,null,null,null
+[mission_tally],,,[mission_count_tally],100,null,,[mission_gold] 1,false,null,null,null
+[gacha_draw_mission],Gacha draw mission,Draw the gacha,[gacha_draw_counter],100,null,,[gacha_star] 1,false,null,null,null
+[mission_split],,,[mission_count_split],1,null,,"[mission_gold] 1, [mission_gem] 1, [mission_bead] 1",false,null,null,null

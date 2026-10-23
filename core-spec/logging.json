@@ -1,0 +1,397 @@
+{
+  "name": "logging",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "storage",
+    "server-time"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "logging.securityRepeatWindowMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "logging.maxRepeatedIps",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "logging.reportRateLimitPerMinute",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "logging.maxErrorEntries",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "logging.maxErrorMessageLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "logging.maxStackTraceLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "logging.maxEvents",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "logging.maxEventParams",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "logging.maxStringLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "logging.clientLogRetentionMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "logging.serverEventRetentionMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "logging.analyticsSendTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "logging.analyticsDeletionIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "logging.analyticsDeletionBatchSize",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "logging.analyticsDeletionMaxAttempts",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "environments.<ENV>.adapters.analytics",
+      "type": "string?",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.analyticsGa4.measurementId",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.secrets.analytics",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.analyticsGa4.propertyId",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.analyticsGa4.serviceAccountEmail",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.secrets.analyticsServiceAccount",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "routing.externalMaxResponseBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "consent.privacyChoices",
+      "type": "boolean",
+      "source": "game",
+      "owner": "none"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [
+    {
+      "dataType": "crash_data",
+      "description": "error logs sent by the client",
+      "source": "module",
+      "purposes": [
+        "app_functionality"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": false,
+      "platforms": [
+        "android",
+        "ios",
+        "web",
+        "windows",
+        "macos",
+        "linux"
+      ],
+      "condition": null
+    },
+    {
+      "dataType": "product_interaction",
+      "description": "analytics events emitted by the client and the server",
+      "source": "module",
+      "purposes": [
+        "analytics"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": true,
+      "platforms": [
+        "android",
+        "ios",
+        "web",
+        "windows",
+        "macos",
+        "linux"
+      ],
+      "condition": {
+        "path": "consent.privacyChoices",
+        "value": true
+      }
+    },
+    {
+      "dataType": "product_interaction",
+      "description": "analytics events emitted by the client and the server",
+      "source": "module",
+      "purposes": [
+        "analytics"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": false,
+      "platforms": [
+        "android",
+        "ios",
+        "web",
+        "windows",
+        "macos",
+        "linux"
+      ],
+      "condition": {
+        "path": "consent.privacyChoices",
+        "value": false
+      }
+    },
+    {
+      "dataType": "product_interaction",
+      "description": "analytics events sent to the analytics adapter",
+      "source": "analytics-ga4",
+      "purposes": [
+        "analytics"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": true,
+      "platforms": [
+        "android",
+        "ios",
+        "web",
+        "windows",
+        "macos",
+        "linux"
+      ],
+      "condition": {
+        "path": "consent.privacyChoices",
+        "value": true
+      }
+    },
+    {
+      "dataType": "product_interaction",
+      "description": "analytics events sent to the analytics adapter",
+      "source": "analytics-ga4",
+      "purposes": [
+        "analytics"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": false,
+      "platforms": [
+        "android",
+        "ios",
+        "web",
+        "windows",
+        "macos",
+        "linux"
+      ],
+      "condition": {
+        "path": "consent.privacyChoices",
+        "value": false
+      }
+    }
+  ],
+  "adapters": [
+    "analytics-ga4"
+  ],
+  "operations": [
+    {
+      "name": "log",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "write",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "truncate_ip",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "with_audit_actor",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "with_request_ip",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "annotate_request_log",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "take_request_log_annotation",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "track",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "track_core_event",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "count_report_request",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "request_analytics_deletion",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "list_client_errors",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "list_client_events",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "list_server_events",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

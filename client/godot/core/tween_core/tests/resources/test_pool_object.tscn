@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/tween_core/tests/support/tween_test_pool_object.gd" id="1_object"]
+
+[node name="TweenTestPoolObject" type="Node"]
+script = ExtResource("1_object")
+
+[node name="Sprite" type="Node2D" parent="."]

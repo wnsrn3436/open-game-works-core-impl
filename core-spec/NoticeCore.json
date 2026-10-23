@@ -1,0 +1,143 @@
+{
+  "name": "NoticeCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "LocalDataCore",
+    "LocalizationCore",
+    "NetworkCore",
+    "UICore",
+    "BadgeCore",
+    "notice"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "NoticeCore.cacheTtlMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "NoticeCore.maintenanceRetryMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "NoticeCore.imageMaxBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "NoticeCore.imageTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "TimeCore.reachMarginMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [
+    "badge"
+  ],
+  "enums": [],
+  "invariants": [],
+  "reserved": [
+    {
+      "table": "reserved_id",
+      "id": "[notice_badge]",
+      "requiredWhen": null,
+      "rowOf": "badge"
+    },
+    {
+      "table": "reserved_string",
+      "id": "[notice_maintenance]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[notice_maintenance_until]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[notice_retry]",
+      "requiredWhen": null,
+      "rowOf": null
+    }
+  ],
+  "formatArguments": [
+    {
+      "text": "[notice_maintenance_until]",
+      "arguments": [
+        {
+          "name": "end_at",
+          "kind": "integer"
+        }
+      ]
+    }
+  ],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "wait_maintenance_clear",
+      "inputs": []
+    },
+    {
+      "name": "fetch",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_maintenance",
+      "inputs": []
+    },
+    {
+      "name": "list_active",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_notice",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_read",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "mark_read",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "load_image",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

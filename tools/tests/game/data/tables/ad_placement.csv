@@ -1,0 +1,9 @@
+,,,,,,,,,
+All,All,All,All,All,All,Client,Client,Client,Client
+id(key),enum<AdType>,"array<{item_id: ref<item.id>, amount: long}>",bool,int?,enum<ResetCycle>?,duration?,duration?,int?,array<ref<iap_product.id>>
+id,type,reward,extra_grant,limit_count,reset,min_interval,first_show_after,every_n,suppress_if_product
+[ad_rewarded_basic],Rewarded,[ad_gem] 10,false,null,null,null,null,null,
+[ad_rewarded_daily],Rewarded,[ad_gem] 5,false,2,Daily,null,null,null,
+[ad_rewarded_once],Rewarded,[ad_gem] 5,false,1,null,null,null,null,
+[ad_rewarded_capped],Rewarded,[ad_capped] 20,false,null,null,null,null,null,
+[ad_interstitial],Interstitial,,false,null,null,30s,1m,3,

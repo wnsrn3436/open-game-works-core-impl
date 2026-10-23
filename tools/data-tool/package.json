@@ -1,0 +1,18 @@
+{
+  "name": "data-tool",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Reads, checks and builds game data CSV tables into data proto, generated code and binaries",
+  "scripts": {
+    "build": "node scripts/build.ts",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "esbuild": "0.28.2",
+    "protobufjs": "8.8.1",
+    "typescript": "6.0.3",
+    "vitest": "5.0.3"
+  }
+}

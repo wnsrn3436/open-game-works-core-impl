@@ -1,0 +1,220 @@
+{
+  "name": "ads-reward",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "item-ledger",
+    "mailbox",
+    "storage",
+    "idempotency",
+    "server-time",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "ads-reward.ticketTtlMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ads-reward.claimWaitMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ads-reward.claimPollIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ads-reward.maxQueryBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ads-reward.keyCacheMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ads-reward.keyRefetchIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ads-reward.keyFetchTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ads-reward.callbackRateLimitPerMinute",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "environments.<ENV>.adapters.ads",
+      "type": "string?",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "idempotency.maxNotifyIdBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "routing.externalMaxResponseBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [
+    {
+      "left": "ads-reward.claimWaitMs",
+      "factor": 2,
+      "right": "NetworkCore.requestTimeoutMs"
+    }
+  ],
+  "tables": [
+    {
+      "name": "ad_placement",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<AdType>",
+          "name": "type"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "array<{item_id: ref<item.id>, amount: long}>",
+          "name": "reward"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "bool",
+          "name": "extra_grant"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int?",
+          "name": "limit_count"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<ResetCycle>?",
+          "name": "reset"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "duration?",
+          "name": "min_interval"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "duration?",
+          "name": "first_show_after"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "int?",
+          "name": "every_n"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "array<ref<iap_product.id>>",
+          "name": "suppress_if_product"
+        }
+      ]
+    }
+  ],
+  "usedTables": [
+    "item",
+    "iap_product",
+    "mail_template"
+  ],
+  "enums": [
+    {
+      "type": "AdType",
+      "elements": [
+        "Rewarded",
+        "Interstitial",
+        "Banner"
+      ]
+    }
+  ],
+  "invariants": [],
+  "reserved": [
+    {
+      "table": "reserved_id",
+      "id": "[ad_reward_mail]",
+      "requiredWhen": null,
+      "rowOf": "mail_template"
+    }
+  ],
+  "formatArguments": [],
+  "collectedData": [
+    {
+      "dataType": "advertising_data",
+      "description": "ad unit and reward of the rewarded ad whose reward was granted",
+      "source": "ads-admob",
+      "purposes": [
+        "app_functionality"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": true,
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "condition": null
+    }
+  ],
+  "adapters": [
+    "ads-admob"
+  ],
+  "operations": [
+    {
+      "name": "wait_ad_reward",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_reward_count",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

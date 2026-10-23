@@ -1,0 +1,16 @@
+,,
+All,Client,Client
+id(key),tstring<id>,tstring<id>
+id,title,body
+[mail_ad_reward_mail],Ad reward mail,Ad reward mail body
+[mail_attendance_reward_mail],Attendance reward mail,Attendance reward mail body
+[mail_coupon_reward_mail],Coupon reward mail,Coupon reward mail body
+[mail_gacha_grant_mail],Gacha grant mail,Gacha grant mail body
+[mail_iap_grant_mail],Iap grant mail,Iap grant mail body
+[mail_mission_reward_mail],Mission reward mail,Mission reward mail body
+[mail_shop_grant_mail],Shop grant mail,Shop grant mail body
+[mail_mailbox_notice],Notice for {name},{count} items for you
+[mail_mailbox_plain],Plain mail,Plain mail body
+[mail_admin_notice],Admin notice,{text}
+[mail_ranking_reward_mail],Ranking reward,Rank {rank} in season {season}
+[mail_rating_season],Season {season} reward,Rating reward of season {season}

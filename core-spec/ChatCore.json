@@ -1,0 +1,134 @@
+{
+  "name": "ChatCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "LocalDataCore",
+    "NetworkCore",
+    "BadgeCore",
+    "chat"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "ChatCore.maxWatchedChannels",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ChatCore.failureRetryMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [
+    "badge"
+  ],
+  "enums": [],
+  "invariants": [],
+  "reserved": [
+    {
+      "table": "reserved_id",
+      "id": "[chat_badge]",
+      "requiredWhen": null,
+      "rowOf": "badge"
+    }
+  ],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "start",
+      "inputs": []
+    },
+    {
+      "name": "refresh_channels",
+      "inputs": []
+    },
+    {
+      "name": "get_channel_count",
+      "inputs": []
+    },
+    {
+      "name": "get_channel",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_unread_count",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "mark_read",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "watch_channel",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "unwatch_channel",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_message_count",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_message",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "has_older",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "load_older",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "send_message",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

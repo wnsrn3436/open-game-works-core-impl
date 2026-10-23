@@ -1,0 +1,168 @@
+{
+  "cases": [
+    {
+      "name": "two equal groups",
+      "input": {
+        "salt": "exp-salt-1",
+        "groups": [
+          {
+            "name": "A",
+            "weight": 1
+          },
+          {
+            "name": "B",
+            "weight": 1
+          }
+        ],
+        "user_ids": [
+          "1",
+          "2",
+          "3",
+          "42",
+          "10000",
+          "9007199254740993",
+          "9223372036854775807"
+        ]
+      },
+      "expected": {
+        "group_by_user": {
+          "1": "A",
+          "2": "A",
+          "3": "B",
+          "42": "B",
+          "10000": "B",
+          "9007199254740993": "A",
+          "9223372036854775807": "A"
+        },
+        "count_by_group": {
+          "A": 5130,
+          "B": 4870
+        }
+      }
+    },
+    {
+      "name": "three weighted groups",
+      "input": {
+        "salt": "button_color",
+        "groups": [
+          {
+            "name": "control",
+            "weight": 50
+          },
+          {
+            "name": "red",
+            "weight": 30
+          },
+          {
+            "name": "blue",
+            "weight": 20
+          }
+        ],
+        "user_ids": [
+          "1",
+          "7",
+          "100",
+          "5000",
+          "123456789012"
+        ]
+      },
+      "expected": {
+        "group_by_user": {
+          "1": "control",
+          "7": "control",
+          "100": "control",
+          "5000": "control",
+          "123456789012": "control"
+        },
+        "count_by_group": {
+          "control": 5030,
+          "red": 2992,
+          "blue": 1978
+        }
+      }
+    },
+    {
+      "name": "unicode salt and uneven weights",
+      "input": {
+        "salt": "한글 salt:2",
+        "groups": [
+          {
+            "name": "x",
+            "weight": 1
+          },
+          {
+            "name": "y",
+            "weight": 2
+          },
+          {
+            "name": "z",
+            "weight": 3
+          }
+        ],
+        "user_ids": [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5",
+          "6",
+          "7",
+          "8"
+        ]
+      },
+      "expected": {
+        "group_by_user": {
+          "1": "x",
+          "2": "z",
+          "3": "z",
+          "4": "y",
+          "5": "z",
+          "6": "x",
+          "7": "z",
+          "8": "z"
+        },
+        "count_by_group": {
+          "x": 1670,
+          "y": 3386,
+          "z": 4944
+        }
+      }
+    },
+    {
+      "name": "same groups other salt",
+      "input": {
+        "salt": "exp-salt-2",
+        "groups": [
+          {
+            "name": "A",
+            "weight": 1
+          },
+          {
+            "name": "B",
+            "weight": 1
+          }
+        ],
+        "user_ids": [
+          "1",
+          "2",
+          "3",
+          "42",
+          "10000"
+        ]
+      },
+      "expected": {
+        "group_by_user": {
+          "1": "B",
+          "2": "A",
+          "3": "A",
+          "42": "A",
+          "10000": "B"
+        },
+        "count_by_group": {
+          "A": 4941,
+          "B": 5059
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+,
+All,Client
+id(key),tstring<id>
+id,name
+[report_reason_spam],Spam
+[report_reason_abuse],Abusive language
+[report_spam],Spam

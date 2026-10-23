@@ -1,0 +1,74 @@
+{
+  "cases": [
+    {
+      "name": "past 2^53-1",
+      "input": {
+        "item": "[big_gold]",
+        "balance": "9007199254740991",
+        "amount": "10"
+      },
+      "expected": {
+        "outcome": "Applied",
+        "applied": "10",
+        "overflow": "0",
+        "result": "OK"
+      }
+    },
+    {
+      "name": "a big amount",
+      "input": {
+        "item": "[big_gold]",
+        "balance": "0",
+        "amount": "12345678901234567890"
+      },
+      "expected": {
+        "outcome": "Applied",
+        "applied": "12345678901234567890",
+        "overflow": "0",
+        "result": "OK"
+      }
+    },
+    {
+      "name": "Discard to 10^max_digits - 1",
+      "input": {
+        "item": "[big_gold]",
+        "balance": "99999999999999999990",
+        "amount": "25"
+      },
+      "expected": {
+        "outcome": "Discarded",
+        "applied": "9",
+        "overflow": "16",
+        "result": "OK"
+      }
+    },
+    {
+      "name": "Reject over 10^max_digits - 1",
+      "input": {
+        "item": "[big_gem]",
+        "balance": "999999999999999999999999999990",
+        "amount": "20"
+      },
+      "expected": {
+        "outcome": "Mailed",
+        "applied": "0",
+        "overflow": "0",
+        "result": "LIMIT_EXCEEDED"
+      }
+    },
+    {
+      "name": "a 30 digit amount",
+      "input": {
+        "item": "[big_gem]",
+        "balance": "5",
+        "amount": "123456789012345678901234567890"
+      },
+      "expected": {
+        "outcome": "Applied",
+        "applied": "123456789012345678901234567890",
+        "overflow": "0",
+        "result": "OK"
+      }
+    }
+  ]
+}

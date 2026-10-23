@@ -1,0 +1,8 @@
+syntax = "proto3";
+package game;
+
+// The benchmark progress of a user.
+message BenchUserState {
+  // Number of ticks the server recorded.
+  int64 tick_count = 1;
+}

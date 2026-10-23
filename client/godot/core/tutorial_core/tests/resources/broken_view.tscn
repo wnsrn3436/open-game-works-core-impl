@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/tutorial_core/tutorial_view.gd" id="1_view"]
+
+[node name="BrokenViewRoot" type="Node2D"]
+
+[node name="TutorialView" type="Node" parent="."]
+script = ExtResource("1_view")

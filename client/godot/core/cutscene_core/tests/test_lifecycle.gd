@@ -1,0 +1,187 @@
+extends "res://core/cutscene_core/tests/support/cutscene_test_case.gd"
+## Lifecycle: init check, release, init again, destruction of the core node outside release, and the cutscene root
+## before playback.
+
+
+func assert_initial_state() -> void:
+	assert_false(CutsceneCore._is_initialized)
+	assert_null(CutsceneCore._node)
+	assert_null(CutsceneCore._session)
+	assert_null(CutsceneCore._safe_root)
+	assert_null(CutsceneCore._root)
+	assert_eq(CutsceneCore._view_key, "")
+	assert_eq(CutsceneCore._typing_interval_ms, 0)
+	assert_eq(CutsceneCore._auto_delay_ms, 0)
+	assert_eq(CutsceneCore._fast_forward_delay_ms, 0)
+	assert_eq(CutsceneCore._history_max, 0)
+	assert_eq(CutsceneCore._actors.size(), 0)
+	assert_null(CutsceneCore._block_pass_list)
+	assert_null(CutsceneCore._tween_options)
+	assert_true(CutsceneCore._scope_listener.is_null())
+	assert_true(CutsceneCore._back_callable.is_null())
+	assert_true(CutsceneCore._camera_runner.is_null())
+	assert_true(CutsceneCore._effect_runner.is_null())
+	assert_true(CutsceneCore._popup_runner.is_null())
+	assert_true(CutsceneCore._history_runner.is_null())
+	assert_true(CutsceneCore._history_bind.is_null())
+	assert_eq(CutsceneCore._command_serial, 0)
+	assert_eq(CutsceneCore._play_serial, 0)
+	assert_eq(CutsceneCore._pause_serial, 0)
+	assert_false(CutsceneCore._playing)
+	assert_null(CutsceneCore._wait)
+	assert_eq(CutsceneCore._cutscene_id, 0)
+	assert_null(CutsceneCore._scope)
+	assert_null(CutsceneCore._args)
+	assert_true(CutsceneCore._skippable)
+	assert_eq(CutsceneCore._steps.size(), 0)
+	assert_eq(CutsceneCore._step_index.size(), 0)
+	assert_eq(CutsceneCore._textures.size(), 0)
+	assert_eq(CutsceneCore._scenes.size(), 0)
+	assert_eq(CutsceneCore._streams.size(), 0)
+	assert_eq(CutsceneCore._presets.size(), 0)
+	assert_null(CutsceneCore._view_root)
+	assert_null(CutsceneCore._view)
+	assert_eq(CutsceneCore._choice_buttons.size(), 0)
+	assert_eq(CutsceneCore._next, 0)
+	assert_eq(CutsceneCore._hold, CutsceneCore._HOLD_NONE)
+	assert_null(CutsceneCore._hold_command)
+	assert_false(CutsceneCore._ended)
+	assert_eq(CutsceneCore._commands.size(), 0)
+	assert_eq(CutsceneCore._staged.size(), 0)
+	assert_eq(CutsceneCore._loop_sounds.size(), 0)
+	assert_false(CutsceneCore._skipping)
+	assert_false(CutsceneCore._pending_bgm)
+	assert_eq(CutsceneCore._pending_bgm_key, "")
+	assert_eq(CutsceneCore._block_token, 0)
+	assert_eq(CutsceneCore._picked.size(), 0)
+	assert_false(CutsceneCore._auto_on)
+	assert_false(CutsceneCore._fast_forward_on)
+	assert_eq(CutsceneCore._last_advance_frame, -1)
+	assert_eq(CutsceneCore._last_skip_frame, -1)
+	assert_false(CutsceneCore._paused)
+	assert_false(CutsceneCore._paused_time)
+	assert_eq(CutsceneCore._pause_started_ms, 0)
+	assert_eq(CutsceneCore._paused_total_ms, 0)
+	assert_eq(CutsceneCore._history.size(), 0)
+	assert_false(CutsceneCore._history_open)
+	assert_eq(CutsceneCore._replay_handle, SoundCore.INVALID_HANDLE)
+	assert_eq(CutsceneCore._line_start_ms, 0)
+	assert_eq(CutsceneCore._line_total, 0)
+	assert_eq(CutsceneCore._line_visible, 0)
+	assert_eq(CutsceneCore._full_at_ms, -1)
+	assert_eq(CutsceneCore._voice_handle, SoundCore.INVALID_HANDLE)
+	assert_eq(CutsceneCore._voice_end_ms, -1)
+	assert_eq(CutsceneCore._auto_from_ms, 0)
+	assert_eq(CutsceneCore._fast_forward_from_ms, 0)
+	assert_eq(CutsceneCore._wait_ms, 0)
+	assert_false(CutsceneCore._wait_counting)
+	assert_eq(CutsceneCore._wait_start_ms, 0)
+	assert_eq(CutsceneCore._choice_rows.size(), 0)
+	assert_eq(CutsceneCore._choice_locked.size(), 0)
+	assert_eq(CutsceneCore._choice_step, 0)
+
+
+func _cutscene_safe_roots() -> int:
+	var count: int = 0
+	for child: Node in UICore.get_layer(UICore.UILayer.CUTSCENE).get_children():
+		if child is SafeAreaRoot and child.name == "CutsceneSafeArea":
+			count += 1
+	return count
+
+
+func test_is_initialized_before_init_after_init_and_after_release() -> void:
+	assert_true(await start(false))
+	assert_false(CutsceneCore.is_initialized())
+	assert_true(CutsceneCore.init())
+	assert_true(CutsceneCore.is_initialized())
+	CutsceneCore.release()
+	assert_false(CutsceneCore.is_initialized())
+	assert_eq(errors(), 0)
+
+
+func test_release_puts_every_static_var_back_and_removes_the_core_node() -> void:
+	assert_true(await start())
+	var call: PLAY = await play("[cut_line]")
+	assert_true(CutsceneCore.is_playing())
+	var node: Node = CutsceneCore._node
+	var safe_root: SafeAreaRoot = CutsceneCore._safe_root
+	assert_true(node.is_inside_tree())
+	CutsceneCore.release()
+	assert_initial_state()
+	assert_false(node.is_inside_tree())
+	assert_false(is_instance_valid(safe_root))
+	assert_true(call.done)
+	assert_eq(call.status(), CutsceneCore.CutsceneStatus.STOPPED)
+	assert_true(CutsceneCore.init())
+	assert_true(CutsceneCore.is_initialized())
+	assert_eq(errors(), 0)
+
+
+func test_operations_before_init_and_after_release_log_an_error_and_give_failure_values() -> void:
+	assert_true(await start(false))
+	var result: CutsceneResult = await CutsceneCore.play(id("[cut_line]"), scope)
+	assert_eq(result.status, CutsceneCore.CutsceneStatus.FAILED)
+	assert_eq(result.choices.size(), 0)
+	assert_false(CutsceneCore.is_playing())
+	var actor: Node2D = Node2D.new()
+	autofree(actor)
+	assert_false(CutsceneCore.register_actor("hero", actor))
+	CutsceneCore.unregister_actor("hero")
+	assert_eq(errors(), 4)
+	assert_true(CutsceneCore.init())
+	assert_false(CutsceneCore.init())
+	assert_eq(errors(), 1)
+	CutsceneCore.release()
+	assert_false(CutsceneCore.is_playing())
+	assert_eq(errors(), 1)
+
+
+func test_core_node_leaving_the_tree_outside_release_cleans_up_like_release() -> void:
+	assert_true(await start())
+	var call: PLAY = await play("[cut_line]")
+	var node: Node = CutsceneCore._node
+	node.get_parent().remove_child(node)
+	assert_initial_state()
+	assert_true(call.done)
+	assert_eq(call.status(), CutsceneCore.CutsceneStatus.STOPPED)
+	node.free()
+	await UnitTestCore.wait_frames(1)
+	assert_eq(_cutscene_safe_roots(), 0)
+	assert_true(CutsceneCore.init())
+	assert_eq(errors(), 0)
+
+
+func test_the_cutscene_root_is_hidden_under_the_cutscene_safe_area_root_and_lets_pointer_input_through() -> void:
+	assert_true(await start())
+	var layer: CanvasLayer = UICore.get_layer(UICore.UILayer.CUTSCENE)
+	assert_eq(_cutscene_safe_roots(), 1)
+	var cutscene_root: Control = root()
+	assert_true(cutscene_root.get_parent() is SafeAreaRoot)
+	assert_eq(cutscene_root.get_parent().get_parent(), layer)
+	assert_false(cutscene_root.visible)
+	assert_eq(cutscene_root.mouse_filter, Control.MOUSE_FILTER_STOP)
+	var clicked: Array[int] = [0]
+	var button: Button = Button.new()
+	button.position = Vector2(300, 300)
+	button.size = Vector2(200, 100)
+	button.pressed.connect(func() -> void: clicked[0] += 1)
+	UICore.get_layer(UICore.UILayer.PANEL).add_child(button)
+	autofree(button)
+	await UnitTestCore.wait_frames(1)
+	UnitTestCore.tap(button.get_global_rect().get_center())
+	await UnitTestCore.wait_frames(1)
+	assert_eq(clicked[0], 1, "the layer below takes the pointer input")
+	CutsceneCore.release()
+	assert_eq(_cutscene_safe_roots(), 0)
+	assert_eq(errors(), 0)
+
+
+func test_release_and_init_again_lets_the_old_actor_key_register() -> void:
+	assert_true(await start())
+	var other: Node2D = Node2D.new()
+	autofree(other)
+	add_child(other)
+	CutsceneCore.release()
+	assert_true(CutsceneCore.init())
+	assert_true(CutsceneCore.register_actor("hero", other))
+	assert_eq(errors(), 0)

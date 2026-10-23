@@ -1,0 +1,22 @@
+,,,
+All,None,None,All
+id(key),string,string,string
+id,target,data_type,value
+[validation_req_single],All,requirement,FlagA()
+[validation_req_all],All,requirement,FlagA() & FlagB() & FlagC()
+[validation_req_any],All,requirement,FlagA() | FlagB()
+[validation_req_nested],All,requirement,FlagA() & (FlagB() | FlagC())
+[validation_req_gold],Server,requirement,"ItemAtLeast([validation_gold], 5)"
+[validation_req_energy_3],Server,requirement,"ItemAtLeast([validation_energy], 3)"
+[validation_req_energy_4],Server,requirement,"ItemAtLeast([validation_energy], 4)"
+[validation_req_client],Client,requirement,ClientOnly()
+[tool_test_max],Client,int,50
+[tool_test_scale],All,float,1.25
+[tool_test_on],All,bool,true
+[tool_test_grade],All,enum<ToolTestGrade>,Gold
+[tool_test_cell],All,vector2<int>,"2,-3"
+[tool_test_list],All,array<int>,"4,5,6"
+[tool_test_words],All,array<string>,"a
+b"
+[tool_test_since],All,datetime,2026-01-02T03:04:05Z
+[tool_test_server],Server,int,1

@@ -1,0 +1,14 @@
+,,,,,,,
+All,Client,All,All,All,All,All,All
+id(key),tstring<id>,enum<AttendanceMode>,enum<ResetCycle>?,requirement,datetime?,datetime?,ref<live_event.id>?
+id,name,mode,reset,requirement,start_at,end_at,live_event
+[attendance_cycle],,Cycle,null,,null,null,null
+[attendance_once],,Once,null,,null,null,null
+[attendance_streak],,Streak,null,,null,null,null
+[attendance_monthly],,Once,Monthly,,null,null,null
+[attendance_event_once],,Once,null,,null,null,[attendance_event_long]
+[attendance_event_cycle],,Cycle,null,,null,null,[attendance_event_half]
+[attendance_window],,Cycle,null,,2027-03-02T00:00:00Z,2027-03-03T00:00:00Z,null
+[attendance_locked],,Cycle,null,FlagA(),null,null,null
+[attendance_gem_daily],,Cycle,null,,null,null,null
+[attendance_extra],,Cycle,null,,null,null,null

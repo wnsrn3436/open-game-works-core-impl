@@ -1,0 +1,208 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		C0661A0100000000000000A1 /* ogw_native_ui.mm in Sources */ = {isa = PBXBuildFile; fileRef = C0661A0100000000000000F1 /* ogw_native_ui.mm */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		C0661A0100000000000000F1 /* ogw_native_ui.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ogw_native_ui.mm; sourceTree = "<group>"; };
+		C0661A0100000000000000F2 /* ogw_native_ui.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ogw_native_ui.h; sourceTree = "<group>"; };
+		C0661A0100000000000000F3 /* libogw-native-ui.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libogw-native-ui.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C0661A0100000000000000B1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		C0661A0100000000000000D1 = {
+			isa = PBXGroup;
+			children = (
+				C0661A0100000000000000D2 /* src */,
+				C0661A0100000000000000D3 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C0661A0100000000000000D2 /* src */ = {
+			isa = PBXGroup;
+			children = (
+				C0661A0100000000000000F2 /* ogw_native_ui.h */,
+				C0661A0100000000000000F1 /* ogw_native_ui.mm */,
+			);
+			path = src;
+			sourceTree = "<group>";
+		};
+		C0661A0100000000000000D3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C0661A0100000000000000F3 /* libogw-native-ui.a */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C0661A0100000000000000E1 /* ogw-native-ui */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0661A0100000000000000B3 /* Build configuration list for PBXNativeTarget "ogw-native-ui" */;
+			buildPhases = (
+				C0661A0100000000000000A2 /* Sources */,
+				C0661A0100000000000000B1 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "ogw-native-ui";
+			productName = "ogw-native-ui";
+			productReference = C0661A0100000000000000F3 /* libogw-native-ui.a */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C0661A01000000000000009F /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1500;
+			};
+			buildConfigurationList = C0661A0100000000000000B2 /* Build configuration list for PBXProject "ogw-native-ui" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = C0661A0100000000000000D1;
+			productRefGroup = C0661A0100000000000000D3 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				C0661A0100000000000000E1 /* ogw-native-ui */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		C0661A0100000000000000A2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C0661A0100000000000000A1 /* ogw_native_ui.mm in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		C0661A0100000000000000C1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				GCC_OPTIMIZATION_LEVEL = s;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(GODOT_DEFINES)",
+					DEBUG_ENABLED,
+					NDEBUG,
+				);
+				HEADER_SEARCH_PATHS = (
+					"$(GODOT_SOURCE_DIR)",
+					"$(GODOT_SOURCE_DIR)/platform/ios",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(OTHER_CFLAGS)",
+					"-fno-exceptions",
+				);
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+			};
+			name = Debug;
+		};
+		C0661A0100000000000000C2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
+				CLANG_ENABLE_OBJC_ARC = YES;
+				GCC_OPTIMIZATION_LEVEL = s;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(GODOT_DEFINES)",
+					NDEBUG,
+				);
+				HEADER_SEARCH_PATHS = (
+					"$(GODOT_SOURCE_DIR)",
+					"$(GODOT_SOURCE_DIR)/platform/ios",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				OTHER_CPLUSPLUSFLAGS = (
+					"$(OTHER_CFLAGS)",
+					"-fno-exceptions",
+				);
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+			};
+			name = Release;
+		};
+		C0661A0100000000000000C3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = NO;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)";
+			};
+			name = Debug;
+		};
+		C0661A0100000000000000C4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = NO;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		C0661A0100000000000000B2 /* Build configuration list for PBXProject "ogw-native-ui" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0661A0100000000000000C1 /* Debug */,
+				C0661A0100000000000000C2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C0661A0100000000000000B3 /* Build configuration list for PBXNativeTarget "ogw-native-ui" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0661A0100000000000000C3 /* Debug */,
+				C0661A0100000000000000C4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = C0661A01000000000000009F /* Project object */;
+}

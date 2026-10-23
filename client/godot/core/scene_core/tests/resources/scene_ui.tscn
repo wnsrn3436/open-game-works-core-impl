@@ -1,0 +1,28 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/scene_core/tests/support/scene_stub.gd" id="1_scene"]
+
+[node name="SceneUI" type="Node" node_paths=PackedStringArray("probe", "ui_root")]
+script = ExtResource("1_scene")
+probe = NodePath("Probe")
+ui_root = NodePath("UI")
+
+[node name="Probe" type="Node2D" parent="."]
+
+[node name="Layer" type="CanvasLayer" parent="."]
+
+[node name="Label" type="Label" parent="Layer"]
+
+[node name="Spatial" type="Node3D" parent="."]
+
+[node name="UI" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Label" type="Label" parent="UI"]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+text = "UI"

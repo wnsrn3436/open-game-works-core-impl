@@ -1,0 +1,157 @@
+{
+  "name": "coupon",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "item-ledger",
+    "mailbox",
+    "storage",
+    "server-time",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "coupon.codeAlphabet",
+      "type": "string",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "coupon.minCodeLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "coupon.maxCodeLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "coupon.generatedCodeLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "coupon.maxCodeInputBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "coupon.maxBatchCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "coupon.maxRewardItems",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "mailbox.maxAttachments",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "coupon.attemptWindowMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "coupon.maxAttemptsPerWindow",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [
+    {
+      "left": "coupon.minCodeLength",
+      "factor": 1,
+      "right": "coupon.generatedCodeLength"
+    },
+    {
+      "left": "coupon.maxCodeLength",
+      "factor": 1,
+      "right": "coupon.maxCodeInputBytes"
+    },
+    {
+      "left": "coupon.generatedCodeLength",
+      "factor": 1,
+      "right": "coupon.maxCodeLength"
+    }
+  ],
+  "tables": [],
+  "usedTables": [
+    "mail_template"
+  ],
+  "enums": [],
+  "invariants": [],
+  "reserved": [
+    {
+      "table": "reserved_id",
+      "id": "[coupon_reward_mail]",
+      "requiredWhen": null,
+      "rowOf": "mail_template"
+    }
+  ],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "count_redeem_attempt",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "create_coupon",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_coupon",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "list_coupon_codes",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "disable_coupon",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

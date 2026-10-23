@@ -1,0 +1,132 @@
+{
+  "name": "shop",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "item-ledger",
+    "mailbox",
+    "live-event",
+    "offer",
+    "validation",
+    "storage",
+    "server-time",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "shop_product",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "name"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "array<{item_id: ref<item.id>, amount: long}>",
+          "name": "cost"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "array<{item_id: ref<item.id>, amount: long}>",
+          "name": "reward"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "bool",
+          "name": "extra_grant"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int",
+          "name": "max_quantity"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int?",
+          "name": "limit_count"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<ResetCycle>?",
+          "name": "reset"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "datetime?",
+          "name": "start_at"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "datetime?",
+          "name": "end_at"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<live_event.id>?",
+          "name": "live_event"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "requirement",
+          "name": "requirement"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<offer.id>?",
+          "name": "offer"
+        }
+      ]
+    }
+  ],
+  "usedTables": [
+    "item",
+    "live_event",
+    "offer",
+    "mail_template"
+  ],
+  "enums": [],
+  "invariants": [],
+  "reserved": [
+    {
+      "table": "reserved_id",
+      "id": "[shop_grant_mail]",
+      "requiredWhen": null,
+      "rowOf": "mail_template"
+    }
+  ],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "get_purchase_count",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

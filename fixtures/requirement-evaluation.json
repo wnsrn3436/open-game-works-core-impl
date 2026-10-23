@@ -1,0 +1,64 @@
+{
+  "cases": [
+    {
+      "name": "zero",
+      "input": { "requirement": 0, "user_state": [], "judge": {} },
+      "expected": { "passed": true, "failed_requirement_id": 0 }
+    },
+    {
+      "name": "single_pass",
+      "input": { "requirement": "[req__game_setting__value__validation_req_single__1]", "user_state": [], "judge": { "FlagA": true } },
+      "expected": { "passed": true, "failed_requirement_id": 0 }
+    },
+    {
+      "name": "single_fail",
+      "input": { "requirement": "[req__game_setting__value__validation_req_single__1]", "user_state": [], "judge": { "FlagA": false } },
+      "expected": { "passed": false, "failed_requirement_id": "[req__game_setting__value__validation_req_single__1]" }
+    },
+    {
+      "name": "all_pass",
+      "input": { "requirement": "[req__game_setting__value__validation_req_all__1]", "user_state": [], "judge": { "FlagA": true, "FlagB": true, "FlagC": true } },
+      "expected": { "passed": true, "failed_requirement_id": 0 }
+    },
+    {
+      "name": "all_first_fails",
+      "input": { "requirement": "[req__game_setting__value__validation_req_all__1]", "user_state": [], "judge": { "FlagA": false, "FlagB": true, "FlagC": true } },
+      "expected": { "passed": false, "failed_requirement_id": "[req__game_setting__value__validation_req_all__2]" }
+    },
+    {
+      "name": "all_second_fails",
+      "input": { "requirement": "[req__game_setting__value__validation_req_all__1]", "user_state": [], "judge": { "FlagA": true, "FlagB": false, "FlagC": false } },
+      "expected": { "passed": false, "failed_requirement_id": "[req__game_setting__value__validation_req_all__3]" }
+    },
+    {
+      "name": "any_first_passes",
+      "input": { "requirement": "[req__game_setting__value__validation_req_any__1]", "user_state": [], "judge": { "FlagA": true, "FlagB": false } },
+      "expected": { "passed": true, "failed_requirement_id": 0 }
+    },
+    {
+      "name": "any_second_passes",
+      "input": { "requirement": "[req__game_setting__value__validation_req_any__1]", "user_state": [], "judge": { "FlagA": false, "FlagB": true } },
+      "expected": { "passed": true, "failed_requirement_id": 0 }
+    },
+    {
+      "name": "any_none_passes",
+      "input": { "requirement": "[req__game_setting__value__validation_req_any__1]", "user_state": [], "judge": { "FlagA": false, "FlagB": false } },
+      "expected": { "passed": false, "failed_requirement_id": "[req__game_setting__value__validation_req_any__2]" }
+    },
+    {
+      "name": "nested_pass",
+      "input": { "requirement": "[req__game_setting__value__validation_req_nested__1]", "user_state": [], "judge": { "FlagA": true, "FlagB": false, "FlagC": true } },
+      "expected": { "passed": true, "failed_requirement_id": 0 }
+    },
+    {
+      "name": "nested_first_fails",
+      "input": { "requirement": "[req__game_setting__value__validation_req_nested__1]", "user_state": [], "judge": { "FlagA": false, "FlagB": true, "FlagC": true } },
+      "expected": { "passed": false, "failed_requirement_id": "[req__game_setting__value__validation_req_nested__2]" }
+    },
+    {
+      "name": "nested_inner_fails",
+      "input": { "requirement": "[req__game_setting__value__validation_req_nested__1]", "user_state": [], "judge": { "FlagA": true, "FlagB": false, "FlagC": false } },
+      "expected": { "passed": false, "failed_requirement_id": "[req__game_setting__value__validation_req_nested__4]" }
+    }
+  ]
+}

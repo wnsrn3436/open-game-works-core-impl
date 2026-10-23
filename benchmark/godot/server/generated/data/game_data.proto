@@ -1,0 +1,794 @@
+syntax = "proto3";
+package ogw.data;
+import "ogw/core.proto";
+
+enum AdType {
+  AD_TYPE_NONE = 0;
+  AD_TYPE_REWARDED = 1;
+  AD_TYPE_INTERSTITIAL = 2;
+  AD_TYPE_BANNER = 3;
+}
+
+enum AttendanceMode {
+  ATTENDANCE_MODE_NONE = 0;
+  ATTENDANCE_MODE_CYCLE = 1;
+  ATTENDANCE_MODE_ONCE = 2;
+  ATTENDANCE_MODE_STREAK = 3;
+}
+
+enum BadgeDisplay {
+  BADGE_DISPLAY_NONE = 0;
+  BADGE_DISPLAY_DOT = 1;
+  BADGE_DISPLAY_COUNT = 2;
+}
+
+enum BannedWordMatch {
+  BANNED_WORD_MATCH_NONE = 0;
+  BANNED_WORD_MATCH_CONTAINS = 1;
+  BANNED_WORD_MATCH_EXACT = 2;
+}
+
+enum CutsceneCommand {
+  CUTSCENE_COMMAND_NONE = 0;
+  CUTSCENE_COMMAND_LINE = 1;
+  CUTSCENE_COMMAND_CHOICE = 2;
+  CUTSCENE_COMMAND_WAIT = 3;
+  CUTSCENE_COMMAND_MOVE = 4;
+  CUTSCENE_COMMAND_ANIMATE = 5;
+  CUTSCENE_COMMAND_CAMERA = 6;
+  CUTSCENE_COMMAND_SOUND = 7;
+  CUTSCENE_COMMAND_BGM = 8;
+  CUTSCENE_COMMAND_SCREEN_EFFECT = 9;
+  CUTSCENE_COMMAND_STAGING = 10;
+  CUTSCENE_COMMAND_CUE = 11;
+  CUTSCENE_COMMAND_JUMP = 12;
+  CUTSCENE_COMMAND_END = 13;
+  CUTSCENE_COMMAND_BRANCH = 14;
+}
+
+enum CutsceneCue {
+  CUTSCENE_CUE_NONE = 0;
+}
+
+enum IapProductType {
+  IAP_PRODUCT_TYPE_NONE = 0;
+  IAP_PRODUCT_TYPE_CONSUMABLE = 1;
+  IAP_PRODUCT_TYPE_NON_CONSUMABLE = 2;
+  IAP_PRODUCT_TYPE_SUBSCRIPTION = 3;
+}
+
+enum InputPromptFamily {
+  INPUT_PROMPT_FAMILY_NONE = 0;
+  INPUT_PROMPT_FAMILY_TOUCH = 1;
+  INPUT_PROMPT_FAMILY_KEYBOARD_MOUSE = 2;
+  INPUT_PROMPT_FAMILY_GENERIC = 3;
+  INPUT_PROMPT_FAMILY_XBOX = 4;
+  INPUT_PROMPT_FAMILY_PLAY_STATION = 5;
+  INPUT_PROMPT_FAMILY_NINTENDO = 6;
+}
+
+enum ItemOverflow {
+  ITEM_OVERFLOW_NONE = 0;
+  ITEM_OVERFLOW_REJECT = 1;
+  ITEM_OVERFLOW_DISCARD = 2;
+  ITEM_OVERFLOW_CONVERT = 3;
+}
+
+enum ItemType {
+  ITEM_TYPE_NONE = 0;
+  ITEM_TYPE_CURRENCY = 1;
+  ITEM_TYPE_GOODS = 2;
+}
+
+enum LootEntryKind {
+  LOOT_ENTRY_KIND_NONE = 0;
+  LOOT_ENTRY_KIND_WEIGHTED = 1;
+  LOOT_ENTRY_KIND_GUARANTEED = 2;
+}
+
+enum MatchResultRule {
+  MATCH_RESULT_RULE_NONE = 0;
+  MATCH_RESULT_RULE_CONSENSUS = 1;
+  MATCH_RESULT_RULE_MAJORITY = 2;
+  MATCH_RESULT_RULE_SERVER_REPLAY = 3;
+}
+
+enum MissionCounterMode {
+  MISSION_COUNTER_MODE_NONE = 0;
+  MISSION_COUNTER_MODE_SUM = 1;
+  MISSION_COUNTER_MODE_MAX = 2;
+}
+
+enum PushKind {
+  PUSH_KIND_NONE = 0;
+  PUSH_KIND_INFO = 1;
+  PUSH_KIND_AD = 2;
+}
+
+enum RankingEntity {
+  RANKING_ENTITY_NONE = 0;
+  RANKING_ENTITY_USER = 1;
+  RANKING_ENTITY_GUILD = 2;
+}
+
+enum RankingOrder {
+  RANKING_ORDER_NONE = 0;
+  RANKING_ORDER_DESC = 1;
+  RANKING_ORDER_ASC = 2;
+}
+
+enum RankingUpdateMode {
+  RANKING_UPDATE_MODE_NONE = 0;
+  RANKING_UPDATE_MODE_BEST = 1;
+  RANKING_UPDATE_MODE_SUM = 2;
+  RANKING_UPDATE_MODE_SET = 3;
+}
+
+enum RemoteConfigType {
+  REMOTE_CONFIG_TYPE_NONE = 0;
+  REMOTE_CONFIG_TYPE_BOOL = 1;
+  REMOTE_CONFIG_TYPE_INT = 2;
+  REMOTE_CONFIG_TYPE_STRING = 3;
+}
+
+enum RequirementLogic {
+  REQUIREMENT_LOGIC_NONE = 0;
+  REQUIREMENT_LOGIC_ALL = 1;
+  REQUIREMENT_LOGIC_ANY = 2;
+}
+
+enum RequirementType {
+  REQUIREMENT_TYPE_NONE = 0;
+}
+
+enum ResetCycle {
+  RESET_CYCLE_NONE = 0;
+  RESET_CYCLE_DAILY = 1;
+  RESET_CYCLE_WEEKLY = 2;
+  RESET_CYCLE_MONTHLY = 3;
+}
+
+enum ShortcutStack {
+  SHORTCUT_STACK_NONE = 0;
+  SHORTCUT_STACK_ROOT = 1;
+  SHORTCUT_STACK_TOP = 2;
+}
+
+enum TutorialComplete {
+  TUTORIAL_COMPLETE_NONE = 0;
+  TUTORIAL_COMPLETE_ADVANCE = 1;
+  TUTORIAL_COMPLETE_ANCHOR_TAP = 2;
+  TUTORIAL_COMPLETE_REQUIREMENT = 3;
+  TUTORIAL_COMPLETE_CUE = 4;
+}
+
+enum TutorialCue {
+  TUTORIAL_CUE_NONE = 0;
+}
+
+message Vector2Int {
+  int32 x = 1;
+  int32 y = 2;
+}
+
+message Vector3Int {
+  int32 x = 1;
+  int32 y = 2;
+  int32 z = 3;
+}
+
+message Vector4Int {
+  int32 x = 1;
+  int32 y = 2;
+  int32 z = 3;
+  int32 w = 4;
+}
+
+message Vector2 {
+  float x = 1;
+  float y = 2;
+}
+
+message Vector3 {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+}
+
+message Vector4 {
+  float x = 1;
+  float y = 2;
+  float z = 3;
+  float w = 4;
+}
+
+message Translation {
+  repeated TranslationEntry entries = 1;
+}
+
+message TranslationEntry {
+  string key = 1;
+  string text = 2;
+}
+
+message TableNames {
+  bool ad_placement = 1;
+  bool attendance_calendar = 2;
+  bool attendance_reward = 3;
+  bool badge = 4;
+  bool banned_word = 5;
+  bool cutscene_choice = 6;
+  bool cutscene_speaker = 7;
+  bool cutscene_step = 8;
+  bool experiment = 9;
+  bool gacha_banner = 10;
+  bool game_setting = 11;
+  bool iap_product = 12;
+  bool input_prompt = 13;
+  bool item = 14;
+  bool item_big = 15;
+  bool item_group = 16;
+  bool item_overflow = 17;
+  bool item_recovery = 18;
+  bool item_timed = 19;
+  bool language = 20;
+  bool live_event = 21;
+  bool local_push = 22;
+  bool loot_table = 23;
+  bool mail_template = 24;
+  bool match_mode = 25;
+  bool mission = 26;
+  bool mission_counter = 27;
+  bool nickname_cost = 28;
+  bool offer = 29;
+  bool play_session_mode = 30;
+  bool public_loot_table = 31;
+  bool push_message = 32;
+  bool ranking_board = 33;
+  bool ranking_reward = 34;
+  bool rating_rule = 35;
+  bool rating_tier = 36;
+  bool remote_config_key = 37;
+  bool report_reason = 38;
+  bool requirement = 39;
+  bool reserved_id = 40;
+  bool reserved_sound = 41;
+  bool reserved_string = 42;
+  bool reset_counter = 43;
+  bool shop_product = 44;
+  bool shortcut = 45;
+  bool tutorial = 46;
+  bool tutorial_step = 47;
+}
+
+message AdPlacementRow {
+  int32 id = 1;
+  AdType type = 2;
+  repeated ogw.core.ItemAmount reward = 3;
+  bool extra_grant = 4;
+  int32 limit_count = 5;
+  ResetCycle reset = 6;
+}
+
+message AdPlacementTable {
+  repeated AdPlacementRow rows = 1;
+}
+
+message AttendanceCalendarRow {
+  int32 id = 1;
+  AttendanceMode mode = 2;
+  ResetCycle reset = 3;
+  int32 requirement = 4;
+  int64 start_at = 5;
+  int64 end_at = 6;
+  int32 live_event = 7;
+}
+
+message AttendanceCalendarTable {
+  repeated AttendanceCalendarRow rows = 1;
+}
+
+message AttendanceRewardRow {
+  int32 id = 1;
+  int32 day = 2;
+  repeated ogw.core.ItemAmount reward = 3;
+  bool extra_grant = 4;
+}
+
+message AttendanceRewardTable {
+  repeated AttendanceRewardRow rows = 1;
+}
+
+message BadgeRow {
+  int32 id = 1;
+}
+
+message BadgeTable {
+  repeated BadgeRow rows = 1;
+}
+
+message BannedWordRow {
+  int32 id = 1;
+  string word = 2;
+  BannedWordMatch match = 3;
+}
+
+message BannedWordTable {
+  repeated BannedWordRow rows = 1;
+}
+
+message CutsceneChoiceRow {
+  int32 id = 1;
+}
+
+message CutsceneChoiceTable {
+  repeated CutsceneChoiceRow rows = 1;
+}
+
+message CutsceneSpeakerRow {
+  int32 id = 1;
+}
+
+message CutsceneSpeakerTable {
+  repeated CutsceneSpeakerRow rows = 1;
+}
+
+message CutsceneStepRow {
+  int32 id = 1;
+}
+
+message CutsceneStepTable {
+  repeated CutsceneStepRow rows = 1;
+}
+
+message ExperimentRow {
+  int32 id = 1;
+}
+
+message ExperimentTable {
+  repeated ExperimentRow rows = 1;
+}
+
+message GachaBannerRow {
+  int32 id = 1;
+  int32 loot_table = 2;
+  repeated ogw.core.ItemAmount single_cost = 3;
+  int32 multi_count = 4;
+  repeated ogw.core.ItemAmount multi_cost = 5;
+  int32 multi_guaranteed_table = 6;
+  int32 ticket_item = 7;
+  int32 pity_count = 8;
+  int32 pity_table = 9;
+  int32 rate_up_table = 10;
+  bool rate_up_guarantee = 11;
+  int32 pity_banner = 12;
+  int64 start_at = 13;
+  int64 end_at = 14;
+  int32 live_event = 15;
+  int32 requirement = 16;
+}
+
+message GachaBannerTable {
+  repeated GachaBannerRow rows = 1;
+}
+
+message GameSettingRow {
+  int32 id = 1;
+  string value = 2;
+}
+
+message GameSettingTable {
+  repeated GameSettingRow rows = 1;
+}
+
+message IapProductRow {
+  int32 id = 1;
+  IapProductType type = 2;
+  string sku_apple = 3;
+  string sku_google = 4;
+  repeated ogw.core.ItemAmount reward = 5;
+  repeated ogw.core.ItemAmount daily_reward = 6;
+  bool extra_grant = 7;
+  int32 limit_count = 8;
+  ResetCycle reset = 9;
+  int32 pass_days = 10;
+  int32 requirement = 11;
+  int64 start_at = 12;
+  int64 end_at = 13;
+  int32 live_event = 14;
+  int32 offer = 15;
+  int64 spend_amount = 16;
+}
+
+message IapProductTable {
+  repeated IapProductRow rows = 1;
+}
+
+message InputPromptRow {
+  int32 id = 1;
+}
+
+message InputPromptTable {
+  repeated InputPromptRow rows = 1;
+}
+
+message ItemRow {
+  int32 id = 1;
+  ItemType type = 2;
+  int64 max_amount = 3;
+  ItemOverflow overflow = 4;
+}
+
+message ItemTable {
+  repeated ItemRow rows = 1;
+}
+
+message ItemBigRow {
+  int32 id = 1;
+  int32 max_digits = 2;
+}
+
+message ItemBigTable {
+  repeated ItemBigRow rows = 1;
+}
+
+message ItemGroupRow {
+  int32 id = 1;
+  repeated int32 members = 2;
+}
+
+message ItemGroupTable {
+  repeated ItemGroupRow rows = 1;
+}
+
+message ItemOverflowRow {
+  int32 id = 1;
+  repeated ogw.core.ItemAmount convert_to = 2;
+}
+
+message ItemOverflowTable {
+  repeated ItemOverflowRow rows = 1;
+}
+
+message ItemRecoveryRow {
+  int32 id = 1;
+  int64 recovery_interval = 2;
+  int64 recovery_amount = 3;
+  int64 recovery_cap = 4;
+  int32 cap_bonus_item = 5;
+  int64 initial_amount = 6;
+}
+
+message ItemRecoveryTable {
+  repeated ItemRecoveryRow rows = 1;
+}
+
+message ItemTimedRow {
+  int32 id = 1;
+  int64 duration = 2;
+}
+
+message ItemTimedTable {
+  repeated ItemTimedRow rows = 1;
+}
+
+message LanguageRow {
+  int32 id = 1;
+  string code = 2;
+}
+
+message LanguageTable {
+  repeated LanguageRow rows = 1;
+}
+
+message LiveEventRow {
+  int32 id = 1;
+  int64 start_at = 2;
+  int64 end_at = 3;
+  int64 repeat = 4;
+  int64 repeat_until = 5;
+  bool settle = 6;
+}
+
+message LiveEventTable {
+  repeated LiveEventRow rows = 1;
+}
+
+message LocalPushRow {
+  int32 id = 1;
+}
+
+message LocalPushTable {
+  repeated LocalPushRow rows = 1;
+}
+
+message LootTableRow {
+  int32 id = 1;
+  int32 order = 2;
+  LootEntryKind kind = 3;
+  int32 weight = 4;
+  repeated ogw.core.ItemAmount items = 5;
+  int32 table = 6;
+}
+
+message LootTableTable {
+  repeated LootTableRow rows = 1;
+}
+
+message MailTemplateRow {
+  int32 id = 1;
+}
+
+message MailTemplateTable {
+  repeated MailTemplateRow rows = 1;
+}
+
+message MatchModeRow {
+  int32 id = 1;
+  int32 min_players = 2;
+  int32 max_players = 3;
+  int64 match_wait = 4;
+  int64 prepare_time = 5;
+  int64 max_duration = 6;
+  MatchResultRule result_rule = 7;
+  int64 rating_spread = 8;
+  int64 rating_spread_per_sec = 9;
+  int32 max_party_size = 10;
+  int32 team_size = 11;
+  int32 rating_rule = 12;
+  bool allow_queue = 13;
+  bool allow_room = 14;
+}
+
+message MatchModeTable {
+  repeated MatchModeRow rows = 1;
+}
+
+message MissionRow {
+  int32 id = 1;
+  int32 counter = 2;
+  int64 target = 3;
+  ResetCycle reset = 4;
+  int32 requirement = 5;
+  repeated ogw.core.ItemAmount reward = 6;
+  bool extra_grant = 7;
+  int64 start_at = 8;
+  int64 end_at = 9;
+  int32 live_event = 10;
+}
+
+message MissionTable {
+  repeated MissionRow rows = 1;
+}
+
+message MissionCounterRow {
+  int32 id = 1;
+  MissionCounterMode mode = 2;
+}
+
+message MissionCounterTable {
+  repeated MissionCounterRow rows = 1;
+}
+
+message NicknameCostRow {
+  int32 id = 1;
+  int32 change_number = 2;
+  repeated ogw.core.ItemAmount cost = 3;
+}
+
+message NicknameCostTable {
+  repeated NicknameCostRow rows = 1;
+}
+
+message OfferRow {
+  int32 id = 1;
+  int64 duration = 2;
+  int64 cooldown = 3;
+  int32 max_triggers = 4;
+  int32 requirement = 5;
+  int64 start_at = 6;
+  int64 end_at = 7;
+  int32 live_event = 8;
+}
+
+message OfferTable {
+  repeated OfferRow rows = 1;
+}
+
+message PlaySessionModeRow {
+  int32 id = 1;
+  int64 min_duration = 2;
+  int64 max_duration = 3;
+  int32 max_continue_count = 4;
+}
+
+message PlaySessionModeTable {
+  repeated PlaySessionModeRow rows = 1;
+}
+
+message PublicLootTableRow {
+  int32 id = 1;
+}
+
+message PublicLootTableTable {
+  repeated PublicLootTableRow rows = 1;
+}
+
+message PushMessageRow {
+  int32 id = 1;
+  string title = 2;
+  string body = 3;
+  PushKind kind = 4;
+}
+
+message PushMessageTable {
+  repeated PushMessageRow rows = 1;
+}
+
+message RankingBoardRow {
+  int32 id = 1;
+  RankingOrder sort_direction = 2;
+  RankingUpdateMode update_mode = 3;
+  RankingEntity entity = 4;
+  ResetCycle cycle = 5;
+  int32 live_event = 6;
+  int32 size = 7;
+  int32 reward_mail = 8;
+}
+
+message RankingBoardTable {
+  repeated RankingBoardRow rows = 1;
+}
+
+message RankingRewardRow {
+  int32 id = 1;
+  int32 rank_from = 2;
+  int32 rank_to = 3;
+  repeated ogw.core.ItemAmount reward = 4;
+}
+
+message RankingRewardTable {
+  repeated RankingRewardRow rows = 1;
+}
+
+message RatingRuleRow {
+  int32 id = 1;
+  int64 initial_rating = 2;
+  int64 min_rating = 3;
+  int64 scale = 4;
+  int32 k_factor = 5;
+  int32 placement_k_factor = 6;
+  int32 placement_matches = 7;
+  int32 season_board = 8;
+  int64 soft_reset_target = 9;
+  int32 soft_reset_permille = 10;
+  int32 reward_mail = 11;
+  int32 reward_min_games = 12;
+}
+
+message RatingRuleTable {
+  repeated RatingRuleRow rows = 1;
+}
+
+message RatingTierRow {
+  int32 id = 1;
+  int32 rule = 2;
+  int64 min_rating = 3;
+  repeated ogw.core.ItemAmount season_reward = 4;
+}
+
+message RatingTierTable {
+  repeated RatingTierRow rows = 1;
+}
+
+message RemoteConfigKeyRow {
+  int32 id = 1;
+  RemoteConfigType type = 2;
+  string default_value = 3;
+  bool client = 4;
+}
+
+message RemoteConfigKeyTable {
+  repeated RemoteConfigKeyRow rows = 1;
+}
+
+message ReportReasonRow {
+  int32 id = 1;
+}
+
+message ReportReasonTable {
+  repeated ReportReasonRow rows = 1;
+}
+
+message RequirementRow {
+  int32 id = 1;
+  RequirementType type = 2;
+  int32 target_id = 3;
+  int64 value = 4;
+  repeated int32 children = 5;
+  RequirementLogic logic = 6;
+}
+
+message RequirementTable {
+  repeated RequirementRow rows = 1;
+}
+
+message ReservedIdRow {
+  int32 id = 1;
+  string value = 2;
+}
+
+message ReservedIdTable {
+  repeated ReservedIdRow rows = 1;
+}
+
+message ReservedSoundRow {
+  int32 id = 1;
+}
+
+message ReservedSoundTable {
+  repeated ReservedSoundRow rows = 1;
+}
+
+message ReservedStringRow {
+  int32 id = 1;
+  string text = 2;
+}
+
+message ReservedStringTable {
+  repeated ReservedStringRow rows = 1;
+}
+
+message ResetCounterRow {
+  int32 id = 1;
+  int64 limit = 2;
+  ResetCycle reset = 3;
+}
+
+message ResetCounterTable {
+  repeated ResetCounterRow rows = 1;
+}
+
+message ShopProductRow {
+  int32 id = 1;
+  repeated ogw.core.ItemAmount cost = 2;
+  repeated ogw.core.ItemAmount reward = 3;
+  bool extra_grant = 4;
+  int32 max_quantity = 5;
+  int32 limit_count = 6;
+  ResetCycle reset = 7;
+  int64 start_at = 8;
+  int64 end_at = 9;
+  int32 live_event = 10;
+  int32 requirement = 11;
+  int32 offer = 12;
+}
+
+message ShopProductTable {
+  repeated ShopProductRow rows = 1;
+}
+
+message ShortcutRow {
+  int32 id = 1;
+}
+
+message ShortcutTable {
+  repeated ShortcutRow rows = 1;
+}
+
+message TutorialRow {
+  int32 id = 1;
+}
+
+message TutorialTable {
+  repeated TutorialRow rows = 1;
+}
+
+message TutorialStepRow {
+  int32 id = 1;
+  int32 step = 2;
+}
+
+message TutorialStepTable {
+  repeated TutorialStepRow rows = 1;
+}

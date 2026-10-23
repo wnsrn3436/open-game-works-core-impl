@@ -1,0 +1,8 @@
+syntax = "proto3";
+package game;
+
+enum GameError {
+  GAME_ERROR_UNSPECIFIED = 0;
+  // The failure a server core test handler or hook returns.
+  GAME_ERROR_CORE_TEST = 1000;
+}

@@ -1,0 +1,171 @@
+{
+  "name": "TimeCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "UtilCore",
+    "LogCore",
+    "EventCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "TimeCore.reachMarginMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "TimeCore.jumpThresholdMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "dailyResetOffsetMs",
+      "type": "integer",
+      "source": "game",
+      "owner": "none"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "sync_server_time",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_synced",
+      "inputs": []
+    },
+    {
+      "name": "get_server_time",
+      "inputs": []
+    },
+    {
+      "name": "get_device_time",
+      "inputs": []
+    },
+    {
+      "name": "get_monotonic_time",
+      "inputs": []
+    },
+    {
+      "name": "is_reached",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_before_end",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_remaining_ms",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_day_start",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_next_day_boundary",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_same_day",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_current_day",
+      "inputs": []
+    },
+    {
+      "name": "get_day_number",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_period_start",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_next_reset",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_game_time",
+      "inputs": []
+    },
+    {
+      "name": "get_game_frame_ms",
+      "inputs": []
+    },
+    {
+      "name": "get_real_time",
+      "inputs": []
+    },
+    {
+      "name": "get_real_frame_ms",
+      "inputs": []
+    },
+    {
+      "name": "set_time_scale",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_time_scale",
+      "inputs": []
+    },
+    {
+      "name": "set_paused",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_paused",
+      "inputs": []
+    },
+    {
+      "name": "get_resume_count",
+      "inputs": []
+    },
+    {
+      "name": "get_last_background_ms",
+      "inputs": []
+    }
+  ]
+}

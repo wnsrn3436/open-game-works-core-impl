@@ -1,0 +1,412 @@
+{
+  "steps": [
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "path": "telemetry.goal_intervals",
+        "op": "count_gte",
+        "value": 1
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "save",
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "setup",
+      "command": "force_network_failure",
+      "args": [
+        "connection_failed"
+      ],
+      "timeoutMs": 10000
+    },
+    {
+      "kind": "setup",
+      "command": "force_network_failure",
+      "args": [
+        "none"
+      ],
+      "timeoutMs": 10000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "all": [
+          {
+            "path": "state.scene_key",
+            "op": "eq",
+            "value": "scene/bench/arena"
+          },
+          {
+            "path": "state.popups",
+            "op": "count_gte",
+            "value": 1
+          }
+        ]
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "path": "telemetry.goal_intervals",
+        "op": "count_gte",
+        "value": 1
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "all": [
+          {
+            "path": "state.scene_key",
+            "op": "eq",
+            "value": "scene/bench/arena"
+          },
+          {
+            "path": "state.popups",
+            "op": "count_gte",
+            "value": 1
+          }
+        ]
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "path": "telemetry.goal_intervals",
+        "op": "count_gte",
+        "value": 2
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "all": [
+          {
+            "path": "state.scene_key",
+            "op": "eq",
+            "value": "scene/bench/arena"
+          },
+          {
+            "path": "state.popups",
+            "op": "count_gte",
+            "value": 1
+          }
+        ]
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "path": "telemetry.goal_intervals",
+        "op": "count_gte",
+        "value": 3
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "all": [
+          {
+            "path": "state.scene_key",
+            "op": "eq",
+            "value": "scene/bench/arena"
+          },
+          {
+            "path": "state.popups",
+            "op": "count_gte",
+            "value": 1
+          }
+        ]
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "path": "telemetry.goal_intervals",
+        "op": "count_gte",
+        "value": 4
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "all": [
+          {
+            "path": "state.scene_key",
+            "op": "eq",
+            "value": "scene/bench/arena"
+          },
+          {
+            "path": "state.popups",
+            "op": "count_gte",
+            "value": 1
+          }
+        ]
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "path": "telemetry.goal_intervals",
+        "op": "count_gte",
+        "value": 5
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "all": [
+          {
+            "path": "state.scene_key",
+            "op": "eq",
+            "value": "scene/bench/arena"
+          },
+          {
+            "path": "state.popups",
+            "op": "count_gte",
+            "value": 1
+          }
+        ]
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "path": "telemetry.goal_intervals",
+        "op": "count_gte",
+        "value": 6
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "all": [
+          {
+            "path": "state.scene_key",
+            "op": "eq",
+            "value": "scene/bench/arena"
+          },
+          {
+            "path": "state.popups",
+            "op": "count_gte",
+            "value": 1
+          }
+        ]
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "path": "telemetry.goal_intervals",
+        "op": "count_gte",
+        "value": 7
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "all": [
+          {
+            "path": "state.scene_key",
+            "op": "eq",
+            "value": "scene/bench/arena"
+          },
+          {
+            "path": "state.popups",
+            "op": "count_gte",
+            "value": 1
+          }
+        ]
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "path": "telemetry.goal_intervals",
+        "op": "count_gte",
+        "value": 8
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "all": [
+          {
+            "path": "state.scene_key",
+            "op": "eq",
+            "value": "scene/bench/arena"
+          },
+          {
+            "path": "state.popups",
+            "op": "count_gte",
+            "value": 1
+          }
+        ]
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "path": "telemetry.goal_intervals",
+        "op": "count_gte",
+        "value": 9
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "all": [
+          {
+            "path": "state.scene_key",
+            "op": "eq",
+            "value": "scene/bench/arena"
+          },
+          {
+            "path": "state.popups",
+            "op": "count_gte",
+            "value": 1
+          }
+        ]
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "path": "telemetry.goal_intervals",
+        "op": "count_gte",
+        "value": 10
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "all": [
+          {
+            "path": "state.scene_key",
+            "op": "eq",
+            "value": "scene/bench/arena"
+          },
+          {
+            "path": "state.popups",
+            "op": "count_gte",
+            "value": 1
+          }
+        ]
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "path": "telemetry.goal_intervals",
+        "op": "count_gte",
+        "value": 11
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "all": [
+          {
+            "path": "state.scene_key",
+            "op": "eq",
+            "value": "scene/bench/arena"
+          },
+          {
+            "path": "state.popups",
+            "op": "count_gte",
+            "value": 1
+          }
+        ]
+      },
+      "timeoutMs": 120000
+    },
+    {
+      "kind": "auto",
+      "command": "bench.bot_next_input",
+      "args": [],
+      "until": {
+        "path": "telemetry.goal_intervals",
+        "op": "count_gte",
+        "value": 12
+      },
+      "timeoutMs": 120000
+    }
+  ],
+  "goal": {
+    "path": "telemetry.goal_intervals",
+    "op": "count_gte",
+    "value": 12
+  }
+}

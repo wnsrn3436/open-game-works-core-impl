@@ -1,0 +1,229 @@
+{
+  "name": "admin-api",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "storage",
+    "server-time",
+    "logging",
+    "item-ledger",
+    "mailbox"
+  ],
+  "optionalDependencies": [
+    "iap",
+    "ranking"
+  ],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "environments.<ENV>.adminOperators",
+      "type": "array<object>",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.adminAllowedCidrs",
+      "type": "array<string>?",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "admin-api.maxBodyBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "admin-api.bodyReadTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "admin-api.authFailuresPerMinute",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "admin-api.maxStringBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "admin-api.maxSearchRangeMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "admin-api.maxSearchRows",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "admin-api.operationIdRetentionMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "admin-api.switchCacheMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "admin-api.maxExportBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "get_user",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "export_personal_data",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "grant_items",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "revoke_items",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "list_item_history",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "list_payments",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "send_mail",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "broadcast_mail",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "cancel_broadcast",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "remove_ranking_user",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "ban_user",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "unban_user",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_maintenance",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_kill_switch",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_switches",
+      "inputs": []
+    },
+    {
+      "name": "register_admin_operation",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_maintenance",
+      "inputs": []
+    },
+    {
+      "name": "is_banned",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "ip_in_cidrs",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_kill_switched",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+,,,,,,,,,,,,,,,,
+All,Client,All,All,All,All,All,All,All,All,All,All,All,All,All,All,Server
+id(key),tstring<id>,enum<IapProductType>,string,string,"array<{item_id: ref<item.id>, amount: long}>","array<{item_id: ref<item.id>, amount: long}>",bool,int?,enum<ResetCycle>?,int?,requirement,datetime?,datetime?,ref<live_event.id>?,ref<offer.id>?,long
+id,name,type,sku_apple,sku_google,reward,daily_reward,extra_grant,limit_count,reset,pass_days,requirement,start_at,end_at,live_event,offer,spend_amount

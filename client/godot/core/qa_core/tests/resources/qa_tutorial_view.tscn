@@ -1,0 +1,83 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://core/tutorial_core/tutorial_view.gd" id="1_view"]
+[ext_resource type="Script" path="res://core/ui_core/ui_button.gd" id="2_button"]
+
+[node name="TutorialViewRoot" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Dim" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.5)
+
+[node name="SpeechBubble" type="Panel" parent="."]
+layout_mode = 0
+offset_left = 40.0
+offset_top = 40.0
+offset_right = 340.0
+offset_bottom = 120.0
+
+[node name="Text" type="Label" parent="SpeechBubble"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="HandPointer" type="ColorRect" parent="."]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+color = Color(1, 1, 1, 1)
+
+[node name="AdvanceButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -180.0
+offset_top = -80.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "Next"
+
+[node name="UIButton" type="Node" parent="AdvanceButton"]
+script = ExtResource("2_button")
+
+[node name="SkipButton" type="Button" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -180.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 70.0
+grow_horizontal = 0
+
+[node name="UIButton" type="Node" parent="SkipButton"]
+script = ExtResource("2_button")
+
+[node name="TutorialView" type="Node" parent="." node_paths=PackedStringArray("dim", "speech_bubble", "text_label", "hand_pointer", "advance_button", "skip_button")]
+script = ExtResource("1_view")
+dim = NodePath("../Dim")
+speech_bubble = NodePath("../SpeechBubble")
+text_label = NodePath("../SpeechBubble/Text")
+hand_pointer = NodePath("../HandPointer")
+advance_button = NodePath("../AdvanceButton")
+skip_button = NodePath("../SkipButton")

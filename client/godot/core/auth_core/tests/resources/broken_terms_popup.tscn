@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/auth_core/tests/support/fake_broken_terms_popup.gd" id="1_script"]
+
+[node name="Popup" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 480.0
+offset_bottom = 480.0
+script = ExtResource("1_script")

@@ -1,0 +1,7 @@
+,,,
+All,All,All,All
+id,int,int,"array<{item_id: ref<item.id>, amount: long}>"
+id,rank_from,rank_to,reward
+[rk_daily],1,1,[rk_gold] 100
+[rk_daily],2,3,[rk_gold] 50
+[rk_event],1,10,"[rk_gold] 10, [gold] 1"

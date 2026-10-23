@@ -1,0 +1,4 @@
+[gd_scene load_steps=1 format=3]
+
+
+[node name="TestNodeRoot" type="Node"]

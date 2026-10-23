@@ -1,0 +1,5 @@
+,,,,,
+All,Client,Client,Client,Client,Client
+id(key),reskey,array<reskey>,enum<ShortcutStack>,array<int>,requirement
+id,scene,panels,stack,args,requirement
+[shortcut_shop],scene/lobby,prefab/panel/shop,Root,,

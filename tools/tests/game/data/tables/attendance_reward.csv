@@ -1,0 +1,29 @@
+,,,
+All,All,All,All
+id,int,"array<{item_id: ref<item.id>, amount: long}>",bool
+id,day,reward,extra_grant
+[attendance_cycle],1,[attendance_gold] 10,false
+[attendance_cycle],2,[attendance_gold] 20,false
+[attendance_cycle],3,[attendance_gold] 30,false
+[attendance_once],1,[attendance_gold] 10,false
+[attendance_once],2,[attendance_gold] 20,false
+[attendance_once],3,[attendance_gold] 30,false
+[attendance_streak],1,[attendance_gold] 10,false
+[attendance_streak],2,[attendance_gold] 20,false
+[attendance_streak],3,[attendance_gold] 30,false
+[attendance_monthly],1,[attendance_gold] 1,false
+[attendance_monthly],2,[attendance_gold] 2,false
+[attendance_monthly],3,[attendance_gold] 3,false
+[attendance_monthly],4,[attendance_gold] 4,false
+[attendance_monthly],5,[attendance_gold] 5,false
+[attendance_event_once],1,[attendance_gold] 10,false
+[attendance_event_once],2,[attendance_gold] 20,false
+[attendance_event_once],3,[attendance_gold] 30,false
+[attendance_event_cycle],1,[attendance_gold] 10,false
+[attendance_event_cycle],2,[attendance_gold] 20,false
+[attendance_event_cycle],3,[attendance_gold] 30,false
+[attendance_window],1,[attendance_gold] 10,false
+[attendance_locked],1,[attendance_gold] 10,false
+[attendance_gem_daily],1,[attendance_gem] 4,false
+[attendance_extra],1,[attendance_gold] 10,false
+[attendance_extra],2,[attendance_gold] 10,true

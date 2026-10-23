@@ -1,0 +1,421 @@
+{
+  "name": "iap",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "item-ledger",
+    "mailbox",
+    "live-event",
+    "offer",
+    "validation",
+    "storage",
+    "idempotency",
+    "server-time",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "iap.maxReceiptBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "iap.maxTransactionIdLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "iap.verifyTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "iap.notifyMaxBodyBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "iap.notifyBodyReadTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "iap.subscriptionSyncIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "iap.withdrawnRecordRetentionMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "iap.fakeSubscriptionPeriodMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "environments.<ENV>.secrets.iapAccountToken",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.secrets.iapApple",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.secrets.iapGoogle",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "iapApple.issuerId",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "iapApple.keyId",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "iapApple.appAppleId",
+      "type": "integer",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "iapGoogle.serviceAccountEmail",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "iapGoogle.notificationServiceAccountEmail",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.serverUrl",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "consent.ageConfirmation",
+      "type": "boolean",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "purchaseLimits.monthlyBelowAge",
+      "type": "object",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "purchaseLimits.testGrants",
+      "type": "object?",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "consent.ageBandBoundaries",
+      "type": "array<integer>",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "appId",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.adapters.iap-apple",
+      "type": "string?",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.adapters.iap-google",
+      "type": "string?",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "routing.externalMaxResponseBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "idempotency.maxNotifyIdBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "iap_product",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "name"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<IapProductType>",
+          "name": "type"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "string",
+          "name": "sku_apple"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "string",
+          "name": "sku_google"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "array<{item_id: ref<item.id>, amount: long}>",
+          "name": "reward"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "array<{item_id: ref<item.id>, amount: long}>",
+          "name": "daily_reward"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "bool",
+          "name": "extra_grant"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int?",
+          "name": "limit_count"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<ResetCycle>?",
+          "name": "reset"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int?",
+          "name": "pass_days"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "requirement",
+          "name": "requirement"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "datetime?",
+          "name": "start_at"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "datetime?",
+          "name": "end_at"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<live_event.id>?",
+          "name": "live_event"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<offer.id>?",
+          "name": "offer"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "long",
+          "name": "spend_amount"
+        }
+      ]
+    }
+  ],
+  "usedTables": [
+    "item",
+    "live_event",
+    "offer",
+    "mail_template"
+  ],
+  "enums": [
+    {
+      "type": "IapProductType",
+      "elements": [
+        "Consumable",
+        "NonConsumable",
+        "Subscription"
+      ]
+    }
+  ],
+  "invariants": [],
+  "reserved": [
+    {
+      "table": "reserved_id",
+      "id": "[iap_grant_mail]",
+      "requiredWhen": null,
+      "rowOf": "mail_template"
+    }
+  ],
+  "formatArguments": [],
+  "collectedData": [
+    {
+      "dataType": "purchase_history",
+      "description": "payment record",
+      "source": "iap-apple",
+      "purposes": [
+        "app_functionality"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": true,
+      "platforms": [
+        "ios",
+        "macos"
+      ],
+      "condition": null
+    },
+    {
+      "dataType": "purchase_history",
+      "description": "payment record",
+      "source": "iap-google",
+      "purposes": [
+        "app_functionality"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": true,
+      "platforms": [
+        "android"
+      ],
+      "condition": null
+    }
+  ],
+  "adapters": [
+    "iap-apple",
+    "iap-google"
+  ],
+  "operations": [
+    {
+      "name": "get_purchase_count",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_subscribed",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_pass_active",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "list_payments",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "has_granted_payment",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "prepare_verify_purchase",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "prepare_sync_subscriptions",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "register_account_lookup",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "revoke_test_grant",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "remove_user",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/scene_core/tests/support/pool_item_stub.gd" id="1_item"]
+
+[node name="PoolItem" type="Node2D"]
+script = ExtResource("1_item")

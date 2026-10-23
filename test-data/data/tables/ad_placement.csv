@@ -1,0 +1,17 @@
+,,,,,,,,,
+All,All,All,All,All,All,Client,Client,Client,Client
+id(key),enum<AdType>,"array<{item_id: ref<item.id>, amount: long}>",bool,int?,enum<ResetCycle>?,duration?,duration?,int?,array<ref<iap_product.id>>
+id,type,reward,extra_grant,limit_count,reset,min_interval,first_show_after,every_n,suppress_if_product
+[ad_rewarded_basic],Rewarded,[ad_gem] 10,false,null,null,null,null,null,
+[ad_rewarded_daily],Rewarded,[ad_gem] 5,false,2,Daily,null,null,null,
+[ad_rewarded_once],Rewarded,[ad_gem] 5,false,1,null,null,null,null,
+[ad_rewarded_capped],Rewarded,[ad_capped] 20,false,null,null,null,null,null,
+[ad_interstitial],Interstitial,,false,null,null,30s,1m,3,
+[ad_interstitial_every3],Interstitial,,false,null,null,null,null,3,
+[ad_interstitial_interval],Interstitial,,false,null,null,30s,null,null,
+[ad_interstitial_first],Interstitial,,false,null,null,null,1h,null,
+[ad_interstitial_suppress],Interstitial,,false,null,null,null,null,null,"[iap_vip],[iap_no_ads]"
+[ad_interstitial_plain],Interstitial,,false,null,null,null,null,null,
+[ad_banner_a],Banner,,false,null,null,null,null,null,
+[ad_banner_b],Banner,,false,null,null,null,null,null,
+[ad_banner_suppress],Banner,,false,null,null,null,null,null,"[iap_vip],[iap_no_ads]"

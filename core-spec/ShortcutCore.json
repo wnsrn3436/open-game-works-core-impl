@@ -1,0 +1,96 @@
+{
+  "name": "ShortcutCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "DataCore",
+    "LocalizationCore",
+    "RequirementCore",
+    "MessageCore",
+    "UICore",
+    "SceneCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "shortcut",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "reskey",
+          "name": "scene"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "array<reskey>",
+          "name": "panels"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "enum<ShortcutStack>",
+          "name": "stack"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "array<int>",
+          "name": "args"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "requirement",
+          "name": "requirement"
+        }
+      ]
+    }
+  ],
+  "usedTables": [],
+  "enums": [
+    {
+      "type": "ShortcutStack",
+      "elements": [
+        "Root",
+        "Top"
+      ]
+    }
+  ],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "register_param_builder",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "navigate",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_navigating",
+      "inputs": []
+    }
+  ]
+}

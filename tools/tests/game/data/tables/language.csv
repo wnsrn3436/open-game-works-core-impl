@@ -1,0 +1,5 @@
+,,,,,
+All,All,Client,Client,Client,Client
+id(key),string,tstring<id>,reskey,ref<language.id>?,int
+id,code,name,font,fallback,order
+[lang_en],en,English,font/main,null,1

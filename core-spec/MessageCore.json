@@ -1,0 +1,119 @@
+{
+  "name": "MessageCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "TimeCore",
+    "ResourceCore",
+    "PoolCore",
+    "LocalizationCore",
+    "ResolutionCore",
+    "InputBlockCore",
+    "TweenCore",
+    "UICore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "MessageCore.toastResource",
+      "type": "string",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "MessageCore.blackBoxResource",
+      "type": "string",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "MessageCore.toastDurationMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "MessageCore.blackBoxDurationMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "MessageCore.toastEnterTween",
+      "type": "string",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "MessageCore.toastExitTween",
+      "type": "string",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "MessageCore.blackBoxEnterTween",
+      "type": "string",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "MessageCore.blackBoxExitTween",
+      "type": "string",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "UICore.dimOpacity",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "InputBlockCore.maxDurationMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "prepare",
+      "inputs": []
+    },
+    {
+      "name": "show_toast",
+      "inputs": [
+        "translationKey",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "show_black_box",
+      "inputs": [
+        "translationKey",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "close_black_box",
+      "inputs": []
+    },
+    {
+      "name": "close_all",
+      "inputs": []
+    }
+  ]
+}

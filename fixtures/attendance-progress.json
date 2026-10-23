@@ -1,0 +1,580 @@
+{
+  "cases": [
+    {
+      "name": "cycle without a row",
+      "input": {
+        "calendar": "[attendance_cycle]",
+        "day_count": 3,
+        "live_event": null,
+        "state": null,
+        "time": 1803862800000
+      },
+      "expected": {
+        "day": 0,
+        "next_day": 1
+      }
+    },
+    {
+      "name": "cycle claimed today",
+      "input": {
+        "calendar": "[attendance_cycle]",
+        "day_count": 3,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_cycle]",
+          "day": 1,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 0
+        },
+        "time": 1803866400000
+      },
+      "expected": {
+        "day": 1,
+        "next_day": 0
+      }
+    },
+    {
+      "name": "cycle claimed today at the last ms of the game day",
+      "input": {
+        "calendar": "[attendance_cycle]",
+        "day_count": 3,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_cycle]",
+          "day": 1,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 0
+        },
+        "time": 1803945599999
+      },
+      "expected": {
+        "day": 1,
+        "next_day": 0
+      }
+    },
+    {
+      "name": "cycle next game day",
+      "input": {
+        "calendar": "[attendance_cycle]",
+        "day_count": 3,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_cycle]",
+          "day": 1,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 0
+        },
+        "time": 1803945600000
+      },
+      "expected": {
+        "day": 1,
+        "next_day": 2
+      }
+    },
+    {
+      "name": "cycle after the last day",
+      "input": {
+        "calendar": "[attendance_cycle]",
+        "day_count": 3,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_cycle]",
+          "day": 3,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 0
+        },
+        "time": 1803945600000
+      },
+      "expected": {
+        "day": 3,
+        "next_day": 1
+      }
+    },
+    {
+      "name": "cycle keeps progress over missed game days",
+      "input": {
+        "calendar": "[attendance_cycle]",
+        "day_count": 3,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_cycle]",
+          "day": 1,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 0
+        },
+        "time": 1804204800000
+      },
+      "expected": {
+        "day": 1,
+        "next_day": 2
+      }
+    },
+    {
+      "name": "cycle day over N",
+      "input": {
+        "calendar": "[attendance_cycle]",
+        "day_count": 3,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_cycle]",
+          "day": 5,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 0
+        },
+        "time": 1803945600000
+      },
+      "expected": {
+        "day": 5,
+        "next_day": 1
+      }
+    },
+    {
+      "name": "once next game day",
+      "input": {
+        "calendar": "[attendance_once]",
+        "day_count": 3,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_once]",
+          "day": 2,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 0
+        },
+        "time": 1803945600000
+      },
+      "expected": {
+        "day": 2,
+        "next_day": 3
+      }
+    },
+    {
+      "name": "once after the last day",
+      "input": {
+        "calendar": "[attendance_once]",
+        "day_count": 3,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_once]",
+          "day": 3,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 0
+        },
+        "time": 1803945600000
+      },
+      "expected": {
+        "day": 3,
+        "next_day": 0
+      }
+    },
+    {
+      "name": "once day over N",
+      "input": {
+        "calendar": "[attendance_once]",
+        "day_count": 3,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_once]",
+          "day": 4,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 0
+        },
+        "time": 1804118400000
+      },
+      "expected": {
+        "day": 4,
+        "next_day": 0
+      }
+    },
+    {
+      "name": "once keeps progress over missed game days",
+      "input": {
+        "calendar": "[attendance_once]",
+        "day_count": 3,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_once]",
+          "day": 1,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 0
+        },
+        "time": 1804118400000
+      },
+      "expected": {
+        "day": 1,
+        "next_day": 2
+      }
+    },
+    {
+      "name": "streak next game day",
+      "input": {
+        "calendar": "[attendance_streak]",
+        "day_count": 3,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_streak]",
+          "day": 2,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 0
+        },
+        "time": 1803945600000
+      },
+      "expected": {
+        "day": 2,
+        "next_day": 3
+      }
+    },
+    {
+      "name": "streak claimed today",
+      "input": {
+        "calendar": "[attendance_streak]",
+        "day_count": 3,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_streak]",
+          "day": 2,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 0
+        },
+        "time": 1803877200000
+      },
+      "expected": {
+        "day": 2,
+        "next_day": 0
+      }
+    },
+    {
+      "name": "streak missed a game day",
+      "input": {
+        "calendar": "[attendance_streak]",
+        "day_count": 3,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_streak]",
+          "day": 2,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 0
+        },
+        "time": 1804032000000
+      },
+      "expected": {
+        "day": 0,
+        "next_day": 1
+      }
+    },
+    {
+      "name": "streak after the last day",
+      "input": {
+        "calendar": "[attendance_streak]",
+        "day_count": 3,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_streak]",
+          "day": 3,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 0
+        },
+        "time": 1803945600000
+      },
+      "expected": {
+        "day": 3,
+        "next_day": 1
+      }
+    },
+    {
+      "name": "streak day over N",
+      "input": {
+        "calendar": "[attendance_streak]",
+        "day_count": 3,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_streak]",
+          "day": 4,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 0
+        },
+        "time": 1803945600000
+      },
+      "expected": {
+        "day": 4,
+        "next_day": 1
+      }
+    },
+    {
+      "name": "streak day over N missed a game day",
+      "input": {
+        "calendar": "[attendance_streak]",
+        "day_count": 3,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_streak]",
+          "day": 4,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 0
+        },
+        "time": 1804118400000
+      },
+      "expected": {
+        "day": 0,
+        "next_day": 1
+      }
+    },
+    {
+      "name": "monthly before the reset",
+      "input": {
+        "calendar": "[attendance_monthly]",
+        "day_count": 5,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_monthly]",
+          "day": 2,
+          "claimed_day_number": 20876,
+          "reset_at": 1803859200000,
+          "event_round": 0
+        },
+        "time": 1803859199999
+      },
+      "expected": {
+        "day": 2,
+        "next_day": 3
+      }
+    },
+    {
+      "name": "monthly at the reset",
+      "input": {
+        "calendar": "[attendance_monthly]",
+        "day_count": 5,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_monthly]",
+          "day": 2,
+          "claimed_day_number": 20877,
+          "reset_at": 1803859200000,
+          "event_round": 0
+        },
+        "time": 1803859200000
+      },
+      "expected": {
+        "day": 0,
+        "next_day": 1
+      }
+    },
+    {
+      "name": "monthly reset of a completed once calendar",
+      "input": {
+        "calendar": "[attendance_monthly]",
+        "day_count": 5,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_monthly]",
+          "day": 5,
+          "claimed_day_number": 20877,
+          "reset_at": 1803859200000,
+          "event_round": 0
+        },
+        "time": 1803862800000
+      },
+      "expected": {
+        "day": 0,
+        "next_day": 1
+      }
+    },
+    {
+      "name": "monthly completed before the reset",
+      "input": {
+        "calendar": "[attendance_monthly]",
+        "day_count": 5,
+        "live_event": null,
+        "state": {
+          "id": "[attendance_monthly]",
+          "day": 5,
+          "claimed_day_number": 20877,
+          "reset_at": 1803859200000,
+          "event_round": 0
+        },
+        "time": 1803859199999
+      },
+      "expected": {
+        "day": 5,
+        "next_day": 0
+      }
+    },
+    {
+      "name": "event round 1 next game day",
+      "input": {
+        "calendar": "[attendance_event_once]",
+        "day_count": 3,
+        "live_event": "[attendance_event_long]",
+        "state": {
+          "id": "[attendance_event_once]",
+          "day": 2,
+          "claimed_day_number": 20879,
+          "reset_at": 0,
+          "event_round": 1
+        },
+        "time": 1804035600000
+      },
+      "expected": {
+        "day": 2,
+        "next_day": 3
+      }
+    },
+    {
+      "name": "event round 1 completed once calendar",
+      "input": {
+        "calendar": "[attendance_event_once]",
+        "day_count": 3,
+        "live_event": "[attendance_event_long]",
+        "state": {
+          "id": "[attendance_event_once]",
+          "day": 3,
+          "claimed_day_number": 20879,
+          "reset_at": 0,
+          "event_round": 1
+        },
+        "time": 1804035600000
+      },
+      "expected": {
+        "day": 3,
+        "next_day": 0
+      }
+    },
+    {
+      "name": "event between rounds",
+      "input": {
+        "calendar": "[attendance_event_once]",
+        "day_count": 3,
+        "live_event": "[attendance_event_long]",
+        "state": {
+          "id": "[attendance_event_once]",
+          "day": 3,
+          "claimed_day_number": 20880,
+          "reset_at": 0,
+          "event_round": 1
+        },
+        "time": 1804204800000
+      },
+      "expected": {
+        "day": 3,
+        "next_day": 0
+      }
+    },
+    {
+      "name": "event round 2 starts the progress again",
+      "input": {
+        "calendar": "[attendance_event_once]",
+        "day_count": 3,
+        "live_event": "[attendance_event_long]",
+        "state": {
+          "id": "[attendance_event_once]",
+          "day": 3,
+          "claimed_day_number": 20880,
+          "reset_at": 0,
+          "event_round": 1
+        },
+        "time": 1804464000000
+      },
+      "expected": {
+        "day": 0,
+        "next_day": 1
+      }
+    },
+    {
+      "name": "event round 2 on the game day of a round 1 claim",
+      "input": {
+        "calendar": "[attendance_event_cycle]",
+        "day_count": 3,
+        "live_event": "[attendance_event_half]",
+        "state": {
+          "id": "[attendance_event_cycle]",
+          "day": 1,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 1
+        },
+        "time": 1803906000000
+      },
+      "expected": {
+        "day": 0,
+        "next_day": 1
+      }
+    },
+    {
+      "name": "event round 1 claimed today",
+      "input": {
+        "calendar": "[attendance_event_cycle]",
+        "day_count": 3,
+        "live_event": "[attendance_event_half]",
+        "state": {
+          "id": "[attendance_event_cycle]",
+          "day": 1,
+          "claimed_day_number": 20878,
+          "reset_at": 0,
+          "event_round": 1
+        },
+        "time": 1803898800000
+      },
+      "expected": {
+        "day": 1,
+        "next_day": 0
+      }
+    },
+    {
+      "name": "window before start_at",
+      "input": {
+        "calendar": "[attendance_window]",
+        "day_count": 1,
+        "live_event": null,
+        "state": null,
+        "time": 1803862800000
+      },
+      "expected": {
+        "day": 0,
+        "next_day": 0
+      }
+    },
+    {
+      "name": "window inside",
+      "input": {
+        "calendar": "[attendance_window]",
+        "day_count": 1,
+        "live_event": null,
+        "state": null,
+        "time": 1803949200000
+      },
+      "expected": {
+        "day": 0,
+        "next_day": 1
+      }
+    },
+    {
+      "name": "window at end_at",
+      "input": {
+        "calendar": "[attendance_window]",
+        "day_count": 1,
+        "live_event": null,
+        "state": null,
+        "time": 1804032000000
+      },
+      "expected": {
+        "day": 0,
+        "next_day": 0
+      }
+    }
+  ]
+}

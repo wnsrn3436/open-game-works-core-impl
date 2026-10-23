@@ -1,0 +1,89 @@
+{
+  "name": "play-session",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "storage",
+    "server-time",
+    "logging",
+    "validation",
+    "item-ledger"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "play-session.resultMaxBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "play-session.optionsMaxBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "play-session.loadoutMaxBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "play_session_mode",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "duration",
+          "name": "min_duration"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "duration",
+          "name": "max_duration"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int",
+          "name": "max_continue_count"
+        }
+      ]
+    }
+  ],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "get_active_play_session",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "refund_entry",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

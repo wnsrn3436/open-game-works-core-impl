@@ -1,0 +1,2579 @@
+syntax = "proto3";
+package ogw.core;
+
+import "ogw/options.proto";
+
+// The envelope of every response.
+message ResponseEnvelope {
+  // Server time when the response was made. Unix ms.
+  int64 server_time_at = 1;
+  // The failure of the request. Null on success.
+  ServerError error = 2;
+  // UserState delta changed by this request.
+  UserStateDelta user_state = 3;
+  // UserState delta changed by out-of-request changes.
+  UserStateDelta pending_user_state = 4;
+  // Item changes of this request and of out-of-request changes, in the order item-ledger recorded them.
+  repeated ItemChange item_changes = 5;
+  // Items sent by mail by this request and by out-of-request changes because they could not be granted right away.
+  repeated ItemMail item_mails = 6;
+  // Response message bytes.
+  bytes body = 7;
+}
+
+// The failure of a request.
+message ServerError {
+  // CoreError or GameError value.
+  int32 code = 1;
+  // Failure detail. Filled only in an environment that includes DEV code.
+  string detail = 2;
+  // Ban detail. Filled only when code is BANNED.
+  BanDetail ban = 3;
+}
+
+// The ban of a BANNED error response.
+message BanDetail {
+  // Banned user ID.
+  int64 user_id = 1;
+  // Time the ban ends. Unix ms. 0 when the ban does not end.
+  int64 until_at = 2;
+  // Address of the web account deletion page.
+  string deletion_url = 3;
+  // Access token. Filled only by the ban login.
+  string access_token = 4;
+  // Session signing key. Filled only by the ban login.
+  string session_signing_key = 5;
+}
+
+// UserState delta.
+message UserStateDelta {
+  // True when the delta holds the whole UserState.
+  bool full = 1;
+  // Entries in kind order.
+  repeated UserStateEntry entries = 2;
+}
+
+// One upsert or delete of a UserState delta.
+message UserStateEntry {
+  // Kind message name.
+  string kind = 1;
+  // Item ID of a list kind. 0 for a single kind.
+  int64 id = 2;
+  // Kind message bytes for an upsert. Empty for a delete.
+  bytes value = 3;
+  // True for a delete.
+  bool deleted = 4;
+}
+
+// Errors core returns. The meaning is in the spec of the module.
+enum CoreError {
+  CORE_ERROR_UNSPECIFIED = 0;
+  CORE_ERROR_INVALID_REQUEST = 1;
+  CORE_ERROR_RATE_LIMITED = 2;
+  CORE_ERROR_MAINTENANCE = 3;
+  CORE_ERROR_BANNED = 4;
+  CORE_ERROR_FEATURE_DISABLED = 5;
+  CORE_ERROR_APP_UPDATE_REQUIRED = 6;
+  CORE_ERROR_DATA_UPDATE_REQUIRED = 7;
+  CORE_ERROR_INTERNAL = 8;
+  CORE_ERROR_UNAUTHORIZED = 9;
+  CORE_ERROR_TOKEN_EXPIRED = 10;
+  CORE_ERROR_CONSENT_REQUIRED = 11;
+  CORE_ERROR_SOCIAL_LOGIN_INVALID = 12;
+  CORE_ERROR_ALREADY_LINKED = 13;
+  CORE_ERROR_EXTERNAL_SERVICE_FAILED = 14;
+  CORE_ERROR_SESSION_REPLACED = 15;
+  CORE_ERROR_ITEM_NOT_ENOUGH = 16;
+  CORE_ERROR_ITEM_LIMIT_EXCEEDED = 17;
+  CORE_ERROR_MAIL_NOT_FOUND = 18;
+  CORE_ERROR_MAIL_EXPIRED = 19;
+  CORE_ERROR_SHOP_PRODUCT_UNAVAILABLE = 20;
+  CORE_ERROR_SHOP_LIMIT_REACHED = 21;
+  CORE_ERROR_SHOP_OVERFLOW_LOSS = 22;
+  CORE_ERROR_IAP_VERIFY_UNAVAILABLE = 23;
+  CORE_ERROR_IAP_PRODUCT_UNAVAILABLE = 24;
+  CORE_ERROR_IAP_LIMIT_REACHED = 25;
+  CORE_ERROR_AGE_CONFIRMATION_REQUIRED = 26;
+  CORE_ERROR_IAP_SPEND_LIMIT_REACHED = 27;
+  CORE_ERROR_IAP_DAILY_INACTIVE = 28;
+  CORE_ERROR_IAP_ALREADY_CLAIMED = 29;
+  CORE_ERROR_AD_LIMIT_REACHED = 30;
+  CORE_ERROR_AD_REWARD_PENDING = 31;
+  CORE_ERROR_AD_REWARD_NOT_FOUND = 32;
+  CORE_ERROR_GACHA_BANNER_UNAVAILABLE = 33;
+  CORE_ERROR_MISSION_UNAVAILABLE = 34;
+  CORE_ERROR_MISSION_LOCKED = 35;
+  CORE_ERROR_MISSION_ALREADY_CLAIMED = 36;
+  CORE_ERROR_MISSION_NOT_COMPLETED = 37;
+  CORE_ERROR_COUPON_INVALID = 38;
+  CORE_ERROR_COUPON_NOT_ACTIVE = 39;
+  CORE_ERROR_COUPON_ALREADY_REDEEMED = 40;
+  CORE_ERROR_COUPON_USED_UP = 41;
+  CORE_ERROR_NICKNAME_INVALID = 42;
+  CORE_ERROR_NICKNAME_BANNED = 43;
+  CORE_ERROR_NICKNAME_TAKEN = 44;
+  CORE_ERROR_NICKNAME_COOLDOWN = 45;
+  CORE_ERROR_MATCH_NOT_FOUND = 46;
+  CORE_ERROR_MATCH_NOT_PARTICIPANT = 47;
+  CORE_ERROR_MATCH_ALREADY_REPORTED = 48;
+  CORE_ERROR_AGE_BELOW_MINIMUM = 49;
+  CORE_ERROR_SHOP_PRODUCT_LOCKED = 50;
+  CORE_ERROR_IAP_PRODUCT_LOCKED = 51;
+  CORE_ERROR_GACHA_BANNER_LOCKED = 52;
+  CORE_ERROR_ATTENDANCE_UNAVAILABLE = 53;
+  CORE_ERROR_ATTENDANCE_LOCKED = 54;
+  CORE_ERROR_ATTENDANCE_ALREADY_CLAIMED = 55;
+  CORE_ERROR_ATTENDANCE_COMPLETED = 56;
+  CORE_ERROR_TEXT_INVALID = 57;
+  CORE_ERROR_TEXT_BANNED = 58;
+  CORE_ERROR_USER_NOT_FOUND = 59;
+  CORE_ERROR_FRIEND_ALREADY = 60;
+  CORE_ERROR_FRIEND_REQUEST_NOT_FOUND = 61;
+  CORE_ERROR_FRIEND_NOT_FOUND = 62;
+  CORE_ERROR_FRIEND_LIMIT = 63;
+  CORE_ERROR_FRIEND_TARGET_LIMIT = 64;
+  CORE_ERROR_FRIEND_REQUEST_LIMIT = 65;
+  CORE_ERROR_BLOCKED = 66;
+  CORE_ERROR_BLOCK_LIMIT = 67;
+  CORE_ERROR_REPORT_LIMIT = 68;
+  CORE_ERROR_GUILD_NOT_FOUND = 69;
+  CORE_ERROR_GUILD_ALREADY_MEMBER = 70;
+  CORE_ERROR_GUILD_NOT_MEMBER = 71;
+  CORE_ERROR_GUILD_NAME_TAKEN = 72;
+  CORE_ERROR_GUILD_FULL = 73;
+  CORE_ERROR_GUILD_CLOSED = 74;
+  CORE_ERROR_GUILD_COOLDOWN = 75;
+  CORE_ERROR_GUILD_PERMISSION = 76;
+  CORE_ERROR_GUILD_REQUEST_NOT_FOUND = 77;
+  CORE_ERROR_GUILD_REQUEST_LIMIT = 78;
+  CORE_ERROR_GUILD_LEADER_CANNOT_LEAVE = 79;
+  CORE_ERROR_GUILD_OFFICER_LIMIT = 80;
+  CORE_ERROR_CHAT_MUTED = 81;
+  CORE_ERROR_CHAT_TOO_FAST = 82;
+  CORE_ERROR_CHAT_NOT_FRIEND = 83;
+  CORE_ERROR_CHAT_MESSAGE_NOT_FOUND = 84;
+  CORE_ERROR_PLAY_SESSION_NOT_FOUND = 85;
+  CORE_ERROR_PLAY_SESSION_EXPIRED = 86;
+  CORE_ERROR_PLAY_SESSION_TOO_FAST = 87;
+  CORE_ERROR_PLAY_SESSION_REJECTED = 88;
+  CORE_ERROR_ROOM_NOT_FOUND = 89;
+  CORE_ERROR_ROOM_FULL = 90;
+  CORE_ERROR_ROOM_BUSY = 91;
+  CORE_ERROR_ROOM_NOT_HOST = 92;
+  CORE_ERROR_ROOM_NOT_ENOUGH_PLAYERS = 93;
+  CORE_ERROR_ROOM_PARTY_TOO_LARGE = 94;
+  CORE_ERROR_ROOM_VERSION_MISMATCH = 95;
+  CORE_ERROR_CHILD_RESTRICTED = 96;
+  CORE_ERROR_PLAY_SESSION_CONTINUE_LIMIT = 97;
+}
+
+// Core rpcs. POST /core/<Name>.
+service Core {
+  // Logs in with a provider credential. Creates the user on the first guest login.
+  // changes: ConsentUserState
+  rpc Login(LoginRequest) returns (LoginResponse) {
+    option (ogw.sensitive) = true;
+  }
+  // Logs in again with the login token.
+  // changes: ConsentUserState
+  rpc AutoLogin(AutoLoginRequest) returns (AutoLoginResponse) {
+    option (ogw.sensitive) = true;
+  }
+  // Issues a new access token from the login token.
+  // changes: none
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+  // Ends the login of this device.
+  // changes: none
+  rpc Logout(LogoutRequest) returns (LogoutResponse) {
+    option (ogw.retry) = true;
+  }
+  // Links a social account to the user.
+  // changes: none
+  rpc LinkAccount(LinkAccountRequest) returns (LinkAccountResponse) {
+    option (ogw.retry) = true;
+    option (ogw.sensitive) = true;
+  }
+  // Deletes the account and every saved state of the user.
+  // changes: all
+  rpc Withdraw(WithdrawRequest) returns (WithdrawResponse) {
+    option (ogw.retry) = true;
+  }
+  // Issues a code for the web account deletion page.
+  // changes: none
+  rpc IssueDeletionCode(IssueDeletionCodeRequest) returns (IssueDeletionCodeResponse) {
+    option (ogw.retry) = true;
+  }
+  // Returns the current version and document URL of each terms item.
+  // changes: none
+  rpc GetTerms(GetTermsRequest) returns (GetTermsResponse);
+  // Records the birth year and month and recomputes the age band.
+  // changes: ConsentUserState, all
+  rpc ConfirmAge(ConfirmAgeRequest) returns (ConfirmAgeResponse) {
+    option (ogw.retry) = true;
+    option (ogw.sensitive) = true;
+  }
+  // Records the privacy choices of the user.
+  // changes: ConsentUserState
+  rpc UpdateConsent(UpdateConsentRequest) returns (UpdateConsentResponse) {
+    option (ogw.retry) = true;
+  }
+  // Records the ad push choices of the user.
+  // changes: ConsentUserState
+  rpc UpdatePushConsent(UpdatePushConsentRequest) returns (UpdatePushConsentResponse) {
+    option (ogw.retry) = true;
+  }
+  // Returns the pending delta, or the whole UserState when full is true.
+  // changes: none
+  rpc Resync(ResyncRequest) returns (ResyncResponse) {
+    option (ogw.silent) = true;
+  }
+  // Stores error log entries the client sent.
+  // changes: none
+  rpc ReportClientErrors(ReportClientErrorsRequest) returns (ReportClientErrorsResponse) {
+    option (ogw.retry) = true;
+    option (ogw.silent) = true;
+  }
+  // Stores analytics events the client sent.
+  // changes: none
+  rpc ReportAnalyticsEvents(ReportAnalyticsEventsRequest) returns (ReportAnalyticsEventsResponse) {
+    option (ogw.retry) = true;
+    option (ogw.silent) = true;
+  }
+  // Reports the result of a match the user took part in.
+  // changes: content
+  rpc ReportMatchResult(ReportMatchResultRequest) returns (ReportMatchResultResponse) {
+    option (ogw.retry) = true;
+  }
+  // Marks a mail as read.
+  // changes: MailUserState
+  rpc ReadMail(ReadMailRequest) returns (ReadMailResponse) {
+    option (ogw.retry) = true;
+  }
+  // Claims the attachments of a mail.
+  // changes: ItemBalanceUserState, MailUserState, content
+  rpc ClaimMail(ClaimMailRequest) returns (ClaimMailResponse) {
+    option (ogw.retry) = true;
+  }
+  // Claims the attachments of every claimable mail.
+  // changes: ItemBalanceUserState, MailUserState, content
+  rpc ClaimAllMail(ClaimAllMailRequest) returns (ClaimAllMailResponse) {
+    option (ogw.retry) = true;
+  }
+  // Buys a shop product with items.
+  // changes: ItemBalanceUserState, MailUserState, ShopPurchaseUserState, content
+  rpc BuyShopProduct(BuyShopProductRequest) returns (BuyShopProductResponse) {
+    option (ogw.retry) = true;
+  }
+  // Checks that a store product can be bought before the store payment.
+  // changes: none
+  rpc CheckPurchase(CheckPurchaseRequest) returns (CheckPurchaseResponse);
+  // Verifies a store receipt and grants the product.
+  // changes: ItemBalanceUserState, MailUserState, IapPurchaseUserState, SubscriptionUserState, content
+  rpc VerifyPurchase(VerifyPurchaseRequest) returns (VerifyPurchaseResponse) {
+    option (ogw.retry) = true;
+    option (ogw.sensitive) = true;
+  }
+  // Verifies an unfinished or restored store purchase and grants the product.
+  // changes: ItemBalanceUserState, MailUserState, IapPurchaseUserState, SubscriptionUserState, content
+  rpc RecoverPurchase(RecoverPurchaseRequest) returns (RecoverPurchaseResponse) {
+    option (ogw.retry) = true;
+    option (ogw.sensitive) = true;
+    option (ogw.silent) = true;
+  }
+  // Refreshes the subscription states of the user from the stores.
+  // changes: none
+  rpc SyncSubscriptions(SyncSubscriptionsRequest) returns (SyncSubscriptionsResponse) {
+    option (ogw.retry) = true;
+    option (ogw.silent) = true;
+  }
+  // Claims the daily reward of a pass product.
+  // changes: ItemBalanceUserState, MailUserState, IapPurchaseUserState, content
+  rpc ClaimIapDaily(ClaimIapDailyRequest) returns (ClaimIapDailyResponse) {
+    option (ogw.retry) = true;
+  }
+  // Starts an ad reward and returns the notify ID the ad network sends back.
+  // changes: none
+  rpc BeginAdReward(BeginAdRewardRequest) returns (BeginAdRewardResponse) {
+    option (ogw.retry) = true;
+    option (ogw.silent) = true;
+  }
+  // Grants the ad reward after the ad network callback.
+  // changes: none
+  rpc ClaimAdReward(ClaimAdRewardRequest) returns (ClaimAdRewardResponse) {
+    option (ogw.retry) = true;
+    option (ogw.silent) = true;
+  }
+  // Returns entries of a ranking board from the top.
+  // changes: none
+  rpc GetRankingTop(GetRankingTopRequest) returns (GetRankingTopResponse);
+  // Returns the entry of the user and the entries around it.
+  // changes: none
+  rpc GetRankingAround(GetRankingAroundRequest) returns (GetRankingAroundResponse);
+  // Applies the season change to the ratings of the user.
+  // changes: MailUserState, RatingUserState
+  rpc RefreshRating(RefreshRatingRequest) returns (RefreshRatingResponse) {
+    option (ogw.retry) = true;
+    option (ogw.silent) = true;
+  }
+  // Saves the reached step of a tutorial.
+  // changes: TutorialProgressUserState
+  rpc SaveTutorialProgress(SaveTutorialProgressRequest) returns (SaveTutorialProgressResponse) {
+    option (ogw.retry) = true;
+    option (ogw.silent) = true;
+  }
+  // Returns the rates of a public loot table.
+  // changes: none
+  rpc GetLootRates(GetLootRatesRequest) returns (GetLootRatesResponse) {
+    option (ogw.silent) = true;
+  }
+  // Draws a gacha banner.
+  // changes: ItemBalanceUserState, MailUserState, GachaPityUserState, content
+  rpc DrawGacha(DrawGachaRequest) returns (DrawGachaResponse) {
+    option (ogw.retry) = true;
+  }
+  // Returns the rates and pity state of a gacha banner.
+  // changes: none
+  rpc GetGachaRates(GetGachaRatesRequest) returns (GetGachaRatesResponse) {
+    option (ogw.silent) = true;
+  }
+  // Returns the draw history of the user.
+  // changes: none
+  rpc ListGachaHistory(ListGachaHistoryRequest) returns (ListGachaHistoryResponse) {
+    option (ogw.silent) = true;
+  }
+  // Claims the reward of a completed mission.
+  // changes: ItemBalanceUserState, MailUserState, MissionProgressUserState, content
+  rpc ClaimMission(ClaimMissionRequest) returns (ClaimMissionResponse) {
+    option (ogw.retry) = true;
+  }
+  // Claims the reward of today of an attendance calendar.
+  // changes: ItemBalanceUserState, MailUserState, AttendanceUserState, content
+  rpc ClaimAttendance(ClaimAttendanceRequest) returns (ClaimAttendanceResponse) {
+    option (ogw.retry) = true;
+  }
+  // Redeems a coupon code.
+  // changes: ItemBalanceUserState, MailUserState, content
+  rpc RedeemCoupon(RedeemCouponRequest) returns (RedeemCouponResponse) {
+    option (ogw.retry) = true;
+  }
+  // Returns the maintenance state and the notices shown now.
+  // changes: none
+  rpc GetNotices(GetNoticesRequest) returns (GetNoticesResponse);
+  // Returns the remote config values and experiment groups of the user.
+  // changes: none
+  rpc GetRemoteConfig(GetRemoteConfigRequest) returns (GetRemoteConfigResponse) {
+    option (ogw.silent) = true;
+  }
+  // Sets the nickname of the user.
+  // changes: ItemBalanceUserState, NicknameUserState, content
+  rpc SetNickname(SetNicknameRequest) returns (SetNicknameResponse) {
+    option (ogw.retry) = true;
+  }
+  // Returns the public profiles of users.
+  // changes: none
+  rpc GetPublicProfiles(GetPublicProfilesRequest) returns (GetPublicProfilesResponse) {
+    option (ogw.silent) = true;
+  }
+  // Sends a friend request.
+  // changes: content
+  rpc SendFriendRequest(SendFriendRequestRequest) returns (SendFriendRequestResponse) {
+    option (ogw.retry) = true;
+  }
+  // Accepts a received friend request.
+  // changes: content
+  rpc AcceptFriendRequest(AcceptFriendRequestRequest) returns (AcceptFriendRequestResponse) {
+    option (ogw.retry) = true;
+  }
+  // Declines a received friend request.
+  // changes: content
+  rpc DeclineFriendRequest(DeclineFriendRequestRequest) returns (DeclineFriendRequestResponse) {
+    option (ogw.retry) = true;
+  }
+  // Cancels a sent friend request.
+  // changes: content
+  rpc CancelFriendRequest(CancelFriendRequestRequest) returns (CancelFriendRequestResponse) {
+    option (ogw.retry) = true;
+  }
+  // Removes a friend.
+  // changes: content
+  rpc RemoveFriend(RemoveFriendRequest) returns (RemoveFriendResponse) {
+    option (ogw.retry) = true;
+  }
+  // Returns friends and pending friend requests.
+  // changes: none
+  rpc GetFriends(GetFriendsRequest) returns (GetFriendsResponse) {
+    option (ogw.silent) = true;
+  }
+  // Searches users by nickname.
+  // changes: none
+  rpc SearchUsers(SearchUsersRequest) returns (SearchUsersResponse);
+  // Blocks a user.
+  // changes: none
+  rpc BlockUser(BlockUserRequest) returns (BlockUserResponse) {
+    option (ogw.retry) = true;
+  }
+  // Unblocks a user.
+  // changes: none
+  rpc UnblockUser(UnblockUserRequest) returns (UnblockUserResponse) {
+    option (ogw.retry) = true;
+  }
+  // Returns the users the user blocked.
+  // changes: none
+  rpc GetBlockedUsers(GetBlockedUsersRequest) returns (GetBlockedUsersResponse) {
+    option (ogw.silent) = true;
+  }
+  // Reports a user.
+  // changes: none
+  rpc ReportUser(ReportUserRequest) returns (ReportUserResponse) {
+    option (ogw.retry) = true;
+  }
+  // Creates a guild with the user as the leader.
+  // changes: content
+  rpc CreateGuild(CreateGuildRequest) returns (CreateGuildResponse) {
+    option (ogw.retry) = true;
+  }
+  // Updates the description and join rule of the guild.
+  // changes: none
+  rpc UpdateGuild(UpdateGuildRequest) returns (UpdateGuildResponse) {
+    option (ogw.retry) = true;
+  }
+  // Returns a guild and its members.
+  // changes: none
+  rpc GetGuild(GetGuildRequest) returns (GetGuildResponse) {
+    option (ogw.silent) = true;
+  }
+  // Returns the guild of the user, its members and join requests.
+  // changes: content
+  rpc GetMyGuild(GetMyGuildRequest) returns (GetMyGuildResponse) {
+    option (ogw.retry) = true;
+    option (ogw.silent) = true;
+  }
+  // Searches guilds by name.
+  // changes: none
+  rpc SearchGuilds(SearchGuildsRequest) returns (SearchGuildsResponse) {
+    option (ogw.silent) = true;
+  }
+  // Returns guilds the user can join.
+  // changes: none
+  rpc ListJoinableGuilds(ListJoinableGuildsRequest) returns (ListJoinableGuildsResponse) {
+    option (ogw.silent) = true;
+  }
+  // Joins a guild or sends a join request.
+  // changes: content
+  rpc JoinGuild(JoinGuildRequest) returns (JoinGuildResponse) {
+    option (ogw.retry) = true;
+  }
+  // Cancels a sent guild join request.
+  // changes: none
+  rpc CancelGuildJoinRequest(CancelGuildJoinRequestRequest) returns (CancelGuildJoinRequestResponse) {
+    option (ogw.retry) = true;
+  }
+  // Accepts a join request to the guild.
+  // changes: content
+  rpc AcceptGuildJoinRequest(AcceptGuildJoinRequestRequest) returns (AcceptGuildJoinRequestResponse) {
+    option (ogw.retry) = true;
+  }
+  // Rejects a join request to the guild.
+  // changes: none
+  rpc RejectGuildJoinRequest(RejectGuildJoinRequestRequest) returns (RejectGuildJoinRequestResponse) {
+    option (ogw.retry) = true;
+  }
+  // Leaves the guild.
+  // changes: content
+  rpc LeaveGuild(LeaveGuildRequest) returns (LeaveGuildResponse) {
+    option (ogw.retry) = true;
+  }
+  // Removes a member from the guild.
+  // changes: content
+  rpc KickGuildMember(KickGuildMemberRequest) returns (KickGuildMemberResponse) {
+    option (ogw.retry) = true;
+  }
+  // Sets the role of a guild member.
+  // changes: content
+  rpc SetGuildMemberRole(SetGuildMemberRoleRequest) returns (SetGuildMemberRoleResponse) {
+    option (ogw.retry) = true;
+  }
+  // Sends a chat message to a channel.
+  // changes: content
+  rpc SendChatMessage(SendChatMessageRequest) returns (SendChatMessageResponse) {
+    option (ogw.retry) = true;
+  }
+  // Returns messages of a chat channel.
+  // changes: none
+  rpc GetChatMessages(GetChatMessagesRequest) returns (GetChatMessagesResponse) {
+    option (ogw.silent) = true;
+  }
+  // Reports a chat message.
+  // changes: none
+  rpc ReportChatMessage(ReportChatMessageRequest) returns (ReportChatMessageResponse) {
+    option (ogw.retry) = true;
+  }
+  // Returns the chat channels of the user.
+  // changes: none
+  rpc GetChatChannels(GetChatChannelsRequest) returns (GetChatChannelsResponse) {
+    option (ogw.silent) = true;
+  }
+  // Deletes a message of the guild chat channel.
+  // changes: none
+  rpc DeleteGuildChatMessage(DeleteGuildChatMessageRequest) returns (DeleteGuildChatMessageResponse) {
+    option (ogw.retry) = true;
+  }
+  // Starts a play session and returns its loadout.
+  // changes: content
+  rpc StartPlaySession(StartPlaySessionRequest) returns (StartPlaySessionResponse) {
+    option (ogw.retry) = true;
+  }
+  // Continues a play session.
+  // changes: content
+  rpc ContinuePlaySession(ContinuePlaySessionRequest) returns (ContinuePlaySessionResponse) {
+    option (ogw.retry) = true;
+  }
+  // Finishes a play session with its result.
+  // changes: content
+  rpc FinishPlaySession(FinishPlaySessionRequest) returns (FinishPlaySessionResponse) {
+    option (ogw.retry) = true;
+  }
+  // Registers the push device token of this device.
+  // changes: none
+  rpc RegisterPushToken(RegisterPushTokenRequest) returns (RegisterPushTokenResponse) {
+    option (ogw.retry) = true;
+    option (ogw.sensitive) = true;
+    option (ogw.silent) = true;
+  }
+}
+
+// Core cheats. POST /core/cheat/<Name>. DEV code.
+service CoreCheat {
+  // Logs in with a dev account name. DEV code.
+  // changes: ConsentUserState
+  rpc DevLogin(DevLoginRequest) returns (DevLoginResponse);
+  // Sets the cheat time offset of the user. DEV code.
+  // changes: none
+  rpc SetTimeOffset(SetTimeOffsetRequest) returns (SetTimeOffsetResponse);
+  // Replaces a UserState entry with a proto3 JSON value. DEV code.
+  // changes: content
+  rpc SetUserState(SetUserStateRequest) returns (SetUserStateResponse);
+  // Deletes a UserState entry. DEV code.
+  // changes: content
+  rpc DeleteUserState(DeleteUserStateRequest) returns (DeleteUserStateResponse);
+  // Sets the balance of an item. DEV code.
+  // changes: ItemBalanceUserState
+  rpc SetItemBalance(SetItemBalanceRequest) returns (SetItemBalanceResponse);
+  // Runs the ad network callback of a notify ID with the fake adapter. DEV code.
+  // changes: ItemBalanceUserState, MailUserState, AdRewardCountUserState, content
+  rpc FakeAdCallback(FakeAdCallbackRequest) returns (FakeAdCallbackResponse);
+  // Sets the progress of a mission. DEV code.
+  // changes: MissionProgressUserState
+  rpc SetMissionProgress(SetMissionProgressRequest) returns (SetMissionProgressResponse);
+  // Sets the count of a reset counter. DEV code.
+  // changes: ResetCounterUserState
+  rpc SetResetCounter(SetResetCounterRequest) returns (SetResetCounterResponse);
+}
+
+// Request of Login.
+message LoginRequest {
+  // Provider.
+  LoginProvider provider = 1;
+  // Credential.
+  string credential = 2 [(ogw.v) = {max_len_key: "auth.maxCredentialBytes"}];
+  // Agreements.
+  repeated TermsAgreement agreements = 3 [(ogw.v) = {max_count: 2}];
+}
+
+// Response of Login.
+message LoginResponse {
+  // Result.
+  AuthResult result = 1;
+}
+
+// Request of AutoLogin.
+message AutoLoginRequest {
+  // Agreements.
+  repeated TermsAgreement agreements = 1 [(ogw.v) = {max_count: 2}];
+}
+
+// Response of AutoLogin.
+message AutoLoginResponse {
+  // Result.
+  AuthResult result = 1;
+}
+
+// Request of RefreshToken.
+message RefreshTokenRequest {
+}
+
+// Response of RefreshToken.
+message RefreshTokenResponse {
+  // Access token.
+  string access_token = 1;
+  // Access token expires time. Unix ms.
+  int64 access_token_expires_at = 2;
+}
+
+// Request of Logout.
+message LogoutRequest {
+}
+
+// Response of Logout.
+message LogoutResponse {
+}
+
+// Request of LinkAccount.
+message LinkAccountRequest {
+  // Provider.
+  LoginProvider provider = 1;
+  // Credential.
+  string credential = 2 [(ogw.v) = {max_len_key: "auth.maxCredentialBytes"}];
+}
+
+// Response of LinkAccount.
+message LinkAccountResponse {
+  // Linked providers.
+  repeated LoginProvider linked_providers = 1;
+}
+
+// Request of Withdraw.
+message WithdrawRequest {
+}
+
+// Response of Withdraw.
+message WithdrawResponse {
+}
+
+// Request of IssueDeletionCode.
+message IssueDeletionCodeRequest {
+}
+
+// Response of IssueDeletionCode.
+message IssueDeletionCodeResponse {
+  // Code.
+  string code = 1;
+  // Expires time. Unix ms.
+  int64 expires_at = 2;
+  // URL.
+  string url = 3;
+}
+
+// Request of GetTerms.
+message GetTermsRequest {
+}
+
+// Response of GetTerms.
+message GetTermsResponse {
+  // Documents.
+  repeated TermsDocument documents = 1;
+}
+
+// Request of ConfirmAge.
+message ConfirmAgeRequest {
+  // Birth year and month as yyyymm.
+  int32 birth_year_month = 1 [(ogw.v) = {min: 0, max: 999912}];
+}
+
+// Response of ConfirmAge.
+message ConfirmAgeResponse {
+  // Consent.
+  ConsentUserState consent = 1;
+}
+
+// Request of UpdateConsent.
+message UpdateConsentRequest {
+  // Privacy choice version the user answered.
+  int32 privacy_version = 1 [(ogw.v) = {min: 0, max: 2147483647}];
+  // Ad personalization.
+  ConsentChoice ad_personalization = 2;
+  // Analytics.
+  ConsentChoice analytics = 3;
+  // Tracking.
+  TrackingStatus tracking = 4;
+}
+
+// Response of UpdateConsent.
+message UpdateConsentResponse {
+  // Consent.
+  ConsentUserState consent = 1;
+}
+
+// Request of UpdatePushConsent.
+message UpdatePushConsentRequest {
+  // Push ad.
+  ConsentChoice push_ad = 1;
+  // Push night.
+  ConsentChoice push_night = 2;
+}
+
+// Response of UpdatePushConsent.
+message UpdatePushConsentResponse {
+  // Consent.
+  ConsentUserState consent = 1;
+}
+
+// Request of DevLogin.
+message DevLoginRequest {
+  // Account name.
+  string account_name = 1 [(ogw.v) = {max_len_key: "auth.maxDevAccountNameLength"}];
+}
+
+// Response of DevLogin.
+message DevLoginResponse {
+  // Result.
+  AuthResult result = 1;
+}
+
+// Request of Resync.
+message ResyncRequest {
+  // True to receive the whole UserState.
+  bool full = 1;
+}
+
+// Response of Resync.
+message ResyncResponse {
+}
+
+// Request of ReportClientErrors.
+message ReportClientErrorsRequest {
+  // Errors.
+  repeated ClientErrorEntry errors = 1 [(ogw.v) = {max_count_key: "logging.maxErrorEntries"}];
+  // Entries the client dropped before sending.
+  int32 dropped_error_count = 2 [(ogw.v) = {min: 0, max: 2147483647}];
+}
+
+// Response of ReportClientErrors.
+message ReportClientErrorsResponse {
+}
+
+// Request of ReportAnalyticsEvents.
+message ReportAnalyticsEventsRequest {
+  // Events.
+  repeated AnalyticsEvent events = 1 [(ogw.v) = {max_count_key: "logging.maxEvents"}];
+  // Events the client dropped before sending.
+  int32 dropped_event_count = 2 [(ogw.v) = {min: 0, max: 2147483647}];
+}
+
+// Response of ReportAnalyticsEvents.
+message ReportAnalyticsEventsResponse {
+}
+
+// Request of SetTimeOffset.
+message SetTimeOffsetRequest {
+  // Offset added to the server time of the user. ms.
+  int64 offset_ms = 1 [(ogw.v) = {min: -9223372036854775808, max: 9223372036854775807}];
+}
+
+// Response of SetTimeOffset.
+message SetTimeOffsetResponse {
+}
+
+// Request of SetUserState.
+message SetUserStateRequest {
+  // Kind.
+  string kind = 1 [(ogw.v) = {max_len_key: "routing.maxBodyBytes"}];
+  // Item ID of a list kind. 0 for a single kind.
+  int64 item_id = 2 [(ogw.v) = {min: 0, max: 9223372036854775807}];
+  // Kind message as proto3 JSON.
+  string value_json = 3 [(ogw.v) = {max_len_key: "routing.maxBodyBytes"}];
+}
+
+// Response of SetUserState.
+message SetUserStateResponse {
+}
+
+// Request of DeleteUserState.
+message DeleteUserStateRequest {
+  // Kind.
+  string kind = 1 [(ogw.v) = {max_len_key: "routing.maxBodyBytes"}];
+  // Item ID of a list kind. 0 for a single kind.
+  int64 item_id = 2 [(ogw.v) = {min: 0, max: 9223372036854775807}];
+}
+
+// Response of DeleteUserState.
+message DeleteUserStateResponse {
+}
+
+// Request of ReportMatchResult.
+message ReportMatchResultRequest {
+  // Match ID.
+  string match_id = 1 [(ogw.v) = {max_len: 36}];
+  // Bytes of the game MatchResult message.
+  bytes result = 2 [(ogw.v) = {max_len_key: "matchmaker.resultMaxBytes"}];
+  // Bytes of the game MatchInputLog message. Only for ServerReplay.
+  bytes input_log = 3 [(ogw.v) = {max_len_key: "matchmaker.inputLogMaxBytes"}];
+}
+
+// Response of ReportMatchResult.
+message ReportMatchResultResponse {
+  // Status.
+  MatchJudgeStatus status = 1;
+}
+
+// Request of SetItemBalance.
+message SetItemBalanceRequest {
+  // Item ID value.
+  int32 item_id = 1 [(ogw.v) = {table: "item"}];
+  // Balance.
+  int64 balance = 2 [(ogw.v) = {min: 0, max: 9007199254740991}];
+  // balance as a big integer when it is over 2^53−1. Empty otherwise.
+  string big_balance = 3 [(ogw.v) = {max_len_key: "item-ledger.bigMaxDigits"}];
+}
+
+// Response of SetItemBalance.
+message SetItemBalanceResponse {
+}
+
+// Request of ReadMail.
+message ReadMailRequest {
+  // Mail ID.
+  int64 mail_id = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+}
+
+// Response of ReadMail.
+message ReadMailResponse {
+}
+
+// Request of ClaimMail.
+message ClaimMailRequest {
+  // Mail ID.
+  int64 mail_id = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+}
+
+// Response of ClaimMail.
+message ClaimMailResponse {
+  // Items.
+  repeated ItemAmount items = 1;
+}
+
+// Request of ClaimAllMail.
+message ClaimAllMailRequest {
+}
+
+// Response of ClaimAllMail.
+message ClaimAllMailResponse {
+  // Mail IDs.
+  repeated int64 mail_ids = 1;
+  // Items.
+  repeated ItemAmount items = 2;
+  // Claimable mails left.
+  int32 unclaimed_count = 3;
+}
+
+// Request of BuyShopProduct.
+message BuyShopProductRequest {
+  // Product ID value.
+  int32 product_id = 1 [(ogw.v) = {table: "shop_product"}];
+  // Quantity.
+  int32 quantity = 2 [(ogw.v) = {min: 1, max: 2147483647}];
+  // Accept loss.
+  bool accept_loss = 3;
+}
+
+// Response of BuyShopProduct.
+message BuyShopProductResponse {
+  // Items.
+  repeated ItemAmount items = 1;
+  // Mailed.
+  bool mailed = 2;
+}
+
+// Request of CheckPurchase.
+message CheckPurchaseRequest {
+  // Store.
+  IapStore store = 1;
+  // Product ID value.
+  int32 product_id = 2 [(ogw.v) = {table: "iap_product"}];
+}
+
+// Response of CheckPurchase.
+message CheckPurchaseResponse {
+  // Token the client passes to the store payment.
+  string account_token = 1;
+}
+
+// Request of VerifyPurchase.
+message VerifyPurchaseRequest {
+  // Store.
+  IapStore store = 1;
+  // Receipt.
+  string receipt = 2 [(ogw.v) = {max_len_key: "iap.maxReceiptBytes"}];
+}
+
+// Response of VerifyPurchase.
+message VerifyPurchaseResponse {
+  // Status.
+  PurchaseStatus status = 1;
+  // Product ID value.
+  int32 product_id = 2;
+  // Items.
+  repeated ItemAmount items = 3;
+}
+
+// Request of RecoverPurchase.
+message RecoverPurchaseRequest {
+  // Store.
+  IapStore store = 1;
+  // Receipt.
+  string receipt = 2 [(ogw.v) = {max_len_key: "iap.maxReceiptBytes"}];
+}
+
+// Response of RecoverPurchase.
+message RecoverPurchaseResponse {
+  // Status.
+  PurchaseStatus status = 1;
+  // Product ID value.
+  int32 product_id = 2;
+  // Items.
+  repeated ItemAmount items = 3;
+}
+
+// Request of SyncSubscriptions.
+message SyncSubscriptionsRequest {
+}
+
+// Response of SyncSubscriptions.
+message SyncSubscriptionsResponse {
+}
+
+// Request of ClaimIapDaily.
+message ClaimIapDailyRequest {
+  // Product ID value.
+  int32 product_id = 1 [(ogw.v) = {table: "iap_product"}];
+}
+
+// Response of ClaimIapDaily.
+message ClaimIapDailyResponse {
+  // Items.
+  repeated ItemAmount items = 1;
+}
+
+// Request of BeginAdReward.
+message BeginAdRewardRequest {
+  // Placement ID value.
+  int32 placement_id = 1 [(ogw.v) = {table: "ad_placement"}];
+}
+
+// Response of BeginAdReward.
+message BeginAdRewardResponse {
+  // Notify ID.
+  string notify_id = 1;
+}
+
+// Request of ClaimAdReward.
+message ClaimAdRewardRequest {
+  // Notify ID.
+  string notify_id = 1 [(ogw.v) = {max_len: 36}];
+}
+
+// Response of ClaimAdReward.
+message ClaimAdRewardResponse {
+  // Items.
+  repeated ItemAmount items = 1;
+}
+
+// Request of FakeAdCallback.
+message FakeAdCallbackRequest {
+  // Notify ID.
+  string notify_id = 1 [(ogw.v) = {max_len: 36}];
+}
+
+// Response of FakeAdCallback.
+message FakeAdCallbackResponse {
+}
+
+// Request of GetRankingTop.
+message GetRankingTopRequest {
+  // Board ID value.
+  int32 board_id = 1 [(ogw.v) = {table: "ranking_board"}];
+  // Previous.
+  bool previous = 2;
+  // Offset.
+  int32 offset = 3 [(ogw.v) = {min: 0, max: 2147483647}];
+  // Limit.
+  int32 limit = 4 [(ogw.v) = {min: 1, max_key: "ranking.maxPageSize"}];
+}
+
+// Response of GetRankingTop.
+message GetRankingTopResponse {
+  // Season.
+  int64 season = 1;
+  // Season ends time. Unix ms.
+  int64 season_ends_at = 2;
+  // Entries.
+  repeated RankingEntry entries = 3;
+}
+
+// Request of GetRankingAround.
+message GetRankingAroundRequest {
+  // Board ID value.
+  int32 board_id = 1 [(ogw.v) = {table: "ranking_board"}];
+  // Previous.
+  bool previous = 2;
+}
+
+// Response of GetRankingAround.
+message GetRankingAroundResponse {
+  // Season.
+  int64 season = 1;
+  // Season ends time. Unix ms.
+  int64 season_ends_at = 2;
+  // My entry.
+  RankingEntry my_entry = 3;
+  // Entries.
+  repeated RankingEntry entries = 4;
+}
+
+// Request of RefreshRating.
+message RefreshRatingRequest {
+}
+
+// Response of RefreshRating.
+message RefreshRatingResponse {
+}
+
+// Request of SaveTutorialProgress.
+message SaveTutorialProgressRequest {
+  // Tutorial ID value.
+  int32 tutorial_id = 1 [(ogw.v) = {table: "tutorial"}];
+  // Step.
+  int32 step = 2 [(ogw.v) = {min: 1, max: 2147483647}];
+}
+
+// Response of SaveTutorialProgress.
+message SaveTutorialProgressResponse {
+}
+
+// Request of GetLootRates.
+message GetLootRatesRequest {
+  // Loot table ID value.
+  int32 loot_table_id = 1 [(ogw.v) = {table: "public_loot_table"}];
+}
+
+// Response of GetLootRates.
+message GetLootRatesResponse {
+  // Rates.
+  repeated LootRate rates = 1;
+}
+
+// Request of DrawGacha.
+message DrawGachaRequest {
+  // Banner ID value.
+  int32 banner_id = 1 [(ogw.v) = {table: "gacha_banner"}];
+  // Mode.
+  GachaDrawMode mode = 2;
+  // Use ticket.
+  bool use_ticket = 3;
+}
+
+// Response of DrawGacha.
+message DrawGachaResponse {
+  // Results.
+  repeated GachaDrawResult results = 1;
+  // Items.
+  repeated ItemAmount items = 2;
+  // Mailed.
+  bool mailed = 3;
+}
+
+// Request of GetGachaRates.
+message GetGachaRatesRequest {
+  // Banner ID value.
+  int32 banner_id = 1 [(ogw.v) = {table: "gacha_banner"}];
+}
+
+// Response of GetGachaRates.
+message GetGachaRatesResponse {
+  // Sections.
+  repeated GachaRateSection sections = 1;
+  // Pity count.
+  int32 pity_count = 2;
+  // Rate up guarantee.
+  bool rate_up_guarantee = 3;
+  // Multi count.
+  int32 multi_count = 4;
+}
+
+// Request of ListGachaHistory.
+message ListGachaHistoryRequest {
+  // Banner ID value. 0 for every banner.
+  int32 banner_id = 1 [(ogw.v) = {min: 0, max: 2147483647}];
+  // Returns draws before this draw_seq. 0 for the latest.
+  int64 cursor_draw_seq = 2 [(ogw.v) = {min: 0, max: 9223372036854775807}];
+  // Max rows.
+  int32 max_rows = 3 [(ogw.v) = {min: 1, max_key: "gacha.maxHistoryRows"}];
+}
+
+// Response of ListGachaHistory.
+message ListGachaHistoryResponse {
+  // Entries.
+  repeated GachaHistoryEntry entries = 1;
+}
+
+// Request of ClaimMission.
+message ClaimMissionRequest {
+  // Mission ID value.
+  int32 mission_id = 1 [(ogw.v) = {table: "mission"}];
+}
+
+// Response of ClaimMission.
+message ClaimMissionResponse {
+  // Items.
+  repeated ItemAmount items = 1;
+}
+
+// Request of SetMissionProgress.
+message SetMissionProgressRequest {
+  // Mission ID value.
+  int32 mission_id = 1 [(ogw.v) = {table: "mission"}];
+  // Progress.
+  int64 progress = 2 [(ogw.v) = {min: 0, max: 9007199254740991}];
+  // Claimed.
+  bool claimed = 3;
+}
+
+// Response of SetMissionProgress.
+message SetMissionProgressResponse {
+}
+
+// Request of ClaimAttendance.
+message ClaimAttendanceRequest {
+  // Calendar ID value.
+  int32 calendar_id = 1 [(ogw.v) = {table: "attendance_calendar"}];
+}
+
+// Response of ClaimAttendance.
+message ClaimAttendanceResponse {
+  // Day.
+  int32 day = 1;
+  // Items.
+  repeated ItemAmount items = 2;
+  // Mailed.
+  bool mailed = 3;
+}
+
+// Request of SetResetCounter.
+message SetResetCounterRequest {
+  // Counter ID value.
+  int32 counter_id = 1 [(ogw.v) = {table: "reset_counter"}];
+  // Count.
+  int64 count = 2 [(ogw.v) = {min: 0, max: 9007199254740991}];
+}
+
+// Response of SetResetCounter.
+message SetResetCounterResponse {
+}
+
+// Request of RedeemCoupon.
+message RedeemCouponRequest {
+  // Code.
+  string code = 1 [(ogw.v) = {max_len_key: "coupon.maxCodeInputBytes"}];
+}
+
+// Response of RedeemCoupon.
+message RedeemCouponResponse {
+  // Items.
+  repeated ItemAmount items = 1;
+}
+
+// Request of GetNotices.
+message GetNoticesRequest {
+  // BCP 47 language tag.
+  string language = 1 [(ogw.v) = {max_len: 35}];
+}
+
+// Response of GetNotices.
+message GetNoticesResponse {
+  // Maintenance.
+  bool maintenance = 1;
+  // Notices.
+  repeated Notice notices = 2;
+}
+
+// Request of GetRemoteConfig.
+message GetRemoteConfigRequest {
+}
+
+// Response of GetRemoteConfig.
+message GetRemoteConfigResponse {
+  // Entries.
+  repeated RemoteConfigEntry entries = 1;
+  // Assignments.
+  repeated ExperimentAssignment assignments = 2;
+}
+
+// Request of SetNickname.
+message SetNicknameRequest {
+  // Nickname.
+  string nickname = 1 [(ogw.v) = {max_chars_key: "nickname.maxLength"}];
+}
+
+// Response of SetNickname.
+message SetNicknameResponse {
+  // Nickname.
+  string nickname = 1;
+}
+
+// Request of GetPublicProfiles.
+message GetPublicProfilesRequest {
+  // User IDs.
+  repeated int64 user_ids = 1 [(ogw.v) = {min: 1, max: 9223372036854775807, min_count: 1, unique: true, max_count_key: "public-profile.maxRequestCount"}];
+}
+
+// Response of GetPublicProfiles.
+message GetPublicProfilesResponse {
+  // Profiles.
+  repeated PublicProfileEntry profiles = 1;
+}
+
+// Request of SendFriendRequest.
+message SendFriendRequestRequest {
+  // User ID.
+  int64 user_id = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+}
+
+// Response of SendFriendRequest.
+message SendFriendRequestResponse {
+  // State.
+  FriendState state = 1;
+}
+
+// Request of AcceptFriendRequest.
+message AcceptFriendRequestRequest {
+  // User ID.
+  int64 user_id = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+}
+
+// Response of AcceptFriendRequest.
+message AcceptFriendRequestResponse {
+}
+
+// Request of DeclineFriendRequest.
+message DeclineFriendRequestRequest {
+  // User ID.
+  int64 user_id = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+}
+
+// Response of DeclineFriendRequest.
+message DeclineFriendRequestResponse {
+}
+
+// Request of CancelFriendRequest.
+message CancelFriendRequestRequest {
+  // User ID.
+  int64 user_id = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+}
+
+// Response of CancelFriendRequest.
+message CancelFriendRequestResponse {
+}
+
+// Request of RemoveFriend.
+message RemoveFriendRequest {
+  // User ID.
+  int64 user_id = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+}
+
+// Response of RemoveFriend.
+message RemoveFriendResponse {
+}
+
+// Request of GetFriends.
+message GetFriendsRequest {
+}
+
+// Response of GetFriends.
+message GetFriendsResponse {
+  // Friends.
+  repeated FriendEntry friends = 1;
+}
+
+// Request of SearchUsers.
+message SearchUsersRequest {
+  // Nickname.
+  string nickname = 1 [(ogw.v) = {max_chars_key: "nickname.maxLength"}];
+}
+
+// Response of SearchUsers.
+message SearchUsersResponse {
+  // Users.
+  repeated PublicProfileEntry users = 1;
+}
+
+// Request of BlockUser.
+message BlockUserRequest {
+  // User ID.
+  int64 user_id = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+}
+
+// Response of BlockUser.
+message BlockUserResponse {
+}
+
+// Request of UnblockUser.
+message UnblockUserRequest {
+  // User ID.
+  int64 user_id = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+}
+
+// Response of UnblockUser.
+message UnblockUserResponse {
+}
+
+// Request of GetBlockedUsers.
+message GetBlockedUsersRequest {
+}
+
+// Response of GetBlockedUsers.
+message GetBlockedUsersResponse {
+  // Blocked.
+  repeated BlockedUserEntry blocked = 1;
+}
+
+// Request of ReportUser.
+message ReportUserRequest {
+  // User ID.
+  int64 user_id = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+  // Reason ID value.
+  int32 reason_id = 2 [(ogw.v) = {table: "report_reason"}];
+  // Context.
+  ReportContext context = 3;
+  // Ref.
+  string ref = 4 [(ogw.v) = {max_len_key: "block-report.maxRefBytes"}];
+  // Comment.
+  string comment = 5 [(ogw.v) = {max_chars_key: "block-report.maxCommentLength"}];
+}
+
+// Response of ReportUser.
+message ReportUserResponse {
+}
+
+// Request of CreateGuild.
+message CreateGuildRequest {
+  // Name.
+  string name = 1 [(ogw.v) = {max_chars_key: "guild.maxNameLength"}];
+  // Description.
+  string description = 2 [(ogw.v) = {max_chars_key: "guild.maxDescriptionLength"}];
+  // Join type.
+  GuildJoinType join_type = 3;
+  // Join value.
+  int64 join_value = 4 [(ogw.v) = {min: 0, max: 9007199254740991}];
+}
+
+// Response of CreateGuild.
+message CreateGuildResponse {
+  // Guild ID.
+  int64 guild_id = 1;
+}
+
+// Request of UpdateGuild.
+message UpdateGuildRequest {
+  // Description.
+  string description = 1 [(ogw.v) = {max_chars_key: "guild.maxDescriptionLength"}];
+  // Join type.
+  GuildJoinType join_type = 2;
+  // Join value.
+  int64 join_value = 3 [(ogw.v) = {min: 0, max: 9007199254740991}];
+}
+
+// Response of UpdateGuild.
+message UpdateGuildResponse {
+}
+
+// Request of GetGuild.
+message GetGuildRequest {
+  // Guild ID.
+  int64 guild_id = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+}
+
+// Response of GetGuild.
+message GetGuildResponse {
+  // Guild.
+  GuildInfo guild = 1;
+  // Members.
+  repeated GuildMemberEntry members = 2;
+}
+
+// Request of GetMyGuild.
+message GetMyGuildRequest {
+}
+
+// Response of GetMyGuild.
+message GetMyGuildResponse {
+  // Guild.
+  GuildInfo guild = 1;
+  // Members.
+  repeated GuildMemberEntry members = 2;
+  // Join requests.
+  repeated PublicProfileEntry join_requests = 3;
+  // Guild IDs the user sent join requests to.
+  repeated int64 my_join_requests = 4;
+  // Time the user can join a guild again. Unix ms. 0 when none.
+  int64 cooldown_ends_at = 5;
+}
+
+// Request of SearchGuilds.
+message SearchGuildsRequest {
+  // Name.
+  string name = 1 [(ogw.v) = {max_chars_key: "guild.maxNameLength"}];
+}
+
+// Response of SearchGuilds.
+message SearchGuildsResponse {
+  // Guilds.
+  repeated GuildInfo guilds = 1;
+}
+
+// Request of ListJoinableGuilds.
+message ListJoinableGuildsRequest {
+  // Max join value.
+  int64 max_join_value = 1 [(ogw.v) = {min: 0, max: 9007199254740991}];
+}
+
+// Response of ListJoinableGuilds.
+message ListJoinableGuildsResponse {
+  // Guilds.
+  repeated GuildInfo guilds = 1;
+}
+
+// Request of JoinGuild.
+message JoinGuildRequest {
+  // Guild ID.
+  int64 guild_id = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+}
+
+// Response of JoinGuild.
+message JoinGuildResponse {
+  // Joined.
+  bool joined = 1;
+}
+
+// Request of CancelGuildJoinRequest.
+message CancelGuildJoinRequestRequest {
+  // Guild ID.
+  int64 guild_id = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+}
+
+// Response of CancelGuildJoinRequest.
+message CancelGuildJoinRequestResponse {
+}
+
+// Request of AcceptGuildJoinRequest.
+message AcceptGuildJoinRequestRequest {
+  // User ID.
+  int64 user_id = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+}
+
+// Response of AcceptGuildJoinRequest.
+message AcceptGuildJoinRequestResponse {
+}
+
+// Request of RejectGuildJoinRequest.
+message RejectGuildJoinRequestRequest {
+  // User ID.
+  int64 user_id = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+}
+
+// Response of RejectGuildJoinRequest.
+message RejectGuildJoinRequestResponse {
+}
+
+// Request of LeaveGuild.
+message LeaveGuildRequest {
+}
+
+// Response of LeaveGuild.
+message LeaveGuildResponse {
+}
+
+// Request of KickGuildMember.
+message KickGuildMemberRequest {
+  // User ID.
+  int64 user_id = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+}
+
+// Response of KickGuildMember.
+message KickGuildMemberResponse {
+}
+
+// Request of SetGuildMemberRole.
+message SetGuildMemberRoleRequest {
+  // User ID.
+  int64 user_id = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+  // Role.
+  GuildRole role = 2;
+}
+
+// Response of SetGuildMemberRole.
+message SetGuildMemberRoleResponse {
+}
+
+// Request of SendChatMessage.
+message SendChatMessageRequest {
+  // Channel kind.
+  ChatChannelKind channel_kind = 1;
+  // Channel key.
+  int64 channel_key = 2 [(ogw.v) = {min: 0, max: 9223372036854775807}];
+  // Message kind.
+  ChatMessageKind message_kind = 3;
+  // Text.
+  string text = 4 [(ogw.v) = {max_chars_key: "chat.maxTextLength"}];
+}
+
+// Response of SendChatMessage.
+message SendChatMessageResponse {
+  // Message.
+  ChatMessage message = 1;
+}
+
+// Request of GetChatMessages.
+message GetChatMessagesRequest {
+  // Channel kind.
+  ChatChannelKind channel_kind = 1;
+  // Channel key.
+  int64 channel_key = 2 [(ogw.v) = {min: 0, max: 9223372036854775807}];
+  // After seq.
+  int64 after_seq = 3 [(ogw.v) = {min: 0, max: 9223372036854775807}];
+  // Before seq.
+  int64 before_seq = 4 [(ogw.v) = {min: 0, max: 9223372036854775807}];
+  // After delete seq.
+  int64 after_delete_seq = 5 [(ogw.v) = {min: 0, max: 9223372036854775807}];
+}
+
+// Response of GetChatMessages.
+message GetChatMessagesResponse {
+  // Messages.
+  repeated ChatMessage messages = 1;
+  // Last seq.
+  int64 last_seq = 2;
+  // Wait before the next poll. ms.
+  int64 poll_after_ms = 3;
+  // First seq.
+  int64 first_seq = 4;
+  // Channel key.
+  int64 channel_key = 5;
+  // seq of messages deleted after after_delete_seq.
+  repeated int64 deleted_seqs = 6;
+  // Last delete seq of the channel.
+  int64 last_delete_seq = 7;
+}
+
+// Request of ReportChatMessage.
+message ReportChatMessageRequest {
+  // Channel kind.
+  ChatChannelKind channel_kind = 1;
+  // Channel key.
+  int64 channel_key = 2 [(ogw.v) = {min: 0, max: 9223372036854775807}];
+  // Seq.
+  int64 seq = 3 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+  // Reason ID value.
+  int32 reason_id = 4 [(ogw.v) = {table: "report_reason"}];
+}
+
+// Response of ReportChatMessage.
+message ReportChatMessageResponse {
+}
+
+// Request of GetChatChannels.
+message GetChatChannelsRequest {
+}
+
+// Response of GetChatChannels.
+message GetChatChannelsResponse {
+  // Channels.
+  repeated ChatChannelEntry channels = 1;
+  // Wait before the next poll. ms.
+  int64 poll_after_ms = 2;
+}
+
+// Request of DeleteGuildChatMessage.
+message DeleteGuildChatMessageRequest {
+  // Seq.
+  int64 seq = 1 [(ogw.v) = {min: 1, max: 9223372036854775807}];
+}
+
+// Response of DeleteGuildChatMessage.
+message DeleteGuildChatMessageResponse {
+}
+
+// Request of StartPlaySession.
+message StartPlaySessionRequest {
+  // Mode ID value.
+  int32 mode_id = 1 [(ogw.v) = {table: "play_session_mode"}];
+  // Level ID value.
+  int32 level_id = 2 [(ogw.v) = {min: 0, max: 2147483647}];
+  // Bytes of the game PlaySessionStartOptions message.
+  bytes options = 3 [(ogw.v) = {max_len_key: "play-session.optionsMaxBytes"}];
+}
+
+// Response of StartPlaySession.
+message StartPlaySessionResponse {
+  // Play session ID.
+  string play_session_id = 1;
+  // Started time. Unix ms.
+  int64 started_at = 2;
+  // Bytes of the game PlaySessionLoadout message.
+  bytes loadout = 3;
+}
+
+// Request of ContinuePlaySession.
+message ContinuePlaySessionRequest {
+  // Play session ID.
+  string play_session_id = 1 [(ogw.v) = {max_len: 36}];
+  // Bytes of the game PlaySessionContinueOptions message.
+  bytes options = 2 [(ogw.v) = {max_len_key: "play-session.optionsMaxBytes"}];
+}
+
+// Response of ContinuePlaySession.
+message ContinuePlaySessionResponse {
+  // Continue count.
+  int32 continue_count = 1;
+}
+
+// Request of FinishPlaySession.
+message FinishPlaySessionRequest {
+  // Play session ID.
+  string play_session_id = 1 [(ogw.v) = {max_len: 36}];
+  // Bytes of the game PlaySessionResult message.
+  bytes result = 2 [(ogw.v) = {max_len_key: "play-session.resultMaxBytes"}];
+}
+
+// Response of FinishPlaySession.
+message FinishPlaySessionResponse {
+  // Bytes of the game PlaySessionResult message the server accepted.
+  bytes result = 1;
+}
+
+// Request of RegisterPushToken.
+message RegisterPushTokenRequest {
+  // Device token.
+  string device_token = 1 [(ogw.v) = {max_len_key: "push.maxDeviceTokenBytes"}];
+  // BCP 47 language tag.
+  string language = 2 [(ogw.v) = {max_len: 35}];
+  // UTC offset of the device. ms.
+  int64 timezone_offset_ms = 3 [(ogw.v) = {min: -86399999, max: 86399999}];
+}
+
+// Response of RegisterPushToken.
+message RegisterPushTokenResponse {
+}
+
+// An agreed terms item and its version.
+message TermsAgreement {
+  // Item.
+  TermsItem item = 1;
+  // Version.
+  int32 version = 2 [(ogw.v) = {min: 0, max: 2147483647}];
+}
+
+// The result of a login.
+message AuthResult {
+  // User ID.
+  int64 user_id = 1;
+  // Time the user was created. Unix ms.
+  int64 user_created_at = 2;
+  // Login token.
+  string login_token = 3;
+  // Access token.
+  string access_token = 4;
+  // Access token expires time. Unix ms.
+  int64 access_token_expires_at = 5;
+  // Session signing key.
+  string session_signing_key = 6;
+  // Linked providers.
+  repeated LoginProvider linked_providers = 7;
+  // Consent.
+  ConsentUserState consent = 8;
+  // Remote config of the user.
+  GetRemoteConfigResponse remote_config = 9;
+}
+
+// The current version and document URL of a terms item.
+message TermsDocument {
+  // Item.
+  TermsItem item = 1;
+  // Version.
+  int32 version = 2;
+  // URL.
+  string url = 3;
+}
+
+// One error log entry of the client.
+message ClientErrorEntry {
+  // Time time. Unix ms.
+  int64 time_at = 1 [(ogw.v) = {min: 0, max: 9223372036854775807}];
+  // Level.
+  string level = 2 [(ogw.v) = {max_chars_key: "logging.maxStringLength"}];
+  // Tag.
+  string tag = 3 [(ogw.v) = {max_chars_key: "logging.maxStringLength"}];
+  // Message.
+  string message = 4 [(ogw.v) = {max_chars_key: "logging.maxErrorMessageLength"}];
+  // Stack trace.
+  string stack_trace = 5 [(ogw.v) = {max_chars_key: "logging.maxStackTraceLength"}];
+}
+
+// One analytics event of the client.
+message AnalyticsEvent {
+  // Name.
+  string name = 1 [(ogw.v) = {max_chars_key: "logging.maxStringLength"}];
+  // Time time. Unix ms.
+  int64 time_at = 2 [(ogw.v) = {min: 0, max: 9223372036854775807}];
+  // Params.
+  repeated AnalyticsParam params = 3 [(ogw.v) = {max_count_key: "logging.maxEventParams"}];
+}
+
+// One parameter of an analytics event. Only the value field of kind holds a value.
+message AnalyticsParam {
+  // Key.
+  string key = 1 [(ogw.v) = {max_chars_key: "logging.maxStringLength"}];
+  // Kind.
+  AnalyticsParamKind kind = 2;
+  // Int value.
+  int64 int_value = 3 [(ogw.v) = {min: -9223372036854775808, max: 9223372036854775807}];
+  // Double value.
+  double double_value = 4;
+  // String value.
+  string string_value = 5 [(ogw.v) = {max_chars_key: "logging.maxStringLength"}];
+  // Bool value.
+  bool bool_value = 6;
+}
+
+// An item ID value and an amount. The amount is a big encoding pair.
+message ItemAmount {
+  // Item ID value.
+  int32 item_id = 1;
+  // Amount. 0 when big_amount holds it.
+  int64 amount = 2;
+  // Amount as a big integer when it is over 2^53−1. Empty otherwise.
+  string big_amount = 3;
+}
+
+// One change of an item balance.
+message ItemChange {
+  // Item ID value.
+  int32 item_id = 1;
+  // Applied signed change. 0 when big_delta holds it.
+  int64 delta = 2;
+  // Amount that did not fit because of max_amount. 0 unless Discard or Convert. 0 when big_overflow holds it.
+  int64 overflow = 3;
+  // Change source.
+  ItemChangeSource source = 4;
+  // Cause of the change.
+  string ref = 5;
+  // delta as a big integer when it is over 2^53−1. Empty otherwise.
+  string big_delta = 6;
+  // overflow as a big integer when it is over 2^53−1. Empty otherwise.
+  string big_overflow = 7;
+}
+
+// Items sent by mail because they could not be granted right away.
+message ItemMail {
+  // Mail ID.
+  int64 mail_id = 1;
+  // Change source.
+  ItemChangeSource source = 2;
+  // Cause of the change.
+  string ref = 3;
+  // Items of the mail.
+  repeated ItemAmount items = 4;
+}
+
+// One format argument of a mail template.
+message MailArg {
+  // Format argument name.
+  string name = 1;
+  // Kind.
+  MailArgKind kind = 2;
+  // Value of an Int argument.
+  int64 int_value = 3;
+  // Value of a Text argument.
+  string text_value = 4;
+}
+
+// One WebSocket binary frame of /realtime. Only kind and the fields of that kind are filled.
+message MatchmakerFrame {
+  // Kind.
+  MatchmakerFrameKind kind = 1;
+  // Access token.
+  string access_token = 2;
+  // Data version.
+  string data_version = 3;
+  // Client version.
+  string client_version = 4;
+  // Server time time. Unix ms.
+  int64 server_time_at = 5;
+  // CoreError value of CLOSE.
+  int32 code = 6;
+  // Mode ID value.
+  int32 mode_id = 7;
+  // True for a DEV lockstep match.
+  bool lockstep = 8;
+  // Reason.
+  MatchFailReason reason = 9;
+  // Error code of MATCH_FAILED and ROOM_FAILED.
+  int32 error_code = 10;
+  // Match ID.
+  string match_id = 11;
+  // Players.
+  repeated MatchPlayer players = 12;
+  // My index.
+  int32 my_index = 13;
+  // Random seed of the match.
+  int64 seed = 14;
+  // Start time. Unix ms.
+  int64 start_at = 15;
+  // Transport.
+  Transport transport = 16;
+  // Index.
+  int32 index = 17;
+  // Payload.
+  bytes payload = 18;
+  // Ok.
+  bool ok = 19;
+  // Room code.
+  string room_code = 20;
+  // User ID.
+  int64 user_id = 21;
+  // User IDs in the room in join order. The first is the host.
+  repeated int64 room_members = 22;
+  // Room status.
+  RoomStatus room_status = 23;
+  // Kind of the client frame that failed.
+  MatchmakerFrameKind request = 24;
+  // Indices of participants that left.
+  repeated int32 left_indices = 25;
+}
+
+// One participant of a match.
+message MatchPlayer {
+  // User ID.
+  int64 user_id = 1;
+  // Index.
+  int32 index = 2;
+  // Team number from 0. 0 when the mode has no teams.
+  int32 team = 3;
+  // Party number from 1 in the match. 0 for a user that queued alone.
+  int32 party = 4;
+}
+
+// How the participants of a match connect.
+message Transport {
+  // Kind.
+  TransportKind kind = 1;
+  // Stun URLs.
+  repeated string stun_urls = 2;
+  // Relays.
+  repeated TransportRelay relays = 3;
+}
+
+// A relay server and its credential.
+message TransportRelay {
+  // URL.
+  string url = 1;
+  // Username.
+  string username = 2;
+  // Credential.
+  string credential = 3;
+  // Time the credential expires. Unix ms.
+  int64 expires_at = 4;
+}
+
+// The rate of one path to one entry of a loot table.
+message LootRate {
+  // Entries passed to reach the entry. The last element is the entry.
+  repeated LootPathEntry path = 1;
+  // Items.
+  repeated ItemAmount items = 2;
+  // Numerator of the rate. Not reduced.
+  int64 numerator = 3;
+  // Denominator of the rate. Not reduced.
+  int64 denominator = 4;
+}
+
+// One entry of a loot table path.
+message LootPathEntry {
+  // Loot table ID value.
+  int32 table_id = 1;
+  // Order.
+  int32 order = 2;
+}
+
+// The result of one draw.
+message GachaDrawResult {
+  // Items drawn in this draw.
+  repeated ItemAmount items = 1;
+  // Kind.
+  GachaDrawKind kind = 2;
+  // Rate up.
+  bool rate_up = 3;
+}
+
+// The rates of one draw kind.
+message GachaRateSection {
+  // Kind.
+  GachaDrawKind kind = 1;
+  // Rate up guaranteed.
+  bool rate_up_guaranteed = 2;
+  // Rates.
+  repeated GachaRate rates = 3;
+}
+
+// The rate of one gacha outcome.
+message GachaRate {
+  // Items.
+  repeated ItemAmount items = 1;
+  // Numerator.
+  int64 numerator = 2;
+  // Denominator.
+  int64 denominator = 3;
+  // Rate up.
+  bool rate_up = 4;
+}
+
+// One draw of the gacha history.
+message GachaHistoryEntry {
+  // Draw seq.
+  int64 draw_seq = 1;
+  // Drawn time. Unix ms.
+  int64 drawn_at = 2;
+  // Banner ID value.
+  int32 banner_id = 3;
+  // Draw index.
+  int32 draw_index = 4;
+  // Kind.
+  GachaDrawKind kind = 5;
+  // Rate up.
+  bool rate_up = 6;
+  // Items.
+  repeated ItemAmount items = 7;
+}
+
+// A notice in the requested language.
+message Notice {
+  // ID.
+  int64 id = 1;
+  // Kind.
+  NoticeKind kind = 2;
+  // Priority.
+  int32 priority = 3;
+  // Start time. Unix ms.
+  int64 start_at = 4;
+  // End time. Unix ms.
+  int64 end_at = 5;
+  // Title.
+  string title = 6;
+  // Body.
+  string body = 7;
+  // Image URL.
+  string image_url = 8;
+  // Shortcut ID value.
+  int32 shortcut_id = 9;
+  // Link URL.
+  string link_url = 10;
+}
+
+// A remote config value. Only the value field of kind holds a value.
+message RemoteConfigValue {
+  // Kind.
+  RemoteConfigValueKind kind = 1;
+  // Bool value.
+  bool bool_value = 2;
+  // Int value.
+  int64 int_value = 3;
+  // String value.
+  string string_value = 4;
+}
+
+// The value of one remote config key.
+message RemoteConfigEntry {
+  // Key ID value.
+  int32 key_id = 1;
+  // Value.
+  RemoteConfigValue value = 2;
+}
+
+// The group of the user in one experiment.
+message ExperimentAssignment {
+  // Experiment ID value.
+  int32 experiment_id = 1;
+  // Group.
+  string group = 2;
+}
+
+// The public profile of a user.
+message PublicProfileEntry {
+  // User ID.
+  int64 user_id = 1;
+  // Nickname. Empty when none.
+  string nickname = 2;
+  // Bytes of the game PublicProfile message. Empty when the game builds none.
+  bytes profile = 3;
+  // Last access time. Unix ms. 0 when unknown.
+  int64 last_active_at = 4;
+}
+
+// A friend or a pending friend request.
+message FriendEntry {
+  // Profile.
+  PublicProfileEntry profile = 1;
+  // State.
+  FriendState state = 2;
+  // Updated time. Unix ms.
+  int64 updated_at = 3;
+}
+
+// A user the user blocked.
+message BlockedUserEntry {
+  // Profile.
+  PublicProfileEntry profile = 1;
+  // Blocked time. Unix ms.
+  int64 blocked_at = 2;
+}
+
+// A guild.
+message GuildInfo {
+  // Guild ID.
+  int64 guild_id = 1;
+  // Name.
+  string name = 2;
+  // Description.
+  string description = 3;
+  // Join type.
+  GuildJoinType join_type = 4;
+  // Value the join rule compares.
+  int64 join_value = 5;
+  // Leader ID.
+  int64 leader_id = 6;
+  // Member count.
+  int32 member_count = 7;
+  // Max members.
+  int32 max_members = 8;
+  // Created time. Unix ms.
+  int64 created_at = 9;
+}
+
+// A member of a guild.
+message GuildMemberEntry {
+  // Profile.
+  PublicProfileEntry profile = 1;
+  // Role.
+  GuildRole role = 2;
+  // Joined time. Unix ms.
+  int64 joined_at = 3;
+}
+
+// A chat message.
+message ChatMessage {
+  // Channel kind.
+  ChatChannelKind channel_kind = 1;
+  // Channel ID.
+  int64 channel_key = 2;
+  // Seq.
+  int64 seq = 3;
+  // User ID of the sender. 0 for a System message.
+  int64 sender_id = 4;
+  // Current nickname of the sender. Empty when none.
+  string sender_nickname = 5;
+  // Message kind.
+  ChatMessageKind message_kind = 6;
+  // Text.
+  string text = 7;
+  // Created time. Unix ms.
+  int64 created_at = 8;
+}
+
+// A chat channel of the user.
+message ChatChannelEntry {
+  // Channel kind.
+  ChatChannelKind channel_kind = 1;
+  // Channel ID.
+  int64 channel_key = 2;
+  // Last seq.
+  int64 last_seq = 3;
+  // created_at of the last message. 0 when there is none.
+  int64 last_at = 4;
+  // Profile of the other user for Direct. Empty for Guild.
+  PublicProfileEntry profile = 5;
+  // seq of the last message the user can see.
+  int64 last_visible_seq = 6;
+}
+
+// One entry of a ranking board.
+message RankingEntry {
+  // Rank from 1. 0 when out of the ranking.
+  int32 rank = 1;
+  // User ID.
+  int64 user_id = 2;
+  // Display.
+  string display = 3;
+  // Score.
+  int64 score = 4;
+  // Nickname.
+  string nickname = 5;
+  // Guild ID of a guild board. 0 for a user board.
+  int64 guild_id = 6;
+  // Guild name of a guild board. Empty for a user board.
+  string guild_name = 7;
+}
+
+// The cause of an item change.
+enum ItemChangeSource {
+  ITEM_CHANGE_SOURCE_UNSPECIFIED = 0;
+  ITEM_CHANGE_SOURCE_REQUEST = 1;
+  ITEM_CHANGE_SOURCE_MAIL = 2;
+  ITEM_CHANGE_SOURCE_SHOP = 3;
+  ITEM_CHANGE_SOURCE_IAP = 4;
+  ITEM_CHANGE_SOURCE_IAP_REFUND = 5;
+  ITEM_CHANGE_SOURCE_IAP_TRANSFER = 6;
+  ITEM_CHANGE_SOURCE_AD_REWARD = 7;
+  ITEM_CHANGE_SOURCE_GACHA = 8;
+  ITEM_CHANGE_SOURCE_MISSION = 9;
+  ITEM_CHANGE_SOURCE_COUPON = 10;
+  ITEM_CHANGE_SOURCE_NICKNAME = 11;
+  ITEM_CHANGE_SOURCE_ADMIN = 12;
+  ITEM_CHANGE_SOURCE_CHEAT = 13;
+  ITEM_CHANGE_SOURCE_RECOVERY = 14;
+  ITEM_CHANGE_SOURCE_OVERFLOW = 15;
+  ITEM_CHANGE_SOURCE_ATTENDANCE = 16;
+  ITEM_CHANGE_SOURCE_LIVE_EVENT = 17;
+  ITEM_CHANGE_SOURCE_MATCH = 18;
+  ITEM_CHANGE_SOURCE_USER_CHANGE = 19;
+  ITEM_CHANGE_SOURCE_PLAY_SESSION_REFUND = 20;
+  ITEM_CHANGE_SOURCE_PLAY_SESSION = 21;
+}
+
+// The value kind of a mail argument.
+enum MailArgKind {
+  MAIL_ARG_KIND_UNSPECIFIED = 0;
+  MAIL_ARG_KIND_INT = 1;
+  MAIL_ARG_KIND_TEXT = 2;
+}
+
+// A login provider.
+enum LoginProvider {
+  LOGIN_PROVIDER_UNSPECIFIED = 0;
+  LOGIN_PROVIDER_GUEST = 1;
+  LOGIN_PROVIDER_APPLE = 2;
+  LOGIN_PROVIDER_GOOGLE = 3;
+}
+
+// A terms item the user agrees to.
+enum TermsItem {
+  TERMS_ITEM_UNSPECIFIED = 0;
+  TERMS_ITEM_TERMS = 1;
+  TERMS_ITEM_PRIVACY = 2;
+}
+
+// An answer of the user to a consent question.
+enum ConsentChoice {
+  CONSENT_CHOICE_UNSPECIFIED = 0;
+  CONSENT_CHOICE_GRANTED = 1;
+  CONSENT_CHOICE_DENIED = 2;
+}
+
+// The tracking permission state of the device.
+enum TrackingStatus {
+  TRACKING_STATUS_UNSPECIFIED = 0;
+  TRACKING_STATUS_NOT_APPLICABLE = 1;
+  TRACKING_STATUS_NOT_DETERMINED = 2;
+  TRACKING_STATUS_AUTHORIZED = 3;
+  TRACKING_STATUS_DENIED = 4;
+  TRACKING_STATUS_RESTRICTED = 5;
+}
+
+// The value kind of an analytics parameter.
+enum AnalyticsParamKind {
+  ANALYTICS_PARAM_KIND_UNSPECIFIED = 0;
+  ANALYTICS_PARAM_KIND_INT = 1;
+  ANALYTICS_PARAM_KIND_DOUBLE = 2;
+  ANALYTICS_PARAM_KIND_STRING = 3;
+  ANALYTICS_PARAM_KIND_BOOL = 4;
+}
+
+// The judge state of a match result.
+enum MatchJudgeStatus {
+  MATCH_JUDGE_STATUS_UNSPECIFIED = 0;
+  MATCH_JUDGE_STATUS_PENDING = 1;
+  MATCH_JUDGE_STATUS_CONFIRMED = 2;
+  MATCH_JUDGE_STATUS_MISMATCH = 3;
+}
+
+// The kind of a matchmaker frame.
+enum MatchmakerFrameKind {
+  MATCHMAKER_FRAME_KIND_UNSPECIFIED = 0;
+  MATCHMAKER_FRAME_KIND_HELLO = 1;
+  MATCHMAKER_FRAME_KIND_HELLO_ACK = 2;
+  MATCHMAKER_FRAME_KIND_CLOSE = 3;
+  MATCHMAKER_FRAME_KIND_MATCH_REQUEST = 4;
+  MATCHMAKER_FRAME_KIND_MATCH_CANCEL = 5;
+  MATCHMAKER_FRAME_KIND_MATCH_FAILED = 6;
+  MATCHMAKER_FRAME_KIND_MATCH_FOUND = 7;
+  MATCHMAKER_FRAME_KIND_PEER_SIGNAL = 8;
+  MATCHMAKER_FRAME_KIND_MATCH_LEAVE = 9;
+  MATCHMAKER_FRAME_KIND_MATCH_REJOIN = 10;
+  MATCHMAKER_FRAME_KIND_MATCH_REJOINED = 11;
+  MATCHMAKER_FRAME_KIND_PEER_LEFT = 12;
+  MATCHMAKER_FRAME_KIND_PEER_REJOINED = 13;
+  MATCHMAKER_FRAME_KIND_ROOM_CREATE = 14;
+  MATCHMAKER_FRAME_KIND_ROOM_JOIN = 15;
+  MATCHMAKER_FRAME_KIND_ROOM_LEAVE = 16;
+  MATCHMAKER_FRAME_KIND_ROOM_KICK = 17;
+  MATCHMAKER_FRAME_KIND_ROOM_START = 18;
+  MATCHMAKER_FRAME_KIND_ROOM_STATE = 19;
+  MATCHMAKER_FRAME_KIND_ROOM_FAILED = 20;
+  MATCHMAKER_FRAME_KIND_ROOM_KICKED = 21;
+}
+
+// Why matching failed.
+enum MatchFailReason {
+  MATCH_FAIL_REASON_UNSPECIFIED = 0;
+  MATCH_FAIL_REASON_TIMEOUT = 1;
+  MATCH_FAIL_REASON_INVALID_MODE = 2;
+  MATCH_FAIL_REASON_REJECTED = 3;
+  MATCH_FAIL_REASON_CREATE_FAILED = 4;
+}
+
+// The queue state of a room.
+enum RoomStatus {
+  ROOM_STATUS_UNSPECIFIED = 0;
+  ROOM_STATUS_OPEN = 1;
+  ROOM_STATUS_MATCHING = 2;
+}
+
+// The transport of a match.
+enum TransportKind {
+  TRANSPORT_KIND_UNSPECIFIED = 0;
+  TRANSPORT_KIND_P2_P = 1;
+}
+
+// A store of in-app purchases.
+enum IapStore {
+  IAP_STORE_UNSPECIFIED = 0;
+  IAP_STORE_APPLE = 1;
+  IAP_STORE_GOOGLE = 2;
+}
+
+// The result of a purchase verification.
+enum PurchaseStatus {
+  PURCHASE_STATUS_UNSPECIFIED = 0;
+  PURCHASE_STATUS_GRANTED = 1;
+  PURCHASE_STATUS_ALREADY_GRANTED = 2;
+  PURCHASE_STATUS_INVALID = 3;
+  PURCHASE_STATUS_OTHER_USER = 4;
+  PURCHASE_STATUS_PENDING = 5;
+}
+
+// The state of a subscription.
+enum SubscriptionState {
+  SUBSCRIPTION_STATE_UNSPECIFIED = 0;
+  SUBSCRIPTION_STATE_ACTIVE = 1;
+  SUBSCRIPTION_STATE_GRACE_PERIOD = 2;
+  SUBSCRIPTION_STATE_BILLING_RETRY = 3;
+  SUBSCRIPTION_STATE_EXPIRED = 4;
+  SUBSCRIPTION_STATE_REVOKED = 5;
+}
+
+// How many times one request draws.
+enum GachaDrawMode {
+  GACHA_DRAW_MODE_UNSPECIFIED = 0;
+  GACHA_DRAW_MODE_SINGLE = 1;
+  GACHA_DRAW_MODE_MULTI = 2;
+}
+
+// The kind of a draw.
+enum GachaDrawKind {
+  GACHA_DRAW_KIND_UNSPECIFIED = 0;
+  GACHA_DRAW_KIND_NORMAL = 1;
+  GACHA_DRAW_KIND_PITY = 2;
+  GACHA_DRAW_KIND_MULTI_GUARANTEE = 3;
+}
+
+// The kind of a notice.
+enum NoticeKind {
+  NOTICE_KIND_UNSPECIFIED = 0;
+  NOTICE_KIND_NOTICE = 1;
+  NOTICE_KIND_BANNER = 2;
+  NOTICE_KIND_MAINTENANCE = 3;
+}
+
+// The value kind of a remote config value.
+enum RemoteConfigValueKind {
+  REMOTE_CONFIG_VALUE_KIND_UNSPECIFIED = 0;
+  REMOTE_CONFIG_VALUE_KIND_BOOL = 1;
+  REMOTE_CONFIG_VALUE_KIND_INT = 2;
+  REMOTE_CONFIG_VALUE_KIND_STRING = 3;
+}
+
+// The friend relation from the user.
+enum FriendState {
+  FRIEND_STATE_UNSPECIFIED = 0;
+  FRIEND_STATE_FRIEND = 1;
+  FRIEND_STATE_SENT = 2;
+  FRIEND_STATE_RECEIVED = 3;
+}
+
+// The screen a report was made on.
+enum ReportContext {
+  REPORT_CONTEXT_UNSPECIFIED = 0;
+  REPORT_CONTEXT_PROFILE = 1;
+  REPORT_CONTEXT_CHAT = 2;
+  REPORT_CONTEXT_MATCH = 3;
+  REPORT_CONTEXT_GUILD = 4;
+  REPORT_CONTEXT_OTHER = 5;
+}
+
+// How users join a guild.
+enum GuildJoinType {
+  GUILD_JOIN_TYPE_UNSPECIFIED = 0;
+  GUILD_JOIN_TYPE_OPEN = 1;
+  GUILD_JOIN_TYPE_APPROVAL = 2;
+  GUILD_JOIN_TYPE_CLOSED = 3;
+}
+
+// The role of a guild member.
+enum GuildRole {
+  GUILD_ROLE_UNSPECIFIED = 0;
+  GUILD_ROLE_LEADER = 1;
+  GUILD_ROLE_OFFICER = 2;
+  GUILD_ROLE_MEMBER = 3;
+}
+
+// The kind of a chat channel.
+enum ChatChannelKind {
+  CHAT_CHANNEL_KIND_UNSPECIFIED = 0;
+  CHAT_CHANNEL_KIND_WORLD = 1;
+  CHAT_CHANNEL_KIND_GUILD = 2;
+  CHAT_CHANNEL_KIND_DIRECT = 3;
+}
+
+// The kind of a chat message.
+enum ChatMessageKind {
+  CHAT_MESSAGE_KIND_UNSPECIFIED = 0;
+  CHAT_MESSAGE_KIND_TEXT = 1;
+  CHAT_MESSAGE_KIND_ROOM_INVITE = 2;
+  CHAT_MESSAGE_KIND_SYSTEM = 3;
+}
+
+// Balance of an item. List kind of item-ledger.
+message ItemBalanceUserState {
+  // Item ID value.
+  int64 id = 1;
+  // Balance at the last save. 0 when big_amount holds it, and 0 for a timed item.
+  int64 amount = 2;
+  // Start of the current recovery interval. Unix ms. 0 when not recovering.
+  int64 recovery_started_at = 3;
+  // End time of a timed item. Unix ms. 0 for other items.
+  int64 ends_at = 4;
+  // Balance as a big integer when it is over 2^53−1. Empty otherwise.
+  string big_amount = 5;
+}
+
+// A mail. List kind of mailbox.
+message MailUserState {
+  // Mail ID.
+  int64 id = 1;
+  // Mail template ID value.
+  int32 template_id = 2;
+  // Format arguments of the template.
+  repeated MailArg args = 3;
+  // Attached items.
+  repeated ItemAmount attachments = 4;
+  // Extra ID value given by the sender. 0 when none.
+  int32 extra_id = 5;
+  // Sent time. Unix ms.
+  int64 sent_at = 6;
+  // Expiry time. Unix ms. 0 when the mail does not expire.
+  int64 expires_at = 7;
+  // True after the mail is read.
+  bool read = 8;
+}
+
+// Purchase count of a shop product. List kind of shop.
+message ShopPurchaseUserState {
+  // ID of the row.
+  int64 id = 1;
+  // Count.
+  int32 count = 2;
+  // Reset time. Unix ms.
+  int64 reset_at = 3;
+  // Event round.
+  int32 event_round = 4;
+}
+
+// Purchase count, pass and daily reward state of an IAP product. List kind of iap.
+message IapPurchaseUserState {
+  // ID of the row.
+  int64 id = 1;
+  // Purchase count in the current limit period minus refunds.
+  int32 count = 2;
+  // Reset time. Unix ms.
+  int64 reset_at = 3;
+  // Game day number the pass ends on. That day is not in the pass. 0 when none.
+  int64 pass_end_day = 4;
+  // Game day number of the last daily reward claim. 0 when none.
+  int64 daily_claimed_day = 5;
+  // Event round.
+  int32 event_round = 6;
+}
+
+// State of a subscription product. List kind of iap.
+message SubscriptionUserState {
+  // ID of the row.
+  int64 id = 1;
+  // State.
+  SubscriptionState state = 2;
+  // Ends time. Unix ms.
+  int64 ends_at = 3;
+  // Auto renew.
+  bool auto_renew = 4;
+}
+
+// Ad reward count of a placement. List kind of ads-reward.
+message AdRewardCountUserState {
+  // ID of the row.
+  int64 id = 1;
+  // Count.
+  int32 count = 2;
+  // Reset time. Unix ms.
+  int64 reset_at = 3;
+}
+
+// Participation in a live event. List kind of live-event.
+message LiveEventEntryUserState {
+  // ID of the row.
+  int64 id = 1;
+  // Round.
+  int32 round = 2;
+  // Joined time. Unix ms.
+  int64 joined_at = 3;
+  // Settled.
+  bool settled = 4;
+}
+
+// Progress of a tutorial. List kind of tutorial.
+message TutorialProgressUserState {
+  // ID of the row.
+  int64 id = 1;
+  // Step.
+  int32 step = 2;
+}
+
+// Pity state of a banner. List kind of gacha.
+message GachaPityUserState {
+  // Pity owner banner ID value.
+  int64 id = 1;
+  // Draws since the last pity tier was reached.
+  int32 count = 2;
+  // True when the next pity tier is a rate-up for sure.
+  bool rate_up_guaranteed = 3;
+}
+
+// Progress of a mission. List kind of mission.
+message MissionProgressUserState {
+  // ID of the row.
+  int64 id = 1;
+  // Progress.
+  int64 progress = 2;
+  // Claimed.
+  bool claimed = 3;
+  // Reset time. Unix ms.
+  int64 reset_at = 4;
+  // Event round.
+  int32 event_round = 5;
+}
+
+// Nickname of the user. Single kind of nickname.
+message NicknameUserState {
+  // Nickname.
+  string nickname = 1;
+  // Changed time. Unix ms.
+  int64 changed_at = 2;
+  // Change count.
+  int32 change_count = 3;
+  // Forced.
+  bool forced = 4;
+}
+
+// Age and privacy choices of the user. Single kind of auth.
+message ConsentUserState {
+  // Age confirmed time. Unix ms.
+  int64 age_confirmed_at = 1;
+  // Age from.
+  int32 age_from = 2;
+  // Age to.
+  int32 age_to = 3;
+  // Child.
+  bool child = 4;
+  // Below consent age.
+  bool below_consent_age = 5;
+  // Below minimum age.
+  bool below_minimum_age = 6;
+  // Privacy version.
+  int32 privacy_version = 7;
+  // Ad personalization.
+  ConsentChoice ad_personalization = 8;
+  // Analytics.
+  ConsentChoice analytics = 9;
+  // Tracking.
+  TrackingStatus tracking = 10;
+  // Ad personalization allowed.
+  bool ad_personalization_allowed = 11;
+  // Analytics allowed.
+  bool analytics_allowed = 12;
+  // Push ad.
+  ConsentChoice push_ad = 13;
+  // Push ad time. Unix ms.
+  int64 push_ad_at = 14;
+  // Push night.
+  ConsentChoice push_night = 15;
+  // Push night time. Unix ms.
+  int64 push_night_at = 16;
+}
+
+// Progress of an attendance calendar. List kind of attendance.
+message AttendanceUserState {
+  // ID of the row.
+  int64 id = 1;
+  // Day.
+  int32 day = 2;
+  // Game day number of the last claim. 0 when none.
+  int64 claimed_day_number = 3;
+  // Time the progress goes back to the start. Unix ms. 0 when none.
+  int64 reset_at = 4;
+  // Event round.
+  int32 event_round = 5;
+}
+
+// State of an offer. List kind of offer.
+message OfferUserState {
+  // ID of the row.
+  int64 id = 1;
+  // Last time the offer was turned on. Unix ms.
+  int64 started_at = 2;
+  // Times the offer was turned on.
+  int32 trigger_count = 3;
+  // Event round.
+  int32 event_round = 4;
+}
+
+// Rating of a rating rule. List kind of rating.
+message RatingUserState {
+  // ID of the row.
+  int64 id = 1;
+  // Rating.
+  int64 rating = 2;
+  // Tier ID value.
+  int32 tier_id = 3;
+  // Season number when the rating was last written.
+  int64 season = 4;
+  // Matches applied in that season.
+  int32 season_games = 5;
+  // Total games.
+  int32 total_games = 6;
+}
+
+// Count of a reset counter. List kind of reset-counter.
+message ResetCounterUserState {
+  // ID of the row.
+  int64 id = 1;
+  // Count.
+  int64 count = 2;
+  // Reset time. Unix ms.
+  int64 reset_at = 3;
+}

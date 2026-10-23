@@ -1,0 +1,108 @@
+{
+  "name": "ResourceCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "UtilCore",
+    "LogCore",
+    "LocalDataCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "load",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_loaded",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_loaded",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "preload",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_global_scope",
+      "inputs": []
+    },
+    {
+      "name": "create_scope",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "release_scope",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_owner_scope",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "end_owner_scope",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "add_scope_release_listener",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "remove_scope_release_listener",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "register_kind",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "apply_bundles",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+{
+  "name": "TweenCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "ResourceCore",
+    "PoolCore",
+    "InputBlockCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "TweenCore.maxDurationMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "TweenCore.maxRepeatCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "play",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "play_preset",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "play_value",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "stop",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "skip_to_end",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "stop_target",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "skip_target_to_end",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "stop_tag",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "skip_tag_to_end",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_playing",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "wait_end",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "copy_definition",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_preset_kind",
+      "inputs": []
+    },
+    {
+      "name": "check_definition",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "evaluate_easing",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

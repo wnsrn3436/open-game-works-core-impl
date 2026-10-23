@@ -1,0 +1,184 @@
+{
+  "cases": [
+    {
+      "name": "once before the first round",
+      "input": {
+        "event": "[live_event_once]",
+        "time": 1798761599999
+      },
+      "expected": {
+        "round": 0,
+        "start_at": 1798761600000,
+        "end_at": 1798848000000
+      }
+    },
+    {
+      "name": "once at the start",
+      "input": {
+        "event": "[live_event_once]",
+        "time": 1798761600000
+      },
+      "expected": {
+        "round": 1,
+        "start_at": 1798761600000,
+        "end_at": 1798848000000
+      }
+    },
+    {
+      "name": "once at the end minus 1",
+      "input": {
+        "event": "[live_event_once]",
+        "time": 1798847999999
+      },
+      "expected": {
+        "round": 1,
+        "start_at": 1798761600000,
+        "end_at": 1798848000000
+      }
+    },
+    {
+      "name": "once after the last round",
+      "input": {
+        "event": "[live_event_once]",
+        "time": 1798848000000
+      },
+      "expected": {
+        "round": 0,
+        "start_at": 0,
+        "end_at": 0
+      }
+    },
+    {
+      "name": "weekly before the first round",
+      "input": {
+        "event": "[live_event_weekly]",
+        "time": 1798761599999
+      },
+      "expected": {
+        "round": 0,
+        "start_at": 1798761600000,
+        "end_at": 1798848000000
+      }
+    },
+    {
+      "name": "weekly in round 1",
+      "input": {
+        "event": "[live_event_weekly]",
+        "time": 1798761600000
+      },
+      "expected": {
+        "round": 1,
+        "start_at": 1798761600000,
+        "end_at": 1798848000000
+      }
+    },
+    {
+      "name": "weekly between round 1 and 2",
+      "input": {
+        "event": "[live_event_weekly]",
+        "time": 1798848000000
+      },
+      "expected": {
+        "round": 0,
+        "start_at": 1799366400000,
+        "end_at": 1799452800000
+      }
+    },
+    {
+      "name": "weekly at the start of round 2 minus 1",
+      "input": {
+        "event": "[live_event_weekly]",
+        "time": 1799366399999
+      },
+      "expected": {
+        "round": 0,
+        "start_at": 1799366400000,
+        "end_at": 1799452800000
+      }
+    },
+    {
+      "name": "weekly at the start of round 2",
+      "input": {
+        "event": "[live_event_weekly]",
+        "time": 1799366400000
+      },
+      "expected": {
+        "round": 2,
+        "start_at": 1799366400000,
+        "end_at": 1799452800000
+      }
+    },
+    {
+      "name": "weekly at the end of round 3 minus 1",
+      "input": {
+        "event": "[live_event_weekly]",
+        "time": 1800057599999
+      },
+      "expected": {
+        "round": 3,
+        "start_at": 1799971200000,
+        "end_at": 1800057600000
+      }
+    },
+    {
+      "name": "weekly after the last round",
+      "input": {
+        "event": "[live_event_weekly]",
+        "time": 1800057600000
+      },
+      "expected": {
+        "round": 0,
+        "start_at": 0,
+        "end_at": 0
+      }
+    },
+    {
+      "name": "weekly at repeat_until, where round 4 would start",
+      "input": {
+        "event": "[live_event_weekly]",
+        "time": 1800576000000
+      },
+      "expected": {
+        "round": 0,
+        "start_at": 0,
+        "end_at": 0
+      }
+    },
+    {
+      "name": "weekly after repeat_until",
+      "input": {
+        "event": "[live_event_weekly]",
+        "time": 1800662400001
+      },
+      "expected": {
+        "round": 0,
+        "start_at": 0,
+        "end_at": 0
+      }
+    },
+    {
+      "name": "daily in round 101",
+      "input": {
+        "event": "[live_event_daily]",
+        "time": 1807405200000
+      },
+      "expected": {
+        "round": 101,
+        "start_at": 1807401600000,
+        "end_at": 1807444800000
+      }
+    },
+    {
+      "name": "daily between round 101 and 102",
+      "input": {
+        "event": "[live_event_daily]",
+        "time": 1807444800000
+      },
+      "expected": {
+        "round": 0,
+        "start_at": 1807488000000,
+        "end_at": 1807531200000
+      }
+    }
+  ]
+}

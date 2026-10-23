@@ -1,0 +1,184 @@
+{
+  "cases": [
+    {
+      "name": "one ms before the first interval",
+      "input": {
+        "item": "[stamina]",
+        "cap_bonus_balance": 0,
+        "amount": 5,
+        "recovery_started_at": 1000000,
+        "time": 1059999
+      },
+      "expected": {
+        "balance": 5,
+        "next_recovery_at": 1060000,
+        "cap_reached_at": 1900000
+      }
+    },
+    {
+      "name": "at the first interval boundary",
+      "input": {
+        "item": "[stamina]",
+        "cap_bonus_balance": 0,
+        "amount": 5,
+        "recovery_started_at": 1000000,
+        "time": 1060000
+      },
+      "expected": {
+        "balance": 6,
+        "next_recovery_at": 1120000,
+        "cap_reached_at": 1900000
+      }
+    },
+    {
+      "name": "several intervals",
+      "input": {
+        "item": "[stamina]",
+        "cap_bonus_balance": 0,
+        "amount": 5,
+        "recovery_started_at": 1000000,
+        "time": 1450000
+      },
+      "expected": {
+        "balance": 12,
+        "next_recovery_at": 1480000,
+        "cap_reached_at": 1900000
+      }
+    },
+    {
+      "name": "reaches the cap by time only",
+      "input": {
+        "item": "[stamina]",
+        "cap_bonus_balance": 0,
+        "amount": 5,
+        "recovery_started_at": 1000000,
+        "time": 1900000
+      },
+      "expected": {
+        "balance": 20,
+        "next_recovery_at": 0,
+        "cap_reached_at": 0
+      }
+    },
+    {
+      "name": "long after the cap",
+      "input": {
+        "item": "[stamina]",
+        "cap_bonus_balance": 0,
+        "amount": 5,
+        "recovery_started_at": 1000000,
+        "time": 9000000000
+      },
+      "expected": {
+        "balance": 20,
+        "next_recovery_at": 0,
+        "cap_reached_at": 0
+      }
+    },
+    {
+      "name": "at the cap with no recovery start",
+      "input": {
+        "item": "[stamina]",
+        "cap_bonus_balance": 0,
+        "amount": 20,
+        "recovery_started_at": 0,
+        "time": 5000000
+      },
+      "expected": {
+        "balance": 20,
+        "next_recovery_at": 0,
+        "cap_reached_at": 0
+      }
+    },
+    {
+      "name": "over the cap from a grant",
+      "input": {
+        "item": "[stamina]",
+        "cap_bonus_balance": 0,
+        "amount": 150,
+        "recovery_started_at": 0,
+        "time": 5000000
+      },
+      "expected": {
+        "balance": 150,
+        "next_recovery_at": 0,
+        "cap_reached_at": 0
+      }
+    },
+    {
+      "name": "stored amount over a smaller cap",
+      "input": {
+        "item": "[stamina]",
+        "cap_bonus_balance": 0,
+        "amount": 25,
+        "recovery_started_at": 1000000,
+        "time": 9000000
+      },
+      "expected": {
+        "balance": 25,
+        "next_recovery_at": 0,
+        "cap_reached_at": 0
+      }
+    },
+    {
+      "name": "cap bonus lets the balance pass recovery_cap",
+      "input": {
+        "item": "[stamina]",
+        "cap_bonus_balance": 10,
+        "amount": 18,
+        "recovery_started_at": 1000000,
+        "time": 1300000
+      },
+      "expected": {
+        "balance": 23,
+        "next_recovery_at": 1360000,
+        "cap_reached_at": 1720000
+      }
+    },
+    {
+      "name": "cap bonus cap reached by time",
+      "input": {
+        "item": "[stamina]",
+        "cap_bonus_balance": 10,
+        "amount": 18,
+        "recovery_started_at": 1000000,
+        "time": 1720000
+      },
+      "expected": {
+        "balance": 30,
+        "next_recovery_at": 0,
+        "cap_reached_at": 0
+      }
+    },
+    {
+      "name": "two per interval",
+      "input": {
+        "item": "[energy]",
+        "cap_bonus_balance": 0,
+        "amount": 3,
+        "recovery_started_at": 2000000,
+        "time": 2600001
+      },
+      "expected": {
+        "balance": 7,
+        "next_recovery_at": 2900000,
+        "cap_reached_at": 3200000
+      }
+    },
+    {
+      "name": "two per interval stops at the cap",
+      "input": {
+        "item": "[energy]",
+        "cap_bonus_balance": 0,
+        "amount": 3,
+        "recovery_started_at": 2000000,
+        "time": 3200000
+      },
+      "expected": {
+        "balance": 10,
+        "next_recovery_at": 0,
+        "cap_reached_at": 0
+      }
+    }
+  ]
+}

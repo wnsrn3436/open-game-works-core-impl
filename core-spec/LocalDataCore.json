@@ -1,0 +1,147 @@
+{
+  "name": "LocalDataCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "UtilCore",
+    "LogCore",
+    "EventCore",
+    "TimeCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "LocalDataCore.writeIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "LocalDataCore.fileMaxBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "load_device_file",
+      "inputs": []
+    },
+    {
+      "name": "load_user_file",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_loaded",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_value",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_array",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "set_value",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "set_array",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "remove_value",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "flush",
+      "inputs": []
+    },
+    {
+      "name": "read_file",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "write_file",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "delete_file",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "file_exists",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_file_size",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "list_files",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "hash_file",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "resolve_engine_path",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

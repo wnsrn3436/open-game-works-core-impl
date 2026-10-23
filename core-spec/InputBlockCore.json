@@ -1,0 +1,102 @@
+{
+  "name": "InputBlockCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "TimeCore"
+  ],
+  "optionalDependencies": [
+    "ResolutionCore"
+  ],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "InputBlockCore.maxDurationMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "block",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "unblock",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "run_blocked",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_blocked",
+      "inputs": []
+    },
+    {
+      "name": "is_active",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "pass_action",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "pass_position",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "pass_focus",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "release_all",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_timer_hold",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "restart_timer",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

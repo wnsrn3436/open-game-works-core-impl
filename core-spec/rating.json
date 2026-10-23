@@ -1,0 +1,184 @@
+{
+  "name": "rating",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "storage",
+    "ranking",
+    "mailbox",
+    "validation",
+    "logging",
+    "matchmaker"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "mailbox.maxAttachments",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "rating_rule",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "name"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "long",
+          "name": "initial_rating"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "long",
+          "name": "min_rating"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "long",
+          "name": "scale"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "int",
+          "name": "k_factor"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "int",
+          "name": "placement_k_factor"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int",
+          "name": "placement_matches"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<ranking_board.id>?",
+          "name": "season_board"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "long",
+          "name": "soft_reset_target"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "int",
+          "name": "soft_reset_permille"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "ref<mail_template.id>?",
+          "name": "reward_mail"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "int",
+          "name": "reward_min_games"
+        }
+      ]
+    },
+    {
+      "name": "rating_tier",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<rating_rule.id>",
+          "name": "rule"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "name"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "long",
+          "name": "min_rating"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "array<{item_id: ref<item.id>, amount: long}>",
+          "name": "season_reward"
+        }
+      ]
+    }
+  ],
+  "usedTables": [
+    "match_mode",
+    "ranking_board",
+    "mail_template",
+    "item"
+  ],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [
+    {
+      "text": "rating_rule.reward_mail",
+      "arguments": [
+        {
+          "name": "season",
+          "kind": "integer"
+        }
+      ]
+    }
+  ],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "get_rating",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "apply_match_outcome",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

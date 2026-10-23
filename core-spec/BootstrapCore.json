@@ -1,0 +1,226 @@
+{
+  "name": "BootstrapCore",
+  "side": "client",
+  "lifecycle": false,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "LocalDataCore",
+    "DataCore",
+    "LocalizationCore",
+    "ResourceCore",
+    "SoundCore",
+    "NetworkCore",
+    "AuthCore",
+    "ResolutionCore",
+    "InputCore",
+    "InputBlockCore",
+    "UICore",
+    "MessageCore",
+    "SceneCore",
+    "GameUpdateCore"
+  ],
+  "optionalDependencies": [
+    "PushCore",
+    "PaymentCore",
+    "AdCore",
+    "BadgeCore",
+    "RealtimeCore",
+    "NativeUiCore",
+    "QualityCore",
+    "AccessibilityCore",
+    "NoticeCore",
+    "ChatCore",
+    "VirtualPadCore"
+  ],
+  "devDependencies": [
+    "QACore"
+  ],
+  "settings": [
+    {
+      "key": "titleScene",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "firstScene",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.adapters",
+      "type": "object",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.adUnits",
+      "type": "object",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "BootstrapCore.realtimeRelayOnly",
+      "type": "boolean",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [
+    {
+      "table": "reserved_string",
+      "id": "[bootstrap_fatal_error]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[bootstrap_login_failed]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[bootstrap_banned]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[bootstrap_banned_permanent]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[bootstrap_banned_deletion]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[bootstrap_banned_deletion_code]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[bootstrap_banned_deletion_failed]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[bootstrap_age_blocked]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[bootstrap_restart]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[app_name]",
+      "requiredWhen": null,
+      "rowOf": null
+    }
+  ],
+  "formatArguments": [
+    {
+      "text": "[bootstrap_banned]",
+      "arguments": [
+        {
+          "name": "user_id",
+          "kind": "string"
+        },
+        {
+          "name": "until_at",
+          "kind": "integer"
+        },
+        {
+          "name": "url",
+          "kind": "string"
+        }
+      ]
+    },
+    {
+      "text": "[bootstrap_banned_permanent]",
+      "arguments": [
+        {
+          "name": "user_id",
+          "kind": "string"
+        },
+        {
+          "name": "url",
+          "kind": "string"
+        }
+      ]
+    },
+    {
+      "text": "[bootstrap_banned_deletion_code]",
+      "arguments": [
+        {
+          "name": "user_id",
+          "kind": "string"
+        },
+        {
+          "name": "code",
+          "kind": "string"
+        },
+        {
+          "name": "expires_at",
+          "kind": "integer"
+        },
+        {
+          "name": "url",
+          "kind": "string"
+        }
+      ]
+    }
+  ],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "start_boot",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "request_restart",
+      "inputs": []
+    },
+    {
+      "name": "report_fatal",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "boot_stage",
+      "inputs": []
+    },
+    {
+      "name": "get_build_info",
+      "inputs": []
+    },
+    {
+      "name": "get_first_scene",
+      "inputs": []
+    }
+  ]
+}

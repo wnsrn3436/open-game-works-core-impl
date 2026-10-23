@@ -1,0 +1,299 @@
+{
+  "name": "CutsceneCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "DataCore",
+    "ResourceCore",
+    "PoolCore",
+    "SoundCore",
+    "LocalizationCore",
+    "RequirementCore",
+    "SafeAreaCore",
+    "InputCore",
+    "InputBlockCore",
+    "TweenCore",
+    "CameraCore",
+    "ScreenEffectCore",
+    "UICore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "cutsceneView",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "CutsceneCore.typingIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "CutsceneCore.autoAdvanceDelayMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "CutsceneCore.fastForwardDelayMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "CutsceneCore.lineHistoryMaxCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "TweenCore.maxDurationMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "cutscene_step",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "int",
+          "name": "step"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "enum<CutsceneCommand>",
+          "name": "command"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "bool",
+          "name": "wait"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "string",
+          "name": "actor"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "string",
+          "name": "target"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "ref<cutscene_speaker.id>?",
+          "name": "speaker"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id,step>",
+          "name": "text"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "reskey?",
+          "name": "resource"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "string",
+          "name": "animation"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "duration?",
+          "name": "duration"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "enum<CutsceneCue>?",
+          "name": "cue"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "int?",
+          "name": "next_step"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "reskey?",
+          "name": "voice"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "requirement<id,step>",
+          "name": "requirement"
+        }
+      ]
+    },
+    {
+      "name": "cutscene_choice",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "int",
+          "name": "step"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "int",
+          "name": "choice"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id,step,choice>",
+          "name": "text"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "int",
+          "name": "next_step"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "requirement<id,step,choice>",
+          "name": "requirement"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "bool",
+          "name": "hide_locked"
+        }
+      ]
+    },
+    {
+      "name": "cutscene_speaker",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "name"
+        }
+      ]
+    }
+  ],
+  "usedTables": [],
+  "enums": [
+    {
+      "type": "CutsceneCommand",
+      "elements": [
+        "Line",
+        "Choice",
+        "Wait",
+        "Move",
+        "Animate",
+        "Camera",
+        "Sound",
+        "Bgm",
+        "ScreenEffect",
+        "Staging",
+        "Cue",
+        "Jump",
+        "End",
+        "Branch"
+      ]
+    }
+  ],
+  "invariants": [],
+  "reserved": [
+    {
+      "table": "reserved_string",
+      "id": "[cutscene_pause_body]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[cutscene_pause_resume]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[cutscene_pause_skip]",
+      "requiredWhen": null,
+      "rowOf": null
+    }
+  ],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "play",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_playing",
+      "inputs": []
+    },
+    {
+      "name": "register_actor",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "unregister_actor",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

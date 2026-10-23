@@ -1,0 +1,200 @@
+{
+  "name": "chat",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "storage",
+    "server-time",
+    "logging",
+    "validation",
+    "nickname",
+    "public-profile",
+    "block-report"
+  ],
+  "optionalDependencies": [
+    "friend",
+    "guild"
+  ],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "chat.worldChannelCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "chat.maxTextLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "chat.minIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "chat.maxFetchCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "chat.pollIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "chat.retentionMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "chat.allowChild",
+      "type": "boolean",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "chat.maxChannelListCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "chat.channelPollIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "chat.maxSystemTextBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "nickname.maxLookupCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.roomCodeLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.roomCodeAlphabet",
+      "type": "string",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "block-report.maxEvidenceBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [
+    {
+      "left": "chat.maxTextLength",
+      "factor": 4,
+      "right": "block-report.maxEvidenceBytes"
+    },
+    {
+      "left": "matchmaker.roomCodeLength",
+      "factor": 1,
+      "right": "chat.maxTextLength"
+    }
+  ],
+  "tables": [],
+  "usedTables": [
+    "banned_word",
+    "report_reason"
+  ],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [
+    {
+      "dataType": "in_app_messages",
+      "description": "chat message",
+      "source": "module",
+      "purposes": [
+        "app_functionality"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": true,
+      "platforms": [
+        "android",
+        "ios",
+        "web",
+        "windows",
+        "macos",
+        "linux"
+      ],
+      "condition": null
+    }
+  ],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "remove_user",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "post_system_message",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "list_chat_messages",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "delete_chat_message",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "mute_chat_user",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "unmute_chat_user",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

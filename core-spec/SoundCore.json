@@ -1,0 +1,174 @@
+{
+  "name": "SoundCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "UtilCore",
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "LocalDataCore",
+    "ResourceCore",
+    "InputCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "SoundCore.bgmCrossfadeMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "SoundCore.maxConcurrent",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "SoundCore.maxConcurrentPerKey",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "SoundCore.masterPeakMaxDbtp",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "SoundCore.masterLimiterMarginDb",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "SoundCore.busLoudnessLufs",
+      "type": "object",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "SoundCore.busPeakMaxDbtp",
+      "type": "object",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "SoundCore.devHapticLogCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "load_volume_settings",
+      "inputs": []
+    },
+    {
+      "name": "set_volume",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_volume",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_mute",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_mute",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "play_bgm",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "stop_bgm",
+      "inputs": []
+    },
+    {
+      "name": "return_bgm",
+      "inputs": []
+    },
+    {
+      "name": "get_bgm_key",
+      "inputs": []
+    },
+    {
+      "name": "play",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "stop",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_playing",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "request_pause",
+      "inputs": []
+    },
+    {
+      "name": "release_pause",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "play_haptic",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "set_haptic_enabled",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_haptic_enabled",
+      "inputs": []
+    }
+  ]
+}

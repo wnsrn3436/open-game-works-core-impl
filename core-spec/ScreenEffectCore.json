@@ -1,0 +1,94 @@
+{
+  "name": "ScreenEffectCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TweenCore",
+    "ResolutionCore",
+    "UICore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "TweenCore.maxDurationMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "fade",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "flash",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "play_preset",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "wait_result",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "skip_to_end",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "clear_handle",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "clear_owner",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_flash_opacity_limit",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

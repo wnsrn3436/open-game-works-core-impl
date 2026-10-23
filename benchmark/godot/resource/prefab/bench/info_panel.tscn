@@ -1,0 +1,87 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://features/bench/bench_info_panel.gd" id="1_script"]
+[ext_resource type="Script" path="res://core/safe_area_core/safe_area_ignore.gd" id="2_script"]
+[ext_resource type="Script" path="res://core/ui_core/ui_button.gd" id="3_script"]
+[ext_resource type="Script" path="res://core/ui_core/ui_anchor.gd" id="4_script"]
+
+[node name="InfoPanel" type="Control" node_paths=PackedStringArray("title_label", "tick_label", "send_button", "close_button", "send_click", "close_click")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+back_policy = 2
+title_label = NodePath("Box/Title")
+tick_label = NodePath("Box/Ticks")
+send_button = NodePath("Box/Send")
+close_button = NodePath("Box/Close")
+send_click = NodePath("Box/Send/UIButton")
+close_click = NodePath("Box/Close/UIButton")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.12, 0.12, 0.2, 1)
+
+[node name="SafeAreaIgnore" type="Node" parent="Background"]
+script = ExtResource("2_script")
+
+[node name="Box" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -240.0
+offset_top = -190.0
+offset_right = 240.0
+offset_bottom = 190.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="Title" type="Label" parent="Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Ticks" type="Label" parent="Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Send" type="Button" parent="Box"]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+
+[node name="UIButton" type="Node" parent="Box/Send"]
+script = ExtResource("3_script")
+
+[node name="UIAnchor" type="Node" parent="Box/Send"]
+script = ExtResource("4_script")
+anchor_name = "bench_tick_send"
+
+[node name="Close" type="Button" parent="Box"]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+
+[node name="UIButton" type="Node" parent="Box/Close"]
+script = ExtResource("3_script")
+
+[node name="UIAnchor" type="Node" parent="Box/Close"]
+script = ExtResource("4_script")
+anchor_name = "bench_info_close"

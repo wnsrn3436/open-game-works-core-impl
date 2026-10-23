@@ -1,0 +1,266 @@
+{
+  "name": "matchmaker",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "auth",
+    "session",
+    "admin-api",
+    "storage",
+    "server-time",
+    "logging",
+    "p2p-signaling",
+    "validation",
+    "game-update"
+  ],
+  "optionalDependencies": [
+    "block-report",
+    "rating"
+  ],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "matchmaker.tickMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.maxPlayers",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.reportMarginMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.sweepIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.recordRetentionMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.resultMaxBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.inputLogMaxBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.applyRetryInitialMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.applyRetryFactorPermille",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.applyRetryMaxIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.applyRetryMaxAttempts",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.maxFrameBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.frameReadTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.framesPerSecond",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.preAuthAcceptsPerSecond",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.preAuthFramesPerSecond",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.preAuthConnections",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.helloTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.roomCodeAlphabet",
+      "type": "string",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.roomCodeLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.lockstepMaxDurationMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "admin-api.switchCacheMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "match_mode",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int",
+          "name": "min_players"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int",
+          "name": "max_players"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "duration",
+          "name": "match_wait"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "duration",
+          "name": "prepare_time"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "duration",
+          "name": "max_duration"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<MatchResultRule>",
+          "name": "result_rule"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "long",
+          "name": "rating_spread"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "long",
+          "name": "rating_spread_per_sec"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int",
+          "name": "max_party_size"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int",
+          "name": "team_size"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<rating_rule.id>?",
+          "name": "rating_rule"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "bool",
+          "name": "allow_queue"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "bool",
+          "name": "allow_room"
+        }
+      ]
+    }
+  ],
+  "usedTables": [
+    "rating_rule"
+  ],
+  "enums": [
+    {
+      "type": "MatchResultRule",
+      "elements": [
+        "Consensus",
+        "Majority",
+        "ServerReplay"
+      ]
+    }
+  ],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": []
+}

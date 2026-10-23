@@ -1,0 +1,117 @@
+{
+  "name": "idempotency",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "storage",
+    "server-time"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "idempotency.responseRetentionMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "session.signatureWindowMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "NetworkCore.maxRetryAgeMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "NetworkCore.requestTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "idempotency.notifyRetentionMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "idempotency.maxNotifyIdBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "find_response",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "find_committed_response",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "save_response",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "save_withdrawn_response",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "find_withdrawn_response",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "has_response",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "claim_notify",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

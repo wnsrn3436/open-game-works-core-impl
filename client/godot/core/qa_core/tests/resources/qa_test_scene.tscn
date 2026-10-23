@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/scene_core/scene_base.gd" id="1"]
+
+[node name="QaTestScene" type="Node"]
+script = ExtResource("1")
+
+[node name="Layer" type="CanvasLayer" parent="."]
+
+[node name="SceneLabel" type="Label" parent="Layer"]
+offset_left = 20.0
+offset_top = 650.0
+offset_right = 300.0
+offset_bottom = 690.0
+text = "Scene"

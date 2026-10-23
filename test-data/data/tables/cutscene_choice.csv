@@ -1,0 +1,15 @@
+,,,,,,
+All,Client,Client,Client,Client,Client,Client
+id,int,int,"tstring<id,step,choice>",int,"requirement<id,step,choice>",bool
+id,step,choice,text,next_step,requirement,hide_locked
+[cut_branch],6,1,Go to the end,8,,false
+[cut_branch],6,2,Go to the cue,7,,false
+[cut_choice],2,3,Locked hidden,3,FlagA(),true
+[cut_choice],2,1,Locked first,3,FlagB(),false
+[cut_choice],2,2,Open,3,,false
+[cut_choice],2,4,Flag C,3,FlagC(),false
+[cut_choice],3,1,Done,5,,false
+[cut_choice],3,2,Stay,4,,false
+[cut_choice_box],2,1,Only,3,,false
+[cut_box],5,1,Close the box,6,,false
+[cut_skip_choice],3,1,Continue,4,,false

@@ -1,0 +1,153 @@
+{
+  "name": "PaymentCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "DataCore",
+    "UICore",
+    "NetworkCore",
+    "UserStateCore",
+    "AuthCore",
+    "iap"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "PaymentCore.storeCallTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "PaymentCore.deliveryRetryDelayMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "TimeCore.reachMarginMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [
+    "iap_product"
+  ],
+  "enums": [],
+  "invariants": [],
+  "reserved": [
+    {
+      "table": "reserved_string",
+      "id": "[payment_guest_warning]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[payment_guest_link]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[payment_guest_continue]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[payment_guest_cancel]",
+      "requiredWhen": null,
+      "rowOf": null
+    }
+  ],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [
+    "iap-apple",
+    "iap-google"
+  ],
+  "operations": [
+    {
+      "name": "set_store_adapter",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_supported",
+      "inputs": []
+    },
+    {
+      "name": "prepare",
+      "inputs": []
+    },
+    {
+      "name": "get_price",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "purchase",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "recover_purchases",
+      "inputs": []
+    },
+    {
+      "name": "restore_purchases",
+      "inputs": []
+    },
+    {
+      "name": "is_subscribed",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_subscription_ends_at",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_pass_days_left",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_owned",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "can_claim_daily",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "claim_daily",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "open_subscription_management",
+      "inputs": []
+    }
+  ]
+}

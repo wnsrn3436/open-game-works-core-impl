@@ -1,0 +1,209 @@
+{
+  "name": "UtilCore",
+  "side": "client",
+  "lifecycle": false,
+  "dependencies": [],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "sha256_hex",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_snake_case",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "floor_div",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "floor_mod",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "clamp_int",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "apply_permille",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "big_is_valid",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "big_from_int",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "big_to_int",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "big_compare",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "big_add",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "big_sub",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "big_mul",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "big_floor_div",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "big_apply_permille",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "create_random",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "make_purpose_seed",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "next_uint32",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "range_int",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "next_float",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "shuffle_indices",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "pick_weighted",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "create_state_machine",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "change_state",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "update_state",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "current_state",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "previous_state",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "state_elapsed_ms",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

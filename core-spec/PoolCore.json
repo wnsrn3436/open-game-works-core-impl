@@ -1,0 +1,88 @@
+{
+  "name": "PoolCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "ResourceCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "PoolCore.defaultPrefillCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "PoolCore.maxPoolSize",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "prefill",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "borrow",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "give_back",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "notify_finished",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_valid",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_instance",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_pool_state",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "add_return_cleaner",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

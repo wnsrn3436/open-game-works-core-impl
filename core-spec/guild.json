@@ -1,0 +1,265 @@
+{
+  "name": "guild",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "storage",
+    "server-time",
+    "logging",
+    "validation",
+    "public-profile"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "guild.maxMembers",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "guild.maxMembersLimit",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "guild.maxOfficers",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "guild.minNameLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "guild.maxNameLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "guild.maxDescriptionLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "guild.maxSearchResults",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "guild.maxJoinRequestsPerUser",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "guild.maxJoinRequestsPerGuild",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "guild.rejoinCooldownMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "guild.leaderInactiveMs",
+      "type": "integer?",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [
+    {
+      "left": "guild.maxMembers",
+      "factor": 1,
+      "right": "guild.maxMembersLimit"
+    },
+    {
+      "left": "guild.minNameLength",
+      "factor": 1,
+      "right": "guild.maxNameLength"
+    }
+  ],
+  "tables": [],
+  "usedTables": [
+    "banned_word"
+  ],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [
+    {
+      "dataType": "other_user_content",
+      "description": "guild name and description that the user sets",
+      "source": "module",
+      "purposes": [
+        "app_functionality"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": true,
+      "platforms": [
+        "android",
+        "ios",
+        "web",
+        "windows",
+        "macos",
+        "linux"
+      ],
+      "condition": null
+    },
+    {
+      "dataType": "gameplay_content",
+      "description": "guild membership and role",
+      "source": "module",
+      "purposes": [
+        "app_functionality"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": true,
+      "platforms": [
+        "android",
+        "ios",
+        "web",
+        "windows",
+        "macos",
+        "linux"
+      ],
+      "condition": null
+    }
+  ],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "get_member",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "lock_guild",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "list_member_ids",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_guild_infos",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "register_disband_listener",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_guild_max_members",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "set_member_role",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "remove_user",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_guild",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "rename_guild",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "set_guild_description",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "set_guild_member_role",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "kick_guild_member",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "disband_guild",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "import_guild",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,200 @@
+{
+  "name": "LogCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "UtilCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "LogCore.fileMaxBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "LogCore.fileMaxCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "LogCore.fileWriteIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "LogCore.sendIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "LogCore.errorQueueMaxCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "LogCore.eventQueueMaxCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "LogCore.sendTextMaxLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "LogCore.sendTagMaxLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "LogCore.eventNameMaxLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "LogCore.eventParamMaxCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "LogCore.eventParamNameMaxLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "LogCore.eventStringMaxLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [
+    {
+      "left": "LogCore.errorQueueMaxCount",
+      "factor": 1,
+      "right": "logging.maxErrorEntries"
+    },
+    {
+      "left": "LogCore.sendTagMaxLength",
+      "factor": 1,
+      "right": "logging.maxStringLength"
+    },
+    {
+      "left": "LogCore.sendTextMaxLength",
+      "factor": 1,
+      "right": "logging.maxErrorMessageLength"
+    },
+    {
+      "left": "LogCore.sendTextMaxLength",
+      "factor": 1,
+      "right": "logging.maxStackTraceLength"
+    },
+    {
+      "left": "LogCore.eventQueueMaxCount",
+      "factor": 1,
+      "right": "logging.maxEvents"
+    },
+    {
+      "left": "LogCore.eventNameMaxLength",
+      "factor": 1,
+      "right": "logging.maxStringLength"
+    },
+    {
+      "left": "LogCore.eventParamMaxCount",
+      "factor": 1,
+      "right": "logging.maxEventParams"
+    },
+    {
+      "left": "LogCore.eventParamNameMaxLength",
+      "factor": 1,
+      "right": "logging.maxStringLength"
+    },
+    {
+      "left": "LogCore.eventStringMaxLength",
+      "factor": 1,
+      "right": "logging.maxStringLength"
+    }
+  ],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "log_debug",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "log_info",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "log_warn",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "log_error",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "track_event",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "notify_app_state",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "set_sender",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "clear_sender",
+      "inputs": []
+    },
+    {
+      "name": "set_analytics_allowed",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

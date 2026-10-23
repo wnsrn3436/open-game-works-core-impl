@@ -1,0 +1,166 @@
+{
+  "name": "routing",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "validation",
+    "auth",
+    "session",
+    "storage",
+    "idempotency",
+    "server-time",
+    "logging",
+    "admin-api",
+    "game-update",
+    "item-ledger",
+    "mailbox"
+  ],
+  "optionalDependencies": [
+    "live-event",
+    "shop",
+    "iap",
+    "ads-reward",
+    "ranking",
+    "tutorial",
+    "push",
+    "matchmaker",
+    "migration",
+    "user-snapshot-clone",
+    "gacha",
+    "loot-table",
+    "mission",
+    "attendance",
+    "coupon",
+    "notice",
+    "remote-config",
+    "nickname",
+    "public-profile",
+    "friend",
+    "block-report",
+    "guild",
+    "chat",
+    "play-session",
+    "reset-counter",
+    "rating"
+  ],
+  "devDependencies": [
+    "cheat"
+  ],
+  "settings": [
+    {
+      "key": "routing.maxBodyBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "routing.bodyReadTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "routing.userRateLimitPerMinute",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "routing.ipRateLimitPerMinute",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "environments.<ENV>.trustedProxyCount",
+      "type": "integer",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.serverUrl",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.corsAllowedOrigins",
+      "type": "array<string>",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "routing.corsPreflightMaxAgeMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "routing.externalMaxResponseBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "routing.storageSweepIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "idempotency.responseRetentionMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "register_handler",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "register_hook",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "register_admin_operation",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "create_server",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

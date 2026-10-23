@@ -1,0 +1,184 @@
+{
+  "name": "LocalizationCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "UtilCore",
+    "LogCore",
+    "EventCore",
+    "LocalDataCore",
+    "ResourceCore",
+    "DataCore",
+    "InputCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "sourceLanguage",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "supportedLanguages",
+      "type": "array<string>",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "LocalizationCore.downloadedFileMaxBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "LocalizationCore.maxFormattedLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "language",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "string",
+          "name": "code"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "name"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "reskey",
+          "name": "font"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "ref<language.id>?",
+          "name": "fallback"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "int",
+          "name": "order"
+        }
+      ]
+    }
+  ],
+  "usedTables": [
+    "input_prompt"
+  ],
+  "enums": [],
+  "invariants": [
+    {
+      "kind": "order_column",
+      "table": "language",
+      "column": "order",
+      "group": "",
+      "min": "",
+      "max": "",
+      "child_table": "",
+      "child_column": ""
+    }
+  ],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "resolve_language",
+      "inputs": []
+    },
+    {
+      "name": "load_translation",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "load_fonts",
+      "inputs": []
+    },
+    {
+      "name": "load_prompt_icons",
+      "inputs": []
+    },
+    {
+      "name": "get_text",
+      "inputs": [
+        "translationKey",
+        "other"
+      ]
+    },
+    {
+      "name": "format",
+      "inputs": [
+        "translationKey",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "bind_text",
+      "inputs": [
+        "other",
+        "translationKey"
+      ]
+    },
+    {
+      "name": "unbind_text",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_language",
+      "inputs": []
+    },
+    {
+      "name": "get_language_code",
+      "inputs": []
+    },
+    {
+      "name": "list_languages",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "select_language",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_text_scale",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_text_scale",
+      "inputs": []
+    }
+  ]
+}

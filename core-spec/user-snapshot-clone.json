@@ -1,0 +1,127 @@
+{
+  "name": "user-snapshot-clone",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "validation",
+    "storage",
+    "session",
+    "server-time",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "user-snapshot-clone.maxSnapshotBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "user-snapshot-clone.maxSampleCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "appId",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "coreVersion",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "user-snapshot-clone.cloneRetentionMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "user-snapshot-clone.sweepIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "admin-api.maxBodyBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "export_user_snapshot",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "sample_user_ids",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "import_user_snapshot",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "list_clones",
+      "inputs": []
+    },
+    {
+      "name": "wipe_clone",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "export_game_state",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "sample_game_state",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "import_game_state",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "check_snapshot",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

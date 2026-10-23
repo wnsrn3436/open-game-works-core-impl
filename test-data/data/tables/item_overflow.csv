@@ -1,0 +1,8 @@
+,
+All,All
+id(key),"array<{item_id: ref<item.id>, amount: long}>"
+id,convert_to
+[shard],[dust] 2
+[badge_coin],[ticket] 1
+[stamina_shard],"[stamina] 1, [dust] 1"
+[shop_convert],[shop_shard] 2

@@ -1,0 +1,42 @@
+{
+  "name": "UnitTestCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "UtilCore",
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "NetworkCore",
+    "InputCore",
+    "UICore",
+    "RealtimeCore",
+    "BootstrapCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "UnitTestCore.testTimeLimitMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "UnitTestCore.runTimeLimitMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": []
+}

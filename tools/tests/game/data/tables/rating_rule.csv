@@ -1,0 +1,6 @@
+,,,,,,,,,,,,
+All,Client,All,All,Server,Server,Server,All,All,Server,Server,Server,Server
+id(key),tstring<id>,long,long,long,int,int,int,ref<ranking_board.id>?,long,int,ref<mail_template.id>?,int
+id,name,initial_rating,min_rating,scale,k_factor,placement_k_factor,placement_matches,season_board,soft_reset_target,soft_reset_permille,reward_mail,reward_min_games
+[rating_rule_basic],Basic rating,1000,0,400,32,64,2,[board_rating_weekly],1000,500,[mail_rating_season],2
+[rating_rule_seasonless],Seasonless rating,1500,100,400,20,40,0,null,1500,1000,null,0

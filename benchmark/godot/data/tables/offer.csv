@@ -1,0 +1,4 @@
+,,,,,,,,
+All,Client,All,All,All,All,All,All,All
+id(key),tstring<id>,duration,duration,int?,requirement,datetime?,datetime?,ref<live_event.id>?
+id,name,duration,cooldown,max_triggers,requirement,start_at,end_at,live_event

@@ -1,0 +1,164 @@
+{
+  "engine": "godot",
+  "coreVersion": "0.0.0",
+  "coreModules": {
+    "client": [
+      "NativeUiCore"
+    ],
+    "server": []
+  },
+  "appId": "io.github.wnsrn3436.ogw.benchmark",
+  "sourceLanguage": "en",
+  "supportedLanguages": [
+    "en"
+  ],
+  "environments": {
+    "DEV": {
+      "serverUrl": "https://dev.benchmark.invalid",
+      "corsAllowedOrigins": [],
+      "trustedProxyCount": 1,
+      "adminOperators": [
+        {
+          "name": "ogw",
+          "roles": [
+            "read",
+            "ops",
+            "release"
+          ],
+          "secret": "admin-ogw-dev"
+        }
+      ],
+      "secrets": {
+        "db": "db-dev",
+        "accessTokenKey": "atk-dev",
+        "updateSigningKey": "usk-dev",
+        "devAccess": "dev-access",
+        "deploySsh": "ssh-dev",
+        "dbPassword": "dbpw-dev"
+      },
+      "adapters": {},
+      "deploy": {
+        "host": "dev.benchmark.invalid",
+        "hostKey": "ssh-ed25519 AAAAC3Nza",
+        "user": "deploy",
+        "dir": "/srv/dev",
+        "port": 8080
+      }
+    },
+    "STG": {
+      "serverUrl": "https://stg.benchmark.invalid",
+      "corsAllowedOrigins": [],
+      "trustedProxyCount": 1,
+      "adminOperators": [
+        {
+          "name": "ogw",
+          "roles": [
+            "read",
+            "ops",
+            "release"
+          ],
+          "secret": "admin-ogw-stg"
+        }
+      ],
+      "secrets": {
+        "db": "db-stg",
+        "accessTokenKey": "atk-stg",
+        "updateSigningKey": "usk-stg",
+        "deploySsh": "ssh-stg",
+        "dbPassword": "dbpw-stg"
+      },
+      "adapters": {},
+      "deploy": {
+        "host": "stg.benchmark.invalid",
+        "hostKey": "ssh-ed25519 AAAAC3Nza",
+        "user": "deploy",
+        "dir": "/srv/stg",
+        "port": 8080
+      }
+    },
+    "PROD": {
+      "serverUrl": "https://prod.benchmark.invalid",
+      "corsAllowedOrigins": [],
+      "trustedProxyCount": 1,
+      "adminOperators": [
+        {
+          "name": "ogw",
+          "roles": [
+            "read"
+          ],
+          "secret": "admin-ogw-prod"
+        }
+      ],
+      "secrets": {
+        "db": "db-prod",
+        "accessTokenKey": "atk-prod",
+        "updateSigningKey": "usk-prod",
+        "cdn": "cdn-prod"
+      },
+      "adapters": {
+        "cdn": "cdn-r2"
+      },
+      "cdnR2": {
+        "accountId": "acc",
+        "bucket": "bucket",
+        "accessKeyId": "key",
+        "publicBaseUrl": "https://cdn.benchmark.invalid/game"
+      }
+    }
+  },
+  "buildPlatforms": [
+    "linux"
+  ],
+  "serverImage": {
+    "repository": "ghcr.io/wnsrn3436/ogw-benchmark-server"
+  },
+  "postgresqlMajor": 18,
+  "baseResolution": [
+    1280,
+    720
+  ],
+  "maxResolution": [
+    1920,
+    1080
+  ],
+  "uiCheckScreens": [
+    {
+      "name": "desktop",
+      "window": [
+        1280,
+        720
+      ],
+      "fillMode": "Letterbox",
+      "notch": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "titleScene": "scene/bench/title",
+  "firstScene": "scene/bench/lobby",
+  "loadingScreen": "prefab/bench/loading",
+  "termsPopup": "prefab/bench/terms",
+  "termsDocuments": {
+    "TERMS": {
+      "version": 1,
+      "url": "https://benchmark.invalid/terms"
+    },
+    "PRIVACY": {
+      "version": 1,
+      "url": "https://benchmark.invalid/privacy"
+    }
+  },
+  "nicknameUnique": false,
+  "consent": {
+    "ageConfirmation": false,
+    "privacyChoices": false,
+    "version": 1,
+    "trackingRequest": false
+  },
+  "privacy": {
+    "contentData": []
+  }
+}

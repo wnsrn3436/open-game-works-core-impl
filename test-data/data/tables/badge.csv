@@ -1,0 +1,15 @@
+,,,,
+All,Client,Client,Client,Client
+id(key),ref<badge.id>?,enum<BadgeDisplay>,bool,requirement
+id,parent,display,persist,requirement
+[badge_chat],null,Count,false,
+[badge_notice],null,Dot,false,
+[badge_test_root],null,Count,false,
+[badge_test_a],[badge_test_root],Count,false,
+[badge_test_b],[badge_test_root],Count,false,
+[badge_test_locked],[badge_test_root],Count,false,"ItemAtLeast([potion], 1)"
+[badge_test_locked_child],[badge_test_locked],Count,false,
+[badge_test_gated],null,Count,false,"ItemAtLeast([potion], 1)"
+[badge_test_dot],null,Dot,false,
+[badge_test_saved],null,Count,true,
+[badge_test_saved_dot],null,Dot,true,

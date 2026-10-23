@@ -1,0 +1,396 @@
+{
+  "cases": [
+    {
+      "name": "zero daily boundary minus 1",
+      "input": {
+        "offset_ms": 0,
+        "cycle": "Daily",
+        "time": 1710460799999
+      },
+      "expected": {
+        "day_number": 19796,
+        "period_start": 1710374400000,
+        "next_reset": 1710460800000,
+        "period_number": 19796
+      }
+    },
+    {
+      "name": "zero daily boundary",
+      "input": {
+        "offset_ms": 0,
+        "cycle": "Daily",
+        "time": 1710460800000
+      },
+      "expected": {
+        "day_number": 19797,
+        "period_start": 1710460800000,
+        "next_reset": 1710547200000,
+        "period_number": 19797
+      }
+    },
+    {
+      "name": "zero weekly monday boundary minus 1",
+      "input": {
+        "offset_ms": 0,
+        "cycle": "Weekly",
+        "time": 1710719999999
+      },
+      "expected": {
+        "day_number": 19799,
+        "period_start": 1710115200000,
+        "next_reset": 1710720000000,
+        "period_number": 2828
+      }
+    },
+    {
+      "name": "zero weekly monday boundary",
+      "input": {
+        "offset_ms": 0,
+        "cycle": "Weekly",
+        "time": 1710720000000
+      },
+      "expected": {
+        "day_number": 19800,
+        "period_start": 1710720000000,
+        "next_reset": 1711324800000,
+        "period_number": 2829
+      }
+    },
+    {
+      "name": "zero monthly leap february end minus 1",
+      "input": {
+        "offset_ms": 0,
+        "cycle": "Monthly",
+        "time": 1709251199999
+      },
+      "expected": {
+        "day_number": 19782,
+        "period_start": 1706745600000,
+        "next_reset": 1709251200000,
+        "period_number": 649
+      }
+    },
+    {
+      "name": "zero monthly leap february end",
+      "input": {
+        "offset_ms": 0,
+        "cycle": "Monthly",
+        "time": 1709251200000
+      },
+      "expected": {
+        "day_number": 19783,
+        "period_start": 1709251200000,
+        "next_reset": 1711929600000,
+        "period_number": 650
+      }
+    },
+    {
+      "name": "zero monthly december end minus 1",
+      "input": {
+        "offset_ms": 0,
+        "cycle": "Monthly",
+        "time": 1735689599999
+      },
+      "expected": {
+        "day_number": 20088,
+        "period_start": 1733011200000,
+        "next_reset": 1735689600000,
+        "period_number": 659
+      }
+    },
+    {
+      "name": "zero monthly december end",
+      "input": {
+        "offset_ms": 0,
+        "cycle": "Monthly",
+        "time": 1735689600000
+      },
+      "expected": {
+        "day_number": 20089,
+        "period_start": 1735689600000,
+        "next_reset": 1738368000000,
+        "period_number": 660
+      }
+    },
+    {
+      "name": "plus4h daily boundary minus 1",
+      "input": {
+        "offset_ms": 14400000,
+        "cycle": "Daily",
+        "time": 1710475199999
+      },
+      "expected": {
+        "day_number": 19796,
+        "period_start": 1710388800000,
+        "next_reset": 1710475200000,
+        "period_number": 19796
+      }
+    },
+    {
+      "name": "plus4h daily boundary",
+      "input": {
+        "offset_ms": 14400000,
+        "cycle": "Daily",
+        "time": 1710475200000
+      },
+      "expected": {
+        "day_number": 19797,
+        "period_start": 1710475200000,
+        "next_reset": 1710561600000,
+        "period_number": 19797
+      }
+    },
+    {
+      "name": "plus4h weekly monday boundary minus 1",
+      "input": {
+        "offset_ms": 14400000,
+        "cycle": "Weekly",
+        "time": 1710734399999
+      },
+      "expected": {
+        "day_number": 19799,
+        "period_start": 1710129600000,
+        "next_reset": 1710734400000,
+        "period_number": 2828
+      }
+    },
+    {
+      "name": "plus4h weekly monday boundary",
+      "input": {
+        "offset_ms": 14400000,
+        "cycle": "Weekly",
+        "time": 1710734400000
+      },
+      "expected": {
+        "day_number": 19800,
+        "period_start": 1710734400000,
+        "next_reset": 1711339200000,
+        "period_number": 2829
+      }
+    },
+    {
+      "name": "plus4h monthly leap february end minus 1",
+      "input": {
+        "offset_ms": 14400000,
+        "cycle": "Monthly",
+        "time": 1709265599999
+      },
+      "expected": {
+        "day_number": 19782,
+        "period_start": 1706760000000,
+        "next_reset": 1709265600000,
+        "period_number": 649
+      }
+    },
+    {
+      "name": "plus4h monthly leap february end",
+      "input": {
+        "offset_ms": 14400000,
+        "cycle": "Monthly",
+        "time": 1709265600000
+      },
+      "expected": {
+        "day_number": 19783,
+        "period_start": 1709265600000,
+        "next_reset": 1711944000000,
+        "period_number": 650
+      }
+    },
+    {
+      "name": "plus4h monthly december end minus 1",
+      "input": {
+        "offset_ms": 14400000,
+        "cycle": "Monthly",
+        "time": 1735703999999
+      },
+      "expected": {
+        "day_number": 20088,
+        "period_start": 1733025600000,
+        "next_reset": 1735704000000,
+        "period_number": 659
+      }
+    },
+    {
+      "name": "plus4h monthly december end",
+      "input": {
+        "offset_ms": 14400000,
+        "cycle": "Monthly",
+        "time": 1735704000000
+      },
+      "expected": {
+        "day_number": 20089,
+        "period_start": 1735704000000,
+        "next_reset": 1738382400000,
+        "period_number": 660
+      }
+    },
+    {
+      "name": "utc9_midnight daily boundary minus 1",
+      "input": {
+        "offset_ms": -32400000,
+        "cycle": "Daily",
+        "time": 1710428399999
+      },
+      "expected": {
+        "day_number": 19796,
+        "period_start": 1710342000000,
+        "next_reset": 1710428400000,
+        "period_number": 19796
+      }
+    },
+    {
+      "name": "utc9_midnight daily boundary",
+      "input": {
+        "offset_ms": -32400000,
+        "cycle": "Daily",
+        "time": 1710428400000
+      },
+      "expected": {
+        "day_number": 19797,
+        "period_start": 1710428400000,
+        "next_reset": 1710514800000,
+        "period_number": 19797
+      }
+    },
+    {
+      "name": "utc9_midnight weekly monday boundary minus 1",
+      "input": {
+        "offset_ms": -32400000,
+        "cycle": "Weekly",
+        "time": 1710687599999
+      },
+      "expected": {
+        "day_number": 19799,
+        "period_start": 1710082800000,
+        "next_reset": 1710687600000,
+        "period_number": 2828
+      }
+    },
+    {
+      "name": "utc9_midnight weekly monday boundary",
+      "input": {
+        "offset_ms": -32400000,
+        "cycle": "Weekly",
+        "time": 1710687600000
+      },
+      "expected": {
+        "day_number": 19800,
+        "period_start": 1710687600000,
+        "next_reset": 1711292400000,
+        "period_number": 2829
+      }
+    },
+    {
+      "name": "utc9_midnight monthly leap february end minus 1",
+      "input": {
+        "offset_ms": -32400000,
+        "cycle": "Monthly",
+        "time": 1709218799999
+      },
+      "expected": {
+        "day_number": 19782,
+        "period_start": 1706713200000,
+        "next_reset": 1709218800000,
+        "period_number": 649
+      }
+    },
+    {
+      "name": "utc9_midnight monthly leap february end",
+      "input": {
+        "offset_ms": -32400000,
+        "cycle": "Monthly",
+        "time": 1709218800000
+      },
+      "expected": {
+        "day_number": 19783,
+        "period_start": 1709218800000,
+        "next_reset": 1711897200000,
+        "period_number": 650
+      }
+    },
+    {
+      "name": "utc9_midnight monthly december end minus 1",
+      "input": {
+        "offset_ms": -32400000,
+        "cycle": "Monthly",
+        "time": 1735657199999
+      },
+      "expected": {
+        "day_number": 20088,
+        "period_start": 1732978800000,
+        "next_reset": 1735657200000,
+        "period_number": 659
+      }
+    },
+    {
+      "name": "utc9_midnight monthly december end",
+      "input": {
+        "offset_ms": -32400000,
+        "cycle": "Monthly",
+        "time": 1735657200000
+      },
+      "expected": {
+        "day_number": 20089,
+        "period_start": 1735657200000,
+        "next_reset": 1738335600000,
+        "period_number": 660
+      }
+    },
+    {
+      "name": "zero daily before 1970",
+      "input": {
+        "offset_ms": 0,
+        "cycle": "Daily",
+        "time": -1
+      },
+      "expected": {
+        "day_number": -1,
+        "period_start": -86400000,
+        "next_reset": 0,
+        "period_number": -1
+      }
+    },
+    {
+      "name": "zero weekly before 1970",
+      "input": {
+        "offset_ms": 0,
+        "cycle": "Weekly",
+        "time": -1
+      },
+      "expected": {
+        "day_number": -1,
+        "period_start": -259200000,
+        "next_reset": 345600000,
+        "period_number": 0
+      }
+    },
+    {
+      "name": "zero monthly before 1970",
+      "input": {
+        "offset_ms": 0,
+        "cycle": "Monthly",
+        "time": -1
+      },
+      "expected": {
+        "day_number": -1,
+        "period_start": -2678400000,
+        "next_reset": 0,
+        "period_number": -1
+      }
+    },
+    {
+      "name": "utc9_midnight weekly epoch",
+      "input": {
+        "offset_ms": -32400000,
+        "cycle": "Weekly",
+        "time": 0
+      },
+      "expected": {
+        "day_number": 0,
+        "period_start": -291600000,
+        "next_reset": 313200000,
+        "period_number": 0
+      }
+    }
+  ]
+}

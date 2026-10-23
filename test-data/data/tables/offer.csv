@@ -1,0 +1,11 @@
+,,,,,,,,
+All,Client,All,All,All,All,All,All,All
+id(key),tstring<id>,duration,duration,int?,requirement,datetime?,datetime?,ref<live_event.id>?
+id,name,duration,cooldown,max_triggers,requirement,start_at,end_at,live_event
+[offer_basic],Basic offer,1h,30m,3,,null,null,null
+[offer_window],Window offer,1h,0ms,null,,2027-01-15T10:00:00Z,2027-01-15T12:00:00Z,null
+[offer_locked],Locked offer,1h,10m,null,Level(10),null,null,null
+[offer_event],Event offer,1h,0ms,2,,null,null,[event_offer]
+[shop_offer],Shop offer,1h,1m,null,,null,null,null
+[offer_iap],Iap offer,1d,1h,null,,null,null,null
+[shop_event_offer],Shop event offer,3d,0ms,1,,null,null,[shop_event]

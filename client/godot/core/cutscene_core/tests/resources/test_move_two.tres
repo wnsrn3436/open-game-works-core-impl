@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="TweenDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/tween_core/tween_definition.gd" id="1_8v6cu"]
+[ext_resource type="Script" path="res://core/tween_core/tween_step.gd" id="2_8bl83"]
+[ext_resource type="Script" path="res://core/tween_core/tween_change.gd" id="3_8ouuf"]
+
+[sub_resource type="Resource" id="Resource_d0mac"]
+script = ExtResource("3_8ouuf")
+target_value = Vector4(5, 5, 0, 0)
+duration = 50
+
+[sub_resource type="Resource" id="Resource_m70ee"]
+script = ExtResource("2_8bl83")
+changes = Array[ExtResource("3_8ouuf")]([SubResource("Resource_d0mac")])
+
+[sub_resource type="Resource" id="Resource_2pvky"]
+script = ExtResource("3_8ouuf")
+duration = 50
+
+[sub_resource type="Resource" id="Resource_vw7qy"]
+script = ExtResource("2_8bl83")
+changes = Array[ExtResource("3_8ouuf")]([SubResource("Resource_2pvky")])
+
+[resource]
+script = ExtResource("1_8v6cu")
+steps = Array[ExtResource("2_8bl83")]([SubResource("Resource_m70ee"), SubResource("Resource_vw7qy")])

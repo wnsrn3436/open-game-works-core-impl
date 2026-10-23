@@ -1,0 +1,72 @@
+{
+  "name": "testing",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "routing",
+    "auth",
+    "session",
+    "storage",
+    "server-time",
+    "logging",
+    "cheat",
+    "item-ledger",
+    "game-update"
+  ],
+  "optionalDependencies": [
+    "iap",
+    "ranking",
+    "tutorial",
+    "push",
+    "matchmaker",
+    "p2p-signaling",
+    "migration",
+    "attendance",
+    "offer",
+    "ads-reward",
+    "rating"
+  ],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "testing.maxFixtureBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "testing.backgroundWaitTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "testing.defaultStartAt",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "environments.<ENV>.adapters",
+      "type": "object",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.updatePublicKeys",
+      "type": "array<string>",
+      "source": "game",
+      "owner": "none"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": []
+}

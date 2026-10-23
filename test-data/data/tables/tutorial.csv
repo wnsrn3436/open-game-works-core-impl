@@ -1,0 +1,16 @@
+,,,
+All,Client,Client,Client
+id(key),int,requirement,bool
+id,order,start_requirement,skippable
+[tutorial_first],1,,false
+[tutorial_second],2,,true
+[tutorial_panel],3,,false
+[tutorial_popup],4,,false
+[tutorial_anchor],5,,true
+[tutorial_keyed],6,,false
+[tutorial_cue],7,,false
+[tutorial_time_step],8,,true
+[tutorial_time_start],9,FlagB(),false
+[tutorial_gated],10,FlagA(),false
+[tutorial_prompt],11,,false
+[tutorial_plain],12,,true

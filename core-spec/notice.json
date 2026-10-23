@@ -1,0 +1,106 @@
+{
+  "name": "notice",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "admin-api",
+    "validation",
+    "storage",
+    "server-time",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "supportedLanguages",
+      "type": "array<string>",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "sourceLanguage",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.cdnR2",
+      "type": "object",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "notice.maxNotices",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "notice.maxStoredNotices",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "notice.maxTitleChars",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "notice.maxBodyChars",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "notice.cacheMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [
+    "shortcut"
+  ],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "put_notice",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "delete_notice",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "list_notices",
+      "inputs": []
+    }
+  ]
+}

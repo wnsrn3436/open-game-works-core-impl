@@ -1,0 +1,9 @@
+,,,,,,,,,,,,,
+All,All,All,Server,All,All,All,Server,Server,All,All,All,All,All
+id(key),int,int,duration,duration,duration,enum<MatchResultRule>,long,long,int,int,ref<rating_rule.id>?,bool,bool
+id,min_players,max_players,match_wait,prepare_time,max_duration,result_rule,rating_spread,rating_spread_per_sec,max_party_size,team_size,rating_rule,allow_queue,allow_room
+[testing_duel],2,2,30s,3s,10m,Consensus,0,0,1,1,null,true,false
+[mode_rating_duel],2,2,30s,5s,10m,Consensus,100,10,1,0,[rating_rule_basic],true,false
+[mode_rating_team],4,4,30s,5s,10m,Consensus,100,10,2,2,[rating_rule_basic],true,true
+[mode_rating_free],2,4,30s,5s,10m,Consensus,100,10,1,0,[rating_rule_seasonless],true,false
+[mode_rating_none],2,2,30s,5s,10m,Consensus,100,10,1,0,null,true,false

@@ -1,0 +1,179 @@
+{
+  "name": "gacha",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "loot-table",
+    "item-ledger",
+    "mailbox",
+    "live-event",
+    "storage",
+    "server-time",
+    "logging",
+    "validation"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "gacha.historyRetentionMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "gacha.maxHistoryRows",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "gacha_banner",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "name"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<loot_table.id>",
+          "name": "loot_table"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "array<{item_id: ref<item.id>, amount: long}>",
+          "name": "single_cost"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int?",
+          "name": "multi_count"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "array<{item_id: ref<item.id>, amount: long}>",
+          "name": "multi_cost"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<loot_table.id>?",
+          "name": "multi_guaranteed_table"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<item.id>?",
+          "name": "ticket_item"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int?",
+          "name": "pity_count"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<loot_table.id>?",
+          "name": "pity_table"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<loot_table.id>?",
+          "name": "rate_up_table"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "bool",
+          "name": "rate_up_guarantee"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<gacha_banner.id>?",
+          "name": "pity_banner"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "datetime?",
+          "name": "start_at"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "datetime?",
+          "name": "end_at"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<live_event.id>?",
+          "name": "live_event"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "requirement",
+          "name": "requirement"
+        }
+      ]
+    }
+  ],
+  "usedTables": [
+    "loot_table",
+    "item",
+    "live_event",
+    "mail_template"
+  ],
+  "enums": [],
+  "invariants": [],
+  "reserved": [
+    {
+      "table": "reserved_id",
+      "id": "[gacha_grant_mail]",
+      "requiredWhen": null,
+      "rowOf": "mail_template"
+    }
+  ],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "get_pity",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "list_gacha_history",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

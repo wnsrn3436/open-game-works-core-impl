@@ -1,0 +1,63 @@
+{
+  "name": "reset-counter",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "storage",
+    "server-time"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "reset_counter",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "long?",
+          "name": "limit"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<ResetCycle>?",
+          "name": "reset"
+        }
+      ]
+    }
+  ],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "get_count",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "add_count",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

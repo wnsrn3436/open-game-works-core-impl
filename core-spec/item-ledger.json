@@ -1,0 +1,320 @@
+{
+  "name": "item-ledger",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "storage",
+    "server-time",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "item-ledger.historyRetentionMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "item-ledger.bigMaxDigits",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "item",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "name"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<ItemType>",
+          "name": "type"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "long",
+          "name": "max_amount"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<ItemOverflow>",
+          "name": "overflow"
+        }
+      ]
+    },
+    {
+      "name": "item_overflow",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "array<{item_id: ref<item.id>, amount: long}>",
+          "name": "convert_to"
+        }
+      ]
+    },
+    {
+      "name": "item_recovery",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "duration",
+          "name": "recovery_interval"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "long",
+          "name": "recovery_amount"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "long",
+          "name": "recovery_cap"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<item.id>?",
+          "name": "cap_bonus_item"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "long",
+          "name": "initial_amount"
+        }
+      ]
+    },
+    {
+      "name": "item_group",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "array<ref<item.id>>",
+          "name": "members"
+        }
+      ]
+    },
+    {
+      "name": "item_timed",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "duration",
+          "name": "duration"
+        }
+      ]
+    },
+    {
+      "name": "item_big",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int",
+          "name": "max_digits"
+        }
+      ]
+    }
+  ],
+  "usedTables": [],
+  "enums": [
+    {
+      "type": "ItemType",
+      "elements": [
+        "Currency",
+        "Goods"
+      ]
+    },
+    {
+      "type": "ItemOverflow",
+      "elements": [
+        "Reject",
+        "Discard",
+        "Convert"
+      ]
+    }
+  ],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "get_balance",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_ends_at",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_recovery",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "check_items",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "amount_limit",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "read_amount",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "make_item_amount",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "check_add_items",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "content_change_source",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "has_core_once_key_prefix",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "change_failure_code",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "add_items",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "subtract_items",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "exchange_items",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "preview_add_items",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "revoke_items",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "list_history",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+,
+All,All
+id(key),array<ref<item.id>>
+id,members
+[gem],"[gem_paid], [gem_free]"
+[item_mailbox_pack],"[item_mailbox_gold],[item_mailbox_gem]"

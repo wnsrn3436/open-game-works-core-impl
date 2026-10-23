@@ -1,0 +1,128 @@
+{
+  "name": "loot-table",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "storage",
+    "item-ledger",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "loot-table.maxRollCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "loot_table",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int",
+          "name": "order"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<LootEntryKind>",
+          "name": "kind"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "int",
+          "name": "weight"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "array<{item_id: ref<item.id>, amount: long}>",
+          "name": "items"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<loot_table.id>?",
+          "name": "table"
+        }
+      ]
+    },
+    {
+      "name": "public_loot_table",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        }
+      ]
+    }
+  ],
+  "usedTables": [
+    "item"
+  ],
+  "enums": [
+    {
+      "type": "LootEntryKind",
+      "elements": [
+        "Weighted",
+        "Guaranteed"
+      ]
+    }
+  ],
+  "invariants": [
+    {
+      "kind": "order_column",
+      "table": "loot_table",
+      "column": "order",
+      "group": "id",
+      "min": "",
+      "max": "",
+      "child_table": "",
+      "child_column": ""
+    }
+  ],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "roll",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "sum_items",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_rates",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

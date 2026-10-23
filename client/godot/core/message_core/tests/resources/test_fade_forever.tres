@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="TweenDefinition" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://core/tween_core/tween_definition.gd" id="1_definition"]
+[ext_resource type="Script" path="res://core/tween_core/tween_step.gd" id="2_step"]
+[ext_resource type="Script" path="res://core/tween_core/tween_change.gd" id="3_change"]
+
+[sub_resource type="Resource" id="Resource_change"]
+script = ExtResource("3_change")
+property = 4
+target_value = Vector4(1, 0, 0, 0)
+use_start_value = true
+start_value = Vector4(0, 0, 0, 0)
+duration = 100
+delay = 0
+easing = 0
+
+[sub_resource type="Resource" id="Resource_step"]
+script = ExtResource("2_step")
+changes = Array[ExtResource("3_change")]([SubResource("Resource_change")])
+
+[resource]
+script = ExtResource("1_definition")
+steps = Array[ExtResource("2_step")]([SubResource("Resource_step")])
+repeat_count = 0

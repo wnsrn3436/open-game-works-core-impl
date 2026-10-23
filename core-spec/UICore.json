@@ -1,0 +1,296 @@
+{
+  "name": "UICore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "LocalDataCore",
+    "ResourceCore",
+    "PoolCore",
+    "SoundCore",
+    "LocalizationCore",
+    "ResolutionCore",
+    "SafeAreaCore",
+    "InputCore",
+    "InputBlockCore",
+    "TweenCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "UICore.buttonClickIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "UICore.dimResource",
+      "type": "string",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "UICore.dimOpacity",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "UICore.loadingIconResource",
+      "type": "string",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "UICore.systemPopupResource",
+      "type": "string",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "UICore.scrollLoadThresholdItems",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "UICore.keyboardGap",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "UICore.systemPopupScrollStep",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "TimeCore.reachMarginMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "InputBlockCore.maxDurationMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [
+    {
+      "table": "reserved_string",
+      "id": "[ui_exit_confirm]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[ui_exit_quit]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[ui_exit_cancel]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[ui_licenses_title]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[ui_licenses_close]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_sound",
+      "id": "[ui_button_click]",
+      "requiredWhen": null,
+      "rowOf": null
+    }
+  ],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "prepare",
+      "inputs": []
+    },
+    {
+      "name": "get_layer",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "open_root_panel",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "open_panel",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "open_panels",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "close_panel",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "close_panels_to",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "reset_panel_stack",
+      "inputs": []
+    },
+    {
+      "name": "set_panel_lock",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "open_popup",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "suppress_popup",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_popup_suppressed",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "open_system_popup",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "close_popup",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "close_all_popups",
+      "inputs": []
+    },
+    {
+      "name": "show_loading_icon",
+      "inputs": []
+    },
+    {
+      "name": "hide_loading_icon",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_current_panel_key",
+      "inputs": []
+    },
+    {
+      "name": "get_panel_stack",
+      "inputs": []
+    },
+    {
+      "name": "get_open_popups",
+      "inputs": []
+    },
+    {
+      "name": "get_open_popup_count",
+      "inputs": []
+    },
+    {
+      "name": "is_system_popup_visible",
+      "inputs": []
+    },
+    {
+      "name": "is_panel_transitioning",
+      "inputs": []
+    },
+    {
+      "name": "get_block_pass_list",
+      "inputs": []
+    },
+    {
+      "name": "get_anchor_rect",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_modal_covered",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_view_focus",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "set_back_override",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "open_licenses",
+      "inputs": []
+    }
+  ]
+}

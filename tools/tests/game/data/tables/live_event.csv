@@ -1,0 +1,16 @@
+,,,,,,
+All,Client,All,All,All,All,Server
+id(key),tstring<id>,datetime,datetime,duration?,datetime?,bool
+id,name,start_at,end_at,repeat,repeat_until,settle
+[live_event_once],,2027-01-01T00:00:00Z,2027-01-02T00:00:00Z,null,null,true
+[live_event_weekly],,2027-01-01T00:00:00Z,2027-01-02T00:00:00Z,7d,2027-01-22T00:00:00Z,true
+[live_event_daily],,2027-01-01T00:00:00Z,2027-01-01T12:00:00Z,1d,null,true
+[live_event_no_settle],,2027-01-01T00:00:00Z,2027-01-02T00:00:00Z,null,null,false
+[event_offer],Offer event,2027-01-16T00:00:00Z,2027-01-17T00:00:00Z,7d,null,false
+[shop_event],Shop event,2027-01-15T00:00:00Z,2027-01-16T00:00:00Z,2d,null,false
+[event_iap_weekly],Iap weekly event,2026-01-05T00:00:00Z,2026-01-06T00:00:00Z,7d,null,false
+[attendance_event_long],,2027-03-01T00:00:00Z,2027-03-04T00:00:00Z,7d,null,false
+[attendance_event_half],,2027-03-01T00:00:00Z,2027-03-01T12:00:00Z,12h,null,false
+[mission_event_weekly],,2027-02-01T00:00:00Z,2027-02-02T00:00:00Z,7d,null,false
+[gacha_event],Gacha event,2020-01-01T00:00:00Z,2020-01-02T00:00:00Z,null,null,false
+[rk_weekend],Weekend ranking,2026-01-03T00:00:00Z,2026-01-05T00:00:00Z,7d,2026-03-01T00:00:00Z,false

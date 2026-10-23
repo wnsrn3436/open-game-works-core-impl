@@ -1,0 +1,9 @@
+,
+All,All
+id(key),int
+id,max_digits
+[big_gold],20
+[big_gem],30
+[admin_big_gold],20
+[shop_big],16
+[loot_big],20

@@ -1,0 +1,70 @@
+{
+  "name": "RemoteConfigCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "DataCore",
+    "NetworkCore",
+    "AuthCore",
+    "remote-config"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "RemoteConfigCore.refreshIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [
+    "remote_config_key",
+    "experiment"
+  ],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "get_bool",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_int",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_string",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_group",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "has_received",
+      "inputs": []
+    },
+    {
+      "name": "refresh",
+      "inputs": []
+    }
+  ]
+}

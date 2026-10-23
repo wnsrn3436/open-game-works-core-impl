@@ -1,0 +1,12 @@
+,,,,
+All,Client,Client,Client,Client
+id(key),enum<InputPromptFamily>,string,reskey?,tstring<id>
+id,family,input,icon,name
+[prompt_touch_back],Touch,back,null,Back
+[prompt_touch_jump],Touch,jump,null,Jump
+[prompt_key_j],KeyboardMouse,J,icon/key_j,J key
+[prompt_key_escape],KeyboardMouse,Escape,icon/key_escape,Esc key
+[prompt_mouse_right],KeyboardMouse,mouse_right,null,Right click
+[prompt_generic_b],Generic,b,icon/pad_b,B button
+[prompt_generic_left_x_plus],Generic,left_x+,null,Left stick right
+[prompt_play_station_b],PlayStation,b,icon/ps_circle,Circle button

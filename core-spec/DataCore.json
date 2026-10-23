@@ -1,0 +1,99 @@
+{
+  "name": "DataCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "UtilCore",
+    "LogCore",
+    "LocalDataCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "DataCore.downloadedFileMaxBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "load",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_loaded",
+      "inputs": []
+    },
+    {
+      "name": "get_data_version",
+      "inputs": []
+    },
+    {
+      "name": "get_builtin_data_version",
+      "inputs": []
+    },
+    {
+      "name": "get_builtin_location",
+      "inputs": []
+    },
+    {
+      "name": "build_derived_containers",
+      "inputs": []
+    },
+    {
+      "name": "make_index",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "make_group",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_row",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "has_row",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_rows",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "has_rows",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

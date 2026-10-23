@@ -1,0 +1,63 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://features/bench/bench_loading_screen.gd" id="1_script"]
+[ext_resource type="Script" path="res://core/safe_area_core/safe_area_ignore.gd" id="2_script"]
+
+[node name="Loading" type="Control" node_paths=PackedStringArray("label", "bar")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+label = NodePath("Label")
+bar = NodePath("BarBack/Bar")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 1)
+
+[node name="SafeAreaIgnore" type="Node" parent="Background"]
+script = ExtResource("2_script")
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -300.0
+offset_top = -40.0
+offset_right = 300.0
+offset_bottom = 40.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 36
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BarBack" type="ColorRect" parent="."]
+layout_mode = 1
+anchor_left = 0.2
+anchor_top = 0.65
+anchor_right = 0.8
+anchor_bottom = 0.65
+offset_bottom = 12.0
+grow_horizontal = 2
+mouse_filter = 2
+color = Color(0.25, 0.25, 0.3, 1)
+
+[node name="Bar" type="ColorRect" parent="BarBack"]
+layout_mode = 1
+anchor_bottom = 1.0
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.4, 0.8, 1, 1)

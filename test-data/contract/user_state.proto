@@ -1,0 +1,10 @@
+syntax = "proto3";
+package game;
+
+// Guild state a core test hook writes for a user.
+message GuildTestUserState {
+  // Guild ID the hook saw.
+  int64 guild_id = 1;
+  // Number of guild member changes the hook saw for the user.
+  int64 changes = 2;
+}

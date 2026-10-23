@@ -1,0 +1,525 @@
+{
+  "name": "AuthCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "LocalDataCore",
+    "LocalizationCore",
+    "UICore",
+    "MessageCore",
+    "NetworkCore",
+    "UserStateCore",
+    "auth"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "AuthCore.tokenRefreshMarginMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "AuthCore.webLinkPromptLogins",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "AuthCore.storageCallTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "AuthCore.desktopSignInTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "auth.maxAgeYears",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "termsPopup",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "agePopup",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "privacyPopup",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "consent.ageConfirmation",
+      "type": "boolean",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "consent.privacyChoices",
+      "type": "boolean",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "consent.version",
+      "type": "integer",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "consent.trackingRequest",
+      "type": "boolean",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "pushConsent.adPush",
+      "type": "boolean",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "pushConsentPopup",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "loginGoogle.serverClientId",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "loginGoogle.iosClientId",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "loginGoogle.desktopClientId",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [
+    {
+      "table": "reserved_string",
+      "id": "[auth_terms_title]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_terms_agree_terms]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_terms_agree_privacy]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_terms_view]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_terms_confirm]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_age_title]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_age_year]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_age_month]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_age_confirm]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_age_invalid]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_privacy_title]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_privacy_ad_personalization]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_privacy_analytics]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_privacy_confirm]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_tracking_usage]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_push_title]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_push_ad]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_push_night]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_push_confirm]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_push_ad_granted]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_push_ad_denied]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_push_night_granted]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_push_night_denied]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_recover_linked]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_recover_guest]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_recover_login_apple]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_recover_login_google]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_recover_new]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_recover_new_confirm]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_recover_new_ok]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_recover_back]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_session_replaced]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_go_to_title]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_web_link_body]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_web_link_google]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_web_link_later]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_web_link_failed]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[auth_google_desktop_done]",
+      "requiredWhen": null,
+      "rowOf": null
+    }
+  ],
+  "formatArguments": [
+    {
+      "text": "[auth_push_ad_granted]",
+      "arguments": [
+        {
+          "name": "date",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "text": "[auth_push_ad_denied]",
+      "arguments": [
+        {
+          "name": "date",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "text": "[auth_push_night_granted]",
+      "arguments": [
+        {
+          "name": "date",
+          "kind": "integer"
+        }
+      ]
+    },
+    {
+      "text": "[auth_push_night_denied]",
+      "arguments": [
+        {
+          "name": "date",
+          "kind": "integer"
+        }
+      ]
+    }
+  ],
+  "collectedData": [],
+  "adapters": [
+    "login-apple",
+    "login-google"
+  ],
+  "operations": [
+    {
+      "name": "set_storage_scope",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_social_adapter",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "boot_login",
+      "inputs": []
+    },
+    {
+      "name": "prepare_terms",
+      "inputs": []
+    },
+    {
+      "name": "open_terms_document",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "prepare_consent",
+      "inputs": []
+    },
+    {
+      "name": "open_privacy_choices",
+      "inputs": []
+    },
+    {
+      "name": "is_privacy_choices_enabled",
+      "inputs": []
+    },
+    {
+      "name": "get_consent",
+      "inputs": []
+    },
+    {
+      "name": "update_push_consent",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_ad_push_enabled",
+      "inputs": []
+    },
+    {
+      "name": "report_ad_consent",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "login",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_provider_supported",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_logged_in",
+      "inputs": []
+    },
+    {
+      "name": "get_user_id",
+      "inputs": []
+    },
+    {
+      "name": "get_access_token",
+      "inputs": []
+    },
+    {
+      "name": "refresh_access_token",
+      "inputs": []
+    },
+    {
+      "name": "get_login_remote_config",
+      "inputs": []
+    },
+    {
+      "name": "list_linked_providers",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "link_account",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "switch_account",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "logout",
+      "inputs": []
+    },
+    {
+      "name": "withdraw",
+      "inputs": []
+    },
+    {
+      "name": "issue_deletion_code",
+      "inputs": []
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "name": "tutorial",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "storage",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [
+    "tutorial",
+    "tutorial_step"
+  ],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "get_tutorial_step",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "name": "offer",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "validation",
+    "live-event",
+    "storage",
+    "server-time",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "offer",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "name"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "duration",
+          "name": "duration"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "duration",
+          "name": "cooldown"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int?",
+          "name": "max_triggers"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "requirement",
+          "name": "requirement"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "datetime?",
+          "name": "start_at"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "datetime?",
+          "name": "end_at"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<live_event.id>?",
+          "name": "live_event"
+        }
+      ]
+    }
+  ],
+  "usedTables": [
+    "live_event"
+  ],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "trigger_offer",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_offer_active",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_offer_ends_at",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "read_purchase_limit",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

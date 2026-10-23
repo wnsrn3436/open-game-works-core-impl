@@ -1,0 +1,6 @@
+,,,,
+All,Client,Client,Client,Client
+id(key),ref<badge.id>?,enum<BadgeDisplay>,bool,requirement
+id,parent,display,persist,requirement
+[badge_chat],null,Count,false,
+[badge_notice],null,Dot,false,

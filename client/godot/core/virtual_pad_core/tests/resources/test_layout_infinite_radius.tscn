@@ -1,0 +1,64 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://core/virtual_pad_core/virtual_pad_layout.gd" id="1"]
+[ext_resource type="Script" path="res://core/virtual_pad_core/virtual_pad_joystick.gd" id="2"]
+[ext_resource type="Script" path="res://core/virtual_pad_core/virtual_button.gd" id="3"]
+
+[node name="TestLayoutInfiniteRadius" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1")
+joystick_mode = 0
+
+[node name="stick" type="Control" parent="." node_paths=PackedStringArray("base", "handle")]
+layout_mode = 0
+offset_left = 100.0
+offset_top = 500.0
+offset_right = 500.0
+offset_bottom = 900.0
+script = ExtResource("2")
+action_negative_x = &"move_left"
+action_positive_x = &"move_right"
+action_negative_y = &"move_up"
+action_positive_y = &"move_down"
+base_position = Vector2(200, 200)
+base_radius = inf
+base = NodePath("Base")
+handle = NodePath("Handle")
+
+[node name="Base" type="ColorRect" parent="stick"]
+layout_mode = 0
+offset_left = 100.0
+offset_top = 100.0
+offset_right = 300.0
+offset_bottom = 300.0
+color = Color(1, 1, 1, 0.3)
+
+[node name="Handle" type="ColorRect" parent="stick"]
+layout_mode = 0
+offset_left = 160.0
+offset_top = 160.0
+offset_right = 240.0
+offset_bottom = 240.0
+
+[node name="fire" type="Control" parent="."]
+layout_mode = 0
+offset_left = 1400.0
+offset_top = 600.0
+offset_right = 1600.0
+offset_bottom = 800.0
+script = ExtResource("3")
+action = &"fire"
+
+[node name="Picture" type="ColorRect" parent="fire"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2

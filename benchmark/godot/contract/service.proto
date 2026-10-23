@@ -1,0 +1,26 @@
+syntax = "proto3";
+package game;
+
+import "ogw/options.proto";
+
+service Game {
+  // Records one benchmark tick: adds 1 to the tick count of the user when the request carries the tick count the
+  // server has stored and that count is below the game setting `[tick_count_max]`.
+  // changes: BenchUserState
+  rpc RecordBenchTick(RecordBenchTickRequest) returns (RecordBenchTickResponse) {
+    option (ogw.retry) = true;
+    option (ogw.errors) = "GAME_ERROR_TICK_COUNT_MISMATCH,GAME_ERROR_TICK_COUNT_LIMIT";
+  }
+}
+
+// The tick the client records.
+message RecordBenchTickRequest {
+  // The tick count the client has before this tick.
+  int64 tick_count = 1 [(ogw.v) = {min: 0, max: 1000000000}];
+}
+
+// The recorded tick.
+message RecordBenchTickResponse {
+  // The tick count after this tick.
+  int64 tick_count = 1;
+}

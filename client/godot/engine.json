@@ -1,0 +1,137 @@
+{
+  "godot": "4.7.2.stable",
+  "downloads": [
+    {
+      "platform": "macos-arm64",
+      "url": "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_macos.universal.zip",
+      "sha256": "c58a24e31d720be9d62f60cb5627c4e695fb72f21b0cfe1bc9ccaa9a3b3ba63e"
+    },
+    {
+      "platform": "linux-x64",
+      "url": "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip",
+      "sha256": "cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4"
+    },
+    {
+      "platform": "windows-x64",
+      "url": "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_win64.exe.zip",
+      "sha256": "731980f9608d61333e5baf54a2ef17210acc7a538446c0cb9969f002aca1e953"
+    },
+    {
+      "platform": "any",
+      "url": "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz",
+      "sha256": "f298490b8d44d934be425a5a65a51bf15f422428b229a06a6e11d9ffea248011"
+    }
+  ],
+  "gut": {
+    "version": "9.7.1",
+    "url": "https://github.com/bitwes/Gut/archive/refs/tags/v9.7.1.zip",
+    "sha256": "14969aa46adc84aa08cdd21b9f6d1a64addd92ae60b36f02d0521ed305aa4086"
+  },
+  "plugins": [
+    {
+      "name": "webrtc-native",
+      "version": "1.2.2",
+      "platforms": [
+        "android",
+        "ios",
+        "macos",
+        "windows",
+        "linux"
+      ],
+      "url": "https://github.com/godotengine/webrtc-native/releases/download/1.2.2-stable/godot-extension-webrtc_native.zip",
+      "sha256": "98e9446921740d995bd9ca1be48798dc3c2ceed51e044a25ce18b3cff11f56e5"
+    },
+    {
+      "name": "ogw-native-ui",
+      "version": "1.0.0",
+      "platforms": [
+        "android",
+        "ios",
+        "macos"
+      ],
+      "url": "https://github.com/wnsrn3436/open-game-works-core-impl/releases/download/v0.2.3/client-godot-plugins.zip",
+      "sha256": "ae9626a3eca84a486080e0b662cd159182ea9b304ae3d47ce571388b99d9136e"
+    }
+  ],
+  "buildTools": [
+    {
+      "platform": "android",
+      "hosts": [
+        "macos-arm64",
+        "linux-x64",
+        "windows-x64"
+      ],
+      "name": "jdk",
+      "version": "17",
+      "versionCommand": "jlink --version"
+    },
+    {
+      "platform": "android",
+      "hosts": [
+        "macos-arm64",
+        "linux-x64",
+        "windows-x64"
+      ],
+      "name": "android-cmdline-tools",
+      "version": "23.0",
+      "versionCommand": "sdkmanager --version"
+    },
+    {
+      "platform": "ios",
+      "hosts": [
+        "macos-arm64"
+      ],
+      "name": "xcode",
+      "version": "Xcode 27",
+      "versionCommand": "xcodebuild -version"
+    },
+    {
+      "platform": "macos",
+      "hosts": [
+        "macos-arm64"
+      ],
+      "name": "xcode",
+      "version": "Xcode 27",
+      "versionCommand": "xcodebuild -version"
+    },
+    {
+      "platform": "windows",
+      "hosts": [
+        "macos-arm64",
+        "linux-x64",
+        "windows-x64"
+      ],
+      "name": "jsign",
+      "version": "Jsign 7",
+      "versionCommand": "jsign --version"
+    },
+    {
+      "platform": "windows",
+      "hosts": [
+        "macos-arm64",
+        "linux-x64",
+        "windows-x64"
+      ],
+      "name": "temurin-jre",
+      "version": "openjdk 21.0.12.1",
+      "versionCommand": "java --version",
+      "downloads": [
+        {
+          "platform": "macos-arm64",
+          "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jre_aarch64_mac_hotspot_21.0.12.1_1.tar.gz",
+          "sha256": "dec50fc6f9fcd4fe3ae8cabf5a5fa68f6afc48841f7698e468e9aa5d54beed84"
+        },
+        {
+          "platform": "linux-x64",
+          "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jre_x64_linux_hotspot_21.0.12.1_1.tar.gz",
+          "sha256": "2413149700df0f7d440500a84a8f764c535f21e5a5e87d38328b64eec2c5b500"
+        },
+        {
+          "platform": "windows-x64",
+          "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jre_x64_windows_hotspot_21.0.12.1_1.zip",
+          "sha256": "d35f31e712f0fcf6ac5a093edc90204fbff22f720ba3950bd09d331d5e621636"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+syntax = "proto2";
+package ogw;
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.FileOptions {
+  repeated string core_errors = 51001;
+}
+
+extend google.protobuf.MethodOptions {
+  optional bool silent = 51002;
+  optional bool retry = 51003;
+  optional string errors = 51004;
+  optional bool sensitive = 51007;
+}
+
+extend google.protobuf.MessageOptions {
+  optional bool public = 51005;
+  repeated int64 converters = 51008;
+}
+
+extend google.protobuf.FieldOptions {
+  optional FieldRules v = 51006;
+}
+
+message FieldRules {
+  optional int64 min = 1;
+  optional int64 max = 2;
+  optional int64 max_len = 3;
+  optional int64 max_chars = 4;
+  optional int64 min_count = 5;
+  optional int64 max_count = 6;
+  optional string table = 7;
+  optional bool unique = 8;
+  optional string min_key = 9;
+  optional string max_key = 10;
+  optional string max_len_key = 11;
+  optional string max_chars_key = 12;
+  optional string max_count_key = 13;
+}

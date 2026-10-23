@@ -1,0 +1,137 @@
+{
+  "name": "mailbox",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "item-ledger",
+    "storage",
+    "server-time",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "mailbox.defaultExpireMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "mailbox.maxExpireMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "mailbox.maxArgs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "mailbox.maxArgLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "mailbox.maxAttachments",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "mailbox.maxClaimAllCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "mail_template",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "title"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "body"
+        }
+      ]
+    }
+  ],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "send_mail",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "grant_or_mail",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "broadcast_mail",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "mail_input_from_json",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "cancel_mail_by_once_key",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "cancel_broadcast",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "on_request_start",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

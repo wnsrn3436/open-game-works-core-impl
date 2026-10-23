@@ -1,0 +1,4 @@
+,,,,,,,,,,,,
+All,Client,All,All,All,All,All,All,All,All,All,All,All
+id(key),tstring<id>,"array<{item_id: ref<item.id>, amount: long}>","array<{item_id: ref<item.id>, amount: long}>",bool,int,int?,enum<ResetCycle>?,datetime?,datetime?,ref<live_event.id>?,requirement,ref<offer.id>?
+id,name,cost,reward,extra_grant,max_quantity,limit_count,reset,start_at,end_at,live_event,requirement,offer

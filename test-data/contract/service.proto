@@ -1,0 +1,80 @@
+syntax = "proto3";
+package game;
+
+import "ogw/options.proto";
+
+option (ogw.core_errors) = "BeginAdReward:GAME_ERROR_CORE_TEST";
+option (ogw.core_errors) = "StartPlaySession:GAME_ERROR_CORE_TEST";
+option (ogw.core_errors) = "ContinuePlaySession:GAME_ERROR_CORE_TEST";
+option (ogw.core_errors) = "FinishPlaySession:GAME_ERROR_CORE_TEST";
+option (ogw.core_errors) = "ReportMatchResult:GAME_ERROR_CORE_TEST";
+option (ogw.core_errors) = "SetNickname:GAME_ERROR_CORE_TEST";
+option (ogw.core_errors) = "CreateGuild:GAME_ERROR_CORE_TEST";
+option (ogw.core_errors) = "JoinGuild:GAME_ERROR_CORE_TEST";
+option (ogw.core_errors) = "SendChatMessage:GAME_ERROR_CORE_TEST";
+option (ogw.core_errors) = "BuyShopProduct:GAME_ERROR_CORE_TEST";
+option (ogw.core_errors) = "CheckPurchase:GAME_ERROR_CORE_TEST";
+option (ogw.core_errors) = "VerifyPurchase:GAME_ERROR_CORE_TEST";
+option (ogw.core_errors) = "RecoverPurchase:GAME_ERROR_CORE_TEST";
+option (ogw.core_errors) = "ClaimIapDaily:GAME_ERROR_CORE_TEST";
+option (ogw.core_errors) = "ClaimAttendance:GAME_ERROR_CORE_TEST";
+option (ogw.core_errors) = "ClaimMission:GAME_ERROR_CORE_TEST";
+option (ogw.core_errors) = "DrawGacha:GAME_ERROR_CORE_TEST";
+option (ogw.core_errors) = "ClaimMail:GAME_ERROR_CORE_TEST";
+
+service Game {
+  // Runs the operation a server core test gives its own handler.
+  // changes: content
+  rpc RunCoreTest(RunCoreTestRequest) returns (RunCoreTestResponse) {
+    option (ogw.retry) = true;
+    option (ogw.errors) = "GAME_ERROR_CORE_TEST";
+  }
+}
+
+// Empty: the test gives the handler what it runs.
+message RunCoreTestRequest {}
+
+// Empty: the test reads the outcome from the handler and the stored state.
+message RunCoreTestResponse {}
+
+// The result of one play session the client reports.
+message PlaySessionResult {
+  // The reported score.
+  int32 score = 1 [(ogw.v) = {min: 0, max: 1000}];
+  // The input record of the play.
+  repeated int32 inputs = 2 [(ogw.v) = {max_count: 16, min: 0, max: 9}];
+}
+
+// The user state that decides the result of one play session.
+message PlaySessionLoadout {
+  // The simulation seed.
+  int64 seed = 1;
+  // A note the prepare hook writes.
+  string note = 2;
+}
+
+// The choices before a play session starts.
+message PlaySessionStartOptions {
+  // How many boosters to use.
+  int32 booster_count = 1 [(ogw.v) = {min: 0, max: 3}];
+}
+
+// The choice of one continue.
+message PlaySessionContinueOptions {
+  // How many moves to add.
+  int32 moves = 1 [(ogw.v) = {min: 0, max: 10}];
+}
+
+// The result of one match a participant reports.
+message MatchResult {
+  // The index of the winning participant.
+  int32 winner = 1 [(ogw.v) = {min: 0, max: 15}];
+  // The winner's score.
+  int32 score = 2 [(ogw.v) = {min: 0, max: 1000}];
+}
+
+// The input record of one match that server replay recomputes.
+message MatchInputLog {
+  // Inputs in tick order.
+  repeated int32 inputs = 1 [(ogw.v) = {max_count: 64, min: 0, max: 9}];
+}

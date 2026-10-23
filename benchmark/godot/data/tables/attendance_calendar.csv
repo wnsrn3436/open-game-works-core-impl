@@ -1,0 +1,4 @@
+,,,,,,,
+All,Client,All,All,All,All,All,All
+id(key),tstring<id>,enum<AttendanceMode>,enum<ResetCycle>?,requirement,datetime?,datetime?,ref<live_event.id>?
+id,name,mode,reset,requirement,start_at,end_at,live_event

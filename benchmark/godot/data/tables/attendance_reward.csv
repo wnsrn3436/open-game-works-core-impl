@@ -1,0 +1,4 @@
+,,,
+All,All,All,All
+id,int,"array<{item_id: ref<item.id>, amount: long}>",bool
+id,day,reward,extra_grant

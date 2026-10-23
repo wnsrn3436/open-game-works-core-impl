@@ -1,0 +1,301 @@
+key,source,source_hash,current_hash,text
+gacha_banner.name.[gacha_banner_capped],Capped banner,928cbbb24b793d54,928cbbb24b793d54,Capped banner
+gacha_banner.name.[gacha_banner_event],Event banner,cfcb2685f82483e6,cfcb2685f82483e6,Event banner
+gacha_banner.name.[gacha_banner_locked],Locked banner,57bb75f91f5034b3,57bb75f91f5034b3,Locked banner
+gacha_banner.name.[gacha_banner_main],Main banner,047d63432d4b9ecd,047d63432d4b9ecd,Main banner
+gacha_banner.name.[gacha_banner_multi],Multi banner,57d058dab9dc543d,57d058dab9dc543d,Multi banner
+gacha_banner.name.[gacha_banner_plain],Plain banner,8c40cbca5f9c933e,8c40cbca5f9c933e,Plain banner
+gacha_banner.name.[gacha_banner_shared],Shared banner,27c4d9ed3be34ba9,27c4d9ed3be34ba9,Shared banner
+gacha_banner.name.[gacha_banner_window],Window banner,0a48073f4bf3b927,0a48073f4bf3b927,Window banner
+iap_product.name.[admin_pack],Admin pack,f7751669b31c4b0d,f7751669b31c4b0d,Admin pack
+iap_product.name.[iap_apple_only],Iap apple only pack,d11b554ccfcacfe8,d11b554ccfcacfe8,Iap apple only pack
+iap_product.name.[iap_capped],Iap capped pack,e0556f3552820965,e0556f3552820965,Iap capped pack
+iap_product.name.[iap_capped_unlock],Iap capped unlock,df204c7b5dfedb9d,df204c7b5dfedb9d,Iap capped unlock
+iap_product.name.[iap_daily_pack],Iap daily pack,ca6a737bd681efca,ca6a737bd681efca,Iap daily pack
+iap_product.name.[iap_event_pack],Iap event pack,bccda689378d88fe,bccda689378d88fe,Iap event pack
+iap_product.name.[iap_event_unlock],Iap event unlock,0ca050ba51df8ec9,0ca050ba51df8ec9,Iap event unlock
+iap_product.name.[iap_extra],Iap extra pack,c67aa3f6ef1da3c4,c67aa3f6ef1da3c4,Iap extra pack
+iap_product.name.[iap_gems],Iap gems,faf88712f58f2c84,faf88712f58f2c84,Iap gems
+iap_product.name.[iap_locked],Iap locked pack,913b67665059fe63,913b67665059fe63,Iap locked pack
+iap_product.name.[iap_no_ads],Iap no ads,497d31e3a7535540,497d31e3a7535540,Iap no ads
+iap_product.name.[iap_offer_pack],Iap offer pack,ac2ff55a70352c03,ac2ff55a70352c03,Iap offer pack
+iap_product.name.[iap_pass],Iap pass,f88d91931dd739a0,f88d91931dd739a0,Iap pass
+iap_product.name.[iap_vip],Iap vip,6e251ff5b7b2afad,6e251ff5b7b2afad,Iap vip
+iap_product.name.[iap_vip_plus],Iap vip plus,b82571071b07f5b8,b82571071b07f5b8,Iap vip plus
+iap_product.name.[iap_window],Iap window pack,3db9fb2c7f2e4bcb,3db9fb2c7f2e4bcb,Iap window pack
+iap_product.name.[testing_subscription],Testing subscription,1b691d9eb0640352,1b691d9eb0640352,Testing subscription
+item.name.[ad_capped],Ad capped,cf2b6276aa4aefea,cf2b6276aa4aefea,Ad capped
+item.name.[ad_gem],Ad gem,d7798331b3feda15,d7798331b3feda15,Ad gem
+item.name.[admin_big_gold],Admin big gold,a96372d788658502,a96372d788658502,Admin big gold
+item.name.[admin_gold],Admin gold,97c1566328624f78,97c1566328624f78,Admin gold
+item.name.[badge_coin],Badge Coin,84077ae3c43753f2,84077ae3c43753f2,Badge Coin
+item.name.[big_gem],Big Gem,91fc8efd78dbd4c8,91fc8efd78dbd4c8,Big Gem
+item.name.[big_gold],Big Gold,3c3785723e66bde7,3c3785723e66bde7,Big Gold
+item.name.[boost_discard],Long Boost,42c6d222b96cc048,42c6d222b96cc048,Long Boost
+item.name.[boost_reject],Boost,0d791a0a6f011001,0d791a0a6f011001,Boost
+item.name.[coupon_gem],Coupon gem,3a23e132843feb2f,3a23e132843feb2f,Coupon gem
+item.name.[coupon_gold],Coupon gold,20ad2cbcdf860967,20ad2cbcdf860967,Coupon gold
+item.name.[dust],Dust,75372bcd9ea0fe8c,75372bcd9ea0fe8c,Dust
+item.name.[energy],Energy,f2fcd3f7dccadd19,f2fcd3f7dccadd19,Energy
+item.name.[gacha_capped],Gacha capped,79bc57556cff76c9,79bc57556cff76c9,Gacha capped
+item.name.[gacha_gem],Gacha gem,b22514a2ad411e9d,b22514a2ad411e9d,Gacha gem
+item.name.[gacha_hero_a],Gacha hero A,6f2c073091238a46,6f2c073091238a46,Gacha hero A
+item.name.[gacha_hero_b],Gacha hero B,9a1a49a4233d4b79,9a1a49a4233d4b79,Gacha hero B
+item.name.[gacha_shard],Gacha shard,86674cd25320a487,86674cd25320a487,Gacha shard
+item.name.[gacha_star2],Gacha star 2,a24ea61f133bf28a,a24ea61f133bf28a,Gacha star 2
+item.name.[gacha_star3],Gacha star 3,0aaa0ef797df1ff1,0aaa0ef797df1ff1,Gacha star 3
+item.name.[gacha_star],Gacha star,f58cfc2f3997c8e0,f58cfc2f3997c8e0,Gacha star
+item.name.[gacha_ticket],Gacha ticket,70b7f47758b78807,70b7f47758b78807,Gacha ticket
+item.name.[gem],Gem,5108a0f0dc3622b2,5108a0f0dc3622b2,Gem
+item.name.[gem_free],Free Gem,4b362bcea5047e9d,4b362bcea5047e9d,Free Gem
+item.name.[gem_paid],Paid Gem,957ec290f55d9ca3,957ec290f55d9ca3,Paid Gem
+item.name.[gold],Gold,6249df4367d0a2e0,6249df4367d0a2e0,Gold
+item.name.[item_iap_capped],Iap capped gem,767ce4f4a1cbbda8,767ce4f4a1cbbda8,Iap capped gem
+item.name.[item_iap_gem],Iap gem,d2cd38f91b384934,d2cd38f91b384934,Iap gem
+item.name.[item_mailbox_gem],Mailbox gem,d3d10fb34f1b31e7,d3d10fb34f1b31e7,Mailbox gem
+item.name.[item_mailbox_gold],Mailbox gold,2e7c4cd36836208b,2e7c4cd36836208b,Mailbox gold
+item.name.[item_mailbox_pack],Mailbox pack,1165c1bc8bc1d0df,1165c1bc8bc1d0df,Mailbox pack
+item.name.[item_mailbox_shard],Mailbox shard,715be45f91abf4f6,715be45f91abf4f6,Mailbox shard
+item.name.[item_rating_gem],Rating gem,e2f88b8c4e6b6c62,e2f88b8c4e6b6c62,Rating gem
+item.name.[potion],Potion,41e4ae984c221ad6,41e4ae984c221ad6,Potion
+item.name.[rk_gold],Ranking gold,d3741e8f7b6d3147,d3741e8f7b6d3147,Ranking gold
+item.name.[shard],Shard,75f11815c8f97301,75f11815c8f97301,Shard
+item.name.[shop_big],Shop big,3e76fd2e5b6dc8ad,3e76fd2e5b6dc8ad,Shop big
+item.name.[shop_capped],Shop capped,c9bcc7117096149d,c9bcc7117096149d,Shop capped
+item.name.[shop_convert],Shop convert,8e3def704625ed0d,8e3def704625ed0d,Shop convert
+item.name.[shop_discard],Shop discard,a282d8f79f8a264e,a282d8f79f8a264e,Shop discard
+item.name.[shop_gem],Shop gem,c49173084ed73ccd,c49173084ed73ccd,Shop gem
+item.name.[shop_gold],Shop gold,e6540f4afb34da31,e6540f4afb34da31,Shop gold
+item.name.[shop_shard],Shop shard,76bddc06ededdb7f,76bddc06ededdb7f,Shop shard
+item.name.[stamina],Stamina,cc350ea3393968f7,cc350ea3393968f7,Stamina
+item.name.[stamina_bonus],Stamina Bonus,ad9cee5adddc9695,ad9cee5adddc9695,Stamina Bonus
+item.name.[stamina_shard],Stamina Shard,d435c6de56530a70,d435c6de56530a70,Stamina Shard
+item.name.[testing_gold],Testing gold,a9fbb008416c9e90,a9fbb008416c9e90,Testing gold
+item.name.[ticket],Ticket,567a8b5f8f5ce3c5,567a8b5f8f5ce3c5,Ticket
+item.name.[validation_energy],Validation Energy,f027cf39ee99cbaf,f027cf39ee99cbaf,Validation Energy
+item.name.[validation_gold],Validation Gold,a4c188fa51431105,a4c188fa51431105,Validation Gold
+language.name.[lang_en],English,ba118bf7fc9c1aed,ba118bf7fc9c1aed,English
+live_event.name.[event_iap_weekly],Iap weekly event,1bba135e09592da5,1bba135e09592da5,Iap weekly event
+live_event.name.[event_offer],Offer event,a1c2003981389f0b,a1c2003981389f0b,Offer event
+live_event.name.[gacha_event],Gacha event,7d88f1582b367fe5,7d88f1582b367fe5,Gacha event
+live_event.name.[rk_weekend],Weekend ranking,5e9313ba9a997547,5e9313ba9a997547,Weekend ranking
+live_event.name.[shop_event],Shop event,3462225409c2e565,3462225409c2e565,Shop event
+mail_template.body.[mail_ad_reward_mail],Ad reward mail body,757c2575eadc2f20,757c2575eadc2f20,Ad reward mail body
+mail_template.body.[mail_admin_notice],{text},ada0db1bcc3bb7d1,ada0db1bcc3bb7d1,{text}
+mail_template.body.[mail_attendance_reward_mail],Attendance reward mail body,d21cc6114f53ebca,d21cc6114f53ebca,Attendance reward mail body
+mail_template.body.[mail_coupon_reward_mail],Coupon reward mail body,c6f7e371ef806e01,c6f7e371ef806e01,Coupon reward mail body
+mail_template.body.[mail_gacha_grant_mail],Gacha grant mail body,ac4962e174f85885,ac4962e174f85885,Gacha grant mail body
+mail_template.body.[mail_iap_grant_mail],Iap grant mail body,00e63d277b4ab237,00e63d277b4ab237,Iap grant mail body
+mail_template.body.[mail_mailbox_notice],{count} items for you,115ee12bf034b91b,115ee12bf034b91b,{count} items for you
+mail_template.body.[mail_mailbox_plain],Plain mail body,7c75c21b1d00af4d,7c75c21b1d00af4d,Plain mail body
+mail_template.body.[mail_mission_reward_mail],Mission reward mail body,19c20cf01e53e1f1,19c20cf01e53e1f1,Mission reward mail body
+mail_template.body.[mail_ranking_reward_mail],Rank {rank} in season {season},ca7cae4799d4df32,ca7cae4799d4df32,Rank {rank} in season {season}
+mail_template.body.[mail_rating_season],Rating reward of season {season},53cb5d0ef810b5aa,53cb5d0ef810b5aa,Rating reward of season {season}
+mail_template.body.[mail_shop_grant_mail],Shop grant mail body,e40de9be81a7eb3a,e40de9be81a7eb3a,Shop grant mail body
+mail_template.title.[mail_ad_reward_mail],Ad reward mail,62412f2d1bd89323,62412f2d1bd89323,Ad reward mail
+mail_template.title.[mail_admin_notice],Admin notice,21f4bff65266f069,21f4bff65266f069,Admin notice
+mail_template.title.[mail_attendance_reward_mail],Attendance reward mail,66430ad96cf1ed7c,66430ad96cf1ed7c,Attendance reward mail
+mail_template.title.[mail_coupon_reward_mail],Coupon reward mail,31fc4be4d7cb9330,31fc4be4d7cb9330,Coupon reward mail
+mail_template.title.[mail_gacha_grant_mail],Gacha grant mail,1650a928eb0c1ba3,1650a928eb0c1ba3,Gacha grant mail
+mail_template.title.[mail_iap_grant_mail],Iap grant mail,2751f1b46f11deaf,2751f1b46f11deaf,Iap grant mail
+mail_template.title.[mail_mailbox_notice],Notice for {name},9830f675bbe8e337,9830f675bbe8e337,Notice for {name}
+mail_template.title.[mail_mailbox_plain],Plain mail,305d6fda9d8c6864,305d6fda9d8c6864,Plain mail
+mail_template.title.[mail_mission_reward_mail],Mission reward mail,545ade11fc4ea271,545ade11fc4ea271,Mission reward mail
+mail_template.title.[mail_ranking_reward_mail],Ranking reward,97a599628fd61295,97a599628fd61295,Ranking reward
+mail_template.title.[mail_rating_season],Season {season} reward,01f5d6b63c01773b,01f5d6b63c01773b,Season {season} reward
+mail_template.title.[mail_shop_grant_mail],Shop grant mail,0799a721c8c4dac3,0799a721c8c4dac3,Shop grant mail
+mission.desc.[gacha_draw_mission],Draw the gacha,bbb01767d77be771,bbb01767d77be771,Draw the gacha
+mission.name.[gacha_draw_mission],Gacha draw mission,45a0b099024c49e4,45a0b099024c49e4,Gacha draw mission
+offer.name.[offer_basic],Basic offer,cd57e7004c010e8f,cd57e7004c010e8f,Basic offer
+offer.name.[offer_event],Event offer,4a869481a91a0c12,4a869481a91a0c12,Event offer
+offer.name.[offer_iap],Iap offer,8b0b3d2621f39fed,8b0b3d2621f39fed,Iap offer
+offer.name.[offer_locked],Locked offer,b971eadf2a10f015,b971eadf2a10f015,Locked offer
+offer.name.[offer_window],Window offer,d28d3be4563385be,d28d3be4563385be,Window offer
+offer.name.[shop_event_offer],Shop event offer,7489dca94c464255,7489dca94c464255,Shop event offer
+offer.name.[shop_offer],Shop offer,02837ec994926c69,02837ec994926c69,Shop offer
+push_message.body.[push_ad],{percent}% off,66825993b5d6197d,66825993b5d6197d,{percent}% off
+push_message.body.[push_ad_label_message],Ad label,6a501cfb6436f885,6a501cfb6436f885,Ad label
+push_message.body.[push_compact],{amount:compact},d13dcc9e3fe9ac69,d13dcc9e3fe9ac69,{amount:compact}
+push_message.body.[push_fmt_brace],{v}},88479492db819cd8,88479492db819cd8,{v}}
+push_message.body.[push_fmt_compact],{v:compact},65e6ec3346ce7e86,65e6ec3346ce7e86,{v:compact}
+push_message.body.[push_fmt_date],{v:date},318068cb6fd30fd9,318068cb6fd30fd9,{v:date}
+push_message.body.[push_fmt_datetime],{v:datetime},9ff602776e140a88,9ff602776e140a88,{v:datetime}
+push_message.body.[push_fmt_duration],{v:duration},aced13362f40d44e,aced13362f40d44e,{v:duration}
+push_message.body.[push_fmt_euro],{v:으로/로},9f7bfa4d0d9de2be,9f7bfa4d0d9de2be,{v:으로/로}
+push_message.body.[push_fmt_iga],{v:이/가},8a96959db45f4df0,8a96959db45f4df0,{v:이/가}
+push_message.body.[push_fmt_n],{v:n},dd62893b46b4362a,dd62893b46b4362a,{v:n}
+push_message.body.[push_fmt_ordinal],{v:ordinal},576ccf8ba5f18f0b,576ccf8ba5f18f0b,{v:ordinal}
+push_message.body.[push_fmt_plain],{v},09dd32497e890609,09dd32497e890609,{v}
+push_message.body.[push_fmt_plural],{v:plural:item/items},eb995aabd929aad8,eb995aabd929aad8,{v:plural:item/items}
+push_message.body.[push_info],{count:n} gems arrived,dd6d49bf1554dc59,dd6d49bf1554dc59,{count:n} gems arrived
+push_message.body.[push_plain],Nothing to fill,eb3e72c21a8cffb2,eb3e72c21a8cffb2,Nothing to fill
+push_message.body.[push_when],{t:date},af36272d6d21ce9d,af36272d6d21ce9d,{t:date}
+push_message.body.[testing_notice],Testing body,6e12228b752acd39,6e12228b752acd39,Testing body
+push_message.title.[push_ad],Sale,3f2500b82dabba2d,3f2500b82dabba2d,Sale
+push_message.title.[push_ad_label_message],(Ad),41d222fbacc5635a,41d222fbacc5635a,(Ad)
+push_message.title.[push_compact],Compact,99452646e34b6970,99452646e34b6970,Compact
+push_message.title.[push_fmt_brace],Format,2f343666aaa88c44,2f343666aaa88c44,Format
+push_message.title.[push_fmt_compact],Format,2f343666aaa88c44,2f343666aaa88c44,Format
+push_message.title.[push_fmt_date],Format,2f343666aaa88c44,2f343666aaa88c44,Format
+push_message.title.[push_fmt_datetime],Format,2f343666aaa88c44,2f343666aaa88c44,Format
+push_message.title.[push_fmt_duration],Format,2f343666aaa88c44,2f343666aaa88c44,Format
+push_message.title.[push_fmt_euro],Format,2f343666aaa88c44,2f343666aaa88c44,Format
+push_message.title.[push_fmt_iga],Format,2f343666aaa88c44,2f343666aaa88c44,Format
+push_message.title.[push_fmt_n],Format,2f343666aaa88c44,2f343666aaa88c44,Format
+push_message.title.[push_fmt_ordinal],Format,2f343666aaa88c44,2f343666aaa88c44,Format
+push_message.title.[push_fmt_plain],Format,2f343666aaa88c44,2f343666aaa88c44,Format
+push_message.title.[push_fmt_plural],Format,2f343666aaa88c44,2f343666aaa88c44,Format
+push_message.title.[push_info],Hello {name},833583c574131c1e,833583c574131c1e,Hello {name}
+push_message.title.[push_plain],Plain,8b854ade2cd01bdc,8b854ade2cd01bdc,Plain
+push_message.title.[push_when],When,cf9c7aa24a26aac4,cf9c7aa24a26aac4,When
+push_message.title.[testing_notice],Testing title,db3434a5badfd13c,db3434a5badfd13c,Testing title
+ranking_board.name.[admin_board],Admin board,924e2d96e91735aa,924e2d96e91735aa,Admin board
+ranking_board.name.[board_rating_weekly],Rating weekly,79022d58cf23ab21,79022d58cf23ab21,Rating weekly
+ranking_board.name.[rk_daily],Daily ranking,8ceec6d62d1ebd0a,8ceec6d62d1ebd0a,Daily ranking
+ranking_board.name.[rk_daily_asc],Daily ascending ranking,0966ed481b7166ea,0966ed481b7166ea,Daily ascending ranking
+ranking_board.name.[rk_event],Event ranking,821ef0c572b68bb9,821ef0c572b68bb9,Event ranking
+ranking_board.name.[rk_guild_best],Guild best ranking,af08d44551ac0d5d,af08d44551ac0d5d,Guild best ranking
+ranking_board.name.[rk_guild_daily],Guild daily ranking,9d70cc2040d4fa7c,9d70cc2040d4fa7c,Guild daily ranking
+ranking_board.name.[rk_guild_event],Guild event ranking,647cfbd39da43800,647cfbd39da43800,Guild event ranking
+ranking_board.name.[rk_monthly],Monthly ranking,f79da3c083d05071,f79da3c083d05071,Monthly ranking
+ranking_board.name.[rk_set],Set ranking,6d6e49d915ae7026,6d6e49d915ae7026,Set ranking
+ranking_board.name.[rk_sum],Sum ranking,81fa20f6e3c4fb58,81fa20f6e3c4fb58,Sum ranking
+ranking_board.name.[rk_weekly],Weekly ranking,7ce6cda3b2adcefb,7ce6cda3b2adcefb,Weekly ranking
+rating_rule.name.[rating_rule_basic],Basic rating,4d908cfa086fb447,4d908cfa086fb447,Basic rating
+rating_rule.name.[rating_rule_seasonless],Seasonless rating,7864b589dddacf3e,7864b589dddacf3e,Seasonless rating
+rating_tier.name.[rating_tier_bronze],Bronze,d916515d826cf07e,d916515d826cf07e,Bronze
+rating_tier.name.[rating_tier_gold],Gold,6249df4367d0a2e0,6249df4367d0a2e0,Gold
+rating_tier.name.[rating_tier_plain],Plain,8b854ade2cd01bdc,8b854ade2cd01bdc,Plain
+rating_tier.name.[rating_tier_silver],Silver,a0b43df06f52085e,a0b43df06f52085e,Silver
+report_reason.name.[report_reason_abuse],Abusive language,7b6377dfaf597195,7b6377dfaf597195,Abusive language
+report_reason.name.[report_reason_spam],Spam,94a9eac404c8c6ff,94a9eac404c8c6ff,Spam
+report_reason.name.[report_spam],Spam,94a9eac404c8c6ff,94a9eac404c8c6ff,Spam
+reserved_string.text.[app_name],App name,e6ad399685374164,e6ad399685374164,App name
+reserved_string.text.[auth_age_confirm],Auth age confirm,e181fe0a34cbc687,e181fe0a34cbc687,Auth age confirm
+reserved_string.text.[auth_age_invalid],Auth age invalid,6ff095123645a3df,6ff095123645a3df,Auth age invalid
+reserved_string.text.[auth_age_month],Auth age month,aaea2e4ee305ca9d,aaea2e4ee305ca9d,Auth age month
+reserved_string.text.[auth_age_title],Auth age title,9f9323862f5c3b92,9f9323862f5c3b92,Auth age title
+reserved_string.text.[auth_age_year],Auth age year,7c542a0c808d6233,7c542a0c808d6233,Auth age year
+reserved_string.text.[auth_deletion_back],Auth deletion back,654c43e1b572f53e,654c43e1b572f53e,Auth deletion back
+reserved_string.text.[auth_deletion_body],Auth deletion body,5d8b9e70ba40fe95,5d8b9e70ba40fe95,Auth deletion body
+reserved_string.text.[auth_deletion_code],Auth deletion code,df2c8d09903f8a9c,df2c8d09903f8a9c,Auth deletion code
+reserved_string.text.[auth_deletion_confirm],Auth deletion confirm,91c3b23a79c4efa8,91c3b23a79c4efa8,Auth deletion confirm
+reserved_string.text.[auth_deletion_done],Auth deletion done,dea289af9e30b195,dea289af9e30b195,Auth deletion done
+reserved_string.text.[auth_deletion_failed],Auth deletion failed,a749870329e1cd65,a749870329e1cd65,Auth deletion failed
+reserved_string.text.[auth_deletion_google],Auth deletion google,bad0e86a5c903ac4,bad0e86a5c903ac4,Auth deletion google
+reserved_string.text.[auth_deletion_rate_limited],Auth deletion rate limited,7360be4f588b05ca,7360be4f588b05ca,Auth deletion rate limited
+reserved_string.text.[auth_deletion_retry],Auth deletion retry,f57ee69c0e0f7e3f,f57ee69c0e0f7e3f,Auth deletion retry
+reserved_string.text.[auth_deletion_submit],Auth deletion submit,3b0b18eabe668343,3b0b18eabe668343,Auth deletion submit
+reserved_string.text.[auth_deletion_title],Auth deletion title,649153aba4eb78d4,649153aba4eb78d4,Auth deletion title
+reserved_string.text.[auth_deletion_user_id],Auth deletion user id,2d89da4690c1c71d,2d89da4690c1c71d,Auth deletion user id
+reserved_string.text.[auth_go_to_title],Auth go to title,723eb4c011a3d719,723eb4c011a3d719,Auth go to title
+reserved_string.text.[auth_google_desktop_done],Auth google desktop done,623a3772daf97f8c,623a3772daf97f8c,Auth google desktop done
+reserved_string.text.[auth_privacy_ad_personalization],Auth privacy ad personalization,4b8c82088e699490,4b8c82088e699490,Auth privacy ad personalization
+reserved_string.text.[auth_privacy_analytics],Auth privacy analytics,9ef577728d6a97df,9ef577728d6a97df,Auth privacy analytics
+reserved_string.text.[auth_privacy_confirm],Auth privacy confirm,0a4620f21b4189bf,0a4620f21b4189bf,Auth privacy confirm
+reserved_string.text.[auth_privacy_title],Auth privacy title,7f76f48d0699a4ff,7f76f48d0699a4ff,Auth privacy title
+reserved_string.text.[auth_push_ad],Auth push ad,70a2361f275dc8fc,70a2361f275dc8fc,Auth push ad
+reserved_string.text.[auth_push_ad_denied],Auth push ad denied,9f67a42a5aa028e7,9f67a42a5aa028e7,Auth push ad denied
+reserved_string.text.[auth_push_ad_granted],Auth push ad granted,4453cc357465d13a,4453cc357465d13a,Auth push ad granted
+reserved_string.text.[auth_push_confirm],Auth push confirm,2c0b76f3ea96cea8,2c0b76f3ea96cea8,Auth push confirm
+reserved_string.text.[auth_push_night],Auth push night,117bea68879a1635,117bea68879a1635,Auth push night
+reserved_string.text.[auth_push_night_denied],Auth push night denied,0b1a17ab6db4b22a,0b1a17ab6db4b22a,Auth push night denied
+reserved_string.text.[auth_push_night_granted],Auth push night granted,16c35913d67702c1,16c35913d67702c1,Auth push night granted
+reserved_string.text.[auth_push_title],Auth push title,256dc21d99b7c343,256dc21d99b7c343,Auth push title
+reserved_string.text.[auth_recover_back],Auth recover back,bbee0e4e78bd2774,bbee0e4e78bd2774,Auth recover back
+reserved_string.text.[auth_recover_guest],Auth recover guest,59005d2600810e5c,59005d2600810e5c,Auth recover guest
+reserved_string.text.[auth_recover_linked],Auth recover linked,f4fe0c8448564fdf,f4fe0c8448564fdf,Auth recover linked
+reserved_string.text.[auth_recover_login_apple],Auth recover login apple,72b35e3fc3d44ae1,72b35e3fc3d44ae1,Auth recover login apple
+reserved_string.text.[auth_recover_login_google],Auth recover login google,60b34cd0408122e8,60b34cd0408122e8,Auth recover login google
+reserved_string.text.[auth_recover_new],Auth recover new,0f5f83ba1660875d,0f5f83ba1660875d,Auth recover new
+reserved_string.text.[auth_recover_new_confirm],Auth recover new confirm,844f79162033ce40,844f79162033ce40,Auth recover new confirm
+reserved_string.text.[auth_recover_new_ok],Auth recover new ok,a26f08bacfee17a9,a26f08bacfee17a9,Auth recover new ok
+reserved_string.text.[auth_session_replaced],Auth session replaced,161acaafbf89ae4f,161acaafbf89ae4f,Auth session replaced
+reserved_string.text.[auth_terms_agree_privacy],Auth terms agree privacy,097d3d9fd9e72071,097d3d9fd9e72071,Auth terms agree privacy
+reserved_string.text.[auth_terms_agree_terms],Auth terms agree terms,62ce6a1b5a189692,62ce6a1b5a189692,Auth terms agree terms
+reserved_string.text.[auth_terms_confirm],Auth terms confirm,068ed5e86de01d92,068ed5e86de01d92,Auth terms confirm
+reserved_string.text.[auth_terms_title],Auth terms title,eb7a3bf4800d9f33,eb7a3bf4800d9f33,Auth terms title
+reserved_string.text.[auth_terms_view],Auth terms view,ac959e30632d648a,ac959e30632d648a,Auth terms view
+reserved_string.text.[auth_tracking_usage],Auth tracking usage,809e0f50beb1f327,809e0f50beb1f327,Auth tracking usage
+reserved_string.text.[auth_web_link_body],Auth web link body,71ea5b440ef2d7ca,71ea5b440ef2d7ca,Auth web link body
+reserved_string.text.[auth_web_link_failed],Auth web link failed,aba0aeb5af94615e,aba0aeb5af94615e,Auth web link failed
+reserved_string.text.[auth_web_link_google],Auth web link google,f26aed9a644b664f,f26aed9a644b664f,Auth web link google
+reserved_string.text.[auth_web_link_later],Auth web link later,d3ab9cadafb87ecd,d3ab9cadafb87ecd,Auth web link later
+reserved_string.text.[badge_count_over],Badge count over,4b6a1bda66fb2e54,4b6a1bda66fb2e54,Badge count over
+reserved_string.text.[bootstrap_age_blocked],Bootstrap age blocked,a8872cba4a74544d,a8872cba4a74544d,Bootstrap age blocked
+reserved_string.text.[bootstrap_banned],Bootstrap banned,3e382cb553ee0745,3e382cb553ee0745,Bootstrap banned
+reserved_string.text.[bootstrap_banned_deletion],Bootstrap banned deletion,18fc2e677b59bd66,18fc2e677b59bd66,Bootstrap banned deletion
+reserved_string.text.[bootstrap_banned_deletion_code],Bootstrap banned deletion code,fcfab49246fd094a,fcfab49246fd094a,Bootstrap banned deletion code
+reserved_string.text.[bootstrap_banned_deletion_failed],Bootstrap banned deletion failed,82ab24e20e9a7601,82ab24e20e9a7601,Bootstrap banned deletion failed
+reserved_string.text.[bootstrap_banned_permanent],Bootstrap banned permanent,fdbb16660f09fb9e,fdbb16660f09fb9e,Bootstrap banned permanent
+reserved_string.text.[bootstrap_fatal_error],Bootstrap fatal error,9479c403abbc4631,9479c403abbc4631,Bootstrap fatal error
+reserved_string.text.[bootstrap_login_failed],Bootstrap login failed,c1c7e8a09aa22e01,c1c7e8a09aa22e01,Bootstrap login failed
+reserved_string.text.[bootstrap_restart],Bootstrap restart,416b2690f47b0b5c,416b2690f47b0b5c,Bootstrap restart
+reserved_string.text.[cutscene_pause_body],Cutscene pause body,bb7097c972decabc,bb7097c972decabc,Cutscene pause body
+reserved_string.text.[cutscene_pause_resume],Cutscene pause resume,10c33026c7d5be06,10c33026c7d5be06,Cutscene pause resume
+reserved_string.text.[cutscene_pause_skip],Cutscene pause skip,e21a3eda3aed56e6,e21a3eda3aed56e6,Cutscene pause skip
+reserved_string.text.[game_update_app_update_required],Game update app update required,4d74e71c385e6a2f,4d74e71c385e6a2f,Game update app update required
+reserved_string.text.[game_update_data_update_required],Game update data update required,1ac36ffab4f0129b,1ac36ffab4f0129b,Game update data update required
+reserved_string.text.[game_update_download_failed],Game update download failed,9a6e3477a64857b1,9a6e3477a64857b1,Game update download failed
+reserved_string.text.[game_update_go_to_store],Game update go to store,e4b61b5fecaa8e2d,e4b61b5fecaa8e2d,Game update go to store
+reserved_string.text.[game_update_invalid_file],Game update invalid file,95823a9d4fd35f07,95823a9d4fd35f07,Game update invalid file
+reserved_string.text.[game_update_later],Game update later,9eb82b2d4a769ebe,9eb82b2d4a769ebe,Game update later
+reserved_string.text.[game_update_no_space],Game update no space,88c7a3dc6048581f,88c7a3dc6048581f,Game update no space
+reserved_string.text.[game_update_recommended],Game update recommended,ca99ade7f8b163a7,ca99ade7f8b163a7,Game update recommended
+reserved_string.text.[game_update_restart],Game update restart,e8143774c224f77f,e8143774c224f77f,Game update restart
+reserved_string.text.[game_update_retry],Game update retry,f470991660726886,f470991660726886,Game update retry
+reserved_string.text.[game_update_save_failed],Game update save failed,944fb13c1675a190,944fb13c1675a190,Game update save failed
+reserved_string.text.[network_confirm],Network confirm,66ec28b8979773e8,66ec28b8979773e8,Network confirm
+reserved_string.text.[network_error_banned],Network error banned,5d7bf8cf908a1f2e,5d7bf8cf908a1f2e,Network error banned
+reserved_string.text.[network_error_connection],Network error connection,f54225fb958df01c,f54225fb958df01c,Network error connection
+reserved_string.text.[network_error_feature_disabled],Network error feature disabled,d8e8333513150202,d8e8333513150202,Network error feature disabled
+reserved_string.text.[network_error_general],Network error general,13c92e0f3c07dd8d,13c92e0f3c07dd8d,Network error general
+reserved_string.text.[network_error_invalid_response],Network error invalid response,ec8be168b6b49925,ec8be168b6b49925,Network error invalid response
+reserved_string.text.[network_error_maintenance],Network error maintenance,05182110cbb247b6,05182110cbb247b6,Network error maintenance
+reserved_string.text.[network_error_rate_limited],Network error rate limited,7aebcac78186e0c2,7aebcac78186e0c2,Network error rate limited
+reserved_string.text.[network_error_session],Network error session,316f78ca104b7e59,316f78ca104b7e59,Network error session
+reserved_string.text.[network_error_timeout],Network error timeout,ac136ed89cb15be5,ac136ed89cb15be5,Network error timeout
+reserved_string.text.[network_go_to_title],Network go to title,ce3a44167d1a05c0,ce3a44167d1a05c0,Network go to title
+reserved_string.text.[network_retry],Network retry,5e00fc064f227598,5e00fc064f227598,Network retry
+reserved_string.text.[notice_maintenance],Notice maintenance,d3debc94f90f380b,d3debc94f90f380b,Notice maintenance
+reserved_string.text.[notice_maintenance_until],Notice maintenance until,09aabf0e609d0fe6,09aabf0e609d0fe6,Notice maintenance until
+reserved_string.text.[notice_retry],Notice retry,669a016dc254dbe7,669a016dc254dbe7,Notice retry
+reserved_string.text.[payment_guest_cancel],Payment guest cancel,039244b8c3c5c9e1,039244b8c3c5c9e1,Payment guest cancel
+reserved_string.text.[payment_guest_continue],Payment guest continue,665963ef226515a7,665963ef226515a7,Payment guest continue
+reserved_string.text.[payment_guest_link],Payment guest link,d37999226307f01f,d37999226307f01f,Payment guest link
+reserved_string.text.[payment_guest_warning],Payment guest warning,09ad16d79ad36f9b,09ad16d79ad36f9b,Payment guest warning
+reserved_string.text.[scene_prepare_failed],Scene prepare failed,82da467b340ea618,82da467b340ea618,Scene prepare failed
+reserved_string.text.[scene_restart],Scene restart,7a1acdd5557b0e71,7a1acdd5557b0e71,Scene restart
+reserved_string.text.[scene_retry],Scene retry,976a21b833f9553d,976a21b833f9553d,Scene retry
+reserved_string.text.[tutorial_skip],Tutorial skip,6984d8ce6b288410,6984d8ce6b288410,Tutorial skip
+reserved_string.text.[ui_exit_cancel],Ui exit cancel,8c6b8324e803ff67,8c6b8324e803ff67,Ui exit cancel
+reserved_string.text.[ui_exit_confirm],Ui exit confirm,e80675eb4523d050,e80675eb4523d050,Ui exit confirm
+reserved_string.text.[ui_exit_quit],Ui exit quit,0a091a5c5abf2a59,0a091a5c5abf2a59,Ui exit quit
+reserved_string.text.[ui_licenses_close],Ui licenses close,001ca779cc81bdbd,001ca779cc81bdbd,Ui licenses close
+reserved_string.text.[ui_licenses_title],Ui licenses title,984082ffd1aacd6e,984082ffd1aacd6e,Ui licenses title
+shop_product.name.[shop_basic],Shop basic,2f16ec9ea3796fda,2f16ec9ea3796fda,Shop basic
+shop_product.name.[shop_big_pack],Shop big pack,8306b6ee601fdeff,8306b6ee601fdeff,Shop big pack
+shop_product.name.[shop_convert_pack],Shop convert pack,1c83d829c5965010,1c83d829c5965010,Shop convert pack
+shop_product.name.[shop_costly_pack],Shop costly pack,e100b1f27480f617,e100b1f27480f617,Shop costly pack
+shop_product.name.[shop_daily],Shop daily,1ffde957b3d39487,1ffde957b3d39487,Shop daily
+shop_product.name.[shop_discard_pack],Shop discard pack,73cb8e8a2ae74301,73cb8e8a2ae74301,Shop discard pack
+shop_product.name.[shop_event_offer_pack],Shop event offer pack,6c84846528fdaab3,6c84846528fdaab3,Shop event offer pack
+shop_product.name.[shop_event_pack],Shop event pack,584a515ebb182c28,584a515ebb182c28,Shop event pack
+shop_product.name.[shop_extra_pack],Shop extra pack,b8548bc9e50d2328,b8548bc9e50d2328,Shop extra pack
+shop_product.name.[shop_huge_pack],Shop huge pack,2d03419c8f01e551,2d03419c8f01e551,Shop huge pack
+shop_product.name.[shop_locked],Shop locked,306ec00d5d6fb87a,306ec00d5d6fb87a,Shop locked
+shop_product.name.[shop_max_count],Shop max count,120329c5408c4b1c,120329c5408c4b1c,Shop max count
+shop_product.name.[shop_monthly],Shop monthly,5e724e58409bed0f,5e724e58409bed0f,Shop monthly
+shop_product.name.[shop_offer_pack],Shop offer pack,d161f38f8dea7185,d161f38f8dea7185,Shop offer pack
+shop_product.name.[shop_once],Shop once,389d4d1ba614f6db,389d4d1ba614f6db,Shop once
+shop_product.name.[shop_reject_pack],Shop reject pack,c21ae0f3abb2d0ee,c21ae0f3abb2d0ee,Shop reject pack
+shop_product.name.[shop_swap],Shop swap,5632d64c2163d022,5632d64c2163d022,Shop swap
+shop_product.name.[shop_weekly],Shop weekly,9fff5599db9dad51,9fff5599db9dad51,Shop weekly
+shop_product.name.[shop_window],Shop window,67660df403c5ed89,67660df403c5ed89,Shop window
+tool_test.name.[tool_test_a],Tool test A,7896cd36576b41ac,7896cd36576b41ac,Tool test A
+tool_test.name.[tool_test_b],Tool test B,9067aa58f176beca,9067aa58f176beca,Tool test B
+tutorial_step.text.[tutorial_first].1,First tutorial step one,5ee99cf1f8646941,5ee99cf1f8646941,First tutorial step one
+tutorial_step.text.[tutorial_first].2,First tutorial step two,1448f9cf4d21ef97,1448f9cf4d21ef97,First tutorial step two
+tutorial_step.text.[tutorial_first].3,First tutorial step three,86929fe40fae4c1e,86929fe40fae4c1e,First tutorial step three
+tutorial_step.text.[tutorial_second].1,Second tutorial step one,71b96eb0c8e24827,71b96eb0c8e24827,Second tutorial step one
+tutorial_step.text.[tutorial_second].2,Second tutorial step two,1c784ba82b4b7154,1c784ba82b4b7154,Second tutorial step two

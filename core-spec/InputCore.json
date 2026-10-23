@@ -1,0 +1,290 @@
+{
+  "name": "InputCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "LocalDataCore",
+    "DataCore",
+    "ResolutionCore",
+    "InputBlockCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "InputCore.moveThreshold",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "InputCore.longPressMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "InputCore.swipeMaxMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "InputCore.swipeMinDistance",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "InputCore.maxJudgePointers",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "InputCore.maxKeysPerAction",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "InputCore.maxPadButtonsPerAction",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "InputCore.padAxisWaitThreshold",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "InputCore.padAxisDeadzone",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "input_prompt",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "enum<InputPromptFamily>",
+          "name": "family"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "string",
+          "name": "input"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "reskey?",
+          "name": "icon"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "name"
+        }
+      ]
+    }
+  ],
+  "usedTables": [],
+  "enums": [
+    {
+      "type": "InputPromptFamily",
+      "elements": [
+        "Touch",
+        "KeyboardMouse",
+        "Generic",
+        "Xbox",
+        "PlayStation",
+        "Nintendo"
+      ]
+    }
+  ],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "has_action",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_pressed",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_just_pressed",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_just_released",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_strength",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_vector",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_mouse_position",
+      "inputs": []
+    },
+    {
+      "name": "get_mouse_motion",
+      "inputs": []
+    },
+    {
+      "name": "get_device",
+      "inputs": []
+    },
+    {
+      "name": "get_last_gamepad",
+      "inputs": []
+    },
+    {
+      "name": "get_connected_gamepads",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_pinch_enabled",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "inject_action",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "cancel_input",
+      "inputs": []
+    },
+    {
+      "name": "get_cancel_count",
+      "inputs": []
+    },
+    {
+      "name": "set_back_handler",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_ui_pointer_observer",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_keys",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "set_keys",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "reset_keys",
+      "inputs": []
+    },
+    {
+      "name": "load_keys",
+      "inputs": []
+    },
+    {
+      "name": "wait_key",
+      "inputs": []
+    },
+    {
+      "name": "cancel_wait_key",
+      "inputs": []
+    },
+    {
+      "name": "get_pad_buttons",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "set_pad_buttons",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "reset_pad_buttons",
+      "inputs": []
+    },
+    {
+      "name": "wait_pad_button",
+      "inputs": []
+    },
+    {
+      "name": "get_prompt_family",
+      "inputs": []
+    },
+    {
+      "name": "get_prompt",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

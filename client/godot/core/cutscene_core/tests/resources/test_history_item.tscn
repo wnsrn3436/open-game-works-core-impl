@@ -1,0 +1,35 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://core/cutscene_core/cutscene_line_history_item.gd" id="1_y34iu"]
+[ext_resource type="Script" path="res://core/ui_core/ui_button.gd" id="2_ss383"]
+
+[node name="TestHistoryItem" type="Control" unique_id=1821035609 node_paths=PackedStringArray("speaker_label", "text_label", "voice_button")]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 600.0
+offset_bottom = 40.0
+script = ExtResource("1_y34iu")
+speaker_label = NodePath("SpeakerLabel")
+text_label = NodePath("TextLabel")
+voice_button = NodePath("VoiceButton")
+
+[node name="SpeakerLabel" type="Label" parent="." unique_id=1872179835]
+layout_mode = 0
+offset_right = 120.0
+offset_bottom = 40.0
+
+[node name="TextLabel" type="RichTextLabel" parent="." unique_id=808994088]
+layout_mode = 0
+offset_left = 130.0
+offset_right = 480.0
+offset_bottom = 40.0
+
+[node name="VoiceButton" type="Button" parent="." unique_id=577478229]
+layout_mode = 0
+offset_left = 500.0
+offset_right = 603.0
+offset_bottom = 40.0
+text = "VoiceButton"
+
+[node name="UIButton" type="Node" parent="VoiceButton" unique_id=605954647]
+script = ExtResource("2_ss383")

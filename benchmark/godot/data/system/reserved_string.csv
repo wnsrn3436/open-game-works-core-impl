@@ -1,0 +1,126 @@
+,
+All,All
+id(key),tstring<id>
+id,text
+[auth_terms_title],Terms of service
+[auth_terms_agree_terms],I agree to the terms of service
+[auth_terms_agree_privacy],I agree to the privacy policy
+[auth_terms_view],View
+[auth_terms_confirm],Confirm
+[auth_age_title],Enter your birth year and month
+[auth_age_year],Year
+[auth_age_month],Month
+[auth_age_confirm],Confirm
+[auth_age_invalid],Enter a valid year and month.
+[auth_privacy_title],Privacy choices
+[auth_privacy_ad_personalization],Personalized ads
+[auth_privacy_analytics],Usage analytics
+[auth_privacy_confirm],Confirm
+[auth_tracking_usage],Your data is used to show ads that fit you.
+[auth_push_title],Notifications
+[auth_push_ad],Event and offer notifications
+[auth_push_night],Night notifications
+[auth_push_confirm],Confirm
+[auth_push_ad_granted],You agreed to event and offer notifications on {date:date}.
+[auth_push_ad_denied],You declined event and offer notifications on {date:date}.
+[auth_push_night_granted],You agreed to night notifications on {date:date}.
+[auth_push_night_denied],You declined night notifications on {date:date}.
+[auth_recover_linked],Sign in with a linked account
+[auth_recover_guest],Your guest account could not be found.
+[auth_recover_login_apple],Sign in with Apple
+[auth_recover_login_google],Sign in with Google
+[auth_recover_new],Start a new account
+[auth_recover_new_confirm],A new account cannot return to the old account. Start a new account?
+[auth_recover_new_ok],Start
+[auth_recover_back],Back
+[auth_session_replaced],Your account was signed in on another device.
+[auth_go_to_title],Go to title
+[auth_web_link_body],Link an account to keep your progress.
+[auth_web_link_google],Link Google account
+[auth_web_link_later],Later
+[auth_web_link_failed],The account could not be linked.
+[auth_google_desktop_done],Sign-in is done. Return to the game.
+[bootstrap_fatal_error],An error stopped the game.
+[bootstrap_login_failed],Sign-in failed.
+[bootstrap_banned],User {user_id} is restricted until {until_at:datetime}. Details: {url}
+[bootstrap_banned_permanent],User {user_id} is restricted. Details: {url}
+[bootstrap_banned_deletion],Request account deletion
+[bootstrap_banned_deletion_code],User {user_id}: enter code {code} at {url} before {expires_at:datetime}.
+[bootstrap_banned_deletion_failed],The deletion code could not be issued.
+[bootstrap_age_blocked],You cannot use this game at your age.
+[bootstrap_restart],Restart
+[app_name],OGW Benchmark
+[game_update_app_update_required],A new version of the app is required.
+[game_update_recommended],A new version of the app is available.
+[game_update_data_update_required],New game data is required. The game restarts.
+[game_update_download_failed],The download failed.
+[game_update_invalid_file],A downloaded file is damaged.
+[game_update_no_space],There is not enough storage space.
+[game_update_save_failed],A downloaded file could not be saved.
+[game_update_go_to_store],Go to store
+[game_update_later],Later
+[game_update_retry],Retry
+[game_update_restart],Restart
+[network_confirm],OK
+[network_retry],Retry
+[network_go_to_title],Go to title
+[network_error_timeout],The server did not answer in time.
+[network_error_connection],The server could not be reached.
+[network_error_invalid_response],The server answer could not be read.
+[network_error_session],Your session ended. Sign in again.
+[network_error_maintenance],The server is under maintenance.
+[network_error_banned],Your account is restricted.
+[network_error_rate_limited],Too many requests. Try again later.
+[network_error_feature_disabled],This feature is not available now.
+[network_error_general],A server error occurred.
+[scene_prepare_failed],The screen could not be loaded.
+[scene_retry],Retry
+[scene_restart],Restart
+[ui_exit_confirm],Quit the game?
+[ui_exit_quit],Quit
+[ui_exit_cancel],Cancel
+[ui_licenses_title],Licenses
+[ui_licenses_close],Close
+[auth_deletion_title],Delete account
+[auth_deletion_body],Enter your user ID and the deletion code from the game.
+[auth_deletion_user_id],User ID
+[auth_deletion_code],Deletion code
+[auth_deletion_confirm],I understand that deleted data cannot be restored.
+[auth_deletion_submit],Delete
+[auth_deletion_google],Delete with Google sign-in
+[auth_deletion_done],Your account deletion was requested.
+[auth_deletion_failed],The account could not be deleted.
+[auth_deletion_retry],Retry
+[auth_deletion_rate_limited],Too many tries. Try again later.
+[auth_deletion_back],Back
+[bench_title],OGW Benchmark
+[bench_loading],Loading
+[bench_lobby_title],Lobby
+[bench_info_open],Info
+[bench_arena_open],Arena
+[bench_info_title],Tick record
+[bench_tick_count],Ticks: {count}
+[bench_tick_send],Record tick
+[bench_close],Close
+[bench_arena_title],Arena
+[bench_notice_open],Notice
+[bench_notice_body],The arena keeps drawing while this notice is open.
+[bench_lobby_back],Lobby
+[bench_tick_mismatch],The tick count changed. It is up to date now.
+[bench_option_open],Options
+[bench_option_title],Options
+[bench_user_id],User ID: {user_id}
+[bench_copy_user_id],Copy user ID
+[bench_terms],Terms of service
+[bench_privacy],Privacy policy
+[bench_licenses],Licenses
+[bench_privacy_choices],Privacy choices
+[bench_deletion_issue],Get account deletion code
+[bench_deletion_info],"Code {code}, valid until {expires_at:datetime}. Enter it at {url}"
+[bench_copy_code],Copy code
+[bench_copy_url],Copy page address
+[bench_withdraw],Withdraw
+[bench_withdraw_confirm],Withdraw your account? Your progress is deleted and cannot be restored.
+[bench_withdraw_ok],Withdraw
+[bench_cancel],Cancel
+[bench_option_failed],It did not work. Try again.

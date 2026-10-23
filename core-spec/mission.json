@@ -1,0 +1,157 @@
+{
+  "name": "mission",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "item-ledger",
+    "mailbox",
+    "live-event",
+    "validation",
+    "storage",
+    "server-time",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "mission_counter",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<MissionCounterMode>",
+          "name": "mode"
+        }
+      ]
+    },
+    {
+      "name": "mission",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "name"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "desc"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<mission_counter.id>",
+          "name": "counter"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "long",
+          "name": "target"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<ResetCycle>?",
+          "name": "reset"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "requirement",
+          "name": "requirement"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "array<{item_id: ref<item.id>, amount: long}>",
+          "name": "reward"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "bool",
+          "name": "extra_grant"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "datetime?",
+          "name": "start_at"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "datetime?",
+          "name": "end_at"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<live_event.id>?",
+          "name": "live_event"
+        }
+      ]
+    }
+  ],
+  "usedTables": [
+    "item",
+    "live_event",
+    "mail_template"
+  ],
+  "enums": [
+    {
+      "type": "MissionCounterMode",
+      "elements": [
+        "Sum",
+        "Max"
+      ]
+    }
+  ],
+  "invariants": [],
+  "reserved": [
+    {
+      "table": "reserved_id",
+      "id": "[mission_reward_mail]",
+      "requiredWhen": null,
+      "rowOf": "mail_template"
+    }
+  ],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "add_progress",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_progress",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "name": "EventCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "subscribe",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "unsubscribe",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "unsubscribe_all",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "count_subscriptions",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "acquire",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "publish",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

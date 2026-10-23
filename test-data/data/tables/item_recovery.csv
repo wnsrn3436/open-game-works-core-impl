@@ -1,0 +1,9 @@
+,,,,,
+All,All,All,All,All,All
+id(key),duration,long,long,ref<item.id>?,long
+id,recovery_interval,recovery_amount,recovery_cap,cap_bonus_item,initial_amount
+[stamina],1m,1,20,[stamina_bonus],20
+[energy],5m,2,10,null,0
+[validation_energy],1m,1,10,null,0
+[user_state_recovery],1m,1,5,null,5
+[user_state_bonus_recovery],1m,1,5,[user_state_bonus],5

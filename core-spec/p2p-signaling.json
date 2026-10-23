@@ -1,0 +1,112 @@
+{
+  "name": "p2p-signaling",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "server-time",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "p2p-signaling.stunUrls",
+      "type": "array<string>",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "p2p-signaling.turnTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "p2p-signaling.maxPayloadBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "p2p-signaling.sweepIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "environments.<ENV>.secrets.turn",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.turnCoturn.urls",
+      "type": "array<string>",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.adapters.turn",
+      "type": "string?",
+      "source": "game",
+      "owner": "none"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [
+    {
+      "dataType": "none",
+      "description": "the relay is a coturn server that the operator starts, and it does not save relayed packets",
+      "source": "turn-coturn",
+      "purposes": [],
+      "linked": false,
+      "tracking": false,
+      "shared": false,
+      "optional": false,
+      "platforms": [],
+      "condition": null
+    }
+  ],
+  "adapters": [
+    "turn-coturn"
+  ],
+  "operations": [
+    {
+      "name": "prepare_transport",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "open_match_session",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "handle_frame",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "connection_closed",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

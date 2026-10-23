@@ -1,0 +1,4 @@
+,,,,
+All,Client,All,All,All
+id(key),tstring<id>,enum<ItemType>,long,enum<ItemOverflow>
+id,name,type,max_amount,overflow

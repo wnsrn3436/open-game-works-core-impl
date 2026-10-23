@@ -1,0 +1,89 @@
+{
+  "name": "migration",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "storage",
+    "server-time",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [
+    "user-snapshot-clone"
+  ],
+  "settings": [
+    {
+      "key": "migration.batchSize",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "migration.batchIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "migration.batchLeaseMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "migration.maxRecordedFailures",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "migration.testSampleCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "storage.userLockWaitMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [
+    {
+      "left": "migration.testSampleCount",
+      "factor": 1,
+      "right": "user-snapshot-clone.maxSampleCount"
+    }
+  ],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "register_converter",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "start_migration_batch",
+      "inputs": []
+    },
+    {
+      "name": "get_migration_batch",
+      "inputs": []
+    },
+    {
+      "name": "stop_migration_batch",
+      "inputs": []
+    }
+  ]
+}

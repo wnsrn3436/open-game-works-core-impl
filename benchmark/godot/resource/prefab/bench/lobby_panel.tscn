@@ -1,0 +1,79 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://features/bench/bench_lobby_panel.gd" id="1_script"]
+[ext_resource type="Script" path="res://core/ui_core/ui_button.gd" id="2_script"]
+[ext_resource type="Script" path="res://core/ui_core/ui_anchor.gd" id="3_script"]
+
+[node name="LobbyPanel" type="Control" node_paths=PackedStringArray("title_label", "info_button", "arena_button", "option_button", "info_click", "arena_click", "option_click")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+title_label = NodePath("Box/Title")
+info_button = NodePath("Box/Info")
+arena_button = NodePath("Box/Arena")
+option_button = NodePath("Box/Option")
+info_click = NodePath("Box/Info/UIButton")
+arena_click = NodePath("Box/Arena/UIButton")
+option_click = NodePath("Box/Option/UIButton")
+
+[node name="Box" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -210.0
+offset_top = -200.0
+offset_right = 210.0
+offset_bottom = 200.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="Title" type="Label" parent="Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 44
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Info" type="Button" parent="Box"]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+
+[node name="UIButton" type="Node" parent="Box/Info"]
+script = ExtResource("2_script")
+
+[node name="UIAnchor" type="Node" parent="Box/Info"]
+script = ExtResource("3_script")
+anchor_name = "bench_info_open"
+
+[node name="Arena" type="Button" parent="Box"]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+
+[node name="UIButton" type="Node" parent="Box/Arena"]
+script = ExtResource("2_script")
+
+[node name="UIAnchor" type="Node" parent="Box/Arena"]
+script = ExtResource("3_script")
+anchor_name = "bench_arena_open"
+
+[node name="Option" type="Button" parent="Box"]
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+
+[node name="UIButton" type="Node" parent="Box/Option"]
+script = ExtResource("2_script")
+
+[node name="UIAnchor" type="Node" parent="Box/Option"]
+script = ExtResource("3_script")
+anchor_name = "bench_option_open"

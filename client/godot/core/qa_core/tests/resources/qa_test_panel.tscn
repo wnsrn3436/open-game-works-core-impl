@@ -1,0 +1,73 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://core/ui_core/ui_panel.gd" id="1"]
+[ext_resource type="Script" path="res://core/ui_core/ui_button.gd" id="2"]
+[ext_resource type="Script" path="res://core/ui_core/ui_anchor.gd" id="3"]
+
+[node name="QaTestPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1")
+
+[node name="Go" type="Button" parent="."]
+layout_mode = 0
+offset_left = 700.0
+offset_top = 100.0
+offset_right = 900.0
+offset_bottom = 160.0
+text = "Go"
+
+[node name="UIButton" type="Node" parent="Go"]
+script = ExtResource("2")
+
+[node name="UIAnchor" type="Node" parent="Go"]
+script = ExtResource("3")
+anchor_name = "qa_go"
+
+[node name="Small" type="Label" parent="."]
+layout_mode = 0
+offset_left = 100.0
+offset_top = 100.0
+offset_right = 400.0
+offset_bottom = 140.0
+theme_override_font_sizes/font_size = 16
+text = "Small"
+
+[node name="Big" type="Label" parent="."]
+layout_mode = 0
+offset_left = 100.0
+offset_top = 200.0
+offset_right = 400.0
+offset_bottom = 260.0
+theme_override_font_sizes/font_size = 32
+text = "Big"
+
+[node name="Overflow" type="Label" parent="."]
+layout_mode = 0
+offset_left = 100.0
+offset_top = 300.0
+offset_right = 140.0
+offset_bottom = 330.0
+clip_text = true
+text = "This text is much wider than its label"
+
+[node name="Hidden" type="Label" parent="."]
+visible = false
+layout_mode = 0
+offset_left = 100.0
+offset_top = 400.0
+offset_right = 300.0
+offset_bottom = 430.0
+text = "Hidden"
+
+[node name="Input" type="LineEdit" parent="."]
+layout_mode = 0
+offset_left = 100.0
+offset_top = 500.0
+offset_right = 400.0
+offset_bottom = 540.0

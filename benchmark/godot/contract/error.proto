@@ -1,0 +1,10 @@
+syntax = "proto3";
+package game;
+
+enum GameError {
+  GAME_ERROR_UNSPECIFIED = 0;
+  // The request tick count is not the stored tick count.
+  GAME_ERROR_TICK_COUNT_MISMATCH = 1000;
+  // The stored tick count reached the game setting `[tick_count_max]`.
+  GAME_ERROR_TICK_COUNT_LIMIT = 1001;
+}

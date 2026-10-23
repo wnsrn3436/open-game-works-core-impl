@@ -1,0 +1,290 @@
+{
+  "name": "ranking",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "mailbox",
+    "item-ledger",
+    "storage",
+    "server-time",
+    "logging",
+    "live-event"
+  ],
+  "optionalDependencies": [
+    "guild",
+    "nickname"
+  ],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "ranking.maxPageSize",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ranking.aroundCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ranking.topCacheMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ranking.maxDisplayBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ranking.seasonCheckIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ranking.seasonJobLeaseMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ranking.rewardRetryInitialMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ranking.rewardRetryFactorPermille",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ranking.rewardRetryMaxIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ranking.rewardRetryMaxAttempts",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ranking.seasonRetentionMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "mailbox.maxAttachments",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "nickname.maxLookupCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "dailyResetOffsetMs",
+      "type": "integer",
+      "source": "game",
+      "owner": "none"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "ranking_board",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "name"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<RankingOrder>",
+          "name": "sort_direction"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<RankingUpdateMode>",
+          "name": "update_mode"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<RankingEntity>",
+          "name": "entity"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<ResetCycle>?",
+          "name": "cycle"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<live_event.id>?",
+          "name": "live_event"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int",
+          "name": "size"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "ref<mail_template.id>?",
+          "name": "reward_mail"
+        }
+      ]
+    },
+    {
+      "name": "ranking_reward",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int",
+          "name": "rank_from"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int",
+          "name": "rank_to"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "array<{item_id: ref<item.id>, amount: long}>",
+          "name": "reward"
+        }
+      ]
+    }
+  ],
+  "usedTables": [
+    "live_event",
+    "mail_template",
+    "item"
+  ],
+  "enums": [
+    {
+      "type": "RankingOrder",
+      "elements": [
+        "Desc",
+        "Asc"
+      ]
+    },
+    {
+      "type": "RankingUpdateMode",
+      "elements": [
+        "Best",
+        "Sum",
+        "Set"
+      ]
+    },
+    {
+      "type": "RankingEntity",
+      "elements": [
+        "User",
+        "Guild"
+      ]
+    }
+  ],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [
+    {
+      "text": "ranking_board.reward_mail",
+      "arguments": [
+        {
+          "name": "rank",
+          "kind": "integer"
+        },
+        {
+          "name": "season",
+          "kind": "integer"
+        }
+      ]
+    }
+  ],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "submit_score",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "submit_guild_score",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "update_display",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_my_entry",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_season",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "remove_user",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,172 @@
+{
+  "name": "BadgeCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "ResourceCore",
+    "LocalDataCore",
+    "LocalizationCore",
+    "DataCore",
+    "UserStateCore",
+    "RequirementCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "BadgeCore.refreshIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "BadgeCore.maxDisplayCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "BadgeCore.dotResource",
+      "type": "string",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "badge",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "ref<badge.id>?",
+          "name": "parent"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "enum<BadgeDisplay>",
+          "name": "display"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "bool",
+          "name": "persist"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "requirement",
+          "name": "requirement"
+        }
+      ]
+    }
+  ],
+  "usedTables": [],
+  "enums": [
+    {
+      "type": "BadgeDisplay",
+      "elements": [
+        "Dot",
+        "Count"
+      ]
+    }
+  ],
+  "invariants": [],
+  "reserved": [
+    {
+      "table": "reserved_string",
+      "id": "[badge_count_over]",
+      "requiredWhen": null,
+      "rowOf": null
+    }
+  ],
+  "formatArguments": [
+    {
+      "text": "[badge_count_over]",
+      "arguments": [
+        {
+          "name": "count",
+          "kind": "integer"
+        }
+      ]
+    }
+  ],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "prepare",
+      "inputs": []
+    },
+    {
+      "name": "register_evaluator",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "set_count",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "set_item",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "clear_item",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "clear_items",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "refresh",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_count",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_item_count",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "load_saved",
+      "inputs": []
+    }
+  ]
+}

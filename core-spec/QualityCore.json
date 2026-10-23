@@ -1,0 +1,94 @@
+{
+  "name": "QualityCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "LocalDataCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "targetFps",
+      "type": "integer",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "QualityCore.levels",
+      "type": "object",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "QualityCore.deviceClasses",
+      "type": "array<object>",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "QualityCore.autoDowngradeEnabled",
+      "type": "boolean",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "QualityCore.autoDowngradeWindowMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "QualityCore.autoDowngradeFpsPermille",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "QualityCore.hitchFrameMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "apply_saved_level",
+      "inputs": []
+    },
+    {
+      "name": "get_level",
+      "inputs": []
+    },
+    {
+      "name": "get_profile",
+      "inputs": []
+    },
+    {
+      "name": "is_override",
+      "inputs": []
+    },
+    {
+      "name": "set_level",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "clear_override",
+      "inputs": []
+    }
+  ]
+}

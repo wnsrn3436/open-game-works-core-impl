@@ -1,0 +1,4 @@
+,,,,,
+All,All,All,All,All,All
+id(key),duration,long,long,ref<item.id>?,long
+id,recovery_interval,recovery_amount,recovery_cap,cap_bonus_item,initial_amount

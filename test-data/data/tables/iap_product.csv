@@ -1,0 +1,21 @@
+,,,,,,,,,,,,,,,,
+All,Client,All,All,All,All,All,All,All,All,All,All,All,All,All,All,Server
+id(key),tstring<id>,enum<IapProductType>,string,string,"array<{item_id: ref<item.id>, amount: long}>","array<{item_id: ref<item.id>, amount: long}>",bool,int?,enum<ResetCycle>?,int?,requirement,datetime?,datetime?,ref<live_event.id>?,ref<offer.id>?,long
+id,name,type,sku_apple,sku_google,reward,daily_reward,extra_grant,limit_count,reset,pass_days,requirement,start_at,end_at,live_event,offer,spend_amount
+[admin_pack],Admin pack,Consumable,admin.pack,admin.pack,[admin_gold] 10,,false,null,null,null,,null,null,null,null,100
+[testing_subscription],Testing subscription,Subscription,testing.subscription.apple,testing.subscription.google,[testing_gold] 100,,false,null,null,null,,null,null,null,null,0
+[iap_gems],Iap gems,Consumable,gems_apple,gems_google,[item_iap_gem] 100,,false,null,null,null,,null,null,null,null,1000
+[iap_daily_pack],Iap daily pack,Consumable,daily_apple,daily_google,[item_iap_gem] 10,,false,1,Daily,null,,null,null,null,null,500
+[iap_no_ads],Iap no ads,NonConsumable,noads_apple,noads_google,[item_iap_gem] 50,,false,1,null,null,,null,null,null,null,3000
+[iap_vip],Iap vip,Subscription,vip_apple,vip_google,[item_iap_gem] 30,[item_iap_gem] 5,false,null,null,null,,null,null,null,null,5000
+[iap_vip_plus],Iap vip plus,Subscription,vip_plus_apple,vip_plus_google,[item_iap_gem] 60,[item_iap_gem] 8,false,null,null,null,,null,null,null,null,9000
+[iap_pass],Iap pass,Consumable,pass_apple,pass_google,[item_iap_gem] 1,[item_iap_gem] 3,false,null,null,30,,null,null,null,null,1500
+[iap_capped],Iap capped pack,Consumable,capped_apple,capped_google,[item_iap_capped] 100,,false,null,null,null,,null,null,null,null,100
+[iap_window],Iap window pack,Consumable,window_apple,window_google,[item_iap_gem] 1,,false,null,null,null,,2030-01-01T00:00:00Z,2030-02-01T00:00:00Z,null,null,100
+[iap_offer_pack],Iap offer pack,Consumable,offer_apple,offer_google,[item_iap_gem] 5,,false,1,null,null,,null,null,null,[offer_iap],200
+[iap_event_pack],Iap event pack,Consumable,event_apple,event_google,[item_iap_gem] 5,,false,1,null,null,,null,null,[event_iap_weekly],null,200
+[iap_event_unlock],Iap event unlock,NonConsumable,event_unlock_apple,event_unlock_google,[item_iap_gem] 5,,false,1,null,null,,null,null,[event_iap_weekly],null,200
+[iap_locked],Iap locked pack,Consumable,locked_apple,locked_google,[item_iap_gem] 5,,false,null,null,null,IapTestLocked(),null,null,null,null,200
+[iap_apple_only],Iap apple only pack,Consumable,apple_only_apple,,[item_iap_gem] 5,,false,null,null,null,,null,null,null,null,200
+[iap_capped_unlock],Iap capped unlock,NonConsumable,capped_unlock_apple,capped_unlock_google,[item_iap_capped] 100,,false,1,null,null,,null,null,null,null,300
+[iap_extra],Iap extra pack,Consumable,extra_apple,extra_google,[item_iap_gem] 7,,true,null,null,null,,null,null,null,null,100

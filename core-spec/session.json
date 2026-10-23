@@ -1,0 +1,71 @@
+{
+  "name": "session",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "storage",
+    "server-time"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "session.signatureWindowMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "start_session",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "end_session",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "check_current",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "verify_signature",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "sign_request",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

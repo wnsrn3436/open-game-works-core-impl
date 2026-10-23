@@ -1,0 +1,46 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://core/ui_core/tests/support/ui_test_popup.gd" id="1"]
+[ext_resource type="Script" path="res://core/ui_core/ui_button.gd" id="2"]
+[ext_resource type="Script" path="res://core/ui_core/ui_anchor.gd" id="3"]
+
+[node name="TestPopupFocus" type="Control" node_paths=PackedStringArray("initial_focus")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1")
+initial_focus = NodePath("Second")
+
+[node name="First" type="Button" parent="."]
+layout_mode = 0
+text = "First"
+offset_left = 100.0
+offset_top = 100.0
+offset_right = 300.0
+offset_bottom = 160.0
+
+[node name="UIButton" type="Node" parent="First"]
+script = ExtResource("2")
+
+[node name="UIAnchor" type="Node" parent="First"]
+script = ExtResource("3")
+anchor_name = "popup_first"
+
+[node name="Second" type="Button" parent="."]
+layout_mode = 0
+text = "Second"
+offset_left = 100.0
+offset_top = 200.0
+offset_right = 300.0
+offset_bottom = 260.0
+
+[node name="UIButton" type="Node" parent="Second"]
+script = ExtResource("2")
+
+[node name="UIAnchor" type="Node" parent="Second"]
+script = ExtResource("3")
+anchor_name = "popup_second"

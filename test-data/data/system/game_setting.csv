@@ -1,0 +1,13 @@
+,,,
+All,None,None,All
+id(key),string,string,string
+id,target,data_type,value
+[validation_req_single],All,requirement,FlagA()
+[validation_req_all],All,requirement,FlagA() & FlagB() & FlagC()
+[validation_req_any],All,requirement,FlagA() | FlagB()
+[validation_req_nested],All,requirement,FlagA() & (FlagB() | FlagC())
+[validation_req_gold],Server,requirement,"ItemAtLeast([validation_gold], 5)"
+[validation_req_energy_3],Server,requirement,"ItemAtLeast([validation_energy], 3)"
+[validation_req_energy_4],Server,requirement,"ItemAtLeast([validation_energy], 4)"
+[validation_req_client],Client,requirement,ClientOnly()
+[data_core_setting],Client,int,42

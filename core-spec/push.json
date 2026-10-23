@@ -1,0 +1,371 @@
+{
+  "name": "push",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "session",
+    "storage",
+    "server-time",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "push.maxDeviceTokenBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "push.maxDedupeKeyBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "push.maxScheduleAheadMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "push.maxScheduledPerUser",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "push.maxTargetUserIds",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "push.pollIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "push.leaseMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "push.maxDelayMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "push.sendBatchSize",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "push.sendTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "push.retryIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "push.retryMaxAttempts",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "push.recordRetentionMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "environments.<ENV>.secrets.pushFcm",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.secrets.pushApns",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.fcm.projectId",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.fcm.serviceAccountEmail",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "appleTeamId",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "pushApns.keyId",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "appId",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "supportedLanguages",
+      "type": "array<string>",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.adapters.push-fcm",
+      "type": "string?",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "environments.<ENV>.adapters.push-apns",
+      "type": "string?",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "pushConsent.adPush",
+      "type": "boolean",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "pushConsent.nightStartMinute",
+      "type": "integer",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "pushConsent.nightEndMinute",
+      "type": "integer",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "routing.externalMaxResponseBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "push_message",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "tstring<id>",
+          "name": "title"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "tstring<id>",
+          "name": "body"
+        },
+        {
+          "description": "",
+          "target": "Server",
+          "type": "enum<PushKind>",
+          "name": "kind"
+        }
+      ]
+    }
+  ],
+  "usedTables": [],
+  "enums": [
+    {
+      "type": "PushKind",
+      "elements": [
+        "Info",
+        "Ad"
+      ]
+    }
+  ],
+  "invariants": [],
+  "reserved": [
+    {
+      "table": "reserved_id",
+      "id": "[push_ad_label]",
+      "requiredWhen": {
+        "path": "pushConsent.adPush",
+        "value": true
+      },
+      "rowOf": "push_message"
+    }
+  ],
+  "formatArguments": [],
+  "collectedData": [
+    {
+      "dataType": "device_id",
+      "description": "push device token",
+      "source": "push-fcm",
+      "purposes": [
+        "developer_communications"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": true,
+      "platforms": [
+        "android"
+      ],
+      "condition": null
+    },
+    {
+      "dataType": "device_id",
+      "description": "push device token",
+      "source": "push-apns",
+      "purposes": [
+        "developer_communications"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": true,
+      "platforms": [
+        "ios"
+      ],
+      "condition": null
+    },
+    {
+      "dataType": "device_id",
+      "description": "push device token that receives ad pushes",
+      "source": "push-fcm",
+      "purposes": [
+        "developer_advertising"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": true,
+      "platforms": [
+        "android"
+      ],
+      "condition": {
+        "path": "pushConsent.adPush",
+        "value": true
+      }
+    },
+    {
+      "dataType": "device_id",
+      "description": "push device token that receives ad pushes",
+      "source": "push-apns",
+      "purposes": [
+        "developer_advertising"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": true,
+      "platforms": [
+        "ios"
+      ],
+      "condition": {
+        "path": "pushConsent.adPush",
+        "value": true
+      }
+    }
+  ],
+  "adapters": [
+    "push-fcm",
+    "push-apns"
+  ],
+  "operations": [
+    {
+      "name": "queue_push",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "cancel_push",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "refresh_push_consent",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "remove_user",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "schedule_push",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "cancel_scheduled_push",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_push",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "list_pushes",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+,,,,
+All,Client,Client,Client,Client
+id(key),enum<InputPromptFamily>,string,reskey?,tstring<id>
+id,family,input,icon,name

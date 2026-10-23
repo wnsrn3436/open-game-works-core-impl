@@ -1,0 +1,145 @@
+{
+  "name": "AccessibilityCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "LocalDataCore",
+    "LocalizationCore",
+    "ResourceCore",
+    "SoundCore",
+    "SafeAreaCore",
+    "UICore",
+    "CameraCore",
+    "ScreenEffectCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "AccessibilityCore.textScales",
+      "type": "array<integer>",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "AccessibilityCore.subtitlesDefault",
+      "type": "boolean",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "AccessibilityCore.colorFilterEnabled",
+      "type": "boolean",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "AccessibilityCore.colorMatrices",
+      "type": "object",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "AccessibilityCore.reducedShakePermille",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "AccessibilityCore.reducedFlashMaxOpacity",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "AccessibilityCore.subtitleWidthPermille",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "AccessibilityCore.subtitleBoxOpacity",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "AccessibilityCore.subtitleFontSize",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "AccessibilityCore.subtitlePadding",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "AccessibilityCore.subtitleBottomMargin",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "apply_saved_settings",
+      "inputs": []
+    },
+    {
+      "name": "get_settings",
+      "inputs": []
+    },
+    {
+      "name": "set_text_scale",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_color_mode",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_subtitles",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_reduce_shake",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_reduce_flash",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "play_voice",
+      "inputs": [
+        "other",
+        "other",
+        "translationKey",
+        "other"
+      ]
+    }
+  ]
+}

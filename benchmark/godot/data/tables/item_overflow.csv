@@ -1,0 +1,4 @@
+,
+All,All
+id(key),"array<{item_id: ref<item.id>, amount: long}>"
+id,convert_to

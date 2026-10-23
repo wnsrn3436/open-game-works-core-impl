@@ -1,0 +1,6 @@
+,,,
+All,Server,All,All
+id(key),duration,duration,int
+id,min_duration,max_duration,max_continue_count
+[play_session_timed],10s,10m,0
+[play_session_instant],0s,10m,0

@@ -1,0 +1,112 @@
+{
+  "name": "friend",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "storage",
+    "server-time",
+    "logging",
+    "nickname",
+    "public-profile",
+    "block-report"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "friend.maxFriends",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "friend.maxSentRequests",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "friend.maxReceivedRequests",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "friend.maxSearchResults",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "nickname.maxLength",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "nickname.maxLookupCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "chat.allowChild",
+      "type": "boolean",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [
+    {
+      "dataType": "gameplay_content",
+      "description": "friend relations",
+      "source": "module",
+      "purposes": [
+        "app_functionality"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": true,
+      "platforms": [
+        "android",
+        "ios",
+        "web",
+        "windows",
+        "macos",
+        "linux"
+      ],
+      "condition": null
+    }
+  ],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "are_friends",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "list_friend_ids",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "remove_user",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

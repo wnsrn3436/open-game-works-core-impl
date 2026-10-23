@@ -1,0 +1,4 @@
+,,,,,,,,,,,
+All,Client,Client,All,All,All,All,All,All,All,All,All
+id(key),tstring<id>,tstring<id>,ref<mission_counter.id>,long,enum<ResetCycle>?,requirement,"array<{item_id: ref<item.id>, amount: long}>",bool,datetime?,datetime?,ref<live_event.id>?
+id,name,desc,counter,target,reset,requirement,reward,extra_grant,start_at,end_at,live_event

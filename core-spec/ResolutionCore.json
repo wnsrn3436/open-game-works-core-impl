@@ -1,0 +1,113 @@
+{
+  "name": "ResolutionCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "LocalDataCore",
+    "ResourceCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "baseResolution",
+      "type": "array<integer>",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "maxResolution",
+      "type": "array<integer>",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "ResolutionCore.fillColor",
+      "type": "array<integer>",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "ResolutionCore.fillImage",
+      "type": "string",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "get_orientation",
+      "inputs": []
+    },
+    {
+      "name": "get_base_resolution",
+      "inputs": []
+    },
+    {
+      "name": "get_window_size",
+      "inputs": []
+    },
+    {
+      "name": "get_game_area",
+      "inputs": []
+    },
+    {
+      "name": "get_visible_game_area",
+      "inputs": []
+    },
+    {
+      "name": "get_scale",
+      "inputs": []
+    },
+    {
+      "name": "get_fill_mode",
+      "inputs": []
+    },
+    {
+      "name": "window_to_game",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "game_to_window",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_screen_mode_supported",
+      "inputs": []
+    },
+    {
+      "name": "get_screen_mode",
+      "inputs": []
+    },
+    {
+      "name": "set_screen_mode",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "apply_saved_screen_mode",
+      "inputs": []
+    },
+    {
+      "name": "load_fill_image",
+      "inputs": []
+    }
+  ]
+}

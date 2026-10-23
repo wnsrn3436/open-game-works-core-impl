@@ -1,0 +1,201 @@
+{
+  "name": "UserStateCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "UtilCore",
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "DataCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "TimeCore.reachMarginMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [
+    "item",
+    "item_overflow",
+    "item_recovery",
+    "item_group",
+    "item_timed",
+    "item_big",
+    "attendance_calendar",
+    "attendance_reward",
+    "live_event",
+    "offer",
+    "shop_product",
+    "iap_product",
+    "mission",
+    "reset_counter"
+  ],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "apply_delta",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "notify_item_changes",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "notify_item_mails",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_single",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "count",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "list",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_change_number",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_item_balance",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_item_recovery",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_item_big_balance",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_item_ends_at",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "preview_item_add",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_user_created_at",
+      "inputs": []
+    },
+    {
+      "name": "get_shop_purchase_count",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_iap_purchase_count",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_ad_reward_count",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_reset_counter",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_mission_progress",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_attendance",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_live_event_round",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_offer_active",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_offer_ends_at",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_in_period",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "set_user_created_at",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/ui_core/tests/support/ui_test_item.gd" id="1"]
+
+[node name="TestLoadingItem" type="Control"]
+layout_mode = 3
+offset_right = 100.0
+offset_bottom = 40.0
+script = ExtResource("1")

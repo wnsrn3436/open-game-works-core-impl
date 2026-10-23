@@ -1,0 +1,6 @@
+,,,
+All,Client,Client,Client
+id(key),int,requirement,bool
+id,order,start_requirement,skippable
+[tutorial_first],1,,false
+[tutorial_second],2,,true

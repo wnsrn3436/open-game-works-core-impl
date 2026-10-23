@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="TweenDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/tween_core/tween_definition.gd" id="1_k2es0"]
+[ext_resource type="Script" path="res://core/tween_core/tween_step.gd" id="2_k2es1"]
+[ext_resource type="Script" path="res://core/tween_core/tween_change.gd" id="3_k2es2"]
+
+[sub_resource type="Resource" id="Resource_es0st"]
+script = ExtResource("2_k2es1")
+
+[sub_resource type="Resource" id="Resource_es1ch"]
+script = ExtResource("3_k2es2")
+duration = 100
+
+[sub_resource type="Resource" id="Resource_es1st"]
+script = ExtResource("2_k2es1")
+changes = Array[ExtResource("3_k2es2")]([SubResource("Resource_es1ch")])
+
+[resource]
+script = ExtResource("1_k2es0")
+steps = Array[ExtResource("2_k2es1")]([SubResource("Resource_es0st"), SubResource("Resource_es1st")])

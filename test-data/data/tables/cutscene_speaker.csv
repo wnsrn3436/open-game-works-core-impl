@@ -1,0 +1,5 @@
+,
+All,Client
+id(key),tstring<id>
+id,name
+[cut_speaker_hero],Hero

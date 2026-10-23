@@ -1,0 +1,16 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/scene_core/tests/support/scene_stub.gd" id="1_scene"]
+
+[node name="SceneB" type="Node" node_paths=PackedStringArray("probe")]
+script = ExtResource("1_scene")
+probe = NodePath("Probe")
+
+[node name="Probe" type="Node2D" parent="."]
+
+[node name="Layer" type="CanvasLayer" parent="."]
+
+[node name="Label" type="Label" parent="Layer"]
+
+[node name="Spatial" type="Node3D" parent="."]
+

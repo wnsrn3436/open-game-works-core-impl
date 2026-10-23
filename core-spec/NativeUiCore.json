@@ -1,0 +1,75 @@
+{
+  "name": "NativeUiCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "LocalDataCore",
+    "UICore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "NativeUiCore.reviewMinIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "NativeUiCore.shareTextMaxChars",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "NativeUiCore.shareImageMaxBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "set_native_adapter",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "request_review",
+      "inputs": []
+    },
+    {
+      "name": "can_share",
+      "inputs": []
+    },
+    {
+      "name": "capture_screen",
+      "inputs": []
+    },
+    {
+      "name": "share",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "copy_text",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

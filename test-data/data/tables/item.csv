@@ -1,0 +1,67 @@
+,,,,
+All,Client,All,All,All
+id(key),tstring<id>,enum<ItemType>,long,enum<ItemOverflow>
+id,name,type,max_amount,overflow
+[gold],Gold,Currency,1000000,Reject
+[gem_paid],Paid Gem,Currency,100000,Reject
+[gem_free],Free Gem,Currency,100000,Reject
+[gem],Gem,Currency,200000,Reject
+[potion],Potion,Goods,10,Discard
+[ticket],Ticket,Goods,5,Reject
+[shard],Shard,Goods,10,Convert
+[dust],Dust,Goods,50,Discard
+[badge_coin],Badge Coin,Goods,10,Convert
+[stamina_shard],Stamina Shard,Goods,5,Convert
+[stamina],Stamina,Currency,200,Discard
+[stamina_bonus],Stamina Bonus,Goods,100,Reject
+[energy],Energy,Currency,100,Reject
+[boost_reject],Boost,Goods,3,Reject
+[boost_discard],Long Boost,Goods,3,Discard
+[big_gold],Big Gold,Currency,9007199254740991,Discard
+[big_gem],Big Gem,Currency,9007199254740991,Reject
+[item_mailbox_gold],Mailbox gold,Currency,1000,Reject
+[item_mailbox_gem],Mailbox gem,Currency,100,Reject
+[item_mailbox_shard],Mailbox shard,Goods,100,Discard
+[item_mailbox_pack],Mailbox pack,Currency,1100,Reject
+[validation_gold],Validation Gold,Currency,1000000,Reject
+[validation_energy],Validation Energy,Currency,100,Reject
+[admin_gold],Admin gold,Currency,1000000,Reject
+[admin_big_gold],Admin big gold,Currency,9007199254740991,Reject
+[testing_gold],Testing gold,Currency,1000000000,Reject
+[ad_gem],Ad gem,Currency,1000000,Reject
+[ad_capped],Ad capped,Goods,10,Reject
+[coupon_gold],Coupon gold,Currency,1000000000,Reject
+[coupon_gem],Coupon gem,Goods,5,Reject
+[nickname_gem],,Currency,1000000,Reject
+[guild_gold],,Currency,1000000,Reject
+[shop_gold],Shop gold,Currency,1000000000,Reject
+[shop_gem],Shop gem,Goods,1000000,Reject
+[shop_capped],Shop capped,Goods,5,Reject
+[shop_discard],Shop discard,Goods,5,Discard
+[shop_convert],Shop convert,Goods,5,Convert
+[shop_shard],Shop shard,Goods,10,Discard
+[shop_big],Shop big,Currency,9007199254740991,Discard
+[item_iap_gem],Iap gem,Currency,9000000000000000,Reject
+[item_iap_capped],Iap capped gem,Currency,150,Reject
+[attendance_gold],,Currency,1000000000,Reject
+[attendance_gem],,Goods,5,Reject
+[mission_gold],,Currency,1000000,Reject
+[mission_gem],,Currency,50,Reject
+[loot_gold],,Currency,9007199254740991,Reject
+[loot_gem],,Currency,9007199254740991,Reject
+[loot_big],,Currency,9007199254740991,Reject
+[gacha_gem],Gacha gem,Currency,1000000000,Reject
+[gacha_ticket],Gacha ticket,Goods,1000000,Reject
+[gacha_star],Gacha star,Goods,1000000000,Reject
+[gacha_star2],Gacha star 2,Goods,1000000000,Reject
+[gacha_star3],Gacha star 3,Goods,1000000000,Reject
+[gacha_hero_a],Gacha hero A,Goods,1000000,Reject
+[gacha_hero_b],Gacha hero B,Goods,1000000,Reject
+[gacha_capped],Gacha capped,Goods,1,Reject
+[gacha_shard],Gacha shard,Goods,1000000,Reject
+[rk_gold],Ranking gold,Currency,9007199254740991,Discard
+[mission_bead],,Currency,1000000,Reject
+[item_rating_gem],Rating gem,Currency,1000000,Reject
+[user_state_recovery],,Currency,100,Discard
+[user_state_bonus_recovery],,Currency,100,Discard
+[user_state_bonus],,Goods,10,Reject

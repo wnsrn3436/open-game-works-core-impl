@@ -1,0 +1,4 @@
+,,,,,,
+All,Client,All,All,All,All,Server
+id(key),tstring<id>,datetime,datetime,duration?,datetime?,bool
+id,name,start_at,end_at,repeat,repeat_until,settle

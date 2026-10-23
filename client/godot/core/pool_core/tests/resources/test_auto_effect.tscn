@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://core/pool_core/tests/support/pool_core_test_object.gd" id="1_object"]
+[ext_resource type="Script" path="res://core/pool_core/tests/support/pool_core_test_part.gd" id="2_part"]
+
+[node name="TestEffect" type="Node2D"]
+position = Vector2(5, 6)
+script = ExtResource("1_object")
+auto_return = true
+
+[node name="Part" type="Node2D" parent="."]
+script = ExtResource("2_part")
+
+[node name="Socket" type="Node2D" parent="."]

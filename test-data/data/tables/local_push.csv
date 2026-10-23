@@ -1,0 +1,6 @@
+,,,
+All,Client,Client,Client
+id(key),tstring<id>,tstring<id>,duration?
+id,title,body,delay
+[local_push_return],Come back,Your rewards are waiting,1h
+[local_push_event],Event starts,The event is open,null

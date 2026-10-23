@@ -1,0 +1,8 @@
+,,,
+All,None,None,All
+id(key),string,string,string
+id,target,data_type,value
+[arena_shape_count],Client,int,600
+[arena_shape_size],Client,int,24
+[arena_spin_permille],Client,int,1500
+[tick_count_max],All,long,1000000000

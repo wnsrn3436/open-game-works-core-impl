@@ -1,0 +1,12 @@
+,,,,,,,,,,,,,,,,
+All,Client,All,All,All,All,All,All,All,All,All,All,All,All,All,All,All
+id(key),tstring<id>,ref<loot_table.id>,"array<{item_id: ref<item.id>, amount: long}>",int?,"array<{item_id: ref<item.id>, amount: long}>",ref<loot_table.id>?,ref<item.id>?,int?,ref<loot_table.id>?,ref<loot_table.id>?,bool,ref<gacha_banner.id>?,datetime?,datetime?,ref<live_event.id>?,requirement
+id,name,loot_table,single_cost,multi_count,multi_cost,multi_guaranteed_table,ticket_item,pity_count,pity_table,rate_up_table,rate_up_guarantee,pity_banner,start_at,end_at,live_event,requirement
+[gacha_banner_main],Main banner,[gacha_lt_normal],[gacha_gem] 10,10,[gacha_gem] 100,[gacha_lt_multi],[gacha_ticket],3,[gacha_lt_pity],[gacha_lt_rate_up],true,null,null,null,null,
+[gacha_banner_shared],Shared banner,[gacha_lt_normal],[gacha_gem] 10,null,,null,null,3,[gacha_lt_pity],[gacha_lt_rate_up],true,[gacha_banner_main],null,null,null,
+[gacha_banner_multi],Multi banner,[gacha_lt_mixed],[gacha_gem] 1,2,[gacha_gem] 2,[gacha_lt_multi],null,null,null,null,false,null,null,null,null,
+[gacha_banner_plain],Plain banner,[gacha_lt_plain],,null,,null,null,null,null,null,false,null,null,null,null,
+[gacha_banner_capped],Capped banner,[gacha_lt_capped],[gacha_gem] 1,null,,null,null,null,null,null,false,null,null,null,null,
+[gacha_banner_window],Window banner,[gacha_lt_plain],,null,,null,null,null,null,null,false,null,2027-02-01T00:00:00Z,2027-03-01T00:00:00Z,null,
+[gacha_banner_event],Event banner,[gacha_lt_plain],,null,,null,null,null,null,null,false,null,null,null,[gacha_event],
+[gacha_banner_locked],Locked banner,[gacha_lt_plain],,null,,null,null,null,null,null,false,null,null,null,null,Level(1)

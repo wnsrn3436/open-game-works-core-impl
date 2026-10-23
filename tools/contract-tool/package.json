@@ -1,0 +1,17 @@
+{
+  "name": "contract-tool",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=bin/contract-tool.js",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "esbuild": "0.28.2",
+    "protobufjs": "8.8.1",
+    "typescript": "6.0.3",
+    "vitest": "5.0.3"
+  }
+}

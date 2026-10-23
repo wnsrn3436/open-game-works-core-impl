@@ -1,0 +1,5 @@
+,
+All,Client
+id(key),reskey
+id,sound
+[ui_button_click],sfx/ui_click

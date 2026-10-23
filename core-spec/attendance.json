@@ -1,0 +1,169 @@
+{
+  "name": "attendance",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "item-ledger",
+    "mailbox",
+    "live-event",
+    "validation",
+    "storage",
+    "server-time",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "attendance_calendar",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "name"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<AttendanceMode>",
+          "name": "mode"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<ResetCycle>?",
+          "name": "reset"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "requirement",
+          "name": "requirement"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "datetime?",
+          "name": "start_at"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "datetime?",
+          "name": "end_at"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "ref<live_event.id>?",
+          "name": "live_event"
+        }
+      ]
+    },
+    {
+      "name": "attendance_reward",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int",
+          "name": "day"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "array<{item_id: ref<item.id>, amount: long}>",
+          "name": "reward"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "bool",
+          "name": "extra_grant"
+        }
+      ]
+    }
+  ],
+  "usedTables": [
+    "live_event",
+    "item",
+    "mail_template"
+  ],
+  "enums": [
+    {
+      "type": "AttendanceMode",
+      "elements": [
+        "Cycle",
+        "Once",
+        "Streak"
+      ]
+    }
+  ],
+  "invariants": [
+    {
+      "kind": "order_column",
+      "table": "attendance_reward",
+      "column": "day",
+      "group": "id",
+      "min": "",
+      "max": "",
+      "child_table": "",
+      "child_column": ""
+    },
+    {
+      "kind": "child_exists",
+      "table": "attendance_calendar",
+      "column": "id",
+      "group": "",
+      "min": "",
+      "max": "",
+      "child_table": "attendance_reward",
+      "child_column": "id"
+    },
+    {
+      "kind": "child_exists",
+      "table": "attendance_reward",
+      "column": "id",
+      "group": "",
+      "min": "",
+      "max": "",
+      "child_table": "attendance_calendar",
+      "child_column": "id"
+    }
+  ],
+  "reserved": [
+    {
+      "table": "reserved_id",
+      "id": "[attendance_reward_mail]",
+      "requiredWhen": null,
+      "rowOf": "mail_template"
+    }
+  ],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "get_attendance",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

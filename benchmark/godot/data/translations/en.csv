@@ -1,0 +1,124 @@
+key,source,source_hash,current_hash,text
+language.name.[lang_en],English,ba118bf7fc9c1aed,ba118bf7fc9c1aed,English
+reserved_string.text.[app_name],OGW Benchmark,9460a41c8cfa3710,9460a41c8cfa3710,OGW Benchmark
+reserved_string.text.[auth_age_confirm],Confirm,eebdd24a77d9ad32,eebdd24a77d9ad32,Confirm
+reserved_string.text.[auth_age_invalid],Enter a valid year and month.,d5894be0b86489e0,d5894be0b86489e0,Enter a valid year and month.
+reserved_string.text.[auth_age_month],Month,310ca503ef36f177,310ca503ef36f177,Month
+reserved_string.text.[auth_age_title],Enter your birth year and month,73728435232a4837,73728435232a4837,Enter your birth year and month
+reserved_string.text.[auth_age_year],Year,89f6832560dec0b7,89f6832560dec0b7,Year
+reserved_string.text.[auth_deletion_back],Back,76900f1bfd16c8d4,76900f1bfd16c8d4,Back
+reserved_string.text.[auth_deletion_body],Enter your user ID and the deletion code from the game.,b9329d0793cfd5ff,b9329d0793cfd5ff,Enter your user ID and the deletion code from the game.
+reserved_string.text.[auth_deletion_code],Deletion code,83fff164f3435f84,83fff164f3435f84,Deletion code
+reserved_string.text.[auth_deletion_confirm],I understand that deleted data cannot be restored.,db2ab98752ccf871,db2ab98752ccf871,I understand that deleted data cannot be restored.
+reserved_string.text.[auth_deletion_done],Your account deletion was requested.,23ea81f208c259c9,23ea81f208c259c9,Your account deletion was requested.
+reserved_string.text.[auth_deletion_failed],The account could not be deleted.,8ea89471bd3dac51,8ea89471bd3dac51,The account could not be deleted.
+reserved_string.text.[auth_deletion_google],Delete with Google sign-in,4215319e256106de,4215319e256106de,Delete with Google sign-in
+reserved_string.text.[auth_deletion_rate_limited],Too many tries. Try again later.,f0ddbdd378af9c56,f0ddbdd378af9c56,Too many tries. Try again later.
+reserved_string.text.[auth_deletion_retry],Retry,942087cc2d41e013,942087cc2d41e013,Retry
+reserved_string.text.[auth_deletion_submit],Delete,e2d0a54968ead24e,e2d0a54968ead24e,Delete
+reserved_string.text.[auth_deletion_title],Delete account,a2e20a33570001ae,a2e20a33570001ae,Delete account
+reserved_string.text.[auth_deletion_user_id],User ID,7967e089a7b94464,7967e089a7b94464,User ID
+reserved_string.text.[auth_go_to_title],Go to title,93e18a3d1032a2b2,93e18a3d1032a2b2,Go to title
+reserved_string.text.[auth_google_desktop_done],Sign-in is done. Return to the game.,bea77386d2df7d82,bea77386d2df7d82,Sign-in is done. Return to the game.
+reserved_string.text.[auth_privacy_ad_personalization],Personalized ads,67cd5b3b82690c6a,67cd5b3b82690c6a,Personalized ads
+reserved_string.text.[auth_privacy_analytics],Usage analytics,5e5fd96382575b88,5e5fd96382575b88,Usage analytics
+reserved_string.text.[auth_privacy_confirm],Confirm,eebdd24a77d9ad32,eebdd24a77d9ad32,Confirm
+reserved_string.text.[auth_privacy_title],Privacy choices,fa1a9c947c799077,fa1a9c947c799077,Privacy choices
+reserved_string.text.[auth_push_ad],Event and offer notifications,5a6bde22452ac2ac,5a6bde22452ac2ac,Event and offer notifications
+reserved_string.text.[auth_push_ad_denied],You declined event and offer notifications on {date:date}.,5a12fa4cda744cf7,5a12fa4cda744cf7,You declined event and offer notifications on {date:date}.
+reserved_string.text.[auth_push_ad_granted],You agreed to event and offer notifications on {date:date}.,0c79aac007f5f3e0,0c79aac007f5f3e0,You agreed to event and offer notifications on {date:date}.
+reserved_string.text.[auth_push_confirm],Confirm,eebdd24a77d9ad32,eebdd24a77d9ad32,Confirm
+reserved_string.text.[auth_push_night],Night notifications,be7c0ec7a67b9732,be7c0ec7a67b9732,Night notifications
+reserved_string.text.[auth_push_night_denied],You declined night notifications on {date:date}.,f199f450cd64109d,f199f450cd64109d,You declined night notifications on {date:date}.
+reserved_string.text.[auth_push_night_granted],You agreed to night notifications on {date:date}.,002af37be38fc967,002af37be38fc967,You agreed to night notifications on {date:date}.
+reserved_string.text.[auth_push_title],Notifications,788011833a5a0f22,788011833a5a0f22,Notifications
+reserved_string.text.[auth_recover_back],Back,76900f1bfd16c8d4,76900f1bfd16c8d4,Back
+reserved_string.text.[auth_recover_guest],Your guest account could not be found.,7b23d025200e734e,7b23d025200e734e,Your guest account could not be found.
+reserved_string.text.[auth_recover_linked],Sign in with a linked account,14caa7ad0d613379,14caa7ad0d613379,Sign in with a linked account
+reserved_string.text.[auth_recover_login_apple],Sign in with Apple,396d40caca74206a,396d40caca74206a,Sign in with Apple
+reserved_string.text.[auth_recover_login_google],Sign in with Google,1dbcee6824432178,1dbcee6824432178,Sign in with Google
+reserved_string.text.[auth_recover_new],Start a new account,c986ad3e66a22352,c986ad3e66a22352,Start a new account
+reserved_string.text.[auth_recover_new_confirm],A new account cannot return to the old account. Start a new account?,1b2739374b9eb9f5,1b2739374b9eb9f5,A new account cannot return to the old account. Start a new account?
+reserved_string.text.[auth_recover_new_ok],Start,e4bb9f1ece9af926,e4bb9f1ece9af926,Start
+reserved_string.text.[auth_session_replaced],Your account was signed in on another device.,8bbbe872ec7366b7,8bbbe872ec7366b7,Your account was signed in on another device.
+reserved_string.text.[auth_terms_agree_privacy],I agree to the privacy policy,544cbe01bbd0b63d,544cbe01bbd0b63d,I agree to the privacy policy
+reserved_string.text.[auth_terms_agree_terms],I agree to the terms of service,13b6a2932d971da5,13b6a2932d971da5,I agree to the terms of service
+reserved_string.text.[auth_terms_confirm],Confirm,eebdd24a77d9ad32,eebdd24a77d9ad32,Confirm
+reserved_string.text.[auth_terms_title],Terms of service,e69e06144877d81c,e69e06144877d81c,Terms of service
+reserved_string.text.[auth_terms_view],View,dcc839a4015c4b7d,dcc839a4015c4b7d,View
+reserved_string.text.[auth_tracking_usage],Your data is used to show ads that fit you.,8746ac640e3196f9,8746ac640e3196f9,Your data is used to show ads that fit you.
+reserved_string.text.[auth_web_link_body],Link an account to keep your progress.,c3cb7af6a90ae842,c3cb7af6a90ae842,Link an account to keep your progress.
+reserved_string.text.[auth_web_link_failed],The account could not be linked.,4976341bd0e4f64c,4976341bd0e4f64c,The account could not be linked.
+reserved_string.text.[auth_web_link_google],Link Google account,4ce3c8242c5180a0,4ce3c8242c5180a0,Link Google account
+reserved_string.text.[auth_web_link_later],Later,73b6e48a1b552d11,73b6e48a1b552d11,Later
+reserved_string.text.[bench_arena_open],Arena,77d7cd99073bd654,77d7cd99073bd654,Arena
+reserved_string.text.[bench_arena_title],Arena,77d7cd99073bd654,77d7cd99073bd654,Arena
+reserved_string.text.[bench_cancel],Cancel,19766ed6ccb2f4a3,19766ed6ccb2f4a3,Cancel
+reserved_string.text.[bench_close],Close,7d9eb7acb13e2462,7d9eb7acb13e2462,Close
+reserved_string.text.[bench_copy_code],Copy code,49a0053f3b0d5045,49a0053f3b0d5045,Copy code
+reserved_string.text.[bench_copy_url],Copy page address,780fc9803f8d3111,780fc9803f8d3111,Copy page address
+reserved_string.text.[bench_copy_user_id],Copy user ID,a43cb32a519a22a3,a43cb32a519a22a3,Copy user ID
+reserved_string.text.[bench_deletion_info],"Code {code}, valid until {expires_at:datetime}. Enter it at {url}",e337be0e1c27b617,e337be0e1c27b617,"Code {code}, valid until {expires_at:datetime}. Enter it at {url}"
+reserved_string.text.[bench_deletion_issue],Get account deletion code,761f385cca5cd403,761f385cca5cd403,Get account deletion code
+reserved_string.text.[bench_info_open],Info,170322a32f3c35b2,170322a32f3c35b2,Info
+reserved_string.text.[bench_info_title],Tick record,9f400bc07c48c4bd,9f400bc07c48c4bd,Tick record
+reserved_string.text.[bench_licenses],Licenses,6d5d9004797377e1,6d5d9004797377e1,Licenses
+reserved_string.text.[bench_loading],Loading,dc380888c4e2c776,dc380888c4e2c776,Loading
+reserved_string.text.[bench_lobby_back],Lobby,4c97a9ef95cd02d2,4c97a9ef95cd02d2,Lobby
+reserved_string.text.[bench_lobby_title],Lobby,4c97a9ef95cd02d2,4c97a9ef95cd02d2,Lobby
+reserved_string.text.[bench_notice_body],The arena keeps drawing while this notice is open.,898f65d6ab78cd04,898f65d6ab78cd04,The arena keeps drawing while this notice is open.
+reserved_string.text.[bench_notice_open],Notice,65659145569b894b,65659145569b894b,Notice
+reserved_string.text.[bench_option_failed],It did not work. Try again.,fa6ad49a809bff1f,fa6ad49a809bff1f,It did not work. Try again.
+reserved_string.text.[bench_option_open],Options,d0db8b5e364b6989,d0db8b5e364b6989,Options
+reserved_string.text.[bench_option_title],Options,d0db8b5e364b6989,d0db8b5e364b6989,Options
+reserved_string.text.[bench_privacy],Privacy policy,ba445cff3898a3f2,ba445cff3898a3f2,Privacy policy
+reserved_string.text.[bench_privacy_choices],Privacy choices,fa1a9c947c799077,fa1a9c947c799077,Privacy choices
+reserved_string.text.[bench_terms],Terms of service,e69e06144877d81c,e69e06144877d81c,Terms of service
+reserved_string.text.[bench_tick_count],Ticks: {count},66876d495d45b031,66876d495d45b031,Ticks: {count}
+reserved_string.text.[bench_tick_mismatch],The tick count changed. It is up to date now.,06171849693a5526,06171849693a5526,The tick count changed. It is up to date now.
+reserved_string.text.[bench_tick_send],Record tick,15065b6cfc33aee1,15065b6cfc33aee1,Record tick
+reserved_string.text.[bench_title],OGW Benchmark,9460a41c8cfa3710,9460a41c8cfa3710,OGW Benchmark
+reserved_string.text.[bench_user_id],User ID: {user_id},e7185a84cbec5107,e7185a84cbec5107,User ID: {user_id}
+reserved_string.text.[bench_withdraw],Withdraw,164546a9c5481480,164546a9c5481480,Withdraw
+reserved_string.text.[bench_withdraw_confirm],Withdraw your account? Your progress is deleted and cannot be restored.,9196cefb2a303d7f,9196cefb2a303d7f,Withdraw your account? Your progress is deleted and cannot be restored.
+reserved_string.text.[bench_withdraw_ok],Withdraw,164546a9c5481480,164546a9c5481480,Withdraw
+reserved_string.text.[bootstrap_age_blocked],You cannot use this game at your age.,65c9187c62c5e27c,65c9187c62c5e27c,You cannot use this game at your age.
+reserved_string.text.[bootstrap_banned],User {user_id} is restricted until {until_at:datetime}. Details: {url},cf3d2a5d5100fb93,cf3d2a5d5100fb93,User {user_id} is restricted until {until_at:datetime}. Details: {url}
+reserved_string.text.[bootstrap_banned_deletion],Request account deletion,6914ba38bf46fb13,6914ba38bf46fb13,Request account deletion
+reserved_string.text.[bootstrap_banned_deletion_code],User {user_id}: enter code {code} at {url} before {expires_at:datetime}.,a45e6bb68a7e3797,a45e6bb68a7e3797,User {user_id}: enter code {code} at {url} before {expires_at:datetime}.
+reserved_string.text.[bootstrap_banned_deletion_failed],The deletion code could not be issued.,ffbc8d85f6754826,ffbc8d85f6754826,The deletion code could not be issued.
+reserved_string.text.[bootstrap_banned_permanent],User {user_id} is restricted. Details: {url},fe193d1f22f25d97,fe193d1f22f25d97,User {user_id} is restricted. Details: {url}
+reserved_string.text.[bootstrap_fatal_error],An error stopped the game.,cca2133931a0a490,cca2133931a0a490,An error stopped the game.
+reserved_string.text.[bootstrap_login_failed],Sign-in failed.,451132c8190e4a5d,451132c8190e4a5d,Sign-in failed.
+reserved_string.text.[bootstrap_restart],Restart,6b983a81e5e8099e,6b983a81e5e8099e,Restart
+reserved_string.text.[game_update_app_update_required],A new version of the app is required.,35cdffa2bd2cb2ca,35cdffa2bd2cb2ca,A new version of the app is required.
+reserved_string.text.[game_update_data_update_required],New game data is required. The game restarts.,bf4f16605e995095,bf4f16605e995095,New game data is required. The game restarts.
+reserved_string.text.[game_update_download_failed],The download failed.,66907f810be4a513,66907f810be4a513,The download failed.
+reserved_string.text.[game_update_go_to_store],Go to store,89d1bbc32024c83d,89d1bbc32024c83d,Go to store
+reserved_string.text.[game_update_invalid_file],A downloaded file is damaged.,70cc2a6c93f0e8c5,70cc2a6c93f0e8c5,A downloaded file is damaged.
+reserved_string.text.[game_update_later],Later,73b6e48a1b552d11,73b6e48a1b552d11,Later
+reserved_string.text.[game_update_no_space],There is not enough storage space.,a70841070cf5617b,a70841070cf5617b,There is not enough storage space.
+reserved_string.text.[game_update_recommended],A new version of the app is available.,c011e4d875e5100b,c011e4d875e5100b,A new version of the app is available.
+reserved_string.text.[game_update_restart],Restart,6b983a81e5e8099e,6b983a81e5e8099e,Restart
+reserved_string.text.[game_update_retry],Retry,942087cc2d41e013,942087cc2d41e013,Retry
+reserved_string.text.[game_update_save_failed],A downloaded file could not be saved.,22f33680627caf40,22f33680627caf40,A downloaded file could not be saved.
+reserved_string.text.[network_confirm],OK,565339bc4d33d728,565339bc4d33d728,OK
+reserved_string.text.[network_error_banned],Your account is restricted.,8d9f5d1e5fc20d84,8d9f5d1e5fc20d84,Your account is restricted.
+reserved_string.text.[network_error_connection],The server could not be reached.,9b1e57798eee9870,9b1e57798eee9870,The server could not be reached.
+reserved_string.text.[network_error_feature_disabled],This feature is not available now.,ba41a42d216e5eb2,ba41a42d216e5eb2,This feature is not available now.
+reserved_string.text.[network_error_general],A server error occurred.,e14dd1ed02830a88,e14dd1ed02830a88,A server error occurred.
+reserved_string.text.[network_error_invalid_response],The server answer could not be read.,3c2dffad10c61db0,3c2dffad10c61db0,The server answer could not be read.
+reserved_string.text.[network_error_maintenance],The server is under maintenance.,6380a485a82d7a9f,6380a485a82d7a9f,The server is under maintenance.
+reserved_string.text.[network_error_rate_limited],Too many requests. Try again later.,0c7bb35512897c6f,0c7bb35512897c6f,Too many requests. Try again later.
+reserved_string.text.[network_error_session],Your session ended. Sign in again.,c7847b1f544e1b5d,c7847b1f544e1b5d,Your session ended. Sign in again.
+reserved_string.text.[network_error_timeout],The server did not answer in time.,8392b0448963e4b7,8392b0448963e4b7,The server did not answer in time.
+reserved_string.text.[network_go_to_title],Go to title,93e18a3d1032a2b2,93e18a3d1032a2b2,Go to title
+reserved_string.text.[network_retry],Retry,942087cc2d41e013,942087cc2d41e013,Retry
+reserved_string.text.[scene_prepare_failed],The screen could not be loaded.,31f4eefbc8df3f1e,31f4eefbc8df3f1e,The screen could not be loaded.
+reserved_string.text.[scene_restart],Restart,6b983a81e5e8099e,6b983a81e5e8099e,Restart
+reserved_string.text.[scene_retry],Retry,942087cc2d41e013,942087cc2d41e013,Retry
+reserved_string.text.[ui_exit_cancel],Cancel,19766ed6ccb2f4a3,19766ed6ccb2f4a3,Cancel
+reserved_string.text.[ui_exit_confirm],Quit the game?,e81ef3a711635c53,e81ef3a711635c53,Quit the game?
+reserved_string.text.[ui_exit_quit],Quit,b3eb37acb66ba4bb,b3eb37acb66ba4bb,Quit
+reserved_string.text.[ui_licenses_close],Close,7d9eb7acb13e2462,7d9eb7acb13e2462,Close
+reserved_string.text.[ui_licenses_title],Licenses,6d5d9004797377e1,6d5d9004797377e1,Licenses

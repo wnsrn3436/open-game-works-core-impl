@@ -1,0 +1,10 @@
+element,target,value,#comment
+FlagA,none,false,the judge result the test gives
+FlagB,none,false,the judge result the test gives
+FlagC,none,false,the judge result the test gives
+ItemAtLeast,ref<item.id>,true,the item and the least balance
+ClientOnly,none,false,used only in Client columns
+Level,none,true,
+ShopRank,none,true,
+IapTestLocked,none,false,
+MissionGate,none,false,

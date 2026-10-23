@@ -1,0 +1,219 @@
+{
+  "name": "AdCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "LocalDataCore",
+    "DataCore",
+    "NetworkCore",
+    "UserStateCore",
+    "AuthCore",
+    "SoundCore",
+    "InputBlockCore",
+    "ads-reward"
+  ],
+  "optionalDependencies": [
+    "PaymentCore"
+  ],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "AdCore.fakePresentMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "AdCore.sdkCallTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "TimeCore.reachMarginMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [
+    "ad_placement"
+  ],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [
+    {
+      "dataType": "device_id",
+      "description": "advertising ID",
+      "source": "ads-admob",
+      "purposes": [
+        "third_party_advertising",
+        "analytics",
+        "fraud_prevention"
+      ],
+      "linked": false,
+      "tracking": true,
+      "shared": true,
+      "optional": false,
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "condition": null
+    },
+    {
+      "dataType": "advertising_data",
+      "description": "ad impressions and reactions to ads",
+      "source": "ads-admob",
+      "purposes": [
+        "third_party_advertising",
+        "analytics"
+      ],
+      "linked": false,
+      "tracking": true,
+      "shared": true,
+      "optional": false,
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "condition": null
+    },
+    {
+      "dataType": "product_interaction",
+      "description": "app launches and ad screen interactions",
+      "source": "ads-admob",
+      "purposes": [
+        "third_party_advertising",
+        "analytics"
+      ],
+      "linked": false,
+      "tracking": true,
+      "shared": true,
+      "optional": false,
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "condition": null
+    },
+    {
+      "dataType": "crash_data",
+      "description": "crash records of the ads SDK",
+      "source": "ads-admob",
+      "purposes": [
+        "analytics"
+      ],
+      "linked": false,
+      "tracking": false,
+      "shared": true,
+      "optional": false,
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "condition": null
+    },
+    {
+      "dataType": "performance_data",
+      "description": "performance records of the ads SDK",
+      "source": "ads-admob",
+      "purposes": [
+        "analytics"
+      ],
+      "linked": false,
+      "tracking": false,
+      "shared": true,
+      "optional": false,
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "condition": null
+    },
+    {
+      "dataType": "coarse_location",
+      "description": "approximate location derived from the IP address",
+      "source": "ads-admob",
+      "purposes": [
+        "third_party_advertising",
+        "analytics",
+        "fraud_prevention"
+      ],
+      "linked": false,
+      "tracking": true,
+      "shared": true,
+      "optional": false,
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "condition": null
+    }
+  ],
+  "adapters": [
+    "ads-admob"
+  ],
+  "operations": [
+    {
+      "name": "set_ads_adapter",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "start",
+      "inputs": []
+    },
+    {
+      "name": "preload",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_ready_state",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "can_show",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "show",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "show_banner",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "hide_banner",
+      "inputs": []
+    },
+    {
+      "name": "is_ad_privacy_options_required",
+      "inputs": []
+    },
+    {
+      "name": "open_ad_privacy_options",
+      "inputs": []
+    }
+  ]
+}

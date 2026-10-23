@@ -1,0 +1,4 @@
+,
+All,All
+id(key),enum<MissionCounterMode>
+id,mode

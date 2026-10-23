@@ -1,0 +1,261 @@
+{
+  "name": "TutorialCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "DataCore",
+    "ResourceCore",
+    "LocalizationCore",
+    "NetworkCore",
+    "UserStateCore",
+    "AuthCore",
+    "RequirementCore",
+    "SafeAreaCore",
+    "InputCore",
+    "InputBlockCore",
+    "UICore",
+    "SceneCore",
+    "tutorial"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "tutorialView",
+      "type": "string",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "TutorialCore.anchorWaitWarnMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "gamepadSupported",
+      "type": "boolean",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "RequirementCore.timeRecheckMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "tutorial",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "int",
+          "name": "order"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "requirement",
+          "name": "start_requirement"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "bool",
+          "name": "skippable"
+        }
+      ]
+    },
+    {
+      "name": "tutorial_step",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int",
+          "name": "step"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id,step>",
+          "name": "text"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "string",
+          "name": "anchor"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "int?",
+          "name": "anchor_key"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "reskey?",
+          "name": "panel"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "reskey?",
+          "name": "popup"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "bool",
+          "name": "pointer"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "bool",
+          "name": "restrict_input"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "enum<TutorialComplete>",
+          "name": "complete"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "requirement<id,step>",
+          "name": "complete_requirement"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "enum<TutorialCue>?",
+          "name": "cue"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "bool",
+          "name": "save"
+        }
+      ]
+    }
+  ],
+  "usedTables": [],
+  "enums": [
+    {
+      "type": "TutorialComplete",
+      "elements": [
+        "Advance",
+        "AnchorTap",
+        "Requirement",
+        "Cue"
+      ]
+    }
+  ],
+  "invariants": [
+    {
+      "kind": "order_column",
+      "table": "tutorial",
+      "column": "order",
+      "group": "",
+      "min": "",
+      "max": "",
+      "child_table": "",
+      "child_column": ""
+    },
+    {
+      "kind": "order_column",
+      "table": "tutorial_step",
+      "column": "step",
+      "group": "id",
+      "min": "",
+      "max": "",
+      "child_table": "",
+      "child_column": ""
+    },
+    {
+      "kind": "child_exists",
+      "table": "tutorial",
+      "column": "id",
+      "group": "",
+      "min": "",
+      "max": "",
+      "child_table": "tutorial_step",
+      "child_column": "id"
+    },
+    {
+      "kind": "child_exists",
+      "table": "tutorial_step",
+      "column": "id",
+      "group": "",
+      "min": "",
+      "max": "",
+      "child_table": "tutorial",
+      "child_column": "id"
+    }
+  ],
+  "reserved": [
+    {
+      "table": "reserved_string",
+      "id": "[tutorial_skip]",
+      "requiredWhen": null,
+      "rowOf": null
+    }
+  ],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "check_start",
+      "inputs": []
+    },
+    {
+      "name": "notify_cue",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "skip",
+      "inputs": []
+    },
+    {
+      "name": "is_running",
+      "inputs": []
+    },
+    {
+      "name": "current",
+      "inputs": []
+    },
+    {
+      "name": "is_completed",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

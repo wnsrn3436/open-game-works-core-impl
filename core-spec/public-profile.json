@@ -1,0 +1,76 @@
+{
+  "name": "public-profile",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "storage",
+    "nickname",
+    "logging",
+    "server-time"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "public-profile.maxRequestCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "public-profile.maxProfileBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "nickname.maxLookupCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "public-profile.lastActiveGranularityMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [
+    {
+      "left": "public-profile.maxRequestCount",
+      "factor": 1,
+      "right": "nickname.maxLookupCount"
+    }
+  ],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "get_public_profiles",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_active_user",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "on_request_start",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

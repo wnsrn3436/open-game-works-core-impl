@@ -1,0 +1,99 @@
+{
+  "name": "VirtualPadCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "LocalDataCore",
+    "ResourceCore",
+    "SafeAreaCore",
+    "InputCore",
+    "UICore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "VirtualPadCore.deadZonePermille",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "VirtualPadCore.sensitivityPermille",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "open_layout",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "close_layout",
+      "inputs": []
+    },
+    {
+      "name": "set_offset",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "set_scale",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "set_opacity",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_offset",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_scale",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_opacity",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "reset_user_settings",
+      "inputs": []
+    },
+    {
+      "name": "get_state",
+      "inputs": []
+    }
+  ]
+}

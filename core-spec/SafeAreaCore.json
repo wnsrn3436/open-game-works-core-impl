@@ -1,0 +1,45 @@
+{
+  "name": "SafeAreaCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "ResolutionCore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "SafeAreaCore.rotationCheckIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "get_safe_area",
+      "inputs": []
+    },
+    {
+      "name": "get_inset",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_keyboard_area",
+      "inputs": []
+    }
+  ]
+}

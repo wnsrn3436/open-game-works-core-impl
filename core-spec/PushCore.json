@@ -1,0 +1,143 @@
+{
+  "name": "PushCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "LocalDataCore",
+    "LocalizationCore",
+    "DataCore",
+    "NetworkCore",
+    "AuthCore",
+    "push"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "PushCore.deviceTokenTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "PushCore.permissionReadTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "local_push",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "title"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "tstring<id>",
+          "name": "body"
+        },
+        {
+          "description": "",
+          "target": "Client",
+          "type": "duration?",
+          "name": "delay"
+        }
+      ]
+    }
+  ],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [
+    {
+      "text": "local_push.title",
+      "arguments": []
+    },
+    {
+      "text": "local_push.body",
+      "arguments": []
+    }
+  ],
+  "collectedData": [],
+  "adapters": [
+    "push-fcm",
+    "push-apns"
+  ],
+  "operations": [
+    {
+      "name": "set_push_adapter",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_notification_adapter",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_permission",
+      "inputs": []
+    },
+    {
+      "name": "request_permission",
+      "inputs": []
+    },
+    {
+      "name": "schedule_local",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "schedule_local_after",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "cancel_local",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "cancel_all_local",
+      "inputs": []
+    },
+    {
+      "name": "take_launch_push",
+      "inputs": []
+    },
+    {
+      "name": "get_push_consent",
+      "inputs": []
+    },
+    {
+      "name": "set_push_consent",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

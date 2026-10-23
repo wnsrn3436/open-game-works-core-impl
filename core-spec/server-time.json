@@ -1,0 +1,127 @@
+{
+  "name": "server-time",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "server-time.silentMarginMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "dailyResetOffsetMs",
+      "type": "integer",
+      "source": "game",
+      "owner": "none"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [],
+  "enums": [
+    {
+      "type": "ResetCycle",
+      "elements": [
+        "Daily",
+        "Weekly",
+        "Monthly"
+      ]
+    }
+  ],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "now",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "is_reached",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_reached_strict",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "clock_now",
+      "inputs": []
+    },
+    {
+      "name": "user_now",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_day_number",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "get_period_start",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_next_reset",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_period_number",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_window_start",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "schedule_job",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "sleep",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "network_time_limit",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

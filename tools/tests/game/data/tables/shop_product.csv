@@ -1,0 +1,23 @@
+,,,,,,,,,,,,
+All,Client,All,All,All,All,All,All,All,All,All,All,All
+id(key),tstring<id>,"array<{item_id: ref<item.id>, amount: long}>","array<{item_id: ref<item.id>, amount: long}>",bool,int,int?,enum<ResetCycle>?,datetime?,datetime?,ref<live_event.id>?,requirement,ref<offer.id>?
+id,name,cost,reward,extra_grant,max_quantity,limit_count,reset,start_at,end_at,live_event,requirement,offer
+[shop_basic],Shop basic,[shop_gold] 100,[shop_gem] 10,false,5,null,null,null,null,null,,null
+[shop_once],Shop once,[shop_gold] 10,[shop_gem] 1,false,1,1,null,null,null,null,,null
+[shop_daily],Shop daily,[shop_gold] 10,[shop_gem] 1,false,1,1,Daily,null,null,null,,null
+[shop_weekly],Shop weekly,[shop_gold] 10,[shop_gem] 1,false,1,1,Weekly,null,null,null,,null
+[shop_monthly],Shop monthly,[shop_gold] 10,[shop_gem] 1,false,1,1,Monthly,null,null,null,,null
+[shop_window],Shop window,[shop_gold] 10,[shop_gem] 1,false,1,null,null,2027-01-16T00:00:00Z,2027-01-17T00:00:00Z,null,,null
+[shop_event_pack],Shop event pack,[shop_gold] 10,[shop_gem] 1,false,1,1,null,null,null,[shop_event],,null
+[shop_locked],Shop locked,[shop_gold] 10,[shop_gem] 1,false,1,null,null,null,null,null,ShopRank(1),null
+[shop_offer_pack],Shop offer pack,[shop_gold] 10,[shop_gem] 1,false,1,1,null,null,null,null,,[shop_offer]
+[shop_big_pack],Shop big pack,,[shop_big] 4503599627370496,false,3,null,null,null,null,null,,null
+[shop_huge_pack],Shop huge pack,,[shop_gem] 4503599627370496,false,2,null,null,null,null,null,,null
+[shop_costly_pack],Shop costly pack,[shop_gold] 4503599627370496,[shop_gem] 1,false,2,null,null,null,null,null,,null
+[shop_reject_pack],Shop reject pack,[shop_gold] 10,"[shop_capped] 3, [shop_gem] 2",false,1,null,null,null,null,null,,null
+[shop_discard_pack],Shop discard pack,[shop_gold] 10,[shop_discard] 3,false,1,null,null,null,null,null,,null
+[shop_convert_pack],Shop convert pack,[shop_gold] 10,[shop_convert] 3,false,1,null,null,null,null,null,,null
+[shop_swap],Shop swap,[shop_discard] 2,[shop_discard] 3,false,1,null,null,null,null,null,,null
+[shop_extra_pack],Shop extra pack,[shop_gold] 100,[shop_gem] 10,true,5,null,null,null,null,null,,null
+[shop_event_offer_pack],Shop event offer pack,[shop_gold] 10,[shop_gem] 1,false,1,1,null,null,null,null,,[shop_event_offer]
+[shop_max_count],Shop max count,,[shop_big] 1,false,2147483647,null,null,null,null,null,,null

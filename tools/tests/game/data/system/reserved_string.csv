@@ -1,0 +1,107 @@
+,
+All,All
+id(key),tstring<id>
+id,text
+[auth_terms_title],Auth terms title
+[auth_terms_agree_terms],Auth terms agree terms
+[auth_terms_agree_privacy],Auth terms agree privacy
+[auth_terms_view],Auth terms view
+[auth_terms_confirm],Auth terms confirm
+[auth_age_title],Auth age title
+[auth_age_year],Auth age year
+[auth_age_month],Auth age month
+[auth_age_confirm],Auth age confirm
+[auth_age_invalid],Auth age invalid
+[auth_privacy_title],Auth privacy title
+[auth_privacy_ad_personalization],Auth privacy ad personalization
+[auth_privacy_analytics],Auth privacy analytics
+[auth_privacy_confirm],Auth privacy confirm
+[auth_tracking_usage],Auth tracking usage
+[auth_push_title],Auth push title
+[auth_push_ad],Auth push ad
+[auth_push_night],Auth push night
+[auth_push_confirm],Auth push confirm
+[auth_push_ad_granted],Auth push ad granted
+[auth_push_ad_denied],Auth push ad denied
+[auth_push_night_granted],Auth push night granted
+[auth_push_night_denied],Auth push night denied
+[auth_recover_linked],Auth recover linked
+[auth_recover_guest],Auth recover guest
+[auth_recover_login_apple],Auth recover login apple
+[auth_recover_login_google],Auth recover login google
+[auth_recover_new],Auth recover new
+[auth_recover_new_confirm],Auth recover new confirm
+[auth_recover_new_ok],Auth recover new ok
+[auth_recover_back],Auth recover back
+[auth_session_replaced],Auth session replaced
+[auth_go_to_title],Auth go to title
+[auth_web_link_body],Auth web link body
+[auth_web_link_google],Auth web link google
+[auth_web_link_later],Auth web link later
+[auth_web_link_failed],Auth web link failed
+[auth_google_desktop_done],Auth google desktop done
+[badge_count_over],Badge count over
+[bootstrap_fatal_error],Bootstrap fatal error
+[bootstrap_login_failed],Bootstrap login failed
+[bootstrap_banned],Bootstrap banned
+[bootstrap_banned_permanent],Bootstrap banned permanent
+[bootstrap_banned_deletion],Bootstrap banned deletion
+[bootstrap_banned_deletion_code],Bootstrap banned deletion code
+[bootstrap_banned_deletion_failed],Bootstrap banned deletion failed
+[bootstrap_age_blocked],Bootstrap age blocked
+[bootstrap_restart],Bootstrap restart
+[app_name],App name
+[cutscene_pause_body],Cutscene pause body
+[cutscene_pause_resume],Cutscene pause resume
+[cutscene_pause_skip],Cutscene pause skip
+[game_update_app_update_required],Game update app update required
+[game_update_recommended],Game update recommended
+[game_update_data_update_required],Game update data update required
+[game_update_download_failed],Game update download failed
+[game_update_invalid_file],Game update invalid file
+[game_update_no_space],Game update no space
+[game_update_save_failed],Game update save failed
+[game_update_go_to_store],Game update go to store
+[game_update_later],Game update later
+[game_update_retry],Game update retry
+[game_update_restart],Game update restart
+[network_confirm],Network confirm
+[network_retry],Network retry
+[network_go_to_title],Network go to title
+[network_error_timeout],Network error timeout
+[network_error_connection],Network error connection
+[network_error_invalid_response],Network error invalid response
+[network_error_session],Network error session
+[network_error_maintenance],Network error maintenance
+[network_error_banned],Network error banned
+[network_error_rate_limited],Network error rate limited
+[network_error_feature_disabled],Network error feature disabled
+[network_error_general],Network error general
+[notice_maintenance],Notice maintenance
+[notice_maintenance_until],Notice maintenance until
+[notice_retry],Notice retry
+[payment_guest_warning],Payment guest warning
+[payment_guest_link],Payment guest link
+[payment_guest_continue],Payment guest continue
+[payment_guest_cancel],Payment guest cancel
+[scene_prepare_failed],Scene prepare failed
+[scene_retry],Scene retry
+[scene_restart],Scene restart
+[tutorial_skip],Tutorial skip
+[ui_exit_confirm],Ui exit confirm
+[ui_exit_quit],Ui exit quit
+[ui_exit_cancel],Ui exit cancel
+[ui_licenses_title],Ui licenses title
+[ui_licenses_close],Ui licenses close
+[auth_deletion_title],Auth deletion title
+[auth_deletion_body],Auth deletion body
+[auth_deletion_user_id],Auth deletion user id
+[auth_deletion_code],Auth deletion code
+[auth_deletion_confirm],Auth deletion confirm
+[auth_deletion_submit],Auth deletion submit
+[auth_deletion_google],Auth deletion google
+[auth_deletion_done],Auth deletion done
+[auth_deletion_failed],Auth deletion failed
+[auth_deletion_retry],Auth deletion retry
+[auth_deletion_rate_limited],Auth deletion rate limited
+[auth_deletion_back],Auth deletion back

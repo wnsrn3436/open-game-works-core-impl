@@ -1,0 +1,4 @@
+,,
+All,Server,Server
+id(key),string,enum<BannedWordMatch>
+id,word,match

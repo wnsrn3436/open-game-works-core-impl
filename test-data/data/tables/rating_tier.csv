@@ -1,0 +1,8 @@
+,,,,
+All,All,Client,All,Server
+id(key),ref<rating_rule.id>,tstring<id>,long,"array<{item_id: ref<item.id>, amount: long}>"
+id,rule,name,min_rating,season_reward
+[rating_tier_bronze],[rating_rule_basic],Bronze,0,[item_rating_gem] 10
+[rating_tier_silver],[rating_rule_basic],Silver,1100,[item_rating_gem] 20
+[rating_tier_gold],[rating_rule_basic],Gold,1300,"[item_rating_gem] 50, [gold] 5, [validation_gold] 1"
+[rating_tier_plain],[rating_rule_seasonless],Plain,1000,

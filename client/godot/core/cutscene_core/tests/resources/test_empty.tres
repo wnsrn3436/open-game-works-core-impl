@@ -1,0 +1,6 @@
+[gd_resource type="Resource" script_class="TweenDefinition" format=3]
+
+[ext_resource type="Script" path="res://core/tween_core/tween_definition.gd" id="1_e7mpt"]
+
+[resource]
+script = ExtResource("1_e7mpt")

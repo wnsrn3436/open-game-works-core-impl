@@ -1,0 +1,109 @@
+{
+  "cases": [
+    {
+      "name": "Reject with no effect",
+      "input": {
+        "item": "[boost_reject]",
+        "ends_at": 0,
+        "time": 10000000,
+        "amount": 2
+      },
+      "expected": {
+        "result": "OK",
+        "ends_at": 17200000,
+        "delta": 2,
+        "overflow": 0
+      }
+    },
+    {
+      "name": "Reject during the effect",
+      "input": {
+        "item": "[boost_reject]",
+        "ends_at": 11800000,
+        "time": 10000000,
+        "amount": 2
+      },
+      "expected": {
+        "result": "OK",
+        "ends_at": 19000000,
+        "delta": 2,
+        "overflow": 0
+      }
+    },
+    {
+      "name": "Reject over max_amount durations",
+      "input": {
+        "item": "[boost_reject]",
+        "ends_at": 17200000,
+        "time": 10000000,
+        "amount": 2
+      },
+      "expected": {
+        "result": "LIMIT_EXCEEDED",
+        "ends_at": 17200000,
+        "delta": 0,
+        "overflow": 0
+      }
+    },
+    {
+      "name": "Reject after the effect ended",
+      "input": {
+        "item": "[boost_reject]",
+        "ends_at": 9999999,
+        "time": 10000000,
+        "amount": 3
+      },
+      "expected": {
+        "result": "OK",
+        "ends_at": 20800000,
+        "delta": 3,
+        "overflow": 0
+      }
+    },
+    {
+      "name": "Discard keeps what fits",
+      "input": {
+        "item": "[boost_discard]",
+        "ends_at": 15400000,
+        "time": 10000000,
+        "amount": 3
+      },
+      "expected": {
+        "result": "OK",
+        "ends_at": 19000000,
+        "delta": 1,
+        "overflow": 2
+      }
+    },
+    {
+      "name": "Discard with no room for one duration",
+      "input": {
+        "item": "[boost_discard]",
+        "ends_at": 19000000,
+        "time": 10000000,
+        "amount": 1
+      },
+      "expected": {
+        "result": "OK",
+        "ends_at": 19000000,
+        "delta": 0,
+        "overflow": 1
+      }
+    },
+    {
+      "name": "Discard with no effect",
+      "input": {
+        "item": "[boost_discard]",
+        "ends_at": 0,
+        "time": 10000000,
+        "amount": 3
+      },
+      "expected": {
+        "result": "OK",
+        "ends_at": 20800000,
+        "delta": 3,
+        "overflow": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+,,,,,
+All,All,All,Server,All,All
+id,int,enum<LootEntryKind>,int,"array<{item_id: ref<item.id>, amount: long}>",ref<loot_table.id>?
+id,order,kind,weight,items,table
+[loot_seed],1,Weighted,1,[loot_gold] 1,null
+[loot_seed],2,Weighted,3,[loot_gold] 2,null
+[loot_seed],3,Weighted,6,[loot_gold] 3,null
+[loot_main],1,Guaranteed,0,[loot_gem] 1,[loot_sub_a]
+[loot_main],2,Weighted,1,[loot_gold] 10,null
+[loot_main],3,Weighted,1,,[loot_sub_b]
+[loot_main],4,Guaranteed,0,[loot_gold] 5,null
+[loot_main],5,Weighted,2,,null
+[loot_sub_a],1,Weighted,1,[loot_gold] 1,null
+[loot_sub_a],2,Weighted,3,[loot_gem] 2,null
+[loot_sub_b],1,Guaranteed,0,[loot_gem] 3,null
+[loot_sub_b],2,Weighted,1,[loot_gold] 7,[loot_sub_a]
+[loot_sub_c],1,Guaranteed,0,[loot_gold] 100,null
+[loot_sub_d],1,Guaranteed,0,[loot_gem] 9,null
+[loot_nest_w],1,Weighted,2,,[loot_seed]
+[loot_nest_w],2,Weighted,1,[loot_gem] 1,null
+[loot_over],1,Guaranteed,0,[loot_gold] 9007199254740991,null
+[loot_over],2,Guaranteed,0,[loot_gold] 1,null
+[loot_big_sum],1,Guaranteed,0,[loot_big] 9007199254740991,null
+[loot_big_sum],2,Guaranteed,0,[loot_big] 9007199254740991,null
+[loot_big_over],1,Guaranteed,0,[loot_big] 99999999999999999999,null
+[loot_big_over],2,Guaranteed,0,[loot_big] 1,null
+[loot_unsorted],4,Guaranteed,0,[loot_gold] 4,null
+[loot_unsorted],3,Weighted,3,[loot_gold] 3,null
+[loot_unsorted],1,Guaranteed,0,[loot_gem] 1,null
+[loot_unsorted],2,Weighted,1,[loot_gold] 2,null
+[gacha_lt_normal],1,Weighted,999999,[gacha_star] 1,null
+[gacha_lt_normal],2,Weighted,1,,[gacha_lt_pity]
+[gacha_lt_pity],1,Weighted,1,,[gacha_lt_rate_up]
+[gacha_lt_pity],2,Weighted,999999,,[gacha_lt_off]
+[gacha_lt_rate_up],1,Guaranteed,0,[gacha_hero_a] 1,null
+[gacha_lt_off],1,Guaranteed,0,[gacha_hero_b] 1,null
+[gacha_lt_multi],1,Guaranteed,0,,[gacha_lt_pity]
+[gacha_lt_mixed],1,Weighted,1,[gacha_star] 1,null
+[gacha_lt_mixed],2,Weighted,1,,[gacha_lt_multi]
+[gacha_lt_plain],1,Weighted,1,[gacha_star] 1,null
+[gacha_lt_plain],2,Weighted,3,[gacha_star2] 1,null
+[gacha_lt_plain],3,Weighted,6,[gacha_star3] 1,null
+[gacha_lt_capped],1,Guaranteed,0,[gacha_capped] 2,null

@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://core/cutscene_core/cutscene_staging.gd" id="1_c7xr7"]
+
+[sub_resource type="Animation" id="Animation_gp804"]
+length = 0.5
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_4xx0c"]
+_data = {
+&"burst": SubResource("Animation_gp804")
+}
+
+[node name="TestStaging" type="Node2D" unique_id=538286733]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=1393001107]
+libraries/ = SubResource("AnimationLibrary_4xx0c")
+
+[node name="CutsceneStaging" type="Node" parent="." unique_id=1738917067 node_paths=PackedStringArray("animation_player")]
+script = ExtResource("1_c7xr7")
+animation_player = NodePath("../AnimationPlayer")
+animation = "burst"

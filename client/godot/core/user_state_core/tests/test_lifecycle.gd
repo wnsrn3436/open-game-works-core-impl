@@ -1,0 +1,76 @@
+extends "res://core/user_state_core/tests/support/user_state_test_case.gd"
+## Lifecycle: init check, the state `release` leaves, `init` twice, and operations outside `init`.
+
+
+func test_init_and_release() -> void:
+	await start()
+	assert_true(UserStateCore.is_initialized())
+	assert_false(UserStateCore.init(), "init twice")
+	assert_eq(errors(), 1)
+	var delta: CoreContract.UserStateDelta = new_delta()
+	add_tutorial(delta, 1, 1)
+	assert_true(UserStateCore.apply_delta(delta, UserStateCore.DeltaSource.RESPONSE))
+	UserStateCore.set_user_created_at(5)
+	assert_eq(UserStateCore.get_live_event_round(123456789).round, 0)
+	assert_eq(errors(), 1, "unknown live event")
+	UserStateCore.release()
+	assert_false(UserStateCore.is_initialized())
+	assert_false(UserStateCore._is_initialized)
+	assert_null(UserStateCore._session)
+	assert_true(UserStateCore._kind_list.is_empty())
+	assert_true(UserStateCore._kinds_by_name.is_empty())
+	assert_true(UserStateCore._kinds_by_class.is_empty())
+	assert_eq(UserStateCore._user_created_at, 0)
+	assert_true(UserStateCore._logged_live_events.is_empty())
+	UserStateCore.release()
+	assert_false(UserStateCore.is_initialized(), "release twice logs nothing")
+
+
+func test_operations_before_init_and_after_release() -> void:
+	assert_true(LogCore.init())
+	assert_true(EventCore.init())
+	var delta: CoreContract.UserStateDelta = new_delta()
+	for round_of_calls: int in 2:
+		assert_false(UserStateCore.apply_delta(delta, UserStateCore.DeltaSource.RESPONSE))
+		assert_null(UserStateCore.get_by_id(CoreContract.TutorialProgressUserState, 1))
+		assert_null(UserStateCore.get_single(CoreContract.NicknameUserState))
+		assert_eq(UserStateCore.count(CoreContract.TutorialProgressUserState), 0)
+		var buffer: Array[ContractMessage] = []
+		buffer.resize(1)
+		assert_eq(UserStateCore.list(CoreContract.TutorialProgressUserState, buffer), 0)
+		assert_eq(UserStateCore.get_change_number(CoreContract.TutorialProgressUserState), 0)
+		assert_eq(UserStateCore.get_item_balance(1), 0)
+		assert_eq(UserStateCore.get_item_recovery(1).next_at, 0)
+		assert_eq(UserStateCore.get_item_big_balance(1), "0")
+		assert_eq(UserStateCore.get_item_ends_at(1), 0)
+		assert_eq(UserStateCore.preview_item_add([item_amount(1, 1)] as Array[CoreContract.ItemAmount]).size(), 0)
+		assert_eq(UserStateCore.get_user_created_at(), 0)
+		UserStateCore.set_user_created_at(1)
+		assert_eq(UserStateCore.get_shop_purchase_count(1), 0)
+		assert_eq(UserStateCore.get_iap_purchase_count(1), 0)
+		assert_eq(UserStateCore.get_ad_reward_count(1), 0)
+		assert_eq(UserStateCore.get_reset_counter(1), 0)
+		assert_false(UserStateCore.get_mission_progress(1).claimed)
+		assert_eq(UserStateCore.get_attendance(1).next_day, 0)
+		assert_eq(UserStateCore.get_live_event_round(1).end_at, 0)
+		assert_false(UserStateCore.is_offer_active(1))
+		assert_eq(UserStateCore.get_offer_ends_at(1), 0)
+		assert_false(UserStateCore.is_in_period(0, 0, 0))
+		assert_false(UserStateCore.register_after_update(CoreContract.TutorialProgressUserState, Callable()))
+		UserStateCore.notify_item_changes([] as Array[CoreContract.ItemChange])
+		UserStateCore.notify_item_mails([] as Array[CoreContract.ItemMail])
+		assert_eq(UserStateCoreDev.export_json(), "")
+		assert_false(UserStateCoreDev.apply_test_delta(delta))
+		assert_eq(errors(), 28)
+		if round_of_calls == 0:
+			assert_true(UserStateCore.init())
+			UserStateCore.release()
+
+
+func test_an_out_of_range_source_is_refused() -> void:
+	await start()
+	var delta: CoreContract.UserStateDelta = new_delta()
+	add_tutorial(delta, 1, 1)
+	assert_false(UserStateCore.apply_delta(delta, 7 as UserStateCore.DeltaSource))
+	assert_eq(errors(), 1)
+	assert_eq(UserStateCore.count(CoreContract.TutorialProgressUserState), 0)

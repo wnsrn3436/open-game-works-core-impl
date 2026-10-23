@@ -1,0 +1,138 @@
+{
+  "name": "RequirementCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "DataCore",
+    "LocalizationCore",
+    "UserStateCore",
+    "NetworkCore",
+    "UICore"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "RequirementCore.maxBatchRounds",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "RequirementCore.timeRecheckMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "TimeCore.reachMarginMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "requirement",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<RequirementType>?",
+          "name": "type"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "int",
+          "name": "target_id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "long",
+          "name": "value"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "array<ref<requirement.id>>",
+          "name": "children"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<RequirementLogic>?",
+          "name": "logic"
+        }
+      ]
+    }
+  ],
+  "usedTables": [],
+  "enums": [
+    {
+      "type": "RequirementLogic",
+      "elements": [
+        "All",
+        "Any"
+      ]
+    }
+  ],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "register_judge",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "translationKey",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "evaluate",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "watch",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "unwatch",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "fill_guide_args",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    }
+  ]
+}

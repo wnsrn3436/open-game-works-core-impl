@@ -1,0 +1,11 @@
+Round trip test row,display name,,,,,,,,,,,,,,,,,,,,,,,,,,
+All,All,All,All,All,All,All,All,All,All,All,All,All,All,All,All,All,All,All,All,All,All,All,All,All,All,All,Server
+id(key),tstring<id>,int,int?,long,float,double,bool,string,datetime,duration,enum<ToolTestGrade>,enum<ToolTestGrade>?,ref<item.id>,vector2<int>,vector3<float>,array<int>,array<long>,array<float>,array<string>,array<bool>,array<enum<ToolTestGrade>>,array<vector2<int>>,array<array<int>>,array<array<bool>>,"array<{item_id: ref<item.id>, amount: long}>","array<{grade: enum<ToolTestGrade>, count: int}>",int
+id,name,small,maybe,large,ratio,precise,flag,note,starts_at,period,grade,maybe_grade,item,cell,offset,smalls,larges,ratios,notes,flags,grades,cells,grid,switches,rewards,slots,server_only
+[tool_test_a],Tool test A,7,null,-9000000000,1.5,-2.25,true,plain [gold],2026-01-02T03:04:05Z,1h30m,Gold,null,[gold],"3,-4","1.5,2,-0.5","1,-2,3","-9000000000,5","0.5,-1.25","first
+second","true,false,true","Gold,Silver","1,2
+-3,4","1,2
+
+3","true,false
+false","[gold] 5, [gem] 300","Gold 2, Silver 1",9
+[tool_test_b],Tool test B,0,4,0,0,0,false,,1970-01-01T00:00:00Z,0s,Silver,Gold,[gold],"0,0","0,0,0",,,,,,,,,,,,0

@@ -1,0 +1,22 @@
+,,,
+All,Server,Server,Server
+id(key),tstring<id>,tstring<id>,enum<PushKind>
+id,title,body,kind
+[testing_notice],Testing title,Testing body,Info
+[push_ad_label_message],(Ad),Ad label,Info
+[push_info],Hello {name},{count:n} gems arrived,Info
+[push_ad],Sale,{percent}% off,Ad
+[push_plain],Plain,Nothing to fill,Info
+[push_when],When,{t:date},Info
+[push_compact],Compact,{amount:compact},Info
+[push_fmt_plain],Format,{v},Info
+[push_fmt_n],Format,{v:n},Info
+[push_fmt_ordinal],Format,{v:ordinal},Info
+[push_fmt_duration],Format,{v:duration},Info
+[push_fmt_date],Format,{v:date},Info
+[push_fmt_datetime],Format,{v:datetime},Info
+[push_fmt_plural],Format,{v:plural:item/items},Info
+[push_fmt_euro],Format,{v:으로/로},Info
+[push_fmt_iga],Format,{v:이/가},Info
+[push_fmt_compact],Format,{v:compact},Info
+[push_fmt_brace],Format,{v}},Info

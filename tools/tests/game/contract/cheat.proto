@@ -1,0 +1,23 @@
+syntax = "proto3";
+package game;
+
+import "ogw/options.proto";
+import "user_state.proto";
+
+service Cheat {
+  // Sets the single kind of the round trip test.
+  // changes: ToolTestSingleUserState
+  rpc ToolTestSetCount(ToolTestSetCountRequest) returns (ToolTestSetCountResponse);
+}
+
+// The request of the round trip test cheat.
+message ToolTestSetCountRequest {
+  // The new count.
+  int32 count = 1 [(ogw.v) = {min: 0, max: 99}];
+  // The kind to set.
+  ToolTestKind kind = 2;
+}
+
+// The response of the round trip test cheat.
+message ToolTestSetCountResponse {
+}

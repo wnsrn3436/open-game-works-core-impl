@@ -1,0 +1,7 @@
+android/.gradle/
+android/build/
+android/plugin/build/
+android/local.properties
+macos/.sconsign.dblite
+macos/bin/
+macos/src/*.os

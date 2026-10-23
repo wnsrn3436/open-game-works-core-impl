@@ -1,0 +1,9 @@
+,,
+All,All,All
+id(key),long?,enum<ResetCycle>?
+id,limit,reset
+[reset_counter_daily],3,Daily
+[reset_counter_weekly],5,Weekly
+[reset_counter_monthly],2,Monthly
+[reset_counter_never],4,null
+[reset_counter_unlimited],null,Daily

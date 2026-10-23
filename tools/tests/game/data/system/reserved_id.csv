@@ -1,0 +1,15 @@
+,,
+All,None,All
+id(key),string,string
+id,target,value
+[chat_badge],Client,[badge_chat]
+[notice_badge],Client,[badge_notice]
+[ad_reward_mail],Server,[mail_ad_reward_mail]
+[attendance_reward_mail],Server,[mail_attendance_reward_mail]
+[coupon_reward_mail],Server,[mail_coupon_reward_mail]
+[gacha_grant_mail],Server,[mail_gacha_grant_mail]
+[iap_grant_mail],Server,[mail_iap_grant_mail]
+[mission_reward_mail],Server,[mail_mission_reward_mail]
+[push_ad_label],Server,[push_ad_label_message]
+[shop_grant_mail],Server,[mail_shop_grant_mail]
+[tool_test_reserved],All,[tool_test_a]

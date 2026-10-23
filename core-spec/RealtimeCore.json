@@ -1,0 +1,194 @@
+{
+  "name": "RealtimeCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "UtilCore",
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "LocalDataCore",
+    "DataCore",
+    "AuthCore",
+    "NetworkCore",
+    "matchmaker",
+    "p2p-signaling"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "RealtimeCore.connectTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "RealtimeCore.reconnectTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "RealtimeCore.backgroundTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "RealtimeCore.messageMaxBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "RealtimeCore.pendingMessageMax",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "NetworkCore.retryDelayMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "NetworkCore.retryDelayFactorPermille",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "NetworkCore.retryDelayMaxMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "RealtimeCore.simLatencyMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "RealtimeCore.simJitterMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "RealtimeCore.simLossPermille",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    }
+  ],
+  "settingsConstraints": [
+    {
+      "left": "RealtimeCore.backgroundTimeoutMs",
+      "factor": 1,
+      "right": "RealtimeCore.reconnectTimeoutMs"
+    }
+  ],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "set_transport",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "join_match",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "rejoin_match",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "saved_match_id",
+      "inputs": []
+    },
+    {
+      "name": "leave",
+      "inputs": []
+    },
+    {
+      "name": "end_match",
+      "inputs": []
+    },
+    {
+      "name": "match_state",
+      "inputs": []
+    },
+    {
+      "name": "match_info",
+      "inputs": []
+    },
+    {
+      "name": "peer_state",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "match_time_ms",
+      "inputs": []
+    },
+    {
+      "name": "send",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "create_room",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "join_room",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "leave_room",
+      "inputs": []
+    },
+    {
+      "name": "kick_room_member",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "start_room",
+      "inputs": []
+    },
+    {
+      "name": "wait_match",
+      "inputs": []
+    },
+    {
+      "name": "room_info",
+      "inputs": []
+    }
+  ]
+}

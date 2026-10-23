@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Texture2D" path="res://core/resource_core/tests/resources/test_texture.tres" id="1_texture"]
+
+[node name="TestSceneWithTexture" type="Sprite2D"]
+texture = ExtResource("1_texture")

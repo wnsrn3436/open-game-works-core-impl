@@ -1,0 +1,141 @@
+{
+  "name": "remote-config",
+  "side": "server",
+  "lifecycle": false,
+  "dependencies": [
+    "storage",
+    "server-time",
+    "logging"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "remote-config.maxStringBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "remote-config.maxGroups",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "remote-config.cacheMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [
+    {
+      "name": "remote_config_key",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "enum<RemoteConfigType>",
+          "name": "type"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "string",
+          "name": "default_value"
+        },
+        {
+          "description": "",
+          "target": "All",
+          "type": "bool",
+          "name": "client"
+        }
+      ]
+    },
+    {
+      "name": "experiment",
+      "columns": [
+        {
+          "description": "",
+          "target": "All",
+          "type": "id(key)",
+          "name": "id"
+        }
+      ]
+    }
+  ],
+  "usedTables": [],
+  "enums": [
+    {
+      "type": "RemoteConfigType",
+      "elements": [
+        "Bool",
+        "Int",
+        "String"
+      ]
+    }
+  ],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "get_config",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_client_config",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_config_value",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "clear_config_value",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "put_experiment",
+      "inputs": [
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "stop_experiment",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "list_remote_config",
+      "inputs": []
+    }
+  ]
+}

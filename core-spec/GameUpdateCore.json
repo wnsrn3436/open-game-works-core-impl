@@ -1,0 +1,177 @@
+{
+  "name": "GameUpdateCore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "UtilCore",
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "LocalDataCore",
+    "ResourceCore",
+    "DataCore",
+    "LocalizationCore",
+    "UICore",
+    "NetworkCore",
+    "game-update"
+  ],
+  "optionalDependencies": [],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "GameUpdateCore.stallTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "GameUpdateCore.deployListMaxBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "GameUpdateCore.signatureMaxBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "GameUpdateCore.fileMaxBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    }
+  ],
+  "settingsConstraints": [
+    {
+      "left": "game-update.maxDeployListBytes",
+      "factor": 1,
+      "right": "GameUpdateCore.deployListMaxBytes"
+    },
+    {
+      "left": "game-update.maxFileBytes",
+      "factor": 1,
+      "right": "GameUpdateCore.fileMaxBytes"
+    },
+    {
+      "left": "GameUpdateCore.fileMaxBytes",
+      "factor": 1,
+      "right": "DataCore.downloadedFileMaxBytes"
+    },
+    {
+      "left": "GameUpdateCore.fileMaxBytes",
+      "factor": 1,
+      "right": "LocalizationCore.downloadedFileMaxBytes"
+    }
+  ],
+  "tables": [],
+  "usedTables": [],
+  "enums": [],
+  "invariants": [],
+  "reserved": [
+    {
+      "table": "reserved_string",
+      "id": "[game_update_app_update_required]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[game_update_recommended]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[game_update_data_update_required]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[game_update_download_failed]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[game_update_invalid_file]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[game_update_no_space]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[game_update_save_failed]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[game_update_go_to_store]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[game_update_later]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[game_update_retry]",
+      "requiredWhen": null,
+      "rowOf": null
+    },
+    {
+      "table": "reserved_string",
+      "id": "[game_update_restart]",
+      "requiredWhen": null,
+      "rowOf": null
+    }
+  ],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": [
+    {
+      "name": "check_update",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "bytes_total",
+      "inputs": []
+    },
+    {
+      "name": "bytes_done",
+      "inputs": []
+    },
+    {
+      "name": "downloaded_data",
+      "inputs": []
+    },
+    {
+      "name": "downloaded_translations",
+      "inputs": []
+    },
+    {
+      "name": "downloaded_bundles",
+      "inputs": []
+    },
+    {
+      "name": "set_in_play",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
+}

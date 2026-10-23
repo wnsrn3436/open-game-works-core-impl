@@ -1,0 +1,173 @@
+{
+  "name": "QACore",
+  "side": "client",
+  "lifecycle": true,
+  "dependencies": [
+    "UtilCore",
+    "LogCore",
+    "EventCore",
+    "TimeCore",
+    "ResourceCore",
+    "DataCore",
+    "LocalizationCore",
+    "SoundCore",
+    "NetworkCore",
+    "UserStateCore",
+    "AuthCore",
+    "ResolutionCore",
+    "SafeAreaCore",
+    "InputCore",
+    "InputBlockCore",
+    "TweenCore",
+    "ScreenEffectCore",
+    "PoolCore",
+    "UICore",
+    "SceneCore",
+    "BootstrapCore"
+  ],
+  "optionalDependencies": [
+    "CutsceneCore",
+    "TutorialCore",
+    "RealtimeCore",
+    "QualityCore",
+    "AccessibilityCore",
+    "PushCore",
+    "CameraCore"
+  ],
+  "devDependencies": [],
+  "settings": [
+    {
+      "key": "QACore.commandTimeoutMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "QACore.channelMessageMaxBytes",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "QACore.statsRefreshMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "QACore.textMaxChars",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "QACore.videoFps",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "QACore.videoMaxMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "QACore.feedbackWindowMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "QACore.idleThresholdMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "QACore.telemetryMaxRecords",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "QACore.softlockBlockMs",
+      "type": "object",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "QACore.softlockNoResponseMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "QACore.softlockNoResponseInputs",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "QACore.stepMaxMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "QACore.timeScaleMaxPermille",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "QACore.touchIndexCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "AccessibilityCore.textScales",
+      "type": "array<integer>",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "baseResolution",
+      "type": "array<integer>",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "uiCheckScreens",
+      "type": "array<object>",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "gamepadSupported",
+      "type": "boolean",
+      "source": "game",
+      "owner": "none"
+    },
+    {
+      "key": "supportedLanguages",
+      "type": "array<string>",
+      "source": "game",
+      "owner": "none"
+    }
+  ],
+  "settingsConstraints": [],
+  "tables": [],
+  "usedTables": [
+    "language",
+    "tutorial"
+  ],
+  "enums": [],
+  "invariants": [],
+  "reserved": [],
+  "formatArguments": [],
+  "collectedData": [],
+  "adapters": [],
+  "operations": []
+}

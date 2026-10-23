@@ -1,0 +1,225 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://features/bench/bench_option_panel.gd" id="1_script"]
+[ext_resource type="Script" path="res://core/safe_area_core/safe_area_ignore.gd" id="2_script"]
+[ext_resource type="Script" path="res://core/ui_core/ui_button.gd" id="3_script"]
+[ext_resource type="Script" path="res://core/ui_core/ui_anchor.gd" id="4_script"]
+
+[node name="OptionPanel" type="Control" node_paths=PackedStringArray("title_label", "user_id_label", "deletion_label", "copy_user_id_button", "terms_button", "privacy_button", "licenses_button", "privacy_choices_button", "withdraw_button", "deletion_button", "copy_code_button", "copy_url_button", "close_button", "copy_user_id_click", "terms_click", "privacy_click", "licenses_click", "privacy_choices_click", "withdraw_click", "deletion_click", "copy_code_click", "copy_url_click", "close_click")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+title_label = NodePath("Box/Title")
+user_id_label = NodePath("Box/UserId")
+deletion_label = NodePath("Box/DeletionInfo")
+copy_user_id_button = NodePath("Box/Grid/CopyUserId")
+terms_button = NodePath("Box/Grid/Terms")
+privacy_button = NodePath("Box/Grid/Privacy")
+licenses_button = NodePath("Box/Grid/Licenses")
+privacy_choices_button = NodePath("Box/Grid/PrivacyChoices")
+withdraw_button = NodePath("Box/Grid/Withdraw")
+deletion_button = NodePath("Box/Grid/Deletion")
+copy_code_button = NodePath("Box/Copy/CopyCode")
+copy_url_button = NodePath("Box/Copy/CopyUrl")
+close_button = NodePath("Box/Grid/Close")
+copy_user_id_click = NodePath("Box/Grid/CopyUserId/UIButton")
+terms_click = NodePath("Box/Grid/Terms/UIButton")
+privacy_click = NodePath("Box/Grid/Privacy/UIButton")
+licenses_click = NodePath("Box/Grid/Licenses/UIButton")
+privacy_choices_click = NodePath("Box/Grid/PrivacyChoices/UIButton")
+withdraw_click = NodePath("Box/Grid/Withdraw/UIButton")
+deletion_click = NodePath("Box/Grid/Deletion/UIButton")
+copy_code_click = NodePath("Box/Copy/CopyCode/UIButton")
+copy_url_click = NodePath("Box/Copy/CopyUrl/UIButton")
+close_click = NodePath("Box/Grid/Close/UIButton")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.12, 0.12, 0.2, 1)
+
+[node name="SafeAreaIgnore" type="Node" parent="Background"]
+script = ExtResource("2_script")
+
+[node name="Box" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -490.0
+offset_top = -280.0
+offset_right = 490.0
+offset_bottom = 280.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 10
+alignment = 1
+
+[node name="Title" type="Label" parent="Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="UserId" type="Label" parent="Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Grid" type="GridContainer" parent="Box"]
+layout_mode = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 10
+columns = 2
+
+[node name="CopyUserId" type="Button" parent="Box/Grid"]
+custom_minimum_size = Vector2(0, 52)
+size_flags_horizontal = 3
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+
+[node name="UIButton" type="Node" parent="Box/Grid/CopyUserId"]
+script = ExtResource("3_script")
+
+[node name="UIAnchor" type="Node" parent="Box/Grid/CopyUserId"]
+script = ExtResource("4_script")
+anchor_name = "bench_copy_user_id"
+
+[node name="Licenses" type="Button" parent="Box/Grid"]
+custom_minimum_size = Vector2(0, 52)
+size_flags_horizontal = 3
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+
+[node name="UIButton" type="Node" parent="Box/Grid/Licenses"]
+script = ExtResource("3_script")
+
+[node name="UIAnchor" type="Node" parent="Box/Grid/Licenses"]
+script = ExtResource("4_script")
+anchor_name = "bench_licenses"
+
+[node name="Terms" type="Button" parent="Box/Grid"]
+custom_minimum_size = Vector2(0, 52)
+size_flags_horizontal = 3
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+
+[node name="UIButton" type="Node" parent="Box/Grid/Terms"]
+script = ExtResource("3_script")
+
+[node name="UIAnchor" type="Node" parent="Box/Grid/Terms"]
+script = ExtResource("4_script")
+anchor_name = "bench_terms"
+
+[node name="Privacy" type="Button" parent="Box/Grid"]
+custom_minimum_size = Vector2(0, 52)
+size_flags_horizontal = 3
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+
+[node name="UIButton" type="Node" parent="Box/Grid/Privacy"]
+script = ExtResource("3_script")
+
+[node name="UIAnchor" type="Node" parent="Box/Grid/Privacy"]
+script = ExtResource("4_script")
+anchor_name = "bench_privacy"
+
+[node name="PrivacyChoices" type="Button" parent="Box/Grid"]
+custom_minimum_size = Vector2(0, 52)
+size_flags_horizontal = 3
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+
+[node name="UIButton" type="Node" parent="Box/Grid/PrivacyChoices"]
+script = ExtResource("3_script")
+
+[node name="UIAnchor" type="Node" parent="Box/Grid/PrivacyChoices"]
+script = ExtResource("4_script")
+anchor_name = "bench_privacy_choices"
+
+[node name="Withdraw" type="Button" parent="Box/Grid"]
+custom_minimum_size = Vector2(0, 52)
+size_flags_horizontal = 3
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+
+[node name="UIButton" type="Node" parent="Box/Grid/Withdraw"]
+script = ExtResource("3_script")
+
+[node name="UIAnchor" type="Node" parent="Box/Grid/Withdraw"]
+script = ExtResource("4_script")
+anchor_name = "bench_withdraw"
+
+[node name="Deletion" type="Button" parent="Box/Grid"]
+custom_minimum_size = Vector2(0, 52)
+size_flags_horizontal = 3
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+
+[node name="UIButton" type="Node" parent="Box/Grid/Deletion"]
+script = ExtResource("3_script")
+
+[node name="UIAnchor" type="Node" parent="Box/Grid/Deletion"]
+script = ExtResource("4_script")
+anchor_name = "bench_deletion_issue"
+
+[node name="Close" type="Button" parent="Box/Grid"]
+custom_minimum_size = Vector2(0, 52)
+size_flags_horizontal = 3
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+
+[node name="UIButton" type="Node" parent="Box/Grid/Close"]
+script = ExtResource("3_script")
+
+[node name="UIAnchor" type="Node" parent="Box/Grid/Close"]
+script = ExtResource("4_script")
+anchor_name = "bench_option_close"
+
+[node name="DeletionInfo" type="Label" parent="Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="Copy" type="HBoxContainer" parent="Box"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="CopyCode" type="Button" parent="Box/Copy"]
+custom_minimum_size = Vector2(0, 52)
+size_flags_horizontal = 3
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+
+[node name="UIButton" type="Node" parent="Box/Copy/CopyCode"]
+script = ExtResource("3_script")
+
+[node name="UIAnchor" type="Node" parent="Box/Copy/CopyCode"]
+script = ExtResource("4_script")
+anchor_name = "bench_copy_code"
+
+[node name="CopyUrl" type="Button" parent="Box/Copy"]
+custom_minimum_size = Vector2(0, 52)
+size_flags_horizontal = 3
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+
+[node name="UIButton" type="Node" parent="Box/Copy/CopyUrl"]
+script = ExtResource("3_script")
+
+[node name="UIAnchor" type="Node" parent="Box/Copy/CopyUrl"]
+script = ExtResource("4_script")
+anchor_name = "bench_copy_url"
