@@ -41,6 +41,7 @@ https://github.com/user-attachments/assets/fb74b4ca-cc63-430d-af79-5b5118ec9c8a
 | [open-game-works-core-impl](https://github.com/wnsrn3436/open-game-works-core-impl) | 이 저장소: 코어 구현. 코어 릴리스는 이 저장소의 GitHub Releases |
 | [open-game-works-game-mana-clash](https://github.com/wnsrn3436/open-game-works-game-mana-clash) | open-game-works로 만든 게임 |
 | [open-game-works-game-pong](https://github.com/wnsrn3436/open-game-works-game-pong) | open-game-works로 만든 게임 |
+| [open-game-works-game-iso-survivors](https://github.com/wnsrn3436/open-game-works-game-iso-survivors) | open-game-works로 만든 게임 |
 
 ## 현재 상태
 
@@ -313,6 +314,25 @@ git clone https://github.com/wnsrn3436/open-game-works-core-impl.git
 [빠른 시작](https://github.com/wnsrn3436/open-game-works-core/blob/main/README.ko.md#빠른-시작) 절차를 따른다.
 `open-game-works-core/tools`에서 `npm ci`로 하네스 도구 패키지를 설치하고,
 `ogw secret set --harness claude-code-oauth-token`으로 Claude Code 토큰을 저장한 뒤 `update env`를 실행한다.
+
+## 기여
+
+기여를 환영한다. 도움이 가장 필요한 곳은 다음과 같다.
+
+- 다른 엔진의 클라이언트 코어. 지금은 Godot뿐이고, 하네스는 Three.js, Phaser, Unity, Unreal을 목표 엔진으로 둔다.
+- 외부 서비스의 실제 어댑터: 스토어 결제, 광고, 푸시, 소셜 로그인. 루프는 가짜 어댑터로 게임을 돌리고, 실제 어댑터는 아직 실제 서비스에 연결해 본 적이 없다.
+- Windows, Android, iOS에서의 `build` 명령. 아직 빌드하거나 배포한 게임이 없다.
+- open-game-works로 만든 게임과, 코어에 부족했던 점의 보고. 콘텐츠 에이전트는 이를 게임의 `records/core-proposals/`에 코어 제안으로 남긴다.
+
+기여하는 방법:
+
+- 질문과 아이디어는 하네스의 [Discussions](https://github.com/wnsrn3436/open-game-works-core/discussions)에, 코어의 버그는 [Issues](https://github.com/wnsrn3436/open-game-works-core-impl/issues)에 올린다.
+- 큰 변경은 코드를 쓰기 전에 Discussions나 이슈를 먼저 열어 방향을 맞춘다.
+- 모듈 스펙은 하네스에 있고 이 저장소는 그 스펙을 따른다. 동작을 바꾸는 변경은 하네스의 스펙 변경에서 시작한다. 하네스에서는 `update core` 명령이 이 일을 하고, 새 엔진은 `create client core: <engine>`이다.
+- 이 저장소의 변경은 건드린 모듈의 `ogw core test`와 `ogw code check core`를 통과해야 한다.
+- 코드 식별자와 커밋 메시지는 영어로 쓴다.
+
+기여하면 그 기여물이 이 저장소의 라이선스인 Apache License 2.0으로 배포되는 데 동의하는 것으로 본다.
 
 ## 라이선스
 

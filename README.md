@@ -40,6 +40,7 @@ Releases of this repository, and each game pins one release with `coreVersion` i
 | [open-game-works-core-impl](https://github.com/wnsrn3436/open-game-works-core-impl) | this repository: the core implementation. Core releases are its GitHub Releases |
 | [open-game-works-game-mana-clash](https://github.com/wnsrn3436/open-game-works-game-mana-clash) | a game made with open-game-works |
 | [open-game-works-game-pong](https://github.com/wnsrn3436/open-game-works-game-pong) | a game made with open-game-works |
+| [open-game-works-game-iso-survivors](https://github.com/wnsrn3436/open-game-works-game-iso-survivors) | a game made with open-game-works |
 
 ## Status
 
@@ -316,6 +317,25 @@ The harness finds this folder through `paths.coreImpl` in `open-game-works-core/
 [quick start](https://github.com/wnsrn3436/open-game-works-core#quick-start) of the harness README: install the harness
 tool's packages with `npm ci` in `open-game-works-core/tools`, store the Claude Code token with
 `ogw secret set --harness claude-code-oauth-token`, and run `update env`.
+
+## Contributing
+
+Contributions are welcome. These are the areas where help is wanted most:
+
+- Client cores for other engines. Godot is the only one so far; the harness lists Three.js, Phaser, Unity and Unreal as target engines.
+- Real adapters for external services: store payments, ads, push and social login. The loop runs games on fake adapters, and the real adapters have not been tried against the live services yet.
+- The `build` command on Windows, Android and iOS. No game has been built or deployed yet.
+- Games made with open-game-works, and reports of where the core fell short. The content agent writes these as core proposals in the game's `records/core-proposals/`.
+
+How to contribute:
+
+- Questions and ideas go to [Discussions](https://github.com/wnsrn3436/open-game-works-core/discussions) of the harness, and bugs in the core to [Issues](https://github.com/wnsrn3436/open-game-works-core-impl/issues).
+- For a larger change, open a discussion or an issue first, so the approach is agreed before you write code.
+- The module specs live in the harness, and this repository follows them: a behavior change starts as a spec change there. Through the harness, this is the `update core` command, and a new engine is `create client core: <engine>`.
+- A change here passes `ogw core test` for the modules it touches and `ogw code check core`.
+- Code identifiers and commit messages are written in English.
+
+By contributing, you agree that your contribution is licensed under the Apache License 2.0, the license of this repository.
 
 ## License
 
