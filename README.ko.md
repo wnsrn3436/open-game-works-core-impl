@@ -5,7 +5,7 @@
 open-game-works의 코어다. 하네스로 만드는 모든 게임의 바탕이 되는 Godot 클라이언트 코어, TypeScript 서버 코어,
 기본 protobuf, contract tool과 data tool을 담는다.
 
-https://github.com/user-attachments/assets/116aebfd-d82f-42f3-be5e-815e5336c257
+https://github.com/user-attachments/assets/9bbe6317-f09e-406b-a6ec-60c538e5f4b8
 
 <table>
   <tr>

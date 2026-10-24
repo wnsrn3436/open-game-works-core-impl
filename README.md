@@ -5,7 +5,7 @@
 The core of open-game-works: the Godot client core, the TypeScript server core, the base protobuf, and the contract and
 data tools that every game made with the harness is built on.
 
-https://github.com/user-attachments/assets/116aebfd-d82f-42f3-be5e-815e5336c257
+https://github.com/user-attachments/assets/9bbe6317-f09e-406b-a6ec-60c538e5f4b8
 
 <table>
   <tr>
