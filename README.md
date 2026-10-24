@@ -5,6 +5,8 @@
 The core of open-game-works: the Godot client core, the TypeScript server core, the base protobuf, and the contract and
 data tools that every game made with the harness is built on.
 
+https://github.com/user-attachments/assets/116aebfd-d82f-42f3-be5e-815e5336c257
+
 <table>
   <tr>
     <td align="center" width="50%"><img src=".github/media/iso-survivors.gif" alt="iso-survivors gameplay"><br><a href="https://github.com/wnsrn3436/open-game-works-game-iso-survivors">iso-survivors</a>: isometric 3D horde survival</td>

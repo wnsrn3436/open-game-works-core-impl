@@ -5,6 +5,8 @@
 open-game-works의 코어다. 하네스로 만드는 모든 게임의 바탕이 되는 Godot 클라이언트 코어, TypeScript 서버 코어,
 기본 protobuf, contract tool과 data tool을 담는다.
 
+https://github.com/user-attachments/assets/116aebfd-d82f-42f3-be5e-815e5336c257
+
 <table>
   <tr>
     <td align="center" width="50%"><img src=".github/media/iso-survivors.gif" alt="iso-survivors gameplay"><br><a href="https://github.com/wnsrn3436/open-game-works-game-iso-survivors">iso-survivors</a>: 아이소메트릭 3D 호드 서바이벌</td>
