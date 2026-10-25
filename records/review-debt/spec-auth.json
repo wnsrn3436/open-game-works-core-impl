@@ -1,11 +1,17 @@
 {
   "target": "spec auth",
-  "nextId": 2,
+  "nextId": 4,
   "items": [
     {
-      "id": "D1",
-      "location": "skills/server-core/modules/auth.md:300",
-      "problem": "The `google` method reads the `auth_social_link` row of (`GOOGLE`, provider account ID) before opening `run_user_transaction`, without saying which DB handle it uses, and the failure of that read is not set in the processing order at auth.md:294; the HTTP status and result page of that DB failure can differ per implementation",
+      "id": "D2",
+      "location": "skills/server-core/modules/auth.md:294",
+      "problem": "`POST /account/deletion` sets that `FAILED` of `run_game_transaction` (step 1) and of `run_user_transaction` (step 4) is 500 and `[auth_deletion_retry]`, but the `## error` table (auth.md:328-359) has no row for these conditions, so whether an `error` log is left is not set. `storage` leaves no logs (storage.md `## error`), and routing.md:101 leaves the handling of an exported route to the exporting module, so no other document sets it; one implementation can leave an `error` log and another none, while the neighbouring 500 rows of the same route (auth.md:349, auth.md:359) do set an `error` log",
+      "foundBy": "spec auth"
+    },
+    {
+      "id": "D3",
+      "location": "skills/server-core/modules/auth.md:337",
+      "problem": "the `## error` table sets `WITHDRAWN` of `run_request_transaction`/`run_user_transaction` of `Login`, `AutoLogin`, `RefreshToken`, `DevLogin`, but not `FAILED` (user lock wait exceeded, DB connection failure, storage.md `## error`). These requests do not go through steps 12 to 16 of `routing` (routing.md:149, \"that handler does the handling that `auth` defines\"), so the step 13 row `FAILED` → `INTERNAL` with an `error` log (routing.md:212) does not apply, and `FAILED` is a failure value, not an unhandled exception (routing.md:147). The response error code and log of `FAILED` in `Login` step 3 and step 6 (auth.md:139, auth.md:142), the ban login transaction (auth.md:145), `AutoLogin` and `RefreshToken` (auth.md:167) can differ per implementation",
       "foundBy": "spec auth"
     }
   ]
