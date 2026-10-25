@@ -3,7 +3,7 @@
  * `### schema`).
  */
 import { createHash } from 'node:crypto';
-import type { DbConn, DbTxConn, Dialect } from './db/types.ts';
+import { DbError, type DbConn, type DbTxConn, type Dialect, type Row } from './db/types.ts';
 import { pick_public_code } from './public_code.ts';
 
 /** The highest core schema version this `storage` applies. Same value as the file `core-schema-version`. */
@@ -309,21 +309,46 @@ function apply_table(conn: DbConn, dialect: Dialect, table: TableDef): string | 
 /** How many rows one fill query of server start takes. */
 const FILL_BATCH = 1000;
 
+/** SQLSTATE `unique_violation`. */
+const UNIQUE_VIOLATION = '23505';
+
+const FILL_UPDATE =
+  'UPDATE "user" SET public_code = $1 WHERE user_id = $2 AND public_code IS NULL AND NOT EXISTS (SELECT 1 FROM "user" WHERE public_code = $1) RETURNING user_id';
+
+/**
+ * One fill update; null when the picked code met a code that the `NOT EXISTS` did not see. On PostgreSQL the
+ * `NOT EXISTS` does not see a code that `create_user` of another server instance inserted and has not committed: the
+ * unique index waits for that transaction and fails the update when it commits. A savepoint keeps that failure from
+ * aborting the schema transaction. SQLite holds the write lock (`BEGIN IMMEDIATE`), so every code is committed.
+ */
+function fill_update(conn: DbConn, dialect: Dialect, user_id: Row[string]): Row[] | null {
+  if (dialect === 'sqlite') return conn.query(FILL_UPDATE, [pick_public_code(), user_id]);
+  conn.query('SAVEPOINT fill_public_code');
+  let written: Row[] | null;
+  try {
+    written = conn.query(FILL_UPDATE, [pick_public_code(), user_id]);
+  } catch (error) {
+    if (!(error instanceof DbError) || error.code !== UNIQUE_VIOLATION) throw error;
+    conn.query('ROLLBACK TO SAVEPOINT fill_public_code');
+    written = null;
+  }
+  conn.query('RELEASE SAVEPOINT fill_public_code');
+  return written;
+}
+
 /**
  * The start fill: gives each `user` row whose `public_code` is null a public code. The update writes only while that
- * row's code is still null and no row has the picked code; when it writes nothing and the row is still null, it picks
- * again.
+ * row's code is still null and no row has the picked code; when it writes nothing and the row is still null, or the
+ * unique index fails it, it picks again.
  */
-function fill_public_codes(conn: DbConn): void {
+function fill_public_codes(conn: DbConn, dialect: Dialect): void {
   for (;;) {
     const rows = conn.query('SELECT user_id FROM "user" WHERE public_code IS NULL ORDER BY user_id LIMIT $1', [FILL_BATCH]);
     if (rows.length === 0) return;
     for (const row of rows) {
       for (;;) {
-        const written = conn.query(
-          'UPDATE "user" SET public_code = $1 WHERE user_id = $2 AND public_code IS NULL AND NOT EXISTS (SELECT 1 FROM "user" WHERE public_code = $1) RETURNING user_id',
-          [pick_public_code(), row.user_id ?? null],
-        );
+        const written = fill_update(conn, dialect, row.user_id ?? null);
+        if (written === null) continue;
         if (written.length > 0) break;
         const now = conn.query('SELECT public_code FROM "user" WHERE user_id = $1', [row.user_id ?? null])[0];
         if (now === undefined || now.public_code !== null) break;
@@ -348,7 +373,7 @@ export function apply_schema(conn: DbTxConn, dialect: Dialect, tables: readonly 
     const reason = apply_table(conn, dialect, table);
     if (reason !== null) return reason;
   }
-  fill_public_codes(conn);
+  fill_public_codes(conn, dialect);
   return null;
 }
 
