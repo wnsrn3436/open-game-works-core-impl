@@ -158,6 +158,43 @@ func test_content_state() -> void:
 	assert_eq(errors(), 1, "one error log for the new callback")
 
 
+## An `open_popup` started without waiting: `done` and its result after it ends.
+class Opening:
+	extends RefCounted
+	var done: bool = false
+	var result: UICore.PopupOpenResult = UICore.PopupOpenResult.OPENED
+
+	func open(key: String) -> void:
+		result = await UICore.open_popup(key, null, Callable())
+		done = true
+
+
+func test_ui_flow_and_finite_tweens_during_a_popup_open_tween() -> void:
+	assert_true(await start())
+	var json: String = await state()
+	assert_false(JSONR.boolean(json, "ui_flow"), "no flow")
+	assert_eq(JSONR.integer(json, "finite_tweens"), 0, "no tween")
+	var opening: Opening = Opening.new()
+	opening.open(POPUP_TWEEN)
+	# The popup loads through threaded loads, so the start of its open tween ends the wait, not a frame count. A
+	# release of the modules, as at the test time limit, ends it too.
+	while TweenCore.is_initialized() and TweenCore.get_finite_playing_count() == 0 and not opening.done:
+		await UnitTestCore.wait_frames(1)
+	assert_false(opening.done, "the popup is in its open tween")
+	json = await state()
+	assert_true(JSONR.boolean(json, "ui_flow"), "ui_flow in the open tween")
+	assert_true(JSONR.integer(json, "finite_tweens") >= 1, "finite_tweens in the open tween")
+	for i: int in 20:
+		if opening.done:
+			break
+		await advance(50, 1)
+	assert_true(opening.done, "the open flow ended")
+	assert_eq(opening.result, UICore.PopupOpenResult.OPENED)
+	json = await state()
+	assert_false(JSONR.boolean(json, "ui_flow"), "no flow after the open flow")
+	assert_eq(JSONR.integer(json, "finite_tweens"), 0, "no tween after the open tween")
+
+
 func test_step() -> void:
 	assert_true(await start())
 	assert_false((await run("step", PackedStringArray(["100"]))).ok, "not in step mode")

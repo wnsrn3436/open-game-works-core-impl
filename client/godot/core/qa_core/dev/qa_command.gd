@@ -20,6 +20,8 @@ var started_real_ms: int = 0
 var limit_ms: int = 0
 ## Whether the command has put its first device input in, and so is recorded as a telemetry input.
 var input_recorded: bool = false
+## Whether a frame start added 1 ms of step budget for a device input of the command, so its end clears the budget left.
+var added_budget: bool = false
 var done: bool = false
 ## Whether the end of its automation channel connection ended the command: it puts in no more device input.
 var cut: bool = false

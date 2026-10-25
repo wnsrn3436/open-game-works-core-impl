@@ -1,10 +1,12 @@
 extends "res://core/qa_core/tests/support/qa_test_case.gd"
-## Screen capture in the render pass: PNGs without the debug layer, `capture_video` frames over the automation
-## channel and `capture_video` next to the command queue.
+## Screen capture in the render pass: PNGs and JPEGs without the debug layer, `capture_video` frames over the
+## automation channel and `capture_video` next to the command queue.
 
 const SERVER := preload("res://core/qa_core/tests/support/qa_loopback_server.gd")
 const NATIVE: PackedStringArray = ["android", "ios", "windows", "macos", "linux"]
 const TOKEN: String = "qa-render-token"
+const PNG_SIGNATURE: PackedByteArray = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+const JPEG_START: PackedByteArray = [0xFF, 0xD8]
 
 var server: SERVER = null
 ## `TimeCore` real elapsed time of every hide of the debug layer: the start of every screen capture.
@@ -42,6 +44,40 @@ func test_capture_leaves_out_the_debug_layer() -> void:
 	assert_true(UICore.get_layer(UICore.UILayer.DEBUG).visible, "the debug layer is shown again")
 	assert_false((await run("capture_video", PackedStringArray(["1000"]))).ok, "no automation channel connection")
 	assert_eq(warns(), 1)
+
+
+func test_capture_formats() -> void:
+	assert_true(await start())
+	add_button("go")
+	await UnitTestCore.wait_frames(3)
+	var jpg: RunCommandResult = await run("capture_screen", PackedStringArray(["jpg"]))
+	assert_true(jpg.ok, "capture_screen jpg")
+	assert_eq(jpg.bytes.slice(0, 2), JPEG_START, "JPEG bytes")
+	var image: Image = Image.new()
+	assert_eq(image.load_jpg_from_buffer(jpg.bytes), OK, "a JPEG")
+	assert_eq(image.get_size(), ResolutionCore.get_window_size(), "the JPEG is the window size")
+	for args: PackedStringArray in [PackedStringArray(["png"]), PackedStringArray()]:
+		var png: RunCommandResult = await run("capture_screen", args)
+		assert_true(png.ok, "capture_screen " + " ".join(args))
+		assert_eq(png.bytes.slice(0, 8), PNG_SIGNATURE, "PNG bytes with %d arguments" % args.size())
+		assert_eq(image.load_png_from_buffer(png.bytes), OK, "a PNG")
+		assert_eq(image.get_size(), ResolutionCore.get_window_size(), "the PNG is the window size")
+	var gif: RunCommandResult = await run("capture_screen", PackedStringArray(["gif"]))
+	assert_false(gif.ok, "another format fails")
+	assert_true(gif.bytes.is_empty())
+	assert_eq(warns(), 1)
+	# The quality of the JPEG is `QACore.captureJpgQuality`: a low quality gives fewer bytes than the highest. The engine
+	# takes the quality in whole percent, so 10 is the lowest value it encodes.
+	var sizes: PackedInt64Array = PackedInt64Array()
+	for quality: int in [10, 1000]:
+		QACore.release()
+		set_int("QACore.captureJpgQuality", quality)
+		QACore._test_launch_values = {}
+		QACore._has_test_launch_values = true
+		assert_true(QACore.init())
+		await UnitTestCore.wait_frames(3)
+		sizes.append((await capture(PackedStringArray(["jpg"]))).size())
+	assert_true(sizes[0] < sizes[1], "quality 10 gives fewer bytes than 1000: %s" % sizes)
 
 
 func test_capture_while_the_engine_does_not_draw() -> void:
@@ -107,6 +143,27 @@ func test_capture_video_over_the_channel() -> void:
 	assert_eq(frames, PackedInt32Array(range(VIDEO_FPS)), "frames 0 to videoFps - 1 in order")
 
 
+func test_capture_video_of_jpeg_frames() -> void:
+	if not await start_channel():
+		return
+	assert_true(server.send("{\"id\": 5, \"command\": \"capture_video\", \"args\": [\"500\", \"jpg\"]}"))
+	var response: String = await wait_response(5)
+	assert_true(JSONR.boolean(response, "ok"), response)
+	# ⌊500 × videoFps ÷ 1000⌋ with videoFps 4.
+	var expected: int = 2
+	assert_eq(JSONR.integer(response, "result.frame_count"), expected)
+	var frames: int = 0
+	for message: String in server.messages:
+		if JSONR.has(message, "frame") and JSONR.integer(message, "id") == 5:
+			frames += 1
+			var bytes: PackedByteArray = Marshalls.base64_to_raw(JSONR.text(message, "bytes"))
+			assert_eq(bytes.slice(0, 2), JPEG_START, "a JPEG frame")
+			var jpg: Image = Image.new()
+			assert_eq(jpg.load_jpg_from_buffer(bytes), OK, "a JPEG frame")
+			assert_eq(jpg.get_size(), ResolutionCore.get_window_size(), "the frame is the window size")
+	assert_eq(frames, expected, "a frame message per frame")
+
+
 func test_capture_video_frame_times_and_late_frames() -> void:
 	set_int("QACore.videoFps", 30)
 	set_int("QACore.videoMaxMs", 2000)
@@ -168,8 +225,8 @@ func _on_debug_visibility(layer: CanvasLayer) -> void:
 		capture_starts.append(TimeCore.get_real_time())
 
 
-func capture() -> PackedByteArray:
-	var result: RunCommandResult = await run("capture_screen")
+func capture(args: PackedStringArray = PackedStringArray()) -> PackedByteArray:
+	var result: RunCommandResult = await run("capture_screen", args)
 	assert_true(result.ok, "capture_screen")
 	return result.bytes
 

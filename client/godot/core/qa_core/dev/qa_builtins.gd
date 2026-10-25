@@ -10,6 +10,9 @@ const _QUERY := preload("res://core/qa_core/dev/qa_query.gd")
 const _NODE := preload("res://core/qa_core/dev/qa_core_node.gd")
 
 const CAPTURE_VIDEO: String = "capture_video"
+## Image formats of `capture_screen` and `capture_video`, by format argument.
+const _PNG: String = "png"
+const _JPG: String = "jpg"
 ## Room for the request records of `get_requests` and the records of `get_sound`.
 const _RECORD_ROOM: int = 65536
 ## The largest integer a JSON number keeps exactly: 2^53.
@@ -35,8 +38,8 @@ const _SPECS: PackedStringArray = [
 	"get_stats||Reads the performance stats.",
 	"get_telemetry||Reads the telemetry.",
 	"clear_telemetry||Empties the telemetry and starts it now.",
-	"capture_screen||PNG of the screen without the debug layer.",
-	"capture_video|ms|PNG frames of the screen over the automation channel.",
+	"capture_screen|format?|PNG or JPEG of the screen without the debug layer.",
+	"capture_video|ms,format?|PNG or JPEG frames of the screen over the automation channel.",
 	"list_ui||Reads the visible UI elements.",
 	"get_anchor|anchor,key?|Reads the rectangle of an anchor.",
 	"tap|x,y|Touch press and release.",
@@ -668,19 +671,34 @@ static func _focus_ui(command: _COMMAND) -> void:
 # --- capture ---
 
 
+## The optional format argument at `index`: `png` when it is left out. Another format fails `command` and gives an
+## empty string.
+static func _capture_format(command: _COMMAND, index: int) -> String:
+	var format: String = command.args[index] if index < command.args.size() else _PNG
+	if not _need(command, format == _PNG or format == _JPG, "the format is not png or jpg"):
+		return ""
+	return format
+
+
 static func _capture_screen(command: _COMMAND) -> void:
+	var format: String = _capture_format(command, 0)
+	if format.is_empty():
+		return
 	if not _need(command, not QACore.is_headless(), "a headless run has no screen"):
 		return
-	var png: PackedByteArray = await QACore._capture_png()
+	var image: PackedByteArray = await QACore._capture_image(format == _JPG)
 	if _gone(command):
 		return
-	if _need(command, not png.is_empty(), "could not read the screen"):
-		_ok(command, "", png)
+	if _need(command, not image.is_empty(), "could not read the screen"):
+		_ok(command, "", image)
 
 
 static func _capture_video(command: _COMMAND) -> void:
 	if not _need(command, _ARGS.is_int_at_least(command.args[0], 1) and _ARGS.to_int(command.args[0]) <= QACore._video_max_ms,
 			"ms is out of range"):
+		return
+	var format: String = _capture_format(command, 1)
+	if format.is_empty():
 		return
 	if not _need(command, not QACore.is_headless(), "a headless run has no screen"):
 		return
@@ -696,12 +714,12 @@ static func _capture_video(command: _COMMAND) -> void:
 			await _frame()
 		if _gone(command):
 			return
-		var png: PackedByteArray = await QACore._capture_png()
+		var image: PackedByteArray = await QACore._capture_image(format == _JPG)
 		if _gone(command):
 			return
-		if not _need(command, not png.is_empty(), "could not read the screen"):
+		if not _need(command, not image.is_empty(), "could not read the screen"):
 			return
-		if not _need(command, QACore._send_frame(command, frame, png), "could not send a frame"):
+		if not _need(command, QACore._send_frame(command, frame, image), "could not send a frame"):
 			return
 	_ok(command, _JSON.object(PackedStringArray([
 		_JSON.pair("frame_count", _JSON.integer(frames)),
@@ -756,8 +774,7 @@ static func _step(command: _COMMAND) -> void:
 	if not _need(command, not TimeCore.is_paused(), "game time is paused"):
 		return
 	var ms: int = _ARGS.to_int(text)
-	if RealtimeCore.is_initialized() and RealtimeCore.match_state() == RealtimeCore.MatchState.PLAYING \
-			and RealtimeCore.match_info().lockstep:
+	if QACore._in_lockstep_play():
 		await _lockstep_step(command, ms)
 		return
 	command.on_fail = _clear_step_budget

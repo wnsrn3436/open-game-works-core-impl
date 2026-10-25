@@ -320,7 +320,8 @@ func test_screen_commands_of_a_headless_run() -> void:
 	assert_true(await start())
 	assert_false((await run("capture_screen")).ok, "capture_screen in a headless run")
 	assert_false((await run("capture_video", PackedStringArray(["1000"]))).ok, "capture_video in a headless run")
-	assert_eq(warns(), 2)
+	assert_false((await run("capture_screen", PackedStringArray(["jpg"]))).ok, "capture_screen jpg in a headless run")
+	assert_eq(warns(), 3)
 	var stats: String = await run_ok("get_stats")
 	for field: String in ["video_memory_bytes", "draw_calls", "primitives"]:
 		assert_eq(JSONR.integer(stats, field), 0, field + " of a headless run")

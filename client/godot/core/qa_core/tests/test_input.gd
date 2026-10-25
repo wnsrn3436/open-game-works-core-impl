@@ -24,6 +24,21 @@ class LateStarter:
 			call.call()
 
 
+## Moves the test clock by `step_ms` in its process callback, after the process callbacks of the other nodes, as the
+## engine frame of a device clock moves game time inside the frame. A test clock moved between frames would use the
+## step budget before the process callbacks of the frame that has it.
+class ClockDriver:
+	extends Node
+	var step_ms: int = 0
+
+	func _init() -> void:
+		process_priority = 1000000
+		process_mode = Node.PROCESS_MODE_ALWAYS
+
+	func _process(_delta: float) -> void:
+		if step_ms > 0:
+			UnitTestCore.advance_clock(step_ms, false)
+
 ## U+1F44D U+1F3FD: two code points, one emoji.
 const THUMBS_UP: String = "\U01F44D\U01F3FD"
 
@@ -447,3 +462,87 @@ func _on_frame_click() -> void:
 
 func _on_device_changed(event: InputDeviceChangedEvent) -> void:
 	devices.append(event.device)
+
+
+## In step mode with budget 0, each device input of an input command adds 1 ms of budget at the start of its frame: a
+## node that stops with the engine features sees the action just pressed in the press frame, and game time grows by
+## 1 for the press and 1 for the release. Paused game time and step mode off add no budget.
+func test_an_input_in_step_mode_runs_its_frame_with_1_ms() -> void:
+	assert_true(await start_input())
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	var stopped: PROBE = PROBE.new()
+	stopped.process_mode = Node.PROCESS_MODE_PAUSABLE
+	stopped.watched = ADVANCE
+	add_child_autofree(stopped)
+	probe.process_mode = Node.PROCESS_MODE_ALWAYS
+	var clock: ClockDriver = ClockDriver.new()
+	add_child_autofree(clock)
+	# An Array, not a packed array: the lambda keeps a reference to it.
+	var budgets: Array[int] = []
+	QACore._node.frame_started.connect(func() -> void: budgets.append(TimeCoreDev.get_step_budget()))
+	await run_ok("set_step_mode", PackedStringArray(["on"]))
+	clock.step_ms = 16
+	await UnitTestCore.wait_frames(2)
+	assert_true(tree.paused, "the engine features stop in step mode with budget 0")
+	var game_time: int = TimeCore.get_game_time()
+	await run_ok("key", PackedStringArray(["Space"]))
+	var presses: PackedInt64Array = probe.frames_of("key_down")
+	assert_eq(presses.size(), 1, "one press")
+	if presses.size() == 1:
+		assert_eq(stopped.just_pressed_frames, PackedInt64Array([presses[0]]),
+			"the stopped node sees the action just pressed in the press frame")
+	assert_eq(TimeCore.get_game_time() - game_time, 2, "1 ms for the press and 1 ms for the release")
+	assert_eq(budgets.count(1), 2, "1 ms of budget in the frame of each device input")
+	assert_eq(TimeCoreDev.get_step_budget(), 0)
+	await UnitTestCore.wait_frames(2)
+	assert_true(tree.paused, "the engine features stop again after the input")
+	# Paused game time: no budget.
+	TimeCore.set_paused(true)
+	budgets.clear()
+	game_time = TimeCore.get_game_time()
+	await run_ok("key", PackedStringArray(["Space"]))
+	assert_eq(budgets.count(0), budgets.size(), "no budget while game time is paused")
+	assert_eq(TimeCore.get_game_time(), game_time)
+	assert_eq(stopped.just_pressed_frames.size(), 1, "the stopped node does not run")
+	TimeCore.set_paused(false)
+	# Step mode off: no budget.
+	await run_ok("set_step_mode", PackedStringArray(["off"]))
+	budgets.clear()
+	await run_ok("key", PackedStringArray(["Space"]))
+	assert_eq(budgets.count(0), budgets.size(), "no budget with step mode off")
+	assert_eq(stopped.just_pressed_frames.size(), 2, "the node runs with step mode off")
+	assert_eq(UnitTestCore.check_logs(ERROR, "TimeCore"), 0, "add_step_budget was not called outside step mode")
+	assert_eq(warns(), 0)
+
+
+## At a time scale too low to use 1 ms in a frame, an input command that added budget ends with it set back to 0, and
+## one that added none leaves the budget as it is.
+func test_an_input_in_step_mode_clears_the_budget_it_left() -> void:
+	assert_true(await start_input())
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	await run_ok("set_step_mode", PackedStringArray(["on"]))
+	await run_ok("set_time_scale", PackedStringArray(["1"]))
+	var clock: ClockDriver = ClockDriver.new()
+	add_child_autofree(clock)
+	clock.step_ms = 16
+	var game_time: int = TimeCore.get_game_time()
+	# An Array, not a packed array: the lambda keeps a reference to it.
+	var budgets: Array[int] = []
+	QACore._node.frame_started.connect(func() -> void: budgets.append(TimeCoreDev.get_step_budget()))
+	await run_ok("key", PackedStringArray(["Space"]))
+	assert_true(1 in budgets, "the press added 1 ms")
+	assert_eq(TimeCore.get_game_time(), game_time, "16 ms a frame at time scale 1 uses none of it")
+	assert_eq(TimeCoreDev.get_step_budget(), 0, "the budget left is set to 0 when the command ends")
+	assert_true(TimeCoreDev.is_step_mode(), "step mode stays on")
+	await UnitTestCore.wait_frames(1)
+	assert_true(tree.paused, "the engine features stop again")
+	assert_eq(JSONR.integer(await state(), "step_budget_ms"), 0, "a step after it starts from budget 0")
+	# A budget that was there before the input: the command adds none and leaves it.
+	TimeCoreDev.add_step_budget(5)
+	budgets.clear()
+	await run_ok("key", PackedStringArray(["Space"]))
+	assert_eq(budgets.count(5), budgets.size(), "no budget added on top")
+	assert_eq(TimeCoreDev.get_step_budget(), 5, "the budget is left as it is")
+	await run_ok("set_time_scale", PackedStringArray(["1000"]))
+	await run_ok("set_step_mode", PackedStringArray(["off"]))
+	assert_eq(warns(), 0)
