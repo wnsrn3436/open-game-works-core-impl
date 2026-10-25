@@ -39,10 +39,9 @@ describe('request and accept', () => {
 
     advance(h, 1_000n);
     expect((await accept(b, id(a))).code).toBe(0);
-    expect(links(h)).toEqual([
-      { user_id: id(a), other_id: id(b), state: 'FRIEND_STATE_FRIEND', created_at: START_AT, updated_at: START_AT + 1_000n },
-      { user_id: id(b), other_id: id(a), state: 'FRIEND_STATE_FRIEND', created_at: START_AT, updated_at: START_AT + 1_000n },
-    ]);
+    // `links` is in user ID order, and user IDs are random.
+    const friend = (user_id: bigint, other_id: bigint) => ({ user_id, other_id, state: 'FRIEND_STATE_FRIEND', created_at: START_AT, updated_at: START_AT + 1_000n });
+    expect(links(h)).toEqual([friend(id(a), id(b)), friend(id(b), id(a))].sort((x, y) => (x.user_id < y.user_id ? -1 : 1)));
     for (const user of [a, b]) expect(counts(h, id(user))).toEqual({ friend_count: 1, sent_count: 0, received_count: 0 });
   });
 
