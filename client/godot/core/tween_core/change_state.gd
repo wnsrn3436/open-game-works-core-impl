@@ -12,4 +12,6 @@ var easing: int = 0
 var started: bool = false
 ## The target value is set in this cycle.
 var finished: bool = false
+## The target was an arranged element when the change started in this cycle. Set together with `started`.
+var arranged: bool = false
 var start: Vector4 = Vector4.ZERO

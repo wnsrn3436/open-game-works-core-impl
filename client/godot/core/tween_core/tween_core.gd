@@ -641,25 +641,28 @@ static func _set_step_values(record: _RECORD, object: Object, finish: bool) -> b
 		var local: int = record.step_elapsed - change.delay
 		if not finish and local < 0:
 			continue
-		if finish or local >= change.duration:
+		if not change.started:
 			change.started = true
+			change.arranged = not record.is_value and _is_arranged(object)
+			if not finish and local < change.duration:
+				change.start = (
+					change.start_value if change.use_start else _read(object, change.property, change.arranged)
+				)
+		if finish or local >= change.duration:
 			change.finished = true
-			_set_value(record, object, change.property, change.target)
+			_set_value(record, object, change, change.target)
 		else:
-			if not change.started:
-				change.started = true
-				change.start = change.start_value if change.use_start else _read(object, change.property)
 			var progress: float = float(local) / float(change.duration)
 			var value: Vector4 = change.start + (change.target - change.start) * _ease(change.easing, progress)
-			_set_value(record, object, change.property, value)
+			_set_value(record, object, change, value)
 		if record.handle != handle or _is_gone(record):
 			return false
 	return true
 
 
-static func _set_value(record: _RECORD, object: Object, property: int, value: Vector4) -> void:
+static func _set_value(record: _RECORD, object: Object, change: _CHANGE, value: Vector4) -> void:
 	if not record.is_value:
-		_write(object, property, value)
+		_write(object, change.property, value, change.arranged)
 		return
 	match record.value_kind:
 		TweenValueKind.FLOAT:
@@ -708,7 +711,7 @@ static func _apply_end_state(record: _RECORD) -> void:
 		return
 	if record.is_value:
 		if record.receiver.is_valid():
-			_set_value(record, null, -1, record.changes[0].target)
+			_set_value(record, null, record.changes[0], record.changes[0].target)
 		return
 	if not is_instance_id_valid(record.target_id):
 		return
@@ -718,7 +721,9 @@ static func _apply_end_state(record: _RECORD) -> void:
 		if not is_instance_id_valid(record.target_id):
 			return
 		var change: _CHANGE = record.changes[i]
-		_write(object, change.property, change.target)
+		# a change that did not start in this cycle starts here
+		var arranged: bool = change.arranged if change.started else _is_arranged(object)
+		_write(object, change.property, change.target, arranged)
 
 
 static func _unblock(record: _RECORD) -> void:
@@ -1012,8 +1017,24 @@ static func _has_property(object: Object, property: int) -> bool:
 	return object is Node2D or object is Control or object is Node3D
 
 
-## The property value of `object` as a 4 component vector. Unused components are 0.
-static func _read(object: Object, property: int) -> Vector4:
+## Whether `object` is an arranged element: a `Control` whose parent is a `Container`.
+static func _is_arranged(object: Object) -> bool:
+	return object is Control and (object as Control).get_parent() is Container
+
+
+## The property value of `object` as a 4 component vector. Unused components are 0. `Position`, `Rotation` and
+## `Scale` of an arranged element are its offset transform.
+static func _read(object: Object, property: int, arranged: bool) -> Vector4:
+	if arranged and property <= TweenProperty.SCALE:
+		var control: Control = object as Control
+		match property:
+			TweenProperty.POSITION:
+				var p: Vector2 = control.offset_transform_position
+				return Vector4(p.x, p.y, 0.0, 0.0)
+			TweenProperty.ROTATION:
+				return Vector4(rad_to_deg(control.offset_transform_rotation), 0.0, 0.0, 0.0)
+		var s: Vector2 = control.offset_transform_scale
+		return Vector4(s.x, s.y, 0.0, 0.0)
 	match property:
 		TweenProperty.POSITION:
 			if object is Node3D:
@@ -1041,8 +1062,12 @@ static func _read(object: Object, property: int) -> Vector4:
 	return Vector4(_modulate_of(object).a, 0.0, 0.0, 0.0)
 
 
-## Sets the property value of `object`. `Color` and `Opacity` are clamped to 0..1.
-static func _write(object: Object, property: int, value: Vector4) -> void:
+## Sets the property value of `object`. `Color` and `Opacity` are clamped to 0..1. `Position`, `Rotation` and
+## `Scale` of an arranged element go to its offset transform.
+static func _write(object: Object, property: int, value: Vector4, arranged: bool) -> void:
+	if arranged and property <= TweenProperty.SCALE:
+		_write_offset(object as Control, property, value)
+		return
 	match property:
 		TweenProperty.POSITION:
 			if object is Node3D:
@@ -1075,6 +1100,21 @@ static func _write(object: Object, property: int, value: Vector4) -> void:
 			var color: Color = _modulate_of(object)
 			color.a = clampf(value.x, 0.0, 1.0)
 			_set_modulate(object, color)
+
+
+## Sets the offset transform of an arranged element, about the pivot of a `Control` that is not arranged.
+static func _write_offset(control: Control, property: int, value: Vector4) -> void:
+	control.offset_transform_enabled = true
+	control.offset_transform_visual_only = false
+	control.offset_transform_pivot = control.pivot_offset
+	control.offset_transform_pivot_ratio = control.pivot_offset_ratio
+	match property:
+		TweenProperty.POSITION:
+			control.offset_transform_position = Vector2(value.x, value.y)
+		TweenProperty.ROTATION:
+			control.offset_transform_rotation = deg_to_rad(value.x)
+		TweenProperty.SCALE:
+			control.offset_transform_scale = Vector2(value.x, value.y)
 
 
 static func _modulate_of(object: Object) -> Color:
