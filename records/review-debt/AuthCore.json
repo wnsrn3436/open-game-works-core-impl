@@ -1,30 +1,5 @@
 {
   "target": "AuthCore",
   "nextId": 6,
-  "items": [
-    {
-      "id": "D2",
-      "location": "client/godot/core/auth_core/tests/test_terms.gd:88",
-      "problem": "`test_get_terms_failure_fails_without_popup` asserts `check_logs(\"error\", \"AuthCore\")` equals 0, which unit-test-core.md:116 forbids; the unchecked-error-log rule (unit-test-core.md:114) already fails the test, so the assert checks nothing",
-      "foundBy": "AuthCore round 2"
-    },
-    {
-      "id": "D3",
-      "location": "client/godot/core/auth_core/tests/test_account.gd:188",
-      "problem": "asserts `check_logs(\"error\", \"AuthCore\")` equals 0 between the two `list_linked_providers` calls, which unit-test-core.md:116 forbids; an error log from the first call would also make the `check_logs(..., 1)` assert at `:192` count 2 and fail, so the assert checks nothing",
-      "foundBy": "AuthCore round 2"
-    },
-    {
-      "id": "D4",
-      "location": "client/godot/core/auth_core/tests/test_login.gd:471",
-      "problem": "asserts `check_logs(\"error\", \"AuthCore\")` equals 0 at the end of the test, which unit-test-core.md:116 forbids; the unchecked-error-log rule (unit-test-core.md:114) already fails the test, so the assert checks nothing",
-      "foundBy": "AuthCore round 2"
-    },
-    {
-      "id": "D5",
-      "location": "client/godot/core/auth_core/tests/test_login.gd:470",
-      "problem": "asserts `check_logs(\"error\", \"AuthCore\")` equals 0 at the end of the test, which unit-test-core.md:116 forbids; the unchecked-error-log rule (unit-test-core.md:114) already fails the test, so the assert checks nothing (already in the AuthCore debt list as D4 at :471, the line moved up by one after caef783)",
-      "foundBy": "AuthCore round 3"
-    }
-  ]
+  "items": []
 }
