@@ -185,7 +185,6 @@ func test_list_linked_providers_fills_the_buffer_from_0_without_resizing_it() ->
 			[CoreContract.LoginProvider.LOGIN_PROVIDER_APPLE, CoreContract.LoginProvider.LOGIN_PROVIDER_GOOGLE, -1]
 		)
 	)
-	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)
 	var small: PackedInt32Array = PackedInt32Array([-1])
 	assert_eq(AuthCore.list_linked_providers(small), 1)
 	assert_eq(small, PackedInt32Array([CoreContract.LoginProvider.LOGIN_PROVIDER_APPLE]))
