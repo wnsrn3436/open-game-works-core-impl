@@ -1,11 +1,23 @@
 {
   "target": "RequirementCore",
-  "nextId": 2,
+  "nextId": 4,
   "items": [
     {
       "id": "D1",
       "location": "client/godot/core/requirement_core/requirement_core.gd:626",
       "problem": "efficiency: while one or more watch has an owner object (`_owner_watch_count > 0`), `_on_frame` loops over every slot of `_watches` each frame to find destroyed owners (`is_instance_id_valid` per slot), so the work per frame grows with the number of watches and with the `null` slots, which `_watches` never shrinks (`_remove_watch_at` at :506 only sets `null`). Code path: `requirement_core_node.gd:23` `_process` → `RequirementCore._on_frame` → loop at :627-630. Growing amount: the watch slot count (every screen that sets watches with its root as owner adds slots). Direction: delete the watch from the owner's `tree_exiting`/free notification or keep the owner watches in a separate list",
+      "foundBy": "RequirementCore round 1"
+    },
+    {
+      "id": "D2",
+      "location": "client/godot/core/requirement_core/requirement_core.gd:508",
+      "problem": "`_remove_watch_at` also runs `_free_slots.append(slot)` (:508), `slots.remove_at(...)` (:510) and `_slots_by_id.erase(...)` (:512). It does these from frame code (`_on_frame` :631, `_run_batch` :668, :677), which breaks the `engines/godot.md` `## frame code` rule against changing a collection size. These lines existed before the range",
+      "foundBy": "RequirementCore round 1"
+    },
+    {
+      "id": "D3",
+      "location": "client/godot/core/requirement_core/requirement_core.gd:649",
+      "problem": "`_run_batch` (frame code via `_on_frame`) goes over every slot of `_watches` three times per round (:649, :655, :658). It does so even when only a few watches are pending, so the cost of one frame with a pending evaluation grows with the total number of watches, not the pending ones. `_on_user_state_changed`, `_on_named_trigger` and `_on_content_event` (:685, :698, :708) likewise go over every slot per event. This existed before the range",
       "foundBy": "RequirementCore round 1"
     }
   ]
