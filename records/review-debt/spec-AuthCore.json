@@ -1,0 +1,12 @@
+{
+  "target": "spec AuthCore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/client-content/SKILL.md:51",
+      "problem": "the option screen entry `user ID` shows the value of `AuthCore.get_user_id` as a decimal string with a copy button, while skills/client-content/SKILL.md:162 and skills/server-core/modules/auth.md:133 say a user ID is not shown on screen and a user is shown by its public code (`AuthCore.get_public_code`); the two rules of the same document contradict, and static check `option entry` enforces the entry of line 51",
+      "foundBy": "spec AuthCore"
+    }
+  ]
+}
