@@ -1,4 +1,4 @@
-# review routing round 1
+# review: routing round 1
 
 ## findings
 
@@ -22,11 +22,7 @@ none
 
 ## unknown
 
-- Tests were not run: the checkout has no installed node_modules. The results below come from reading the code and tests
-- What was checked in range 2ef5ae8d..4bc36b73 for routing:
-  - `server/core/routing/pipeline.ts:588`: step 6 fills `BanDetail.public_code` from `storage.get_user_record(storage.read_db(), user_id)`, and an empty string when there is no record. This matches `routing.md` step 6 and `## error`, and `storage.md` (`get_user_record` gives an empty `public_code` for a null row). `proto/ogw/core.proto:47` has `string public_code = 6` in `BanDetail`
-  - `server/core/routing/module_api.ts:97`: `StorageModule.get_user_record` was added. `storage` is in `## dependency` of routing, and `storage.md:59` lists `routing` as a caller
-  - `server/core/routing/spec_tables.ts:69`: the request prepare row `core/FindUserByPublicCode` → `public-profile.count_find_attempt` matches the `routing.md` request prepare table. `collect.ts` `collect_prepare` turns a missing operation into a start error. The `RedeemCoupon` `has_response` exception in `pipeline.ts` `prepare` is not applied to this rpc, which matches the spec. `server/core/public-profile/tests/requests.test.ts:267` goes through the server and fails when this prepare row is removed, because the 4th find would no longer be `RATE_LIMITED`
-  - `server/core/routing/spec_tables.ts:96` and `:133`: `find_user_by_public_code` was added to the auth admin operations (caller `operator`, as in `auth.md:119` and `admin-api.md:63`), and `FindUserByPublicCode` was added to the public-profile core rpcs (`public-profile.md:31`). `server/core/auth/admin.ts:78` exports it, and `server/core/auth/tests/public-code.test.ts:12` reaches it through admin-api
-  - `server/core/routing/tests/processing-order.test.ts:316`: the new assert compares `ban.public_code` with the stored record and the code format. It fails when the line in `pipeline.ts:588` is removed (empty string does not match the format)
-- Code outside the routing module that this range changed (auth, storage, public-profile, other module tests) was read only where routing calls it or where it shows the routing change is used. It was not reviewed as a target
+- The commit range `d4e2728..c6a1194` changes no file under `server/core/routing/`. The server changes are in `server/core/auth/login.ts`, `server/core/auth/deletion.ts`, `server/core/auth/dev/index.ts` and `server/core/testing/dev/setting_types.ts`. For routing, the only places reached are the token-less handler outputs that `process_tokenless` (`server/core/routing/pipeline.ts:510`) consumes, and the `POST /account/deletion` route. I checked these: `claim_key` now returns `user_id` = the new user on `WITHDRAWN`/`FAILED`, `create_user` and `transaction_failed` add an `error` log in auth, and routing's `fail` (`server/core/routing/pipeline.ts:207`) adds no second `error` log. Routing code outside these paths was not re-reviewed, because the range does not change it
+- I ran the routing core tests and `server/core/auth/tests/transaction-failure.test.ts` only with `OGW_DEFAULT_DB=sqlite`, and they passed (126 tests). `OGW_SERVER_DATA` pointed at `open-game-works-core-impl/server/build/data`, not at a build of this checkout, since this checkout has no `server/build/data` and the range does not change `test-data/`. The `postgresql` run was not done because no PostgreSQL input was available
+- In DEV, `server_time_at` (`server/core/routing/pipeline.ts:185`) of a token-less failure that now carries the new user's ID calls `server-time.user_now`, which reads the DB through the cheat offset provider. I did not check or reproduce whether this read throws when the cause of the `FAILED` transaction is the DB itself, so it is not a finding
+- Whether `user_id` of a `claim_key` `WITHDRAWN`/`FAILED` output should be the new user or none is not settled. Routing spec `## API` says "the user ID that the handler decided"; `### request processing order` says "auth finds the user"; auth spec `Login` step 3 says the user is the key's user after the commit. The only observable difference is `user_id` of the `request` log line, because a new user has no time offset. Confidence is below 80, so it is not written as a finding or as out of scope
