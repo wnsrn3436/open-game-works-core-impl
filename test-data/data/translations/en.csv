@@ -269,11 +269,11 @@ reserved_string.text.[auth_web_link_google],Auth web link google,f26aed9a644b664
 reserved_string.text.[auth_web_link_later],Auth web link later,d3ab9cadafb87ecd,d3ab9cadafb87ecd,Auth web link later
 reserved_string.text.[badge_count_over],{count}+,4af395b8d907e1cc,4af395b8d907e1cc,{count}+
 reserved_string.text.[bootstrap_age_blocked],Bootstrap age blocked,a8872cba4a74544d,a8872cba4a74544d,Bootstrap age blocked
-reserved_string.text.[bootstrap_banned],Bootstrap banned,3e382cb553ee0745,3e382cb553ee0745,Bootstrap banned
+reserved_string.text.[bootstrap_banned],Bootstrap banned {public_code} {until_at} {url},a361d34da19083ac,a361d34da19083ac,Bootstrap banned {public_code} {until_at} {url}
 reserved_string.text.[bootstrap_banned_deletion],Bootstrap banned deletion,18fc2e677b59bd66,18fc2e677b59bd66,Bootstrap banned deletion
-reserved_string.text.[bootstrap_banned_deletion_code],Bootstrap banned deletion code,fcfab49246fd094a,fcfab49246fd094a,Bootstrap banned deletion code
+reserved_string.text.[bootstrap_banned_deletion_code],Bootstrap banned deletion code {public_code} {code} {expires_at} {url},6e42415fa88575c5,6e42415fa88575c5,Bootstrap banned deletion code {public_code} {code} {expires_at} {url}
 reserved_string.text.[bootstrap_banned_deletion_failed],Bootstrap banned deletion failed,82ab24e20e9a7601,82ab24e20e9a7601,Bootstrap banned deletion failed
-reserved_string.text.[bootstrap_banned_permanent],Bootstrap banned permanent,fdbb16660f09fb9e,fdbb16660f09fb9e,Bootstrap banned permanent
+reserved_string.text.[bootstrap_banned_permanent],Bootstrap banned permanent {public_code} {url},81675449d378db47,81675449d378db47,Bootstrap banned permanent {public_code} {url}
 reserved_string.text.[bootstrap_fatal_error],Bootstrap fatal error,9479c403abbc4631,9479c403abbc4631,Bootstrap fatal error
 reserved_string.text.[bootstrap_login_failed],Bootstrap login failed,c1c7e8a09aa22e01,c1c7e8a09aa22e01,Bootstrap login failed
 reserved_string.text.[bootstrap_restart],Bootstrap restart,416b2690f47b0b5c,416b2690f47b0b5c,Bootstrap restart

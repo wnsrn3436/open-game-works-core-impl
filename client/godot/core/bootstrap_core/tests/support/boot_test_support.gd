@@ -11,6 +11,8 @@ const _UPDATE_SET := preload("res://core/bootstrap_core/update_set.gd")
 const _BUNDLE_NAME: String = "boot_test_bundle"
 const _BUNDLE_PATH: String = "update/boot_test_bundle.pck"
 const _BUNDLE_KEYS_PATH: String = "update/boot_test_bundle_keys.json"
+## Trace entry prefix of a `UICore.open_system_popup` call, followed by its index in `BootstrapCore._traced_popups`.
+const _POPUP_ENTRY: String = "UICore.open_system_popup:"
 
 ## Lifecycle client modules in the module list order rule.
 const MODULE_ORDER: PackedStringArray = [
@@ -124,6 +126,7 @@ static func prepare(launch_values: Dictionary[String, String] = {}, title_key: S
 	set_launch_values(launch_values)
 	ResourceCoreDev.set_test_key_list(resource_keys())
 	BootstrapCore._trace.clear()
+	BootstrapCore._traced_popups.clear()
 	BootstrapCore._trace_enabled = true
 	BootstrapCore._test_hold_quit = true
 	BootstrapCore._quit_request_count = 0
@@ -286,7 +289,8 @@ static func boot_block_active() -> bool:
 	return BootstrapCore._has_boot_block and InputBlockCore.is_active(BootstrapCore._boot_block)
 
 
-## The trace entries from the first `from` entry to the first `to` entry after it, both left out.
+## The trace entries from the first `from` entry to the first `to` entry after it, both left out. A failure popup
+## entry is its `popups` text.
 static func trace_between(from: String, to: String) -> PackedStringArray:
 	var result := PackedStringArray()
 	var start := BootstrapCore._trace.find(from)
@@ -295,22 +299,41 @@ static func trace_between(from: String, to: String) -> PackedStringArray:
 	for i: int in range(start + 1, BootstrapCore._trace.size()):
 		if BootstrapCore._trace[i] == to:
 			break
-		result.append(BootstrapCore._trace[i])
+		if BootstrapCore._trace[i].begins_with(_POPUP_ENTRY):
+			result.append(_popup_text(BootstrapCore._trace[i]))
+		else:
+			result.append(BootstrapCore._trace[i])
 	return result
 
 
-## Trace entries of the failure popups `BootstrapCore` asked `UICore` to open, in order.
+## The failure popups `BootstrapCore` asked `UICore` to open, in order, as `popup` text built from the
+## `SystemPopupParam` it passed: its body, button labels and format arguments.
 static func popups() -> PackedStringArray:
 	var result := PackedStringArray()
 	for operation: String in BootstrapCore._trace:
-		if operation.begins_with("UICore.open_system_popup"):
-			result.append(operation)
+		if operation.begins_with(_POPUP_ENTRY):
+			result.append(_popup_text(operation))
 	return result
 
 
-## The trace entry of a failure popup with body `body`, button labels `buttons` and format argument text `args`.
-static func popup(body: String, buttons: PackedStringArray, args: String = "") -> String:
-	return "UICore.open_system_popup body=%s buttons=%s args=%s" % [body, ",".join(buttons), args]
+## `popup` text of the `SystemPopupParam` that `BootstrapCore` passed to `UICore.open_system_popup` in the trace
+## entry `operation`.
+static func _popup_text(operation: String) -> String:
+	var param: SystemPopupParam = BootstrapCore._traced_popups[int(operation.substr(_POPUP_ENTRY.length()))]
+	var labels := PackedStringArray()
+	for button: SystemPopupButton in param.buttons:
+		labels.append(button.label)
+	var text := ""
+	if param.format_args != null:
+		text = LocalizationCore.format(param.body, param.format_args)
+	return popup(param.body, labels, text)
+
+
+## The `popups` text of a failure popup with body `body`, button labels `buttons` and `text`, the body text formatted
+## with its format arguments (the core test data body of `[bootstrap_banned]`, `[bootstrap_banned_permanent]` and
+## `[bootstrap_banned_deletion_code]` holds each of its format arguments). Empty `text`: no format arguments.
+static func popup(body: String, buttons: PackedStringArray, text: String = "") -> String:
+	return "UICore.open_system_popup body=%s buttons=%s text=%s" % [body, ",".join(buttons), text]
 
 
 ## Presses button `index` of the top system popup with real input: a direction key starts the focus mode on the
