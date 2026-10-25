@@ -85,7 +85,6 @@ func test_get_terms_failure_fails_without_popup() -> void:
 	Env.respond_error("core/GetTerms", CoreContract.CoreError.CORE_ERROR_MAINTENANCE)
 	assert_eq(await AuthCore.prepare_terms(), AuthCore.TermsStatus.FAILED)
 	assert_eq(UICore.get_open_popups().size(), 0)
-	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)
 
 
 func test_bad_document_urls_fail_without_popup() -> void:

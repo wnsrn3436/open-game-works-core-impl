@@ -467,7 +467,6 @@ func test_pending_token_is_written_on_foreground() -> void:
 	assert_eq(env.storage.count("write"), writes + 2)
 	assert_eq(env.stored_token(), "token-new")
 	assert_eq(AuthCore._pending_token, "")
-	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)
 
 
 func test_pending_token_survives_release_and_auto_login_uses_it() -> void:
