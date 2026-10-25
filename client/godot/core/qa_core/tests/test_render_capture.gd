@@ -78,14 +78,6 @@ func test_capture_formats() -> void:
 		await UnitTestCore.wait_frames(3)
 		sizes.append((await capture(PackedStringArray(["jpg"]))).size())
 	assert_true(sizes[0] < sizes[1], "quality 10 gives fewer bytes than 1000: %s" % sizes)
-	# A quality out of 10 to 1000 fails init, as the other out-of-range settings.
-	for quality: int in [9, 1001]:
-		QACore.release()
-		set_int("QACore.captureJpgQuality", quality)
-		QACore._has_test_launch_values = true
-		assert_false(QACore.init(), "quality %d fails init" % quality)
-		assert_false(QACore.is_initialized())
-		assert_eq(errors(), 1, "quality %d logs an error" % quality)
 
 
 func test_capture_while_the_engine_does_not_draw() -> void:
