@@ -444,11 +444,26 @@ func test_release_signal_sends_the_run_id_to_the_test_host() -> void:
 	assert_eq(requests[0].body.get_string_from_utf8(), '{"run_id": "release-signal"}')
 
 
-## A run sends `PUT /started` with its run ID once, before the result that holds its first test. The core tests run in
-## the native run and in the browser run, so both send it.
+## A run sends `PUT /started` with its run ID once, before the result that holds its first test, and waits for its
+## response before the test setup of its first test: the 204 of the test host has come when GUT starts the run. The core
+## tests run in the native run and in the browser run, so both send it.
 func test_run_sends_started_once_with_its_run_id_before_the_result_of_its_first_test() -> void:
 	EARLY.started.clear()
 	var root: RootRun = await run_root(PackedStringArray(["sample_run_time_limit.gd"]), NESTED_TIME_LIMIT_MS, 600, true)
+	_assert_started_before_the_first_test(root)
+
+
+## The GUT pre-run hook of UnitTestCore, which starts the run of the tool, waits for the response of `PUT /started`
+## before GUT starts the first test setup.
+func test_pre_run_hook_waits_for_the_started_response_before_the_first_test_setup() -> void:
+	EARLY.started.clear()
+	var root: RootRun = await run_root(PackedStringArray(["sample_run_time_limit.gd"]), NESTED_TIME_LIMIT_MS, 600, true, true)
+	_assert_started_before_the_first_test(root)
+	assert_eq(root.quit_codes, [1] as Array[int], "the run time limit ended the run")
+
+
+func _assert_started_before_the_first_test(root: RootRun) -> void:
+	assert_eq(root.response_codes_at_start, [204] as Array[int], "the response of PUT /started came before the first test setup")
 	var started: Array[UnitTestHttpRequest] = []
 	var first_result: int = -1
 	for index: int in root.requests.size():

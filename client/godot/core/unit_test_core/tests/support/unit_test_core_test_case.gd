@@ -11,6 +11,7 @@ const RunState := preload("res://core/unit_test_core/dev/unit_test_run.gd")
 const ResultItem := preload("res://core/unit_test_core/dev/unit_test_result.gd")
 const RunConfig := preload("res://core/unit_test_core/dev/unit_test_config.gd")
 const ScriptLogger := preload("res://core/unit_test_core/dev/unit_test_script_logger.gd")
+const PRE_RUN_HOOK: String = "res://core/unit_test_core/dev/gut_pre_run.gd"
 
 
 ## Wakes a wait when any signal connected to `wake` comes.
@@ -35,9 +36,50 @@ class QuitRecorder extends RefCounted:
 		quitted.emit()
 
 
+## Records the response codes of the engine HTTP requests that ended, of every `HTTPRequest` added to the tree while it
+## follows `SceneTree.node_added`. A request that ended without a response records 0.
+class ResponseRecorder extends RefCounted:
+	var codes: Array[int] = []
+	## `HTTPRequest` nodes whose end it could not follow.
+	var unfollowed: int = 0
+
+	func follow(node: Node) -> void:
+		if not node is HTTPRequest:
+			return
+		var http: HTTPRequest = node
+		if http.request_completed.connect(_on_completed) != OK:
+			unfollowed += 1
+
+	func _on_completed(_result: int, response_code: int, _headers: PackedStringArray, _body: PackedByteArray) -> void:
+		codes.append(response_code)
+
+
+## What a GUT run of its own had when GUT started its first test file, right before the test setup of its first test.
+class RunStart extends RefCounted:
+	var started: bool = false
+	var run: RunState = null
+	## Response codes of the engine HTTP requests that had ended by then.
+	var response_codes: Array[int] = []
+	var runner_gui_visible: bool = true
+	var _recorder: ResponseRecorder = null
+	var _layer: CanvasLayer = null
+
+	func _init(recorder: ResponseRecorder, layer: CanvasLayer) -> void:
+		_recorder = recorder
+		_layer = layer
+
+	func take() -> void:
+		started = true
+		run = UnitTestCore._run
+		response_codes = _recorder.codes.duplicate()
+		runner_gui_visible = _layer.visible
+
+
 ## A GUT run of its own that ended early: its run, the requests its test host got, and its quit.
 class RootRun extends RefCounted:
 	var run: RunState = null
+	## Response codes of the engine HTTP requests that had ended when GUT started the run, before its first test setup.
+	var response_codes_at_start: Array[int] = []
 	var requests: Array[UnitTestHttpRequest] = []
 	var quit_codes: Array[int] = []
 	## The result file the test host got, or an empty string.
@@ -81,9 +123,11 @@ func run_nested(files: PackedStringArray, kind: String = KIND_CORE, core_dir: St
 
 ## Runs the sample test files `files` of `RESOURCES` as a test run of their own: UnitTestCore of its own with the test
 ## time limit `test_time_limit_ms` and the run time limit `run_time_limit_ms`, its GUT run in a GUT runner GUI layer,
-## and a loopback HTTP server of this test as its test host. Returns when the run quits, which a `QuitRecorder` takes
-## in place of the engine, and, when `wait_gut_end` is true, after its GUT run ended too. Async.
-func run_root(files: PackedStringArray, test_time_limit_ms: int, run_time_limit_ms: int, wait_gut_end: bool) -> RootRun:
+## and a loopback HTTP server of this test as its test host. With `through_pre_run_hook`, the GUT pre-run hook of
+## UnitTestCore reads the run config, `init`s and starts the run, as in a run of the tool; otherwise this test does.
+## Returns when the run quits, which a `QuitRecorder` takes in place of the engine, and, when `wait_gut_end` is true,
+## after its GUT run ended too. Async.
+func run_root(files: PackedStringArray, test_time_limit_ms: int, run_time_limit_ms: int, wait_gut_end: bool, through_pre_run_hook: bool = false) -> RootRun:
 	var root: RootRun = RootRun.new()
 	var host: String = await UnitTestCore.start_http_server()
 	assert_false(host.is_empty(), "a test host")
@@ -100,8 +144,14 @@ func run_root(files: PackedStringArray, test_time_limit_ms: int, run_time_limit_
 	layer.add_child(gut)
 	for file: String in files:
 		gut.add_script(RESOURCES + file)
+	if through_pre_run_hook:
+		gut.pre_run_script = PRE_RUN_HOOK
 	var gut_end: Waker = Waker.new()
 	assert_eq(gut.end_run.connect(gut_end.wake), OK, "follow the end of the GUT run")
+	var recorder: ResponseRecorder = ResponseRecorder.new()
+	assert_eq(get_tree().node_added.connect(recorder.follow), OK, "follow the HTTP requests of the run")
+	var start: RunStart = RunStart.new(recorder, layer)
+	assert_eq(gut.start_run.connect(start.take), OK, "follow the start of the GUT run")
 	var quit: QuitRecorder = QuitRecorder.new()
 	var saved: Saved = suspend()
 	UnitTestCore._quit = quit.quit
@@ -109,17 +159,25 @@ func run_root(files: PackedStringArray, test_time_limit_ms: int, run_time_limit_
 	config.run_id = "root"
 	config.test_host = host
 	config.has_core_fixture_dir = true
-	assert_true(UnitTestCore.init(), "init of the run")
-	await UnitTestCore._begin_run(gut, config)
-	root.run = UnitTestCore._run
-	assert_false(layer.visible, "the run hides the GUT runner GUI")
+	if through_pre_run_hook:
+		UnitTestCore._test_run_config = config
+	else:
+		assert_true(UnitTestCore.init(), "init of the run")
+		await UnitTestCore._begin_run(gut, config)
 	gut.test_scripts()
 	if quit.codes.is_empty():
 		await quit.quitted
 	if wait_gut_end and not gut_end.woken:
 		await gut_end.woke
+	UnitTestCore._test_run_config = null
 	resume(saved)
 	CoreSettings._clear_test_values()
+	get_tree().node_added.disconnect(recorder.follow)
+	assert_eq(recorder.unfollowed, 0, "every HTTP request of the run is followed")
+	assert_true(start.started, "GUT started the run")
+	assert_false(start.runner_gui_visible, "the run hides the GUT runner GUI")
+	root.run = start.run
+	root.response_codes_at_start = start.response_codes
 	root.quit_codes = quit.codes
 	root.requests = await UnitTestCore.http_requests(host)
 	for request: UnitTestHttpRequest in root.requests:
