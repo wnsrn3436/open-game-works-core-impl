@@ -1,0 +1,107 @@
+{
+  "runs": [
+    {
+      "command": "ogw core dependents ScreenEffectCore",
+      "startedAt": 1792971027111,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot ScreenEffectCore --file client/godot/core/screen_effect_core/tests/test_playback.gd",
+      "startedAt": 1792971029193,
+      "exitCode": 0,
+      "summary": {
+        "tests": 10,
+        "passed": 10
+      },
+      "job": "mvogno809922f0"
+    },
+    {
+      "command": "ogw job wait mvogno809922f0",
+      "startedAt": 1792971033155,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot ScreenEffectCore --file client/godot/core/screen_effect_core/tests/test_playback.gd",
+      "startedAt": 1792971057583,
+      "exitCode": 1,
+      "summary": {
+        "tests": 10,
+        "passed": 9
+      },
+      "job": "mvogoa6b1621e2"
+    },
+    {
+      "command": "ogw job wait mvogoa6b1621e2",
+      "startedAt": 1792971061751,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AccessibilityCore BootstrapCore CutsceneCore QACore SceneCore ScreenEffectCore ShortcutCore TutorialCore UnitTestCore",
+      "startedAt": 1792971076984,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvogop4h89673c"
+    },
+    {
+      "command": "ogw core test godot AccessibilityCore BootstrapCore CutsceneCore QACore SceneCore ScreenEffectCore ShortcutCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792971077807,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvogoprz099f34"
+    },
+    {
+      "command": "ogw job wait mvogop4h89673c",
+      "startedAt": 1792971080585,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AccessibilityCore BootstrapCore CutsceneCore QACore SceneCore ScreenEffectCore ShortcutCore TutorialCore UnitTestCore",
+      "startedAt": 1792971092534,
+      "exitCode": 0,
+      "summary": {
+        "tests": 694,
+        "passed": 694
+      },
+      "job": "mvogp150e8cc4a"
+    },
+    {
+      "command": "ogw core test godot AccessibilityCore BootstrapCore CutsceneCore QACore SceneCore ScreenEffectCore ShortcutCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792971093467,
+      "exitCode": 0,
+      "summary": {
+        "tests": 685,
+        "passed": 685
+      },
+      "job": "mvogp1vd2f1776"
+    },
+    {
+      "command": "ogw job wait mvogp150e8cc4a",
+      "startedAt": 1792971096403,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvogp1vd2f1776",
+      "startedAt": 1792971147214,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792971181969,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvogqy5u19c7ae"
+    },
+    {
+      "command": "ogw job wait mvogqy5u19c7ae",
+      "startedAt": 1792971184616,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}

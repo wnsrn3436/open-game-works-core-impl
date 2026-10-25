@@ -116,6 +116,31 @@ func test_opacity_only_preset_on_a_channel_without_effect_plays_in_black() -> vo
 	assert_overlay(CUTSCENE, Color.BLACK, 0.6, true, "after the preset")
 
 
+func test_game_time_preset_holds_during_pause_and_ends_after_the_rest_of_its_duration_in_game_time() -> void:
+	assert_true(await start_modules())
+	var handle: ScreenEffectHandle = ScreenEffectCore.play_preset(
+		WORLD, make_owner(), make_definition([opacity_change(1.0, 1000)]), TweenCore.TimeBasis.GAME_TIME
+	)
+	record(handle)
+	await advance(300)
+	var held: float = state(WORLD).opacity
+	assert_almost_eq(held, 0.3, OPACITY_EPSILON, "the preset advances with game time")
+	TimeCore.set_paused(true)
+	var real_start: int = TimeCore.get_real_time()
+	for frame: int in 10:
+		await advance(100)
+		assert_almost_eq(state(WORLD).opacity, held, OPACITY_EPSILON, "paused: opacity at frame %d" % frame)
+	assert_eq(TimeCore.get_real_time() - real_start, 1000, "1000 ms of real elapsed time")
+	assert_eq(results.size(), 0, "paused: the preset still plays")
+	TimeCore.set_paused(false)
+	await advance(600)
+	assert_eq(results.size(), 0, "600 ms of game time is less than the 700 ms left")
+	assert_almost_eq(state(WORLD).opacity, 0.9, OPACITY_EPSILON, "the preset advances with game time again")
+	await advance(200)
+	assert_results([COMPLETED])
+	assert_overlay(WORLD, Color.BLACK, 1.0, true, "the preset reached its target")
+
+
 func test_preset_with_all_times_zero_has_its_end_value_when_the_operation_returns() -> void:
 	assert_true(await start_modules())
 	var definition: TweenDefinition = make_definition([color_change(Color(1.0, 0.0, 0.0, 1.0), 0), opacity_change(0.4, 0)])
