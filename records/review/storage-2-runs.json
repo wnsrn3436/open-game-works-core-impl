@@ -1,0 +1,39 @@
+{
+  "runs": [
+    {
+      "command": "ogw core test server storage --file tests/create-user-conflict.test.ts",
+      "startedAt": 1792952537114,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvo5nbnc1f7caf"
+    },
+    {
+      "command": "ogw job wait mvo5nbnc1f7caf",
+      "startedAt": 1792952540798,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server storage --file server/core/storage/tests/create-user-conflict.test.ts",
+      "startedAt": 1792952549921,
+      "exitCode": 0,
+      "summary": {
+        "tests": 6,
+        "passed": 6
+      },
+      "job": "mvo5nljs6fcc88"
+    },
+    {
+      "command": "ogw job wait mvo5nljs6fcc88",
+      "startedAt": 1792952550921,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job status mvo5nljs6fcc88",
+      "startedAt": 1792952564308,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
