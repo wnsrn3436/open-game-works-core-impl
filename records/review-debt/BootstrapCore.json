@@ -1,0 +1,12 @@
+{
+  "target": "BootstrapCore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "client/godot/core/bootstrap_core/bootstrap_core.gd:1123",
+      "problem": "The fatal screen `Label` has no font or theme of its own, so it draws with `default_font` of the theme that `LocalizationCore.load_fonts` set to the language font chain loaded through `ResourceCore` (client/godot/core/localization_core/localization_core.gd:135-136). The BootstrapCore spec says the fatal screen is drawn \"without data, translation or game resources\" (bootstrap-core.md `### fatal error`). Run path: a boot passes `LoadData` 4 (`load_fonts`), then reaches the fatal screen, either because a module emits `FatalErrorRequestedEvent` during `load_prompt_icons` (before UI ready) or because the fatal popup cannot be opened after UI ready (`_show_fatal_screen` at bootstrap_core.gd:1022/1071). The fatal screen text is then drawn with the game font chain, and with `LocalizationCore.bodyFontWeight` when it is greater than 0. A fatal does not release `LocalizationCore`, so the chain stays applied while the screen is shown. The chain was applied as `default_font` before this range too, so the range did not introduce this",
+      "foundBy": "BootstrapCore round 1"
+    }
+  ]
+}
