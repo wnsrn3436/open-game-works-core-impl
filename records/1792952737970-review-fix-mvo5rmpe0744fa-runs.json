@@ -1,0 +1,103 @@
+{
+  "runs": [
+    {
+      "command": "ogw core test godot BootstrapCore --file client/godot/core/bootstrap_core/tests/test_boot_login.gd",
+      "startedAt": 1792952799306,
+      "exitCode": 0,
+      "summary": {
+        "tests": 10,
+        "passed": 10
+      },
+      "job": "mvo5sy08090c6b"
+    },
+    {
+      "command": "ogw job wait mvo5sy08090c6b",
+      "startedAt": 1792952802543,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot BootstrapCore --file client/godot/core/bootstrap_core/tests/test_boot_login.gd",
+      "startedAt": 1792952821783,
+      "exitCode": 1,
+      "summary": {
+        "tests": 10,
+        "passed": 9
+      },
+      "job": "mvo5tfctc635db"
+    },
+    {
+      "command": "ogw job wait mvo5tfctc635db",
+      "startedAt": 1792952824845,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot BootstrapCore --file client/godot/core/bootstrap_core/tests/test_boot_login.gd",
+      "startedAt": 1792952837398,
+      "exitCode": 1,
+      "summary": {
+        "tests": 10,
+        "passed": 8
+      },
+      "job": "mvo5trehdfe28e"
+    },
+    {
+      "command": "ogw job wait mvo5trehdfe28e",
+      "startedAt": 1792952837977,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core dependents BootstrapCore",
+      "startedAt": 1792952856258,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot BootstrapCore QACore UnitTestCore",
+      "startedAt": 1792952861912,
+      "exitCode": 1,
+      "summary": {
+        "tests": 303,
+        "passed": 303
+      },
+      "job": "mvo5uabga52936"
+    },
+    {
+      "command": "ogw core test godot BootstrapCore QACore UnitTestCore --web",
+      "startedAt": 1792952862502,
+      "exitCode": 0,
+      "summary": {
+        "tests": 303,
+        "passed": 303
+      },
+      "job": "mvo5uart7985a3"
+    },
+    {
+      "command": "ogw job wait mvo5uabga52936",
+      "startedAt": 1792952865447,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo5uart7985a3",
+      "startedAt": 1792952896908,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792952919955,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvo5vj3s57f265"
+    },
+    {
+      "command": "ogw job wait mvo5vj3s57f265",
+      "startedAt": 1792952920499,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
