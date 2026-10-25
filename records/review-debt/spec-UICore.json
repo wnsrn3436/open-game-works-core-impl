@@ -1,0 +1,12 @@
+{
+  "target": "spec UICore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/client-core/modules/ui-core.md:187",
+      "problem": "The popup queue says open flows run \"one at a time in the order received\", but does not set when the next queued open flow starts after the previous one ends: in the same call where that flow ends (before or after `Opened` of its `open_popup` and `UIOpenedEvent`), or in a later frame. Two implementations can differ here. One place shows the difference: back input step 4 (ui-core.md:239) ignores back only \"while a popup flow is in progress\", and a request waiting in the queue is not a popup flow (ui-core.md:189). So in a gap between two open flows, `is_flow_in_progress` is `true` (ui-core.md:50) while back input goes on to step 5 and closes the topmost open popup. When the next open flow starts in the same call, there is no such gap. Set the start time of the next queued open flow, or make back step 4 also ignore back while a popup request waits in the queue",
+      "foundBy": "spec UICore"
+    }
+  ]
+}
