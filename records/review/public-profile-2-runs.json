@@ -1,0 +1,52 @@
+{
+  "runs": [
+    {
+      "command": "ogw core test server public-profile --file server/core/public-profile/tests/profiles.test.ts",
+      "startedAt": 1792952058105,
+      "exitCode": 1,
+      "summary": {
+        "tests": 30,
+        "passed": 28
+      },
+      "job": "mvo5d234910015"
+    },
+    {
+      "command": "ogw job wait mvo5d234910015",
+      "startedAt": 1792952062214,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server public-profile --file server/core/public-profile/tests/profiles.test.ts",
+      "startedAt": 1792952073251,
+      "exitCode": 1,
+      "summary": {
+        "tests": 30,
+        "passed": 28
+      },
+      "job": "mvo5ddrvae25ca"
+    },
+    {
+      "command": "ogw job wait mvo5ddrvae25ca",
+      "startedAt": 1792952073937,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server public-profile --file server/core/public-profile/tests/profiles.test.ts",
+      "startedAt": 1792952086840,
+      "exitCode": 0,
+      "summary": {
+        "tests": 30,
+        "passed": 30
+      },
+      "job": "mvo5do9gafba9d"
+    },
+    {
+      "command": "ogw job wait mvo5do9gafba9d",
+      "startedAt": 1792952087498,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
