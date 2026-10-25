@@ -1,0 +1,100 @@
+{
+  "runs": [
+    {
+      "command": "ogw core test godot LocalizationCore --file test_font_weight.gd",
+      "startedAt": 1792902159174,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvnbnju3752a2d"
+    },
+    {
+      "command": "ogw core dependents LocalizationCore",
+      "startedAt": 1792902159715,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvnbnju3752a2d",
+      "startedAt": 1792902163151,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot LocalizationCore --file client/godot/core/localization_core/tests/test_font_weight.gd",
+      "startedAt": 1792902171372,
+      "exitCode": 0,
+      "summary": {
+        "tests": 10,
+        "passed": 10
+      },
+      "job": "mvnbnt8x8403e7"
+    },
+    {
+      "command": "ogw job wait mvnbnt8x8403e7",
+      "startedAt": 1792902171919,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot LocalizationCore --file client/godot/core/localization_core/tests/test_font_weight.gd",
+      "startedAt": 1792902187211,
+      "exitCode": 1,
+      "summary": {
+        "tests": 10,
+        "passed": 9
+      },
+      "job": "mvnbo5gw307a30"
+    },
+    {
+      "command": "ogw job wait mvnbo5gw307a30",
+      "startedAt": 1792902187753,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AccessibilityCore AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore LocalizationCore MessageCore NativeUiCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore SceneCore ScreenEffectCore ShortcutCore TutorialCore UICore UnitTestCore VirtualPadCore",
+      "startedAt": 1792902211021,
+      "exitCode": 1,
+      "summary": {
+        "tests": 1882,
+        "passed": 1882
+      },
+      "job": "mvnbonua9e67b6"
+    },
+    {
+      "command": "ogw core test godot AccessibilityCore AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore LocalizationCore MessageCore NativeUiCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore SceneCore ScreenEffectCore ShortcutCore TutorialCore UICore UnitTestCore VirtualPadCore --web",
+      "startedAt": 1792902211606,
+      "exitCode": 0,
+      "summary": {
+        "tests": 1882,
+        "passed": 1882
+      },
+      "job": "mvnbooah2fba0d"
+    },
+    {
+      "command": "ogw job wait mvnbonua9e67b6",
+      "startedAt": 1792902216833,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvnbooah2fba0d",
+      "startedAt": 1792902281052,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792902306473,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvnbqphq9b758d"
+    },
+    {
+      "command": "ogw job wait mvnbqphq9b758d",
+      "startedAt": 1792902307009,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}

@@ -67,7 +67,7 @@ static var _chain: Font = null
 ## The heading font chain `load_fonts` set as the font of the `_HEADING_TYPES` in `_font_theme`.
 static var _heading_chain: Font = null
 ## The `_HEADING_TYPES` `_font_theme` had before the first `load_fonts`: the base type of each (empty when it was no
-## type variation) and its font (null when it had none).
+## type variation), and the font item of its own of each that had one (null when that item held no font).
 static var _saved_heading_bases: Dictionary[StringName, StringName] = {}
 static var _saved_heading_fonts: Dictionary[StringName, Font] = {}
 static var _text_scale: int = _DEFAULT_TEXT_SCALE
@@ -621,7 +621,10 @@ static func _apply_fonts(fonts: Array[Font], keys: PackedStringArray) -> void:
 			if types.has(type):
 				_saved_heading_bases[type] = _font_theme.get_type_variation_base(type)
 				var item: StringName = _heading_font_item(type)
-				_saved_heading_fonts[type] = _font_theme.get_font(item, type) if _font_theme.has_font(item, type) else null
+				if _has_own_font(item, type):
+					# `get_font` gives `default_font` for an item that holds no font.
+					var own: Font = _font_theme.get_font(item, type)
+					_saved_heading_fonts[type] = null if own == _saved_default_font else own
 	_chain = _weighted_chain(fonts, keys, _body_font_weight, "body")
 	_font_theme.default_font = _chain
 	_heading_chain = _weighted_chain(fonts, keys, _heading_font_weight, "heading")
@@ -706,7 +709,7 @@ static func _heading_font_item(type: StringName) -> StringName:
 
 
 ## Puts the `_HEADING_TYPES` of `_font_theme` back to before the first `load_fonts`: a type it did not have is
-## removed, and a type it had gets its base type and font back.
+## removed, and a type it had gets its base type and font item back, or loses the font item it did not have.
 static func _restore_heading_types() -> void:
 	for type: StringName in _HEADING_TYPES:
 		if not _saved_heading_bases.has(type):
@@ -718,11 +721,16 @@ static func _restore_heading_types() -> void:
 		else:
 			_font_theme.set_type_variation(type, base)
 		var item: StringName = _heading_font_item(type)
-		var saved: Font = _saved_heading_fonts[type]
-		if saved != null:
-			_font_theme.set_font(item, type, saved)
-		elif _font_theme.has_font(item, type):
+		if _saved_heading_fonts.has(type):
+			_font_theme.set_font(item, type, _saved_heading_fonts[type])
+		elif _has_own_font(item, type):
 			_font_theme.clear_font(item, type)
+
+
+## Whether the type `type` of `_font_theme` has the font item `item` of its own. `has_font` is also true for an item
+## the type does not have when the theme has a default font.
+static func _has_own_font(item: StringName, type: StringName) -> bool:
+	return _font_theme.get_font_list(type).has(item)
 
 
 static func _is_text_element(node: Node) -> bool:
