@@ -1,3 +1,26 @@
 {
-  "runs": []
+  "runs": [
+    {
+      "command": "ogw core test godot AccessibilityCore",
+      "startedAt": 1792950299243,
+      "exitCode": 1,
+      "summary": {
+        "tests": 40,
+        "passed": 40
+      },
+      "job": "mvo4bcxwe012e2"
+    },
+    {
+      "command": "ogw job wait mvo4bcxwe012e2",
+      "startedAt": 1792950302388,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo4bcxwe012e2",
+      "startedAt": 1792950317391,
+      "exitCode": 1,
+      "summary": null
+    }
+  ]
 }
