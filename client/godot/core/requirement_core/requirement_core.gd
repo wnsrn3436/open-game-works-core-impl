@@ -51,8 +51,11 @@ static var _watches: Array[_WATCH] = []
 static var _free_slots: PackedInt32Array = PackedInt32Array()
 static var _slots_by_id: Dictionary[int, PackedInt32Array] = {}
 static var _pending_count: int = 0
-## The slots of the watches that have an owner object, which the frame code checks for destroyed owners.
+## The slots of the watches that have an owner object, which the frame code checks for destroyed owners. Only the
+## first `_owner_count` entries are in use. The buffer grows only in `watch`, so a removal in frame code changes no
+## collection size.
 static var _owner_slots: PackedInt32Array = PackedInt32Array()
+static var _owner_count: int = 0
 ## Watches of time-dependent conditions, and the real elapsed time of the next time recheck.
 static var _time_watch_count: int = 0
 static var _recheck_at: int = 0
@@ -499,11 +502,18 @@ static func _store_watch(record: _WATCH) -> void:
 	slots.append(slot)
 	_slots_by_id[record.requirement_id] = slots
 	if record.owner_id != 0:
-		_owner_slots.append(slot)
+		if _owner_count == _owner_slots.size():
+			_owner_slots.append(slot)
+		else:
+			_owner_slots[_owner_count] = slot
+		record.owner_index = _owner_count
+		_owner_count += 1
 
 
 static func _remove_watch_at(slot: int) -> void:
 	var record: _WATCH = _watches[slot]
+	if record.owner_id != 0:
+		_remove_owner_at(record.owner_index)
 	_watches[slot] = null
 	_free_slots.append(slot)
 	var slots: PackedInt32Array = _slots_by_id[record.requirement_id]
@@ -514,11 +524,17 @@ static func _remove_watch_at(slot: int) -> void:
 		_slots_by_id[record.requirement_id] = slots
 	if record.pending:
 		_pending_count -= 1
-	if record.owner_id != 0:
-		_owner_slots.remove_at(_owner_slots.find(slot))
 	_unsubscribe_watch(record)
 	if (record.entry as _ENTRY).time_dependent:
 		_time_watch_count -= 1
+
+
+## Takes entry `index` out of the used part of `_owner_slots` by moving the last used entry into it.
+static func _remove_owner_at(index: int) -> void:
+	_owner_count -= 1
+	var moved: int = _owner_slots[_owner_count]
+	_owner_slots[index] = moved
+	_watches[moved].owner_index = index
 
 
 ## Subscribes to the events of the triggers of `record` that no other watch subscribes to yet. On a failure undoes
@@ -624,8 +640,8 @@ static func _mark(record: _WATCH) -> void:
 static func _on_frame() -> void:
 	if not _is_initialized:
 		return
-	# Backward, so a removal moves no slot that is still to be checked.
-	for i: int in range(_owner_slots.size() - 1, -1, -1):
+	# Backward, so a removal moves into index i only an entry that was already checked.
+	for i: int in range(_owner_count - 1, -1, -1):
 		var slot: int = _owner_slots[i]
 		if not is_instance_id_valid(_watches[slot].owner_id):
 			_remove_watch_at(slot)
@@ -748,6 +764,7 @@ static func _reset() -> void:
 	_slots_by_id = {}
 	_pending_count = 0
 	_owner_slots = PackedInt32Array()
+	_owner_count = 0
 	_time_watch_count = 0
 	_recheck_at = 0
 	_kind_counts = PackedInt32Array([0, 0, 0, 0, 0])

@@ -47,6 +47,7 @@ func _assert_initial_state() -> void:
 	assert_eq(RequirementCore._slots_by_id.size(), 0)
 	assert_eq(RequirementCore._pending_count, 0)
 	assert_eq(RequirementCore._owner_slots.size(), 0)
+	assert_eq(RequirementCore._owner_count, 0)
 	assert_eq(RequirementCore._time_watch_count, 0)
 	assert_eq(RequirementCore._recheck_at, 0)
 	assert_eq(RequirementCore._kind_counts, PackedInt32Array([0, 0, 0, 0, 0]))
