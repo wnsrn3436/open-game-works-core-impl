@@ -224,3 +224,16 @@ func test_second_load_fonts_applies_the_weights_again() -> void:
 	assert_almost_eq(_width(body, "A"), 76.0, 1.0)
 	LocalizationCore.release()
 	assert_false(ThemeDB.get_default_theme().get_type_list().has(&"HeadingLabel"))
+
+
+func test_a_system_font_without_a_system_font_in_the_browser_runtime_has_no_axis_and_no_engine_error() -> void:
+	UnitTestCore.require_platform(PackedStringArray(["web"]))
+	if OS.get_name() != "Web":
+		return
+	assert_true(UnitTestCore.set_test_settings(_BODY_WEIGHT, 400))
+	# font/main is a SystemFont, which finds no system font in the browser runtime.
+	assert_eq(await _SUPPORT.start_language("ca"), _SUPPORT.language_id("[lang_ca]"))
+	assert_true(await LocalizationCore.load_fonts())
+	assert_eq(_SUPPORT.warns(), 1)
+	var fonts: Array[Font] = [_loaded_font(_SUPPORT.FONT_MAIN)]
+	_assert_chain(_label(&"").get_theme_font("font"), fonts, PackedInt32Array([_UNWEIGHTED]))

@@ -680,10 +680,17 @@ static func _set_weight(variation: FontVariation, weight: int) -> void:
 	variation.variation_opentype = coordinates
 
 
-## The minimum and the maximum of the variation axis `tag` of a font; `_NO_WEIGHT_AXIS` when it has none.
+## The minimum and the maximum of the variation axis `tag` of a font; `_NO_WEIGHT_AXIS` when it has none. The axes
+## are those of the first text server font of `get_rids()`, the font it draws with: the same as
+## `get_supported_variation_list()` for a font with a text server font of its own, and the default font for a
+## `SystemFont` that found no system font (as in the browser runtime), whose `get_supported_variation_list()` is an
+## engine error.
 # ogw:input_boundary
 static func _weight_axis(font: Font, tag: int) -> Vector2i:
-	var axes: Dictionary = font.get_supported_variation_list()
+	var rids: Array[RID] = font.get_rids()
+	if rids.is_empty():
+		return _NO_WEIGHT_AXIS
+	var axes: Dictionary = TextServerManager.get_primary_interface().font_supported_variation_list(rids[0])
 	if not axes.has(tag):
 		return _NO_WEIGHT_AXIS
 	var axis: Variant = axes[tag]

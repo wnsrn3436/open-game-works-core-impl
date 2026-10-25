@@ -20,9 +20,7 @@ func test_init_check_before_init_after_init_and_after_release() -> void:
 func test_release_puts_every_static_var_back_and_takes_the_core_node_out_of_the_tree() -> void:
 	assert_true(UnitTestCore.set_test_settings("LocalizationCore.bodyFontWeight", 400))
 	assert_true(UnitTestCore.set_test_settings("LocalizationCore.headingFontWeight", 800))
-	var resources: Dictionary[String, String] = _SUPPORT.all_resources()
-	resources[_SUPPORT.FONT_MAIN] = _SUPPORT.WEIGHT_AXIS_FONT
-	assert_true(await _SUPPORT.start(resources))
+	assert_true(await _SUPPORT.start())
 	assert_eq(LocalizationCore._body_font_weight, 400)
 	assert_eq(LocalizationCore._heading_font_weight, 800)
 	var node: Node = LocalizationCore._node
