@@ -77,6 +77,8 @@
   "supportedLanguages": "array<string>",
   "LocalizationCore.downloadedFileMaxBytes": "integer",
   "LocalizationCore.maxFormattedLength": "integer",
+  "LocalizationCore.bodyFontWeight": "integer",
+  "LocalizationCore.headingFontWeight": "integer",
   "LogCore.fileMaxBytes": "integer",
   "LogCore.fileMaxCount": "integer",
   "LogCore.fileWriteIntervalMs": "integer",

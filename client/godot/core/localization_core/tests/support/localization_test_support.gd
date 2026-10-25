@@ -7,6 +7,11 @@ const BUILT_DATA: String = "res://build/data/"
 ## Test resources by resource key.
 const FONT_MAIN: String = "font/main"
 const FONT_CJK: String = "font/cjk"
+## Fonts made for the font weight tests: one with a `wght` axis from 100 to 900 (default 400) and only the glyph `A`,
+## 600 units wide at weight 400 and below and 400 units wider at 900, and one without a variation axis and only the
+## glyph `B`, 600 units wide.
+const WEIGHT_AXIS_FONT: String = RESOURCES + "font_weight_axis.tres"
+const NO_WEIGHT_AXIS_FONT: String = RESOURCES + "font_no_weight_axis.tres"
 ## The `input_prompt` icons of the core test data.
 const ICON_ESCAPE: String = "icon/key_escape"
 const ICON_KEY_J: String = "icon/key_j"
@@ -114,6 +119,10 @@ static func put_text(key: String, text: String) -> void:
 
 static func errors(tag: String = TAG) -> int:
 	return UnitTestCore.check_logs("error", tag)
+
+
+static func warns(tag: String = TAG) -> int:
+	return UnitTestCore.check_logs("warn", tag)
 
 
 ## A translation binary: the protobuf `Translation` of the entries (key, text) in order.
