@@ -1,0 +1,97 @@
+{
+  "runs": [
+    {
+      "command": "ogw core dependents RequirementCore",
+      "startedAt": 1792915012082,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot RequirementCore --file client/godot/core/requirement_core/tests/test_watch.gd",
+      "startedAt": 1792915019359,
+      "exitCode": 0,
+      "summary": {
+        "tests": 17,
+        "passed": 17
+      },
+      "job": "mvnjb6te25f08a"
+    },
+    {
+      "command": "ogw job wait mvnjb6te25f08a",
+      "startedAt": 1792915023341,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot BadgeCore BootstrapCore ChatCore CutsceneCore NoticeCore QACore RequirementCore ShortcutCore TutorialCore UnitTestCore",
+      "startedAt": 1792915038872,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvnjblvgeda438"
+    },
+    {
+      "command": "ogw core test godot BadgeCore BootstrapCore ChatCore CutsceneCore NoticeCore QACore RequirementCore ShortcutCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792915039454,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvnjbmbm30bab5"
+    },
+    {
+      "command": "ogw job wait mvnjblvgeda438",
+      "startedAt": 1792915043141,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvnjbmbm30bab5",
+      "startedAt": 1792915052614,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot BadgeCore BootstrapCore ChatCore CutsceneCore NoticeCore QACore RequirementCore ShortcutCore TutorialCore UnitTestCore",
+      "startedAt": 1792915053215,
+      "exitCode": 1,
+      "summary": {
+        "tests": 735,
+        "passed": 735
+      },
+      "job": "mvnjbwxu07e736"
+    },
+    {
+      "command": "ogw core test godot BadgeCore BootstrapCore ChatCore CutsceneCore NoticeCore QACore RequirementCore ShortcutCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792915053808,
+      "exitCode": 0,
+      "summary": {
+        "tests": 735,
+        "passed": 735
+      },
+      "job": "mvnjbxe7d19eab"
+    },
+    {
+      "command": "ogw job wait mvnjbwxu07e736",
+      "startedAt": 1792915057222,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvnjbxe7d19eab",
+      "startedAt": 1792915090691,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792915115083,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvnjd8od8c8090"
+    },
+    {
+      "command": "ogw job wait mvnjd8od8c8090",
+      "startedAt": 1792915118384,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
