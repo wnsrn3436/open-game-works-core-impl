@@ -10,7 +10,7 @@ none
 
 ## out of scope
 
-none
+- client/godot/core/chat_core/tests/test_read_seq.gd:154: medium test evidence: `assert_eq(UnitTestCore.check_logs("error", "BadgeCore"), 0, ...)` asserts an error log count whose expected value is 0, which the unit-test-core.md log rule ("The error log count is asserted with `check_logs` only when the expected value is not 0") does not allow. Any unchecked BadgeCore error log already fails the test at its end, so this assert catches nothing extra. It is the same defect as AuthCore R1-1/R1-2 and was there before d4e2728 (last change to the file is 301b3dd, an ancestor of d4e2728)
 
 ## debt
 
@@ -22,6 +22,5 @@ none
 
 ## unknown
 
-- No file under `client/godot/core/chat_core/` changed in the range `2ef5ae8d..2cff9e91`. The changes that reach ChatCore are the generated contract (`client/godot/generated/contract/core_contract.gd`: `public_code` field 5 of `PublicProfileEntry`, which is field `profile` of `ChatChannelEntry`) and the generated core settings (new `SoundCore.*` keys, used by `SoundCore.init` in `client/godot/core/chat_core/tests/support/chat_test_case.gd:94`). The channel list change check `_same_entry` (`client/godot/core/chat_core/chat_core.gd:420`) compares `encode()` of whole entries, and the generated `PublicProfileEntry.encode` writes `public_code`, so a change of only `public_code` emits `ChatChannelsChangedEvent` as `## behavior` `### channel list` requires. No test sends a list that differs only in `public_code`; the spec has no `## test` item for it
-- The ChatCore core tests were not run in this review. The run log `records/1792947513155-update-core-mvo2nn7kb4e445-runs.json` records `ogw core test godot` with ChatCore at the end of the range passing (1399/1399, and `--web` 1393/1393)
-- ChatCore code outside the places above (polling, watch, older messages, send, release, read seq storage) was not read in this round, because the range changes do not reach it
+- The commit range d4e2728..b58145f changes no file under `client/godot/core/chat_core/`, no ChatCore or chat spec (`core-spec/ChatCore.json`, `core-spec/chat.json`), no file under `server/core/chat/`, and no file of the modules ChatCore depends on (LogCore, EventCore, TimeCore, LocalDataCore, NetworkCore, BadgeCore). The changes that reach ChatCore's tests are additive or test-runner changes, and were read only for that effect: `UICore.is_flow_in_progress` and `TweenCore.get_finite_playing_count` are added (the ChatCore test case inits both), and UnitTestCore sends `PUT /started` in `_begin_run`, which ChatCore tests do not call. The whole ChatCore code was not reviewed again in this round
+- The core tests were not run in this review
