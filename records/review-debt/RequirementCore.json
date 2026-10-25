@@ -1,13 +1,7 @@
 {
   "target": "RequirementCore",
-  "nextId": 4,
+  "nextId": 5,
   "items": [
-    {
-      "id": "D1",
-      "location": "client/godot/core/requirement_core/requirement_core.gd:626",
-      "problem": "efficiency: while one or more watch has an owner object (`_owner_watch_count > 0`), `_on_frame` loops over every slot of `_watches` each frame to find destroyed owners (`is_instance_id_valid` per slot), so the work per frame grows with the number of watches and with the `null` slots, which `_watches` never shrinks (`_remove_watch_at` at :506 only sets `null`). Code path: `requirement_core_node.gd:23` `_process` → `RequirementCore._on_frame` → loop at :627-630. Growing amount: the watch slot count (every screen that sets watches with its root as owner adds slots). Direction: delete the watch from the owner's `tree_exiting`/free notification or keep the owner watches in a separate list",
-      "foundBy": "RequirementCore round 1"
-    },
     {
       "id": "D2",
       "location": "client/godot/core/requirement_core/requirement_core.gd:508",
@@ -19,6 +13,12 @@
       "location": "client/godot/core/requirement_core/requirement_core.gd:649",
       "problem": "`_run_batch` (frame code via `_on_frame`) goes over every slot of `_watches` three times per round (:649, :655, :658). It does so even when only a few watches are pending, so the cost of one frame with a pending evaluation grows with the total number of watches, not the pending ones. `_on_user_state_changed`, `_on_named_trigger` and `_on_content_event` (:685, :698, :708) likewise go over every slot per event. This existed before the range",
       "foundBy": "RequirementCore round 1"
+    },
+    {
+      "id": "D4",
+      "location": "client/godot/core/requirement_core/requirement_core.gd:664",
+      "problem": "Frame code creates `String` values with `%` on its error paths, which `engines/godot.md` `## frame code` forbids: `_run_batch` :664 (round limit) and :692 (invalid callback), and `_self_judge` :358 and :362, which frame code reaches through `_run_batch` :686 → `_evaluate_entry` → `_judge` → `_self_judge`. `_self_judge` :357 also adds a `Dictionary` key (`_logged_types[type] = true`) there. Run path: a watched condition whose type has no judge hook, or whose judge hook throws, is raised by a trigger; the next `_process` runs these lines. These lines existed before the range",
+      "foundBy": "RequirementCore round 3"
     }
   ]
 }
