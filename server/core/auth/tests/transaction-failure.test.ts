@@ -13,6 +13,7 @@ import {
   current_agreements,
   guest,
   hold_next_transaction,
+  hold_next_user_transaction,
   login_token_rows,
   logs,
   personal_rows,
@@ -253,6 +254,38 @@ describe('the ban login transaction', () => {
       expect(reply.envelope.error?.ban ?? null).toBeNull();
       expect(logs(server, 'error').slice(errors_before)).toEqual([]);
     }
+  });
+});
+
+describe('a WITHDRAWN transaction of the new user', () => {
+  /** Withdraws the new user between its `storage.create_user` and the `run_user_transaction` that claims the key. */
+  async function withdrawn_new_user<R>(send: () => Promise<R>): Promise<{ reply: R; new_user: bigint; errors: Record<string, unknown>[] }> {
+    const errors_before = logs(server, 'error').length;
+    const hold = hold_next_user_transaction(server);
+    const pending = send();
+    const new_user = await hold.reached;
+    expect((await admin(server, 'withdraw_user', { user_id: new_user.toString() })).status).toBe(200);
+    hold.release();
+    const reply = await pending;
+    return { reply, new_user, errors: logs(server, 'error').slice(errors_before) };
+  }
+
+  it('Login with a social provider: UNAUTHORIZED without an error log; the account stays unlinked', async () => {
+    const { reply, new_user, errors } = await withdrawn_new_user(() => social_login('withdrawn-new-user', randomUUID()));
+    expect(reply.code).toBe(E.CORE_ERROR_UNAUTHORIZED);
+    expect(errors).toEqual([]);
+    expect(await personal_rows(server, new_user, 'auth_social_link')).toEqual([]);
+    expect(await event_names(new_user)).toEqual([]);
+    // The next Login of the account makes and links another user.
+    const again = await social(server, P.LOGIN_PROVIDER_GOOGLE, 'withdrawn-new-user');
+    expect(again.result.user_id).not.toBe(new_user);
+  });
+
+  it('DevLogin of a new name: UNAUTHORIZED without an error log; the same name logs in afterwards', async () => {
+    const { reply, errors } = await withdrawn_new_user(() => dev_login('withdrawn_new_dev'));
+    expect(reply).toBe(E.CORE_ERROR_UNAUTHORIZED);
+    expect(errors).toEqual([]);
+    expect(await dev_login('withdrawn_new_dev')).toBe(0);
   });
 });
 
