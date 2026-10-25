@@ -381,3 +381,196 @@ func test_a_user_state_changed_target_kind_marks_only_for_that_kind() -> void:
 	assert_eq(RequirementCore._pending_count, 0)
 	put_shop(id_of("[shop_basic]"), 1, 0)
 	assert_eq(RequirementCore._pending_count, 1)
+
+
+func test_the_frame_code_removes_watches_without_changing_a_collection_size() -> void:
+	await start()
+	register_flags()
+	answer(false)
+	var single: int = id_of(SINGLE)
+	var other: int = id_of(OTHER_A)
+	var screen: Node = Node.new()
+	var holder: Node = Node.new()
+	add_child(screen)
+	var kept: Array[Recorder] = []
+	var both: Array[RequirementTrigger] = [content_trigger(), named_trigger(RequirementCore.TriggerKind.UI_OPENED, "prefab/panel/shop"), user_state_trigger()]
+	for i: int in 10:
+		var recorder: Recorder = Recorder.new()
+		assert_true(RequirementCore.watch(single if i % 2 == 0 else other, both, recorder.on_result, screen))
+	# Callbacks that cannot be called once `holder` is freed: the batch evaluation removes their watches.
+	assert_true(RequirementCore.watch(single, both, holder.get_index))
+	assert_true(RequirementCore.watch(other, both, holder.get_index))
+	for i: int in 3:
+		var recorder: Recorder = Recorder.new()
+		kept.append(recorder)
+		assert_true(RequirementCore.watch(single, both, recorder.on_result))
+	var sizes: PackedInt64Array = _collection_sizes()
+	screen.free()
+	holder.free()
+	answer(true)
+	put_tutorial()
+	publish_content()
+	await frame()
+	assert_eq(_collection_sizes(), sizes, "frame code changes only counts and links")
+	assert_eq(errors(), 2, "one log per watch whose callback cannot be called")
+	assert_eq(RequirementCore._free_count, 12)
+	assert_eq(RequirementCore._owner_count, 0)
+	for recorder: Recorder in kept:
+		assert_eq(recorder.count(), 1)
+	var live: PackedInt32Array = _live_slots()
+	assert_eq(live.size(), 3)
+	assert_eq(_list_slots(RequirementCore._id_heads[single]), live)
+	assert_eq(_list_slots(RequirementCore._id_heads[other]), PackedInt32Array())
+	assert_eq(_list_slots(_content_head()), live)
+	assert_eq(_list_slots(RequirementCore._opened_heads["prefab/panel/shop"]), live)
+	assert_eq(_list_slots(_state_head(CoreContract.TutorialProgressUserState)), live)
+	# Watches of the same shape reuse the freed slots and links.
+	for i: int in 12:
+		var recorder: Recorder = Recorder.new()
+		assert_true(RequirementCore.watch(other, both, recorder.on_result))
+	assert_eq(_collection_sizes(), sizes, "the later watches reuse the buffers and the link pool")
+	assert_eq(RequirementCore._free_count, 0)
+	assert_eq(_list_slots(_content_head()).size(), 15)
+
+
+func test_a_trigger_marks_and_a_round_judges_only_the_watches_of_that_trigger() -> void:
+	await start()
+	register_flags()
+	var no_kinds: Array[GDScript] = []
+	assert_true(RequirementCore.register_judge(TYPE_LEVEL, Hooks.flag, no_kinds, GUIDE_LEVEL, Callable(), true))
+	answer(false)
+	Hooks.answers[TYPE_LEVEL] = false
+	# Level is time-dependent, so each judgement of a Level watch calls its judge hook.
+	var level: int = id_of(LEVEL)
+	var content_slots: PackedInt32Array = PackedInt32Array()
+	for i: int in 30:
+		var recorder: Recorder = Recorder.new()
+		assert_true(RequirementCore.watch(level, triggers(content_trigger()), recorder.on_result))
+		content_slots.append(RequirementCore._find_watch(level, recorder.on_result))
+	content_slots.sort()
+	var opened: Recorder = Recorder.new()
+	assert_true(RequirementCore.watch(level, triggers(named_trigger(RequirementCore.TriggerKind.UI_OPENED, "prefab/panel/shop")), opened.on_result))
+	var opened_slot: int = RequirementCore._find_watch(level, opened.on_result)
+	var tutorial: Recorder = Recorder.new()
+	var all: int = id_of(ALL_1)
+	assert_true(RequirementCore.watch(all, triggers(user_state_trigger(CoreContract.TutorialProgressUserState)), tutorial.on_result))
+	var tutorial_slot: int = RequirementCore._find_watch(all, tutorial.on_result)
+	var time_slots: PackedInt32Array = content_slots.duplicate()
+	time_slots.append(opened_slot)
+	time_slots.sort()
+	assert_eq(_list_slots(_content_head()), content_slots)
+	assert_eq(_list_slots(RequirementCore._opened_heads["prefab/panel/shop"]), PackedInt32Array([opened_slot]))
+	assert_eq(_list_slots(_state_head(CoreContract.TutorialProgressUserState)), PackedInt32Array([tutorial_slot]))
+	assert_eq(_list_slots(RequirementCore._time_head), time_slots)
+	publish_ui_opened("prefab/panel/shop")
+	assert_eq(RequirementCore._pending_count, 1)
+	assert_true(RequirementCore._pending[0] == RequirementCore._watches[opened_slot])
+	var judged: int = Hooks.count(TYPE_LEVEL)
+	await frame()
+	assert_eq(Hooks.count(TYPE_LEVEL), judged + 1, "only the watch of the raised trigger is judged")
+	put_balance(id_of("[gold]"), 10)
+	assert_eq(RequirementCore._pending_count, 0, "no watch has an ItemBalanceUserState trigger")
+	put_tutorial()
+	assert_eq(RequirementCore._pending_count, 1)
+	assert_true(RequirementCore._pending[0] == RequirementCore._watches[tutorial_slot])
+	await frame()
+	RequirementCore._mark_time_watches()
+	assert_eq(RequirementCore._pending_count, 31, "the time-dependent watches")
+	judged = Hooks.count(TYPE_LEVEL)
+	await frame()
+	assert_eq(Hooks.count(TYPE_LEVEL), judged + 31)
+	RequirementCore.unwatch(level, opened.on_result)
+	assert_eq(_list_slots(RequirementCore._opened_heads["prefab/panel/shop"]), PackedInt32Array(), "unwatch takes it out of its lists")
+	assert_eq(_list_slots(RequirementCore._time_head), content_slots)
+	publish_ui_opened("prefab/panel/shop")
+	assert_eq(RequirementCore._pending_count, 0)
+	assert_eq(errors(), 0)
+
+
+func test_register_judge_puts_a_watch_with_an_empty_user_state_target_into_the_lists_of_the_new_kinds() -> void:
+	await start()
+	var recorder: Recorder = Recorder.new()
+	var nested: int = id_of(NESTED_1)
+	assert_true(RequirementCore.watch(nested, triggers(user_state_trigger()), recorder.on_result))
+	assert_eq(errors(), 1, "the type without a hook")
+	assert_eq(RequirementCore._state_heads.size(), 0, "no judge hook, no kind the condition sees")
+	put_tutorial()
+	assert_eq(RequirementCore._pending_count, 0)
+	register_flags()
+	var slot: PackedInt32Array = PackedInt32Array([RequirementCore._find_watch(nested, recorder.on_result)])
+	assert_eq(_list_slots(_state_head(CoreContract.TutorialProgressUserState)), slot)
+	assert_eq(_list_slots(_state_head(CoreContract.ItemBalanceUserState)), slot)
+	assert_false(RequirementCore._state_heads.has(CoreContract.ShopPurchaseUserState))
+	put_tutorial()
+	assert_eq(RequirementCore._pending_count, 1)
+	var no_kinds: Array[GDScript] = []
+	assert_true(RequirementCore.register_judge(TYPE_LEVEL, Hooks.flag, no_kinds, GUIDE_LEVEL))
+	assert_eq(RequirementCore._watches[slot[0]].state_links.size(), 2, "another register_judge links each kind once again")
+	assert_eq(_list_slots(_state_head(CoreContract.TutorialProgressUserState)), slot)
+
+
+func test_a_watch_removed_by_a_callback_before_its_turn_in_the_round_is_not_judged() -> void:
+	await start()
+	register_flags()
+	answer(false)
+	var single: int = id_of(SINGLE)
+	var first: Recorder = Recorder.new()
+	var second: Recorder = Recorder.new()
+	first.inside = func(_id: int) -> void:
+		RequirementCore.unwatch(single, second.on_result)
+	second.inside = func(_id: int) -> void:
+		RequirementCore.unwatch(single, first.on_result)
+	assert_true(RequirementCore.watch(single, triggers(content_trigger()), first.on_result))
+	assert_true(RequirementCore.watch(single, triggers(content_trigger()), second.on_result))
+	answer(true)
+	put_tutorial()
+	publish_content()
+	await frame()
+	assert_eq(first.count() + second.count(), 1, "the first callback removes the other watch from the round")
+	assert_eq(RequirementCore._round_count, 0)
+	assert_eq(RequirementCore._pending_count, 0)
+	assert_eq(RequirementCore._free_count, 1)
+	assert_eq(errors(), 0)
+	# The two callbacks hold each other's recorder.
+	first.inside = Callable()
+	second.inside = Callable()
+
+
+## The sizes of the collections of `RequirementCore` that hold watches, slots, links and list heads.
+func _collection_sizes() -> PackedInt64Array:
+	return PackedInt64Array([
+		RequirementCore._watches.size(), RequirementCore._free_slots.size(), RequirementCore._pending.size(),
+		RequirementCore._round.size(), RequirementCore._owner_slots.size(), RequirementCore._link_next.size(),
+		RequirementCore._link_prev.size(), RequirementCore._link_slot.size(), RequirementCore._id_heads.size(),
+		RequirementCore._state_heads.size(), RequirementCore._request_heads.size(), RequirementCore._opened_heads.size(),
+		RequirementCore._closed_heads.size(), RequirementCore._content_heads.size(),
+	])
+
+
+func _state_head(kind: GDScript) -> int:
+	return RequirementCore._state_heads[kind]
+
+
+func _content_head() -> int:
+	var type: Script = TestEvent
+	return RequirementCore._content_heads[type]
+
+
+## The slots of the list of head link `head`, in ascending order.
+func _list_slots(head: int) -> PackedInt32Array:
+	var slots: PackedInt32Array = PackedInt32Array()
+	var link: int = RequirementCore._link_next[head]
+	while link != head:
+		slots.append(RequirementCore._link_slot[link])
+		link = RequirementCore._link_next[link]
+	slots.sort()
+	return slots
+
+
+## The slots of `RequirementCore._watches` that hold a watch, in ascending order.
+func _live_slots() -> PackedInt32Array:
+	var slots: PackedInt32Array = PackedInt32Array()
+	for i: int in RequirementCore._watches.size():
+		if RequirementCore._watches[i] != null:
+			slots.append(i)
+	return slots
