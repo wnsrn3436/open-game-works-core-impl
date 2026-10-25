@@ -320,7 +320,7 @@ export function hold_next_transaction(server: TestServer, request_name: string):
 export function hold_next_user_transaction(server: TestServer): { reached: Promise<bigint>; release: () => void } {
   const storage = storage_of(server);
   const original = storage.run_user_transaction.bind(storage);
-  let reach = (_user_id: bigint): void => undefined;
+  let reach: (user_id: bigint) => void = () => undefined;
   let release = (): void => undefined;
   const reached = new Promise<bigint>((resolve) => {
     reach = resolve;
