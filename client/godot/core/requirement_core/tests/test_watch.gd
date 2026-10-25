@@ -2,6 +2,8 @@ extends "res://core/requirement_core/tests/support/requirement_test_case.gd"
 ## Watch: the base result, triggers, pending evaluations, the batch evaluation and its rounds, `unwatch` and the owner
 ## object.
 
+const Watch := preload("res://core/requirement_core/requirement_watch.gd")
+
 
 func test_watch_does_not_call_the_callback_and_a_changed_result_waits_for_a_trigger() -> void:
 	await start()
@@ -178,6 +180,78 @@ func test_a_watch_whose_owner_object_is_destroyed_is_removed_without_a_trigger()
 	await frame()
 	assert_eq(EventCore.count_subscriptions(RequirementCore._node), 1, "the subscription of the removed watch ends")
 	assert_eq(errors(), 0)
+
+
+func test_the_owner_list_holds_only_the_owner_watch_slots_and_a_destroyed_owner_removes_exactly_its_watches() -> void:
+	await start()
+	register_flags()
+	answer(false)
+	var single: int = id_of(SINGLE)
+	var plain: Array[Recorder] = []
+	for i: int in 20:
+		var recorder: Recorder = Recorder.new()
+		plain.append(recorder)
+		assert_true(RequirementCore.watch(single, triggers(content_trigger()), recorder.on_result))
+	for i: int in range(0, 20, 2):
+		RequirementCore.unwatch(single, plain[i].on_result)
+	assert_eq(RequirementCore._owner_slots.size(), 0, "no owner watch, nothing for the frame code to check")
+	var gone: Node = Node.new()
+	var alive: Node = Node.new()
+	add_child(gone)
+	add_child_autofree(alive)
+	var gone_recorders: Array[Recorder] = []
+	var alive_recorders: Array[Recorder] = []
+	for i: int in 3:
+		var kept: Recorder = Recorder.new()
+		alive_recorders.append(kept)
+		assert_true(RequirementCore.watch(single, triggers(content_trigger()), kept.on_result, alive))
+		var lost: Recorder = Recorder.new()
+		gone_recorders.append(lost)
+		assert_true(RequirementCore.watch(single, triggers(content_trigger()), lost.on_result, gone))
+	assert_eq(RequirementCore._watches.size(), 20, "the owner watches reuse the slots of the removed watches")
+	assert_eq(_sorted_owner_slots(), _owner_watch_slots())
+	assert_eq(RequirementCore._owner_slots.size(), 6)
+	RequirementCore.unwatch(single, alive_recorders[2].on_result)
+	assert_eq(_sorted_owner_slots(), _owner_watch_slots(), "unwatch takes the slot out of the owner list")
+	assert_eq(RequirementCore._owner_slots.size(), 5)
+	gone.free()
+	await frame()
+	assert_eq(RequirementCore._owner_slots.size(), 2, "the frame code removed the 3 watches of the destroyed owner")
+	assert_eq(_sorted_owner_slots(), _owner_watch_slots())
+	for recorder: Recorder in gone_recorders:
+		assert_eq(RequirementCore._find_watch(single, recorder.on_result), -1)
+	for i: int in 2:
+		assert_true(RequirementCore._find_watch(single, alive_recorders[i].on_result) >= 0)
+	for i: int in range(1, 20, 2):
+		assert_true(RequirementCore._find_watch(single, plain[i].on_result) >= 0)
+	answer(true)
+	put_tutorial()
+	publish_content()
+	await frame()
+	for recorder: Recorder in gone_recorders:
+		assert_eq(recorder.count(), 0)
+	assert_eq(alive_recorders[0].count(), 1)
+	assert_eq(alive_recorders[1].count(), 1)
+	assert_eq(alive_recorders[2].count(), 0, "unwatched")
+	for i: int in 20:
+		assert_eq(plain[i].count(), i % 2, "only the watches that were not unwatched call back")
+	assert_eq(errors(), 0)
+
+
+func _sorted_owner_slots() -> PackedInt32Array:
+	var slots: PackedInt32Array = RequirementCore._owner_slots.duplicate()
+	slots.sort()
+	return slots
+
+
+## The slots of `RequirementCore._watches` that hold a watch with an owner object, in ascending order.
+func _owner_watch_slots() -> PackedInt32Array:
+	var slots: PackedInt32Array = PackedInt32Array()
+	for i: int in RequirementCore._watches.size():
+		var record: Watch = RequirementCore._watches[i]
+		if record != null and record.owner_id != 0:
+			slots.append(i)
+	return slots
 
 
 func test_a_trigger_raised_in_a_callback_is_judged_in_the_next_round_of_the_same_batch_evaluation() -> void:

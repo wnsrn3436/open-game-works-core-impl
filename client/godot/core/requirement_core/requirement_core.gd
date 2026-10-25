@@ -51,7 +51,8 @@ static var _watches: Array[_WATCH] = []
 static var _free_slots: PackedInt32Array = PackedInt32Array()
 static var _slots_by_id: Dictionary[int, PackedInt32Array] = {}
 static var _pending_count: int = 0
-static var _owner_watch_count: int = 0
+## The slots of the watches that have an owner object, which the frame code checks for destroyed owners.
+static var _owner_slots: PackedInt32Array = PackedInt32Array()
 ## Watches of time-dependent conditions, and the real elapsed time of the next time recheck.
 static var _time_watch_count: int = 0
 static var _recheck_at: int = 0
@@ -227,8 +228,6 @@ static func watch(requirement_id: int, triggers: Array[RequirementTrigger], call
 	record.base_passed = result.passed
 	record.base_failed_id = result.failed_requirement_id
 	_store_watch(record)
-	if owner_id != 0:
-		_owner_watch_count += 1
 	if entry.time_dependent:
 		_add_time_watch()
 	return true
@@ -499,6 +498,8 @@ static func _store_watch(record: _WATCH) -> void:
 	var slots: PackedInt32Array = _slots_by_id[record.requirement_id]
 	slots.append(slot)
 	_slots_by_id[record.requirement_id] = slots
+	if record.owner_id != 0:
+		_owner_slots.append(slot)
 
 
 static func _remove_watch_at(slot: int) -> void:
@@ -514,7 +515,7 @@ static func _remove_watch_at(slot: int) -> void:
 	if record.pending:
 		_pending_count -= 1
 	if record.owner_id != 0:
-		_owner_watch_count -= 1
+		_owner_slots.remove_at(_owner_slots.find(slot))
 	_unsubscribe_watch(record)
 	if (record.entry as _ENTRY).time_dependent:
 		_time_watch_count -= 1
@@ -623,11 +624,11 @@ static func _mark(record: _WATCH) -> void:
 static func _on_frame() -> void:
 	if not _is_initialized:
 		return
-	if _owner_watch_count > 0:
-		for i: int in _watches.size():
-			var record: _WATCH = _watches[i]
-			if record != null and record.owner_id != 0 and not is_instance_id_valid(record.owner_id):
-				_remove_watch_at(i)
+	# Backward, so a removal moves no slot that is still to be checked.
+	for i: int in range(_owner_slots.size() - 1, -1, -1):
+		var slot: int = _owner_slots[i]
+		if not is_instance_id_valid(_watches[slot].owner_id):
+			_remove_watch_at(slot)
 	if _time_watch_count > 0:
 		var now: int = TimeCore.get_real_time()
 		if now >= _recheck_at:
@@ -746,7 +747,7 @@ static func _reset() -> void:
 	_free_slots = PackedInt32Array()
 	_slots_by_id = {}
 	_pending_count = 0
-	_owner_watch_count = 0
+	_owner_slots = PackedInt32Array()
 	_time_watch_count = 0
 	_recheck_at = 0
 	_kind_counts = PackedInt32Array([0, 0, 0, 0, 0])
