@@ -1257,6 +1257,26 @@
       "type": "integer",
       "minimum": 1
     },
+    "SoundCore.sfxPitchVariationCents": {
+      "type": "number",
+      "minimum": 0
+    },
+    "SoundCore.sfxVolumeVariationDb": {
+      "type": "number",
+      "minimum": 0
+    },
+    "SoundCore.voiceDuckAttackMs": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "SoundCore.voiceDuckDb": {
+      "type": "number",
+      "minimum": 0
+    },
+    "SoundCore.voiceDuckReleaseMs": {
+      "type": "integer",
+      "minimum": 1
+    },
     "RealtimeCore.connectTimeoutMs": {
       "type": "integer",
       "minimum": 0
@@ -2097,6 +2117,11 @@
     "SoundCore.masterPeakMaxDbtp",
     "SoundCore.maxConcurrent",
     "SoundCore.maxConcurrentPerKey",
+    "SoundCore.sfxPitchVariationCents",
+    "SoundCore.sfxVolumeVariationDb",
+    "SoundCore.voiceDuckAttackMs",
+    "SoundCore.voiceDuckDb",
+    "SoundCore.voiceDuckReleaseMs",
     "RealtimeCore.connectTimeoutMs",
     "RealtimeCore.reconnectTimeoutMs",
     "RealtimeCore.backgroundTimeoutMs",

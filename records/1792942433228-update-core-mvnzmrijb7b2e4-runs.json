@@ -1,0 +1,127 @@
+{
+  "runs": [
+    {
+      "command": "ogw settings set core SoundCore.sfxPitchVariationCents 50 SoundCore.sfxVolumeVariationDb 1.5 SoundCore.voiceDuckDb 9 SoundCore.voiceDuckAttackMs 150 SoundCore.voiceDuckReleaseMs 500",
+      "startedAt": 1792942539478,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw settings set core SoundCore.sfxPitchVariationCents 50 SoundCore.sfxVolumeVariationDb 1.5 SoundCore.voiceDuckDb 9 SoundCore.voiceDuckAttackMs 150 SoundCore.voiceDuckReleaseMs 500",
+      "startedAt": 1792942556734,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core dependents SoundCore",
+      "startedAt": 1792942708292,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot SoundCore",
+      "startedAt": 1792942711294,
+      "exitCode": 1,
+      "summary": {
+        "tests": 85,
+        "passed": 84
+      },
+      "job": "mvnzsq1n089ae8"
+    },
+    {
+      "command": "ogw job wait mvnzsq1n089ae8",
+      "startedAt": 1792942714686,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot SoundCore",
+      "startedAt": 1792942733927,
+      "exitCode": 1,
+      "summary": {
+        "tests": 87,
+        "passed": 85
+      },
+      "job": "mvnzt7id0ddeb4"
+    },
+    {
+      "command": "ogw job wait mvnzt7id0ddeb4",
+      "startedAt": 1792942736792,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot SoundCore",
+      "startedAt": 1792942753146,
+      "exitCode": 0,
+      "summary": {
+        "tests": 87,
+        "passed": 87
+      },
+      "job": "mvnztmcb873cf9"
+    },
+    {
+      "command": "ogw job wait mvnztmcb873cf9",
+      "startedAt": 1792942756360,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot SoundCore AccessibilityCore AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore MessageCore NativeUiCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore SceneCore ScreenEffectCore ShortcutCore TutorialCore UICore UnitTestCore VirtualPadCore",
+      "startedAt": 1792942772007,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvnzu0w880ca0d"
+    },
+    {
+      "command": "ogw job wait mvnzu0w880ca0d",
+      "startedAt": 1792942774889,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot SoundCore AccessibilityCore AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore MessageCore NativeUiCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore SceneCore ScreenEffectCore ShortcutCore TutorialCore UICore UnitTestCore VirtualPadCore",
+      "startedAt": 1792942783787,
+      "exitCode": 0,
+      "summary": {
+        "tests": 1917,
+        "passed": 1917
+      },
+      "job": "mvnzu9zh7ec540"
+    },
+    {
+      "command": "ogw job wait mvnzu9zh7ec540",
+      "startedAt": 1792942787276,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot SoundCore AccessibilityCore AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore MessageCore NativeUiCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore SceneCore ScreenEffectCore ShortcutCore TutorialCore UICore UnitTestCore VirtualPadCore --web",
+      "startedAt": 1792942829386,
+      "exitCode": 0,
+      "summary": {
+        "tests": 1906,
+        "passed": 1906
+      },
+      "job": "mvnzv9648cf362"
+    },
+    {
+      "command": "ogw job wait mvnzv9648cf362",
+      "startedAt": 1792942833386,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvnzv9648cf362",
+      "startedAt": 1792942916312,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792942916892,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
