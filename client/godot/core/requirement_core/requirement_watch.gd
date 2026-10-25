@@ -13,6 +13,8 @@ var event_types: Array[Script] = []
 var callback: Callable = Callable()
 ## Instance ID of the owner object. 0 when there is none.
 var owner_id: int = 0
+## Index of its slot in `RequirementCore._owner_slots`. -1 when there is no owner object.
+var owner_index: int = -1
 ## Base result.
 var base_passed: bool = false
 var base_failed_id: int = 0

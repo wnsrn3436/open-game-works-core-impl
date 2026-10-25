@@ -194,7 +194,7 @@ func test_the_owner_list_holds_only_the_owner_watch_slots_and_a_destroyed_owner_
 		assert_true(RequirementCore.watch(single, triggers(content_trigger()), recorder.on_result))
 	for i: int in range(0, 20, 2):
 		RequirementCore.unwatch(single, plain[i].on_result)
-	assert_eq(RequirementCore._owner_slots.size(), 0, "no owner watch, nothing for the frame code to check")
+	assert_eq(RequirementCore._owner_count, 0, "no owner watch, nothing for the frame code to check")
 	var gone: Node = Node.new()
 	var alive: Node = Node.new()
 	add_child(gone)
@@ -210,14 +210,16 @@ func test_the_owner_list_holds_only_the_owner_watch_slots_and_a_destroyed_owner_
 		assert_true(RequirementCore.watch(single, triggers(content_trigger()), lost.on_result, gone))
 	assert_eq(RequirementCore._watches.size(), 20, "the owner watches reuse the slots of the removed watches")
 	assert_eq(_sorted_owner_slots(), _owner_watch_slots())
-	assert_eq(RequirementCore._owner_slots.size(), 6)
+	assert_eq(RequirementCore._owner_count, 6)
 	RequirementCore.unwatch(single, alive_recorders[2].on_result)
 	assert_eq(_sorted_owner_slots(), _owner_watch_slots(), "unwatch takes the slot out of the owner list")
-	assert_eq(RequirementCore._owner_slots.size(), 5)
+	assert_eq(RequirementCore._owner_count, 5)
+	_assert_owner_indexes()
 	gone.free()
 	await frame()
-	assert_eq(RequirementCore._owner_slots.size(), 2, "the frame code removed the 3 watches of the destroyed owner")
+	assert_eq(RequirementCore._owner_count, 2, "the frame code removed the 3 watches of the destroyed owner")
 	assert_eq(_sorted_owner_slots(), _owner_watch_slots())
+	_assert_owner_indexes()
 	for recorder: Recorder in gone_recorders:
 		assert_eq(RequirementCore._find_watch(single, recorder.on_result), -1)
 	for i: int in 2:
@@ -238,10 +240,65 @@ func test_the_owner_list_holds_only_the_owner_watch_slots_and_a_destroyed_owner_
 	assert_eq(errors(), 0)
 
 
+func test_the_frame_code_removes_the_watches_of_destroyed_owners_without_changing_the_owner_list_size() -> void:
+	await start()
+	register_flags()
+	answer(false)
+	var single: int = id_of(SINGLE)
+	var screen: Node = Node.new()
+	var alive: Node = Node.new()
+	add_child(screen)
+	add_child_autofree(alive)
+	var lost: Array[Recorder] = []
+	var kept: Array[Recorder] = []
+	for i: int in 30:
+		var recorder: Recorder = Recorder.new()
+		var owner: Node = alive if i % 5 == 0 else screen
+		if owner == alive:
+			kept.append(recorder)
+		else:
+			lost.append(recorder)
+		assert_true(RequirementCore.watch(single, triggers(content_trigger()), recorder.on_result, owner))
+	assert_eq(RequirementCore._owner_count, 30)
+	_assert_owner_indexes()
+	var buffer_size: int = RequirementCore._owner_slots.size()
+	screen.free()
+	await frame()
+	assert_eq(RequirementCore._owner_slots.size(), buffer_size, "frame code changes only the count")
+	assert_eq(RequirementCore._owner_count, kept.size())
+	assert_eq(_sorted_owner_slots(), _owner_watch_slots())
+	_assert_owner_indexes()
+	for recorder: Recorder in lost:
+		assert_eq(RequirementCore._find_watch(single, recorder.on_result), -1)
+	var again: Recorder = Recorder.new()
+	assert_true(RequirementCore.watch(single, triggers(content_trigger()), again.on_result, alive))
+	kept.append(again)
+	assert_eq(RequirementCore._owner_slots.size(), buffer_size, "a later watch reuses the buffer")
+	assert_eq(_sorted_owner_slots(), _owner_watch_slots())
+	_assert_owner_indexes()
+	answer(true)
+	put_tutorial()
+	publish_content()
+	await frame()
+	for recorder: Recorder in kept:
+		assert_eq(recorder.count(), 1)
+	for recorder: Recorder in lost:
+		assert_eq(recorder.count(), 0)
+	assert_eq(errors(), 0)
+
+
+## The used part of `RequirementCore._owner_slots`, in ascending order.
 func _sorted_owner_slots() -> PackedInt32Array:
-	var slots: PackedInt32Array = RequirementCore._owner_slots.duplicate()
+	var slots: PackedInt32Array = RequirementCore._owner_slots.slice(0, RequirementCore._owner_count)
 	slots.sort()
 	return slots
+
+
+## Each owner watch knows the index of its slot in the owner list, so a removal needs no search.
+func _assert_owner_indexes() -> void:
+	for i: int in RequirementCore._owner_count:
+		var record: Watch = RequirementCore._watches[RequirementCore._owner_slots[i]]
+		assert_eq(record.owner_index, i)
 
 
 ## The slots of `RequirementCore._watches` that hold a watch with an owner object, in ascending order.
