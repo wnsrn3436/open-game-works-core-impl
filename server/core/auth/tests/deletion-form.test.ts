@@ -20,8 +20,8 @@ describe('web account deletion page language', () => {
 describe('web account deletion form', () => {
   const parse = (body: string, google = true): ReturnType<typeof parse_form> => parse_form(body, 10, 64, google);
 
-  it('reads the code method and normalizes the code', () => {
-    expect(parse('method=code&confirm=yes&public_code=ab0i-cdlz&code=abcd-efgh+jk')).toEqual({ method: 'code', public_code: 'AB01CD1Z', code: 'ABCDEFGHJK' });
+  it('reads the code method, keeps the public code input as typed and normalizes the code', () => {
+    expect(parse('method=code&confirm=yes&public_code=ab0i-cdlz&code=abcd-efgh+jk')).toEqual({ method: 'code', public_code: 'ab0i-cdlz', code: 'ABCDEFGHJK' });
   });
 
   it('refuses a missing confirm, an unknown field, a field twice, and fields of the other method', () => {

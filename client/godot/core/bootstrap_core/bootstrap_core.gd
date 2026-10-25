@@ -963,8 +963,9 @@ static func _login_failed(result: LoginResult) -> void:
 	if result != null:
 		status = result.status
 	if status == AuthCore.LoginStatus.BANNED:
+		var public_code := _grouped_public_code(result.public_code)
 		var args := FormatArgs.new()
-		args.set_string("public_code", result.public_code)
+		args.set_string("public_code", public_code)
 		args.set_int("until_at", result.ban_until_at)
 		args.set_string("url", result.deletion_url)
 		var body := ReservedString.bootstrap_banned()
@@ -972,12 +973,20 @@ static func _login_failed(result: LoginResult) -> void:
 			body = ReservedString.bootstrap_banned_permanent()
 		var args_text := ""
 		if _trace_enabled:
-			args_text = "public_code=%s until_at=%d url=%s" % [result.public_code, result.ban_until_at, result.deletion_url]
+			args_text = "public_code=%s until_at=%d url=%s" % [public_code, result.ban_until_at, result.deletion_url]
 		_open_failure_popup(body, args, true, true, args_text)
 	elif status == AuthCore.LoginStatus.AGE_BLOCKED:
 		_open_failure_popup(ReservedString.bootstrap_age_blocked(), null, false, true)
 	else:
 		_open_failure_popup(ReservedString.bootstrap_login_failed(), null, false, true)
+
+
+## The `public_code` format argument: an 8-character public code in two groups of 4 joined with `-`. An empty
+## public code (no public code) stays empty.
+static func _grouped_public_code(public_code: String) -> String:
+	if public_code.length() != 8:
+		return public_code
+	return public_code.substr(0, 4) + "-" + public_code.substr(4)
 
 
 static func _on_deletion_pressed() -> void:
@@ -993,7 +1002,7 @@ static func _on_deletion_pressed() -> void:
 		var args := FormatArgs.new()
 		var public_code := ""
 		if _login_result != null:
-			public_code = _login_result.public_code
+			public_code = _grouped_public_code(_login_result.public_code)
 		args.set_string("public_code", public_code)
 		args.set_string("code", code.code)
 		args.set_int("expires_at", code.expires_at)

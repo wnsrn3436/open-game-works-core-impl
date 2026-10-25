@@ -1,0 +1,232 @@
+{
+  "runs": [
+    {
+      "command": "ogw core spec",
+      "startedAt": 1792947589885,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core dependents storage auth public-profile BootstrapCore",
+      "startedAt": 1792947654533,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server admin-api ads-reward attendance auth block-report chat cheat coupon friend gacha game-update guild iap idempotency item-ledger live-event logging loot-table mailbox matchmaker migration mission nickname notice offer p2p-signaling play-session public-profile push ranking rating remote-config reset-counter routing session shop storage testing tutorial user-snapshot-clone validation",
+      "startedAt": 1792947659495,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvo2qs3q58b28b"
+    },
+    {
+      "command": "ogw core test godot AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore ShortcutCore TutorialCore UnitTestCore",
+      "startedAt": 1792947660142,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvo2qslo244305"
+    },
+    {
+      "command": "ogw core test godot AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore ShortcutCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792947660809,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvo2qt46c94a21"
+    },
+    {
+      "command": "ogw job wait mvo2qslo244305",
+      "startedAt": 1792947663263,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo2qs3q58b28b",
+      "startedAt": 1792947679611,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo2qt46c94a21",
+      "startedAt": 1792947680183,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server admin-api ads-reward attendance auth block-report chat cheat coupon friend gacha game-update guild iap idempotency item-ledger live-event logging loot-table mailbox matchmaker migration mission nickname notice offer p2p-signaling play-session public-profile push ranking rating remote-config reset-counter routing session shop storage testing tutorial user-snapshot-clone validation",
+      "startedAt": 1792947680792,
+      "exitCode": 0,
+      "summary": {
+        "tests": 4934,
+        "passed": 4934
+      },
+      "job": "mvo2r8jdb70c03"
+    },
+    {
+      "command": "ogw core test godot AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore ShortcutCore TutorialCore UnitTestCore",
+      "startedAt": 1792947681430,
+      "exitCode": 0,
+      "summary": {
+        "tests": 1399,
+        "passed": 1399
+      },
+      "job": "mvo2r90y119051"
+    },
+    {
+      "command": "ogw core test godot AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore ShortcutCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792947682107,
+      "exitCode": 1,
+      "summary": {
+        "tests": 1342,
+        "passed": 1341
+      },
+      "job": "mvo2r9jmbffd21"
+    },
+    {
+      "command": "ogw job wait mvo2r90y119051",
+      "startedAt": 1792947684269,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo2r9jmbffd21",
+      "startedAt": 1792947753066,
+      "exitCode": 75,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo2r9jmbffd21",
+      "startedAt": 1792948056189,
+      "exitCode": 75,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo2r9jmbffd21",
+      "startedAt": 1792948359664,
+      "exitCode": 75,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo2r9jmbffd21",
+      "startedAt": 1792948660275,
+      "exitCode": 75,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo2r9jmbffd21",
+      "startedAt": 1792948960852,
+      "exitCode": 75,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo2r9jmbffd21",
+      "startedAt": 1792948967362,
+      "exitCode": 75,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo2r9jmbffd21",
+      "startedAt": 1792949261427,
+      "exitCode": null,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo2r9jmbffd21",
+      "startedAt": 1792949267945,
+      "exitCode": 75,
+      "summary": null
+    },
+    {
+      "command": "ogw job status mvo2r9jmbffd21",
+      "startedAt": 1792949567850,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job status mvo2r8jdb70c03",
+      "startedAt": 1792949568412,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo2r9jmbffd21",
+      "startedAt": 1792949568526,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job status mvo2r9jmbffd21",
+      "startedAt": 1792949571149,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job status mvo2r9jmbffd21",
+      "startedAt": 1792949574153,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job status mvo2r8jdb70c03",
+      "startedAt": 1792949574692,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo2r9jmbffd21",
+      "startedAt": 1792949577713,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo2r8jdb70c03",
+      "startedAt": 1792949630900,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot BadgeCore --web",
+      "startedAt": 1792949638670,
+      "exitCode": 0,
+      "summary": {
+        "tests": 52,
+        "passed": 52
+      },
+      "job": "mvo3x78x054a21"
+    },
+    {
+      "command": "ogw job wait mvo3x78x054a21",
+      "startedAt": 1792949641449,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore ShortcutCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792949668299,
+      "exitCode": 0,
+      "summary": {
+        "tests": 1393,
+        "passed": 1393
+      },
+      "job": "mvo3xu3y142cb1"
+    },
+    {
+      "command": "ogw job wait mvo3xu3y142cb1",
+      "startedAt": 1792949671047,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792949752070,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvo3zmr00ec566"
+    },
+    {
+      "command": "ogw job wait mvo3zmr00ec566",
+      "startedAt": 1792949754984,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}

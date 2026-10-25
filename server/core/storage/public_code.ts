@@ -35,3 +35,8 @@ export function normalize_public_code(text: unknown): string | null {
     .replace(/[IL]/g, '1');
   return PUBLIC_CODE.test(code) ? code : null;
 }
+
+/** The `## API` operation `is_public_code_input`: whether a text is a public code input. */
+export function is_public_code_input(text: unknown): boolean {
+  return normalize_public_code(text) !== null;
+}

@@ -1,4 +1,4 @@
-import type { Storage } from '../index.ts';
+import { is_public_code_input as module_is_public_code_input, type Storage } from '../index.ts';
 import { PUBLIC_CODE_CHARS } from '../public_code.ts';
 import { new_db, new_user, request, started, stop_all, type DbTarget } from './helpers.ts';
 
@@ -74,6 +74,32 @@ describe('find_user_by_public_code', () => {
       expect(s.find_user_by_public_code(db_handle, 'AB01CD1Y')).toBeNull();
       // Only the characters the public code input names are changed: a full-width letter is not a code character.
       expect(s.find_user_by_public_code(db_handle, 'AB01CD1Ｚ')).toBeNull();
+    });
+  });
+});
+
+describe('is_public_code_input', () => {
+  it('is true for a code, in lowercase with - and whitespace, and with O, I, L; false for 7 or 9 characters, a U, a full-width letter, the empty text and a non-text', async () => {
+    const db = await new_db();
+    await with_instance(db, (s) => {
+      for (const text of ['AB01CD1Z', 'ab01-cd1z', ' abOI-cdLz\n', '\tAB01\r-CD1Z ']) expect(s.is_public_code_input(text)).toBe(true);
+      for (const text of ['AB01CD1', 'AB01CD1ZZ', 'AB01CD1U', 'AB01CD1Ｚ', '', '--------', 'AB01_CD1Z']) expect(s.is_public_code_input(text)).toBe(false);
+      expect(module_is_public_code_input(12345678)).toBe(false);
+      expect(module_is_public_code_input(null)).toBe(false);
+    });
+  });
+});
+
+describe('get_user_record public_code', () => {
+  it('is the empty string for a row whose public_code is null', async () => {
+    const db = await new_db();
+    await with_instance(db, async (s) => {
+      const user = await new_user(s);
+      await set_public_code(s, user, null);
+      const record = s.get_user_record(s.read_db(), user);
+      expect(record).not.toBeNull();
+      expect(record?.public_code).toBe('');
+      expect(s.find_user_by_public_code(s.read_db(), '')).toBeNull();
     });
   });
 });

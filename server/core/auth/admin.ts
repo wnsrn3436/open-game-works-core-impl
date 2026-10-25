@@ -3,7 +3,7 @@
  * name, role, body form, input fields, `user_target` and the handler function.
  */
 import type { AuthState } from './context.ts';
-import { normalize_public_code } from '../storage/index.ts';
+import { is_public_code_input } from '../storage/index.ts';
 import type { Ctx, GameTx } from './deps.ts';
 import { find_social_link } from './tables.ts';
 import { withdraw } from './withdraw.ts';
@@ -44,7 +44,7 @@ export function find_user_by_social_account(a: AuthState, input: Readonly<Record
 /** `find_user_by_public_code`: the user of a public code input and its `withdrawn_at` (a withdrawn user's included). */
 export function find_user_by_public_code(a: AuthState, input: Readonly<Record<string, unknown>>, tx: GameTx): Record<string, unknown> | AdminFailure {
   const { storage } = a.modules;
-  if (normalize_public_code(input.public_code) === null) return 'bad_request';
+  if (!is_public_code_input(input.public_code)) return 'bad_request';
   const db = storage.db(tx);
   const user_id = storage.find_user_by_public_code(db, input.public_code as string);
   if (user_id === null) return 'not_found';

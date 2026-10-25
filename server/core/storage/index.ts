@@ -82,6 +82,7 @@ import {
 } from './tx.ts';
 import { register_user_change, run_user_changes, send_user_change, type ChangeCaller } from './user_change.ts';
 import { canonical_json } from './canonical_json.ts';
+import { is_public_code_input } from './public_code.ts';
 import { check_hook_output } from './hook_output.ts';
 
 export type { RequestCtx, HookChangeSource } from './request_ctx.ts';
@@ -96,7 +97,8 @@ export type { FullStateResult, ResponseDelta, TakenDelta } from './delta.ts';
 export type { KindClass, KindValue } from './kinds.ts';
 export type { Random } from './random.ts';
 export type { NewUser, RawRow, UserRecord } from './rows.ts';
-export { normalize_public_code } from './public_code.ts';
+/** The `## API` operation `is_public_code_input`. */
+export { is_public_code_input } from './public_code.ts';
 export type { ColumnType, Scope } from './schema.ts';
 export type { PublicStateEntry } from './state.ts';
 export type { RequestFields, UserTxResult } from './tx.ts';
@@ -161,6 +163,7 @@ export interface Storage {
   delete_user(ctx: RequestCtx): void;
   get_user_record(db: DbHandle, user_id: bigint): UserRecord | null;
   find_user_by_public_code(db: DbHandle, public_code: string): bigint | null;
+  is_public_code_input(text: string): boolean;
   set_user_created_at(ctx: RequestCtx, time: bigint): void;
   scan_users(db: DbHandle, after: bigint, max: number, version?: bigint | number | null): bigint[];
   sample_users(db: DbHandle, max: number): bigint[];
@@ -423,6 +426,7 @@ export function create_storage_with(input: StorageInput, contract: StorageContra
     },
     get_user_record: (handle, user_id) => get_user_record(handle, user_id),
     find_user_by_public_code: (handle, public_code) => find_user_by_public_code(handle, public_code),
+    is_public_code_input,
     set_user_created_at: (ctx, time) => {
       set_user_created_at(core, ctx, time);
     },
