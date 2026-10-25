@@ -218,12 +218,29 @@ export interface Device {
   readonly token: string;
 }
 
-/** A new user with a session and a registered device. */
-export async function device(server: TestServer, r: Register): Promise<Device> {
-  const session = await new_user(server);
+/** A registered device of a session's user. */
+async function device_of(session: TestSession, r: Register): Promise<Device> {
   const code = await register(session, r);
   if (code !== 0) throw new Error(`RegisterPushToken: ${String(code)}`);
   return { session, account: accounts.get(session) ?? '', user_id: session.user_id, token: r.device_token };
+}
+
+/** A new user with a session and a registered device. */
+export async function device(server: TestServer, r: Register): Promise<Device> {
+  return device_of(await new_user(server), r);
+}
+
+/**
+ * New users with a session and a registered device each, users in ID order: user IDs are random, so the `i`-th
+ * register goes to the user of the `i`-th smallest user ID.
+ */
+export async function devices_in_id_order(server: TestServer, rs: readonly Register[]): Promise<Device[]> {
+  const sessions: TestSession[] = [];
+  for (let i = 0; i < rs.length; i++) sessions.push(await new_user(server));
+  sessions.sort((a, b) => (a.user_id < b.user_id ? -1 : 1));
+  const out: Device[] = [];
+  for (const [i, session] of sessions.entries()) out.push(await device_of(session, rs[i] as Register));
+  return out;
 }
 
 let loaded: ReturnType<typeof testing.load_data> | null = null;

@@ -98,10 +98,13 @@ describe('profile build', () => {
     await set_nickname(instance, b, 'bob');
 
     const entries = await request(instance, a, 'Test', (ctx) => instance.profile.get_public_profiles(ctx, [b, a]));
-    expect(entries.map((e) => [e.user_id, e.nickname])).toEqual([
-      [a, ''],
-      [b, 'bob'],
-    ]);
+    // Entries are in user ID order, and random user IDs need not follow a, b.
+    expect(entries.map((e) => [e.user_id, e.nickname])).toEqual(
+      [
+        [a, ''],
+        [b, 'bob'],
+      ].sort((x, y) => ((x[0] as bigint) < (y[0] as bigint) ? -1 : 1)),
+    );
   });
 
   it('get_public_profiles of public-profile.maxRequestCount × 2 + 1 users gives every active user in user ID order without a throw', async () => {

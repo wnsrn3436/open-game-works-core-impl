@@ -180,7 +180,7 @@ describe('Withdraw of an applicant and AcceptGuildJoinRequest on two server inst
     expect(await withdrawn).toBe(E.CORE_ERROR_INTERNAL);
     expect(withdrawn_at(kit, a.user_id)).toBeNull();
     expect(member(kit, a.user_id)).toMatchObject({ guild_id, role: Role.GUILD_ROLE_MEMBER });
-    expect(member_ids(kit, guild_id)).toEqual([l.user_id, a.user_id]);
+    expect(member_ids(kit, guild_id)).toEqual([l.user_id, a.user_id].sort((x, y) => (x < y ? -1 : 1)));
     expect(requests(kit)).toEqual([]);
     consistent(kit, guild_id);
     expect(await withdraw(a)).toBe(0);

@@ -5,8 +5,8 @@
  */
 import { lock_holder, stop_all as stop_lock_holders } from '../../storage/tests/helpers.ts';
 import {
-  HOUR, LEASE_MS, POLL_MS, RETRY_MS, START_AT, advance, db_target, device, fail_statements, fake, fake_adapter, held, logs, message, push_module, queue,
-  record, schedule, sends_to, set_push_consent, start, stop_all, testing, type Device, type TestServer,
+  HOUR, LEASE_MS, POLL_MS, RETRY_MS, START_AT, advance, db_target, device, devices_in_id_order, fail_statements, fake, fake_adapter, held, logs, message,
+  push_module, queue, record, schedule, sends_to, set_push_consent, start, stop_all, testing, type Device, type TestServer,
 } from './helpers.ts';
 
 afterEach(async () => {
@@ -20,8 +20,16 @@ const FINISH_WRITE = /^UPDATE push_record SET status = \$1, finished_at/;
 /** A message ID value that no core test data `push_message` row has. */
 const NO_MESSAGE = 2_000_000_000;
 
+/** Two devices, users in ID order. */
 async function two_devices(server: TestServer): Promise<[Device, Device]> {
-  return [await device(server, { device_token: 'fake:first' }), await device(server, { device_token: 'fake:second' })];
+  const [first, second] = await devices_in_id_order(server, [{ device_token: 'fake:first' }, { device_token: 'fake:second' }]);
+  return [first as Device, second as Device];
+}
+
+/** A night device and a day device, the night device's user first in ID order so the first batch holds its push. */
+async function night_and_day(server: TestServer, name: string): Promise<{ night: Device; day: Device }> {
+  const [night, day] = await devices_in_id_order(server, [{ device_token: `fake:${name}-night`, timezone_offset_ms: 16n * HOUR }, { device_token: `fake:${name}-day` }]);
+  return { night: night as Device, day: day as Device };
 }
 
 function push_to(server: TestServer, users: readonly bigint[], message_name = '[push_plain]'): Promise<bigint> {
@@ -197,8 +205,7 @@ describe('a message that is not in the server build data', () => {
 
   it('a SENDING record taken again after its message went ends FAILED and its push_held rows are deleted without a send', async () => {
     const server = await start({ settings: ONE_PER_BATCH });
-    const night = await device(server, { device_token: 'fake:held-night', timezone_offset_ms: 16n * HOUR });
-    const day = await device(server, { device_token: 'fake:held-day' });
+    const { night, day } = await night_and_day(server, 'held');
     for (const d of [night, day]) await set_push_consent(d.session, true, false);
     const id = await schedule(server, { message_id: message('[push_ad]'), args: [{ name: 'percent', value: { int_value: 5n } }], send_at: START_AT, target: { user_ids: [night.user_id, day.user_id] } });
     // The first batch holds the night device's push; the write of the second batch is FAILED on both attempts, so the
@@ -221,8 +228,7 @@ describe('a message that is not in the server build data', () => {
 
   it('a due push_held row of a SENDING record whose message went ends the record FAILED in that game transaction, with one error log for the record', async () => {
     const server = await start({ settings: ONE_PER_BATCH });
-    const night = await device(server, { device_token: 'fake:due-night', timezone_offset_ms: 16n * HOUR });
-    const day = await device(server, { device_token: 'fake:due-day' });
+    const { night, day } = await night_and_day(server, 'due');
     for (const d of [night, day]) await set_push_consent(d.session, true, false);
     const id = await schedule(server, { message_id: message('[push_ad]'), args: [{ name: 'percent', value: { int_value: 5n } }], send_at: START_AT, target: { user_ids: [night.user_id, day.user_id] } });
     // The record stops SENDING after the first batch held the night device, and its lease runs on.
@@ -248,8 +254,7 @@ describe('a message that is not in the server build data', () => {
 
   it('a batch write of the lease holder that adds a push_held row while the held rows are dropped: the record ends FAILED with no push_held row left and no send', async () => {
     const server = await start({ settings: ONE_PER_BATCH });
-    const night = await device(server, { device_token: 'fake:race-night', timezone_offset_ms: 16n * HOUR });
-    const day = await device(server, { device_token: 'fake:race-day' });
+    const { night, day } = await night_and_day(server, 'race');
     for (const d of [night, day]) await set_push_consent(d.session, true, false);
     const id = await schedule(server, { message_id: message('[push_ad]'), args: [{ name: 'percent', value: { int_value: 5n } }], send_at: START_AT, target: { user_ids: [night.user_id, day.user_id] } });
     fail_statements(server, BATCH_WRITE, 2, undefined, 1);

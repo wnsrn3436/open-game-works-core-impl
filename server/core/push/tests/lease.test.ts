@@ -4,8 +4,8 @@
  */
 import { lock_holder, stop_all as stop_lock_holders } from '../../storage/tests/helpers.ts';
 import {
-  HOUR, LEASE_MS, POLL_MS, RETRY_MS, START_AT, advance, db_target, device, fake, held, logs, message, now, peer, queue, record, restart, schedule,
-  sends_to, set_push_consent, start, stop_all, testing, until, type Device, type TestServer,
+  HOUR, LEASE_MS, POLL_MS, RETRY_MS, START_AT, advance, db_target, device, devices_in_id_order, fake, held, logs, message, now, peer, queue, record,
+  restart, schedule, sends_to, set_push_consent, start, stop_all, testing, until, type Device, type TestServer,
 } from './helpers.ts';
 
 afterEach(async () => {
@@ -17,7 +17,8 @@ const ONE_PER_BATCH = { 'push.sendBatchSize': 1 };
 
 /** Two devices, users in ID order. */
 async function two_devices(server: TestServer): Promise<[Device, Device]> {
-  return [await device(server, { device_token: 'fake:first' }), await device(server, { device_token: 'fake:second' })];
+  const [first, second] = await devices_in_id_order(server, [{ device_token: 'fake:first' }, { device_token: 'fake:second' }]);
+  return [first as Device, second as Device];
 }
 
 function push_to(server: TestServer, users: readonly bigint[]): Promise<bigint> {

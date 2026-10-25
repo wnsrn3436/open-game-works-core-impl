@@ -30,19 +30,21 @@ describe('collection of module exports', () => {
   it('collects only the operations whose caller is operator as admin operations', () => {
     const withdraw_user = { name: 'withdraw_user', role: 'ops' };
     const find_user_by_social_account = { name: 'find_user_by_social_account', role: 'read' };
+    const find_user_by_public_code = { name: 'find_user_by_public_code', role: 'read' };
     const auth: ModuleObject = {
       Login: () => null, AutoLogin: () => null, RefreshToken: () => null, Logout: () => null, LinkAccount: () => null,
       Withdraw: () => null, IssueDeletionCode: () => null, GetTerms: () => null, ConfirmAge: () => null, UpdateConsent: () => null, UpdatePushConsent: () => null,
       'GET /account/deletion': route, 'POST /account/deletion': route,
       // internal operations (caller routing or admin-api) are not admin operations
       verify_access_token: () => null, prepare_link_account: () => null,
-      withdraw_user, find_user_by_social_account,
+      withdraw_user, find_user_by_social_account, find_user_by_public_code,
     };
     const result = collect({ auth });
     expect(result.errors).toEqual([]);
     expect(result.admin_operations).toEqual([
       { module: 'auth', operation: withdraw_user },
       { module: 'auth', operation: find_user_by_social_account },
+      { module: 'auth', operation: find_user_by_public_code },
     ]);
     expect(result.prepare.has('core/LinkAccount')).toBe(true);
     expect([...result.core_rpcs.keys()].sort()).toEqual(['core/AutoLogin', 'core/ConfirmAge', 'core/GetTerms', 'core/IssueDeletionCode', 'core/LinkAccount', 'core/Login', 'core/Logout', 'core/RefreshToken', 'core/UpdateConsent', 'core/UpdatePushConsent', 'core/Withdraw']);
@@ -58,7 +60,7 @@ describe('collection of module exports', () => {
       },
     });
     // given in the reverse of the table order, so the order comes from the table and not from the modules
-    const modules = { 'public-profile': { ...on('public-profile'), GetPublicProfiles: () => null }, 'mailbox': { ...on('mailbox'), ReadMail: () => null, ClaimMail: () => null, ClaimAllMail: () => null }, 'live-event': { ...on('live-event') } };
+    const modules = { 'public-profile': { ...on('public-profile'), GetPublicProfiles: () => null, FindUserByPublicCode: () => null, count_find_attempt: () => null }, 'mailbox': { ...on('mailbox'), ReadMail: () => null, ClaimMail: () => null, ClaimAllMail: () => null }, 'live-event': { ...on('live-event') } };
     const request_start = collect(modules).request_start;
     expect(request_start).toHaveLength(3);
     for (const operation of request_start) operation(1n);

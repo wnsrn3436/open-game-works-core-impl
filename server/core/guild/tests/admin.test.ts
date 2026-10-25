@@ -101,9 +101,7 @@ describe('disband_guild', () => {
     const response = await admin(kit, 'disband_guild', { operation_id: 'good', guild_id: String(guild_id), user_id: String(l.user_id) });
     expect(response.status).toBe(200);
     expect(kit.content.changed.map((call) => [call.user_id, call.change])).toEqual([
-      [a.user_id, 'Kicked'],
-      [b.user_id, 'Kicked'],
-      [c.user_id, 'Kicked'],
+      ...[a.user_id, b.user_id, c.user_id].sort((x, y) => (x < y ? -1 : 1)).map((user_id) => [user_id, 'Kicked']),
       [l.user_id, 'Disbanded'],
     ]);
     expect(guild_row(kit, guild_id)).toBeNull();

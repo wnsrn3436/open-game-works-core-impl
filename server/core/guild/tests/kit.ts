@@ -312,7 +312,7 @@ export async function commit_while_row_locked(kit: Kit, table: string, key: read
 
 type Tuple<T, N extends number, R extends T[] = []> = R['length'] extends N ? R : Tuple<T, N, [T, ...R]>;
 
-/** `count` dev logins, in user ID order. */
+/** `count` dev logins, in the order they were made (their user IDs are random, not in that order). */
 export async function users<N extends number>(kit: { readonly server: TestServer | RemoteServer | null }, count: N, prefix = 'guild'): Promise<Tuple<TestSession, N>> {
   const server = kit.server;
   if (server === null) throw new Error('the server takes no login');

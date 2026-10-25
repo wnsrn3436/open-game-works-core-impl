@@ -27,14 +27,18 @@ const WAIT = { 'storage.userLockWaitMs': 20_000 };
 /** Time limit of one test: child processes start, and steps wait at gates and locks. */
 const T = 60_000;
 
-/** New users that each have one version 1 quest item: `100 + n` for the n-th user, or `BROKEN` where asked. */
+/**
+ * New users in user ID order, the order a batch steps through them, that each have one version 1 quest item:
+ * `100 + n` for the n-th user, or `BROKEN` where asked.
+ */
 async function old_users(s: Server, count: number, broken: readonly number[] = []): Promise<bigint[]> {
   const users: bigint[] = [];
-  for (let n = 1; n <= count; n += 1) {
-    const user = await new_user(s);
-    const id = broken.includes(n) ? BROKEN : BigInt(100 + n);
+  for (let n = 1; n <= count; n += 1) users.push(await new_user(s));
+  // User IDs are random, so the n-th user made is not the n-th in user ID order.
+  users.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  for (const [i, user] of users.entries()) {
+    const id = broken.includes(i + 1) ? BROKEN : BigInt(101 + i);
     await seed(s, user, [row('user_state', Q, id, 1n, quest(id, 1n))]);
-    users.push(user);
   }
   return users;
 }
