@@ -1,0 +1,12 @@
+{
+  "target": "spec auth",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/server-core/modules/auth.md:300",
+      "problem": "The `google` method reads the `auth_social_link` row of (`GOOGLE`, provider account ID) before opening `run_user_transaction`, without saying which DB handle it uses, and the failure of that read is not set in the processing order at auth.md:294; the HTTP status and result page of that DB failure can differ per implementation",
+      "foundBy": "spec auth"
+    }
+  ]
+}
