@@ -116,6 +116,25 @@ func test_game_time_tween_holds_during_the_game_time_pause_and_real_time_tween_g
 	assert_almost_eq(game.position.x, 20.0, 0.001)
 
 
+func test_time_basis_that_is_not_a_member_gives_the_invalid_handle_without_callback_or_input_block() -> void:
+	start()
+	var target: Node2D = node_2d()
+	var scope: Scope = ResourceCore.get_global_scope()
+	for time_basis: int in [99, -1]:
+		var basis: TweenCore.TimeBasis = time_basis as TweenCore.TimeBasis
+		assert_eq(TweenCore.play(move(), target, options("tag", true, null, basis)), 0, "play %d" % time_basis)
+		assert_eq(TweenCore.play_preset(MOVE, scope, target, options("tag", true, null, basis)), 0,
+				"play_preset %d" % time_basis)
+	assert_eq(errors(), 4)
+	assert_eq(tween_blocks(), 0, "no input block")
+	assert_eq(TweenCore.get_finite_playing_count(), 0)
+	await frame_end()
+	await advance(100)
+	assert_eq(recorder.reasons.size(), 0, "no callback")
+	assert_eq(recorder.started_count, 0)
+	assert_eq(target.position, Vector2.ZERO)
+
+
 func test_opacity_target_above_one_fails_and_overshooting_easing_frames_stay_in_zero_to_one() -> void:
 	start()
 	var target: Node2D = node_2d()

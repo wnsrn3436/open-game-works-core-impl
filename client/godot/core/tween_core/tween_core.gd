@@ -323,6 +323,20 @@ static func is_playing(handle: int) -> bool:
 	return _slot_of(handle) >= 0
 
 
+## Number of the playing tweens that do not repeat forever: value tweens, presets that wait for loading, and tweens
+## whose played definition has a repeat count other than 0. Allocates no memory.
+static func get_finite_playing_count() -> int:
+	if not _is_initialized:
+		LogCore.log_error(_TAG, "get_finite_playing_count: not initialized")
+		return 0
+	var count: int = 0
+	for slot: int in _slot_count:
+		# value tweens, waiting presets and definitions without step have repeat count 1 in their record
+		if _active[slot] != 0 and _records[slot].repeat_count != 0:
+			count += 1
+	return count
+
+
 ## Async operation. Waits until the tween ends and returns its end reason. `None` at once when it is not playing, and
 ## when `release` ends it.
 static func wait_end(handle: int) -> TweenEndReason:
