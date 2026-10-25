@@ -18,7 +18,11 @@ func test_init_check_before_init_after_init_and_after_release() -> void:
 
 
 func test_release_puts_every_static_var_back_and_takes_the_core_node_out_of_the_tree() -> void:
+	assert_true(UnitTestCore.set_test_settings("LocalizationCore.bodyFontWeight", 400))
+	assert_true(UnitTestCore.set_test_settings("LocalizationCore.headingFontWeight", 800))
 	assert_true(await _SUPPORT.start())
+	assert_eq(LocalizationCore._body_font_weight, 400)
+	assert_eq(LocalizationCore._heading_font_weight, 800)
 	var node: Node = LocalizationCore._node
 	assert_true(node.is_inside_tree())
 	LocalizationCoreDev.set_test_device_language("ca")
@@ -39,6 +43,8 @@ func test_release_puts_every_static_var_back_and_takes_the_core_node_out_of_the_
 	assert_eq(LocalizationCore._source_language, "")
 	assert_eq(LocalizationCore._downloaded_max_bytes, 0)
 	assert_eq(LocalizationCore._max_formatted_length, 0)
+	assert_eq(LocalizationCore._body_font_weight, 0)
+	assert_eq(LocalizationCore._heading_font_weight, 0)
 	assert_false(LocalizationCore._resolve_called)
 	assert_eq(LocalizationCore._language, 0)
 	assert_eq(LocalizationCore._language_code, "")
@@ -53,6 +59,9 @@ func test_release_puts_every_static_var_back_and_takes_the_core_node_out_of_the_
 	assert_null(LocalizationCore._font_theme)
 	assert_null(LocalizationCore._saved_default_font)
 	assert_null(LocalizationCore._chain)
+	assert_null(LocalizationCore._heading_chain)
+	assert_true(LocalizationCore._saved_heading_bases.is_empty())
+	assert_true(LocalizationCore._saved_heading_fonts.is_empty())
 	assert_eq(LocalizationCore._text_scale, 1000)
 	assert_true(LocalizationCore._first_font_sizes.is_empty())
 	assert_true(LocalizationCore._bindings.is_empty())
@@ -142,3 +151,14 @@ func _assert_init_fails_on_supported_languages() -> void:
 	assert_false(LocalizationCore.init())
 	assert_eq(_SUPPORT.errors(), 1)
 	assert_false(LocalizationCore.is_initialized())
+
+
+func test_init_fails_when_a_font_weight_is_not_an_integer() -> void:
+	assert_true(await _SUPPORT.start_dependencies())
+	for key: String in PackedStringArray(["LocalizationCore.bodyFontWeight", "LocalizationCore.headingFontWeight"]):
+		assert_true(UnitTestCore.set_invalid_test_settings(key, "400"))
+		assert_false(LocalizationCore.init())
+		assert_eq(_SUPPORT.errors(), 1)
+		assert_false(LocalizationCore.is_initialized())
+		assert_true(UnitTestCore.set_test_settings(key, 400))
+	assert_true(LocalizationCore.init())

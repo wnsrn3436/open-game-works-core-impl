@@ -1,7 +1,7 @@
 class_name LocalizationCore
 extends RefCounted
-## Current language, translation lookup, format arguments, input prompt tokens, the default font of the language
-## and the text scale of UI text elements.
+## Current language, translation lookup, format arguments, input prompt tokens, the default font and the heading font
+## of the language and the text scale of UI text elements.
 
 const _CORE_NODE := preload("res://core/localization_core/localization_core_node.gd")
 const _TEXT_FORMAT := preload("res://core/localization_core/text_format.gd")
@@ -13,6 +13,8 @@ const _SOURCE_LANGUAGE_SETTING: String = "sourceLanguage"
 const _SUPPORTED_LANGUAGES_SETTING: String = "supportedLanguages"
 const _DOWNLOADED_MAX_BYTES_SETTING: String = "LocalizationCore.downloadedFileMaxBytes"
 const _MAX_FORMATTED_LENGTH_SETTING: String = "LocalizationCore.maxFormattedLength"
+const _BODY_FONT_WEIGHT_SETTING: String = "LocalizationCore.bodyFontWeight"
+const _HEADING_FONT_WEIGHT_SETTING: String = "LocalizationCore.headingFontWeight"
 ## What DEV builds put in place of a missing key, an error slot and an input prompt token without a prompt.
 const _DEV_MARK: String = "‼ "
 const _FONT_KIND: int = ResourceCore.BaseKind.FONT
@@ -20,6 +22,16 @@ const _ICON_KIND: int = ResourceCore.BaseKind.TEXTURE_2D
 const _DEFAULT_TEXT_SCALE: int = 1000
 const _RICH_FONT_SIZE: StringName = &"normal_font_size"
 const _FONT_SIZE: StringName = &"font_size"
+const _FONT: StringName = &"font"
+const _RICH_FONT: StringName = &"normal_font"
+## The theme type variations of the `heading` text style and the base type of each.
+const _HEADING_TYPES: Dictionary[StringName, StringName] = {
+	&"HeadingLabel": &"Label",
+	&"HeadingButton": &"Button",
+	&"HeadingRichTextLabel": &"RichTextLabel",
+}
+## What `_weight_axis` returns for a font without a `wght` axis: a minimum above the maximum.
+const _NO_WEIGHT_AXIS: Vector2i = Vector2i(1, 0)
 ## `bind_text` drops the bindings of freed elements when the bindings reach this size, and then twice the size left.
 const _MIN_BINDING_SWEEP_SIZE: int = 64
 
@@ -30,6 +42,8 @@ static var _session: RefCounted = null
 static var _source_language: String = ""
 static var _downloaded_max_bytes: int = 0
 static var _max_formatted_length: int = 0
+static var _body_font_weight: int = 0
+static var _heading_font_weight: int = 0
 static var _resolve_called: bool = false
 ## ID value and `code` of the current language; 0 and empty before `resolve_language` picks one.
 static var _language: int = 0
@@ -50,6 +64,12 @@ static var _icon_paths: Dictionary[String, String] = {}
 static var _font_theme: Theme = null
 static var _saved_default_font: Font = null
 static var _chain: Font = null
+## The heading font chain `load_fonts` set as the font of the `_HEADING_TYPES` in `_font_theme`.
+static var _heading_chain: Font = null
+## The `_HEADING_TYPES` `_font_theme` had before the first `load_fonts`: the base type of each (empty when it was no
+## type variation) and its font (null when it had none).
+static var _saved_heading_bases: Dictionary[StringName, StringName] = {}
+static var _saved_heading_fonts: Dictionary[StringName, Font] = {}
 static var _text_scale: int = _DEFAULT_TEXT_SCALE
 ## First font size of each UI text element in the tree, by instance ID.
 static var _first_font_sizes: Dictionary[int, int] = {}
@@ -164,7 +184,8 @@ static func load_translation(downloaded: Array[DownloadedTranslation]) -> bool:
 	return true
 
 
-## Loads the font chain of the current language into the global scope and applies it as the default font.
+## Loads the font chain of the current language into the global scope and applies it as the default font and as the
+## heading font.
 static func load_fonts() -> bool:
 	if not _check_initialized("load_fonts"):
 		return false
@@ -178,6 +199,7 @@ static func load_fonts() -> bool:
 	var session: RefCounted = _session
 	var scope: Scope = ResourceCore.get_global_scope()
 	var fonts: Array[Font] = []
+	var keys: PackedStringArray = PackedStringArray()
 	var ok: bool = true
 	for key: String in _font_chain_keys():
 		var loaded: Resource = await ResourceCore.load(key, _FONT_KIND, scope)
@@ -189,8 +211,9 @@ static func load_fonts() -> bool:
 			LogCore.log_error(_TAG, "font " + key + " of the font chain is the fallback resource")
 		if font != null:
 			fonts.append(font)
+			keys.append(key)
 	_fonts_loading = false
-	_apply_default_font(fonts)
+	_apply_fonts(fonts, keys)
 	return ok
 
 
@@ -340,12 +363,15 @@ static func _read_settings() -> bool:
 	if not CoreSettings.has_string(_SOURCE_LANGUAGE_SETTING) or not CoreSettings.has_string_array(_SUPPORTED_LANGUAGES_SETTING):
 		LogCore.log_error(_TAG, "init found no sourceLanguage string or supportedLanguages string list in the settings")
 		return false
-	if not CoreSettings.has_int(_DOWNLOADED_MAX_BYTES_SETTING) or not CoreSettings.has_int(_MAX_FORMATTED_LENGTH_SETTING):
+	if not CoreSettings.has_int(_DOWNLOADED_MAX_BYTES_SETTING) or not CoreSettings.has_int(_MAX_FORMATTED_LENGTH_SETTING) \
+			or not CoreSettings.has_int(_BODY_FONT_WEIGHT_SETTING) or not CoreSettings.has_int(_HEADING_FONT_WEIGHT_SETTING):
 		LogCore.log_error(_TAG, "init found no LocalizationCore integer settings")
 		return false
 	_source_language = CoreSettings.get_string(_SOURCE_LANGUAGE_SETTING)
 	_downloaded_max_bytes = CoreSettings.get_int(_DOWNLOADED_MAX_BYTES_SETTING)
 	_max_formatted_length = CoreSettings.get_int(_MAX_FORMATTED_LENGTH_SETTING)
+	_body_font_weight = CoreSettings.get_int(_BODY_FONT_WEIGHT_SETTING)
+	_heading_font_weight = CoreSettings.get_int(_HEADING_FONT_WEIGHT_SETTING)
 	return true
 
 
@@ -578,21 +604,125 @@ static func _font_chain_keys() -> PackedStringArray:
 	return keys
 
 
-## Applies the fonts as the default font: the first font, then the rest as its fallbacks in order. A Control without
-## a theme of its own takes the `default_font` of the project theme when it has one, else of the engine default
-## theme, before `ThemeDB.fallback_font`, so the chain goes to that theme.
-static func _apply_default_font(fonts: Array[Font]) -> void:
+## Applies the fonts, of the resource keys `keys`, as the default font with `LocalizationCore.bodyFontWeight` and as
+## the heading font with `LocalizationCore.headingFontWeight`. A Control without a theme of its own takes the
+## `default_font` of the project theme when it has one, else of the engine default theme, before
+## `ThemeDB.fallback_font`, so the default font goes to that theme, and the heading font to the font of the
+## `_HEADING_TYPES` of the same theme.
+static func _apply_fonts(fonts: Array[Font], keys: PackedStringArray) -> void:
 	if fonts.is_empty():
 		return
 	if _font_theme == null:
 		var project: Theme = ThemeDB.get_project_theme()
 		_font_theme = project if project != null and project.has_default_font() else ThemeDB.get_default_theme()
 		_saved_default_font = _font_theme.default_font
+		var types: PackedStringArray = _font_theme.get_type_list()
+		for type: StringName in _HEADING_TYPES:
+			if types.has(type):
+				_saved_heading_bases[type] = _font_theme.get_type_variation_base(type)
+				var item: StringName = _heading_font_item(type)
+				_saved_heading_fonts[type] = _font_theme.get_font(item, type) if _font_theme.has_font(item, type) else null
+	_chain = _weighted_chain(fonts, keys, _body_font_weight, "body")
+	_font_theme.default_font = _chain
+	_heading_chain = _weighted_chain(fonts, keys, _heading_font_weight, "heading")
+	for type: StringName in _HEADING_TYPES:
+		_font_theme.set_type_variation(type, _HEADING_TYPES[type])
+		_font_theme.set_font(_heading_font_item(type), type, _heading_chain)
+
+
+## The font chain of one text style: the first font, then the rest as its fallbacks in order, each font drawn with
+## `weight`. The chain itself carries the weight of the first font, because the engine does not draw the variation of
+## a `FontVariation` that is the `base_font` of another; each fallback with the weight is a `FontVariation` of it.
+static func _weighted_chain(fonts: Array[Font], keys: PackedStringArray, weight: int, style: String) -> FontVariation:
 	var chain: FontVariation = FontVariation.new()
 	chain.base_font = fonts[0]
-	chain.fallbacks = fonts.slice(1)
-	_chain = chain
-	_font_theme.default_font = chain
+	if _takes_weight(fonts[0], keys[0], weight, style):
+		_set_weight(chain, weight)
+	var fallbacks: Array[Font] = []
+	for i: int in range(1, fonts.size()):
+		if _takes_weight(fonts[i], keys[i], weight, style):
+			var variation: FontVariation = FontVariation.new()
+			variation.base_font = fonts[i]
+			_set_weight(variation, weight)
+			fallbacks.append(variation)
+		else:
+			fallbacks.append(fonts[i])
+	chain.fallbacks = fallbacks
+	return chain
+
+
+## Whether a font is drawn with `weight` through a `FontVariation`: not when `weight` is 0 or the font has no `wght`
+## axis. The engine draws a weight outside the axis range at the nearest end of it. Writes a warn log for a font
+## without the axis or with `weight` outside its range.
+static func _takes_weight(font: Font, key: String, weight: int, style: String) -> bool:
+	if weight <= 0:
+		return false
+	var axis: Vector2i = _weight_axis(font, _wght_tag())
+	if axis == _NO_WEIGHT_AXIS:
+		LogCore.log_warn(_TAG, "font %s has no wght axis; the %s text style draws it at its default weight, not %d" % [key, style, weight])
+		return false
+	if weight < axis.x or weight > axis.y:
+		LogCore.log_warn(_TAG, "font %s has the wght axis %d to %d; the %s text style draws it at %d, not %d" % [
+			key, axis.x, axis.y, style, clampi(weight, axis.x, axis.y), weight])
+	return true
+
+
+static func _wght_tag() -> int:
+	return TextServerManager.get_primary_interface().name_to_tag("wght")
+
+
+## Sets `wght` of a `FontVariation` to `weight`. `variation_opentype` takes an untyped Dictionary: the engine looks
+## its keys up as both tags and axis names, which a typed Dictionary refuses.
+# ogw:input_boundary
+static func _set_weight(variation: FontVariation, weight: int) -> void:
+	var coordinates: Dictionary = {}
+	coordinates[_wght_tag()] = weight
+	variation.variation_opentype = coordinates
+
+
+## The minimum and the maximum of the variation axis `tag` of a font; `_NO_WEIGHT_AXIS` when it has none. The axes
+## are those of the first text server font of `get_rids()`, the font it draws with: the same as
+## `get_supported_variation_list()` for a font with a text server font of its own, and the default font for a
+## `SystemFont` that found no system font (as in the browser runtime), whose `get_supported_variation_list()` is an
+## engine error.
+# ogw:input_boundary
+static func _weight_axis(font: Font, tag: int) -> Vector2i:
+	var rids: Array[RID] = font.get_rids()
+	if rids.is_empty():
+		return _NO_WEIGHT_AXIS
+	var axes: Dictionary = TextServerManager.get_primary_interface().font_supported_variation_list(rids[0])
+	if not axes.has(tag):
+		return _NO_WEIGHT_AXIS
+	var axis: Variant = axes[tag]
+	if not axis is Vector3i:
+		return _NO_WEIGHT_AXIS
+	var range_of: Vector3i = axis
+	return Vector2i(range_of.x, range_of.y)
+
+
+## The theme font item of a heading type: `normal_font` for the `RichTextLabel` one, `font` for the others.
+static func _heading_font_item(type: StringName) -> StringName:
+	return _RICH_FONT if _HEADING_TYPES[type] == &"RichTextLabel" else _FONT
+
+
+## Puts the `_HEADING_TYPES` of `_font_theme` back to before the first `load_fonts`: a type it did not have is
+## removed, and a type it had gets its base type and font back.
+static func _restore_heading_types() -> void:
+	for type: StringName in _HEADING_TYPES:
+		if not _saved_heading_bases.has(type):
+			_font_theme.remove_type(type)
+			continue
+		var base: StringName = _saved_heading_bases[type]
+		if base.is_empty():
+			_font_theme.clear_type_variation(type)
+		else:
+			_font_theme.set_type_variation(type, base)
+		var item: StringName = _heading_font_item(type)
+		var saved: Font = _saved_heading_fonts[type]
+		if saved != null:
+			_font_theme.set_font(item, type, saved)
+		elif _font_theme.has_font(item, type):
+			_font_theme.clear_font(item, type)
 
 
 static func _is_text_element(node: Node) -> bool:
@@ -711,12 +841,17 @@ static func _clean_up(detach: bool) -> void:
 		var element: Control = _text_element_of(id)
 		if element != null:
 			element.add_theme_font_size_override(_font_size_name(element), _first_font_sizes[id])
-	if _font_theme != null and _font_theme.default_font == _chain:
-		_font_theme.default_font = _saved_default_font
+	if _font_theme != null:
+		if _font_theme.default_font == _chain:
+			_font_theme.default_font = _saved_default_font
+		if _heading_chain != null:
+			_restore_heading_types()
 	_session = null
 	_source_language = ""
 	_downloaded_max_bytes = 0
 	_max_formatted_length = 0
+	_body_font_weight = 0
+	_heading_font_weight = 0
 	_resolve_called = false
 	_language = 0
 	_language_code = ""
@@ -731,6 +866,9 @@ static func _clean_up(detach: bool) -> void:
 	_font_theme = null
 	_saved_default_font = null
 	_chain = null
+	_heading_chain = null
+	_saved_heading_bases = {}
+	_saved_heading_fonts = {}
 	_text_scale = _DEFAULT_TEXT_SCALE
 	_first_font_sizes = {}
 	_bindings = {}

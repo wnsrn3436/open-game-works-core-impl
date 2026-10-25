@@ -471,6 +471,8 @@
   "InputCore.padAxisDeadzone": 0.2,
   "QACore.touchIndexCount": 10,
   "QACore.timeScaleMaxPermille": 100000,
+  "LocalizationCore.bodyFontWeight": 0,
+  "LocalizationCore.headingFontWeight": 0,
   "termsPopup": "prefab_terms",
   "agePopup": "",
   "privacyPopup": "",
