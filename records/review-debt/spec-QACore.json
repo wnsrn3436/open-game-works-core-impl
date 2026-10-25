@@ -1,0 +1,12 @@
+{
+  "target": "spec QACore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/client-core/modules/qa-core.md:138",
+      "problem": "Keyboard capture calls \"the command of 3\" again between text input elements, and gamepad focus check step 1 (qa-core.md:140) calls \"the command of 3\" then `set_input_device` and `list_ui`. Neither waits for the settle condition of step 3. A reopened panel or popup is still in a UICore flow with a `ui` reason tag block (ui-core.md:153, :188), so the next `tap` or `pad_button_down` can land during the open tween and be blocked, or `list_ui` can read moving rects. This existed with the earlier fixed `settleMs` wait as well, so it was not caused by this diff",
+      "foundBy": "spec QACore"
+    }
+  ]
+}
