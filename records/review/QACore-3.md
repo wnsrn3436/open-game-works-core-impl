@@ -6,9 +6,7 @@ none
 
 ## previous
 
-| id | result | evidence |
-|---|---|---|
-| R2-1 | fixed | `client/godot/core/qa_core/tests/test_state.gd:245`-`246`: the `for i: int in 5` polling loop is replaced by one `await UnitTestCore.wait_frames(1)`, followed by the unchanged `assert_eq(TimeCoreDev.get_step_budget(), 100, ...)`. The wait target is a deferred call, which `### async wait` of `client-core/modules/unit-test-core.md` allows for `wait_frames`: `start_command` → `_run_into` → `QACore.run_command` → `_submit` appends the command and calls `_schedule_pump` (`client/godot/core/qa_core/dev/qa_core.gd:410`-`415`), which runs `_pump` with `call_deferred`. The previous `run_ok("set_step_mode", ...)` clears `_running` before it emits `finished` (`qa_core.gd:504`-`510`), so a pump scheduled there or by `_submit` starts the `step` command. `_pump` → `_start` → `_execute` → `_BUILTINS.run` (`"step"` → `await _step`) → `_step` reaches `TimeCoreDev.add_step_budget` (`client/godot/core/qa_core/dev/qa_builtins.gd:764`) with no await before it. `wait_frames(1)` awaits `tree.process_frame` once (`client/godot/core/unit_test_core/dev/unit_test_core.gd:1356`-`1361`), and the test clock is not moved before the assert, so the budget is not consumed before it is read. R2-1 is a `spec` finding, not `test evidence`, so no defect restore was needed |
+none
 
 ## out of scope
 
@@ -16,9 +14,7 @@ none
 
 ## debt
 
-| id | result | finding | evidence |
-|---|---|---|---|
-| D1 | fixed | none | The frame-capped polling loop at `client/godot/core/qa_core/tests/test_state.gd:245` is gone (commit f45be1d). See R2-1 in `## previous` |
+none
 
 ## must fix
 
@@ -26,5 +22,7 @@ none
 
 ## unknown
 
-- The Godot core tests were not run in this review. That one `wait_frames(1)` is enough for the deferred `_pump` comes from reading the code; the core agent report says `test_state.gd` passed 13/13 in a native run and the `--web` run passed, and that the native render pass did not run because the screen was locked
-- `finish` (`client/godot/core/qa_core/tests/support/qa_test_case.gd:216`) waits for `Pending.done` in a loop of at most `frames` iterations that also moves the test clock, and some tests use that limit as an assertion (`test_state.gd:223`, `test_state.gd:253`). It is older than this range and unchanged by it; as in round 2, whether `### async wait` forbids this clock-driving loop was not judged with confidence 80 or more
+- The previous review (round 2) has no `## findings` rows and no `open` rows in `## previous`, so step 5 has nothing to judge. No defect restore was run
+- The only code change in this range is in tests. The `QACore.captureJpgQuality` range check moved from `client/godot/core/qa_core/tests/test_render_capture.gd` (`test_capture_formats`) to `client/godot/core/qa_core/tests/test_lifecycle.gd:31` (`test_capture_jpg_quality_out_of_range_fails_init`), which runs in the headless pass. It was checked by reading the code. `start(false)` (`tests/support/qa_test_case.gd:143`) inits the dependencies but not QACore. For 9 and 1001, `_read_settings` (`dev/qa_core.gd:1070`-`1084`) logs one error and `init` returns `false` before it changes any state. `errors()` (`qa_test_case.gd:250`) uses `UnitTestCore.check_logs`, so each loop pass counts only its own error. For 10 and 1000 the test sets `_has_test_launch_values` again before each `init`, because `release` clears it (`dev/qa_core.gd:294`), so no automation channel connects. If `_MIN_JPG_QUALITY` went back to 1, quality 9 would init and the `assert_false` would fail. If the over-1000 check were removed, quality 1001 would init and the test would also fail. The Godot core tests were not run in this review. The core agent report says the headless pass of its proof run fails on `bfcaf51` with these test files, with `quality 9 fails init`
+- The native render pass (`test_render_capture.gd`, which now has no range loop) was not run in this review. The core agent report says its host's screen was locked and that only the `--web` run passed it
+- The other files changed in this range (`records/` run log, report and the round 2 review file) are process records and were not reviewed
