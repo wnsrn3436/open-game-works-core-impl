@@ -196,7 +196,10 @@ export function parse_form(body: string, code_length: number, max_credential_byt
   return { method, credential };
 }
 
-type Outcome = { readonly result: 'done' | 'fail' | 'retry' | 'unavailable' | 'lookup_failed'; readonly user_id: bigint | null };
+/** The identity check and withdrawal of steps 4 and 5. `retry` (500) has the cause its `error` log gives. */
+type Outcome =
+  | { readonly result: 'done' | 'fail' | 'unavailable'; readonly user_id: bigint | null }
+  | { readonly result: 'retry'; readonly user_id: bigint | null; readonly cause: string };
 
 /** The withdrawal of step 5 in the user's transaction; `INTERNAL` (rolled back) when a `remove_user` failed. */
 function delete_account(a: AuthState, ctx: Ctx): 'pass' | number {
@@ -205,16 +208,17 @@ function delete_account(a: AuthState, ctx: Ctx): 'pass' | number {
 
 /** Step 5 in the user's transaction, and what the transaction result means for the page. */
 async function delete_in_transaction(a: AuthState, user_id: bigint, before: (ctx: Ctx) => boolean): Promise<Outcome> {
-  let result: Outcome['result'] = 'fail';
+  const check = { passed: false };
   const committed = await a.modules.storage.run_user_transaction(user_id, (ctx) => {
     if (!before(ctx)) return 'pass';
-    const deleted = delete_account(a, ctx);
-    result = deleted === 'pass' ? 'done' : 'retry';
-    return deleted;
+    check.passed = true;
+    return delete_account(a, ctx);
   });
   if (committed === 'WITHDRAWN') return { result: 'fail', user_id };
-  if (committed === 'FAILED' || committed === 'REJECTED') return { result: 'retry', user_id };
-  return { result, user_id };
+  if (committed === 'FAILED') return { result: 'retry', user_id, cause: 'run_user_transaction of the identity check is FAILED' };
+  // REJECTED: a remove_user failed and the change function rolled the withdrawal back.
+  if (committed === 'REJECTED') return { result: 'retry', user_id, cause: 'a remove_user is FAILED' };
+  return { result: check.passed ? 'done' : 'fail', user_id };
 }
 
 /**
@@ -227,7 +231,7 @@ async function check_code(a: AuthState, form: Extract<DeletionForm, { method: 'c
   try {
     user_id = storage.find_user_by_public_code(storage.read_db(), form.public_code);
   } catch {
-    return { result: 'lookup_failed', user_id: null };
+    return { result: 'retry', user_id: null, cause: 'the read_db lookup of the public code failed' };
   }
   if (user_id === null) return { result: 'fail', user_id: null };
   return delete_in_transaction(a, user_id, (ctx) => {
@@ -257,7 +261,7 @@ async function check_google(a: AuthState, form: Extract<DeletionForm, { method: 
   try {
     link = find_social_link(a.modules.storage.read_db(), 'LOGIN_PROVIDER_GOOGLE', verified.value);
   } catch {
-    return { result: 'lookup_failed', user_id: null };
+    return { result: 'retry', user_id: null, cause: 'the read_db lookup of the auth_social_link row failed' };
   }
   if (link === null) return { result: 'fail', user_id: null };
   return delete_in_transaction(a, link.user_id, () => true);
@@ -280,7 +284,10 @@ export async function deletion_post(a: AuthState, texts: PageText, request: Rout
   const now = m['server-time'].clock_now();
   const window_start = m['server-time'].get_window_start(MINUTE_MS, now);
   const count = await m.storage.run_game_transaction((tx) => count_deletion_ip(m.storage.db(tx), client_ip, window_start, window_start + MINUTE_MS));
-  if (count === 'FAILED') return page(500, 'auth_deletion_retry');
+  if (count === 'FAILED') {
+    error_log(a, 'account deletion failed: run_game_transaction of the IP limit is FAILED', target, { ip: truncated_ip(client_ip) });
+    return page(500, 'auth_deletion_retry');
+  }
   if (count > BigInt(a.settings.deletion_attempts_per_minute)) {
     security_log(a, 'account deletion attempts over the IP limit', target, 'rate_limited_ip', client_ip);
     return page(429, 'auth_deletion_rate_limited');
@@ -298,13 +305,8 @@ export async function deletion_post(a: AuthState, texts: PageText, request: Rout
     return page(403, 'auth_deletion_failed');
   }
   if (outcome.result === 'unavailable') return page(502, 'auth_deletion_retry');
-  if (outcome.result === 'lookup_failed') {
-    const looked_up = form.method === 'code' ? 'the public code' : 'the auth_social_link row';
-    error_log(a, `account deletion failed: the read_db lookup of ${looked_up} failed`, who, { method: form.method });
-    return page(500, 'auth_deletion_retry');
-  }
   if (outcome.result === 'retry') {
-    error_log(a, 'account deletion failed: a remove_user or the user transaction failed', who, { method: form.method });
+    error_log(a, `account deletion failed: ${outcome.cause}`, who, { method: form.method });
     return page(500, 'auth_deletion_retry');
   }
   audit_log(a, 'account deleted on the web account deletion page', who, { reason: 'web_deletion', method: form.method, ip: truncated_ip(client_ip) });

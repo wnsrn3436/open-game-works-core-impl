@@ -8,6 +8,7 @@ import {
   E,
   deletion_url,
   empty_delta,
+  error_log,
   failure,
   is_error,
   note_unknown_kinds,
@@ -70,29 +71,48 @@ function stored_agreements_error(a: AuthState, db: DbHandle, user_id: bigint): C
   return null;
 }
 
-/** A new user made in one game transaction; null when the transaction failed. */
-export async function create_user(a: AuthState): Promise<bigint | null> {
+/**
+ * The `INTERNAL` of a `FAILED` transaction of a token-less request, with its `error` log. A user that an earlier game
+ * transaction of the request made stays.
+ */
+export function transaction_failed(a: AuthState, input: TokenlessInput<unknown>, request: string, transaction: string, user_id: bigint | null = null, ctx: Ctx | null = null): TokenlessOutput<never> {
+  error_log(a, `${request} failed: ${transaction} is FAILED`, { user_id, request_id: input.request_id, request });
+  return failure(E.CORE_ERROR_INTERNAL, user_id, ctx);
+}
+
+/** A new user made with `storage.create_user` in one game transaction, or the failure of that transaction. */
+export async function create_user(a: AuthState, input: TokenlessInput<unknown>, request: string): Promise<bigint | TokenlessOutput<never>> {
   const { storage } = a.modules;
   const created = await storage.run_game_transaction((tx) => storage.create_user(tx));
-  return created === 'FAILED' ? null : created.user_id;
+  return created === 'FAILED' ? transaction_failed(a, input, request, 'the game transaction of storage.create_user') : created.user_id;
 }
 
 /**
  * Inserts a row that maps a key to a new user unless the key has one, in the new user's transaction: when the key
- * re-read there is another user's, the new user is deleted in that transaction. Returns the key's user, or null
- * when the transaction failed.
+ * re-read there is another user's, the new user is deleted in that transaction. Returns the key's user, or the
+ * failure of that transaction (`UNAUTHORIZED` when `WITHDRAWN`, `INTERNAL` when `FAILED`).
  */
-export async function claim_key(a: AuthState, new_user: bigint, insert: (db: DbHandle, ctx: Ctx) => void, read: (db: DbHandle) => bigint | null): Promise<bigint | null> {
+export async function claim_key(
+  a: AuthState,
+  input: TokenlessInput<unknown>,
+  request: string,
+  new_user: bigint,
+  insert: (db: DbHandle, ctx: Ctx) => void,
+  read: (db: DbHandle) => bigint | null,
+): Promise<bigint | TokenlessOutput<never>> {
   const { storage } = a.modules;
-  let owner: bigint | null = null;
+  const key: { owner: bigint | null } = { owner: null };
   const result = await storage.run_user_transaction(new_user, (ctx) => {
     const db = storage.db(ctx);
     insert(db, ctx);
-    owner = read(db);
-    if (owner !== new_user) storage.delete_user(ctx);
+    key.owner = read(db);
+    if (key.owner !== new_user) storage.delete_user(ctx);
     return 'pass' as const;
   });
-  return result === 'COMMITTED' ? owner : null;
+  if (result === 'WITHDRAWN') return failure(E.CORE_ERROR_UNAUTHORIZED, new_user);
+  // The change function always passes, so a result other than COMMITTED is a FAILED transaction.
+  if (result !== 'COMMITTED' || key.owner === null) return transaction_failed(a, input, request, 'run_user_transaction of the new user', new_user);
+  return key.owner;
 }
 
 export type LoginKind = 'core/Login' | 'core/AutoLogin' | 'core/cheat/DevLogin';
@@ -126,7 +146,7 @@ async function ban_login(a: AuthState, input: TokenlessInput<unknown>, plan: Log
     return { session_id, signing_key, public_code, expires_at: ctx.request_time + a.settings.access_token_ttl_ms };
   });
   if (opened === 'WITHDRAWN') return failure(E.CORE_ERROR_UNAUTHORIZED, plan.user_id, used);
-  if (opened === 'FAILED') return failure(E.CORE_ERROR_INTERNAL, plan.user_id, used);
+  if (opened === 'FAILED') return transaction_failed(a, input, plan.kind, 'run_request_transaction of the ban login', plan.user_id, used);
   const ban = Object.assign(new CoreContract.BanDetail(), {
     user_id: plan.user_id,
     until_at,
@@ -152,7 +172,7 @@ export async function complete_login(a: AuthState, input: TokenlessInput<unknown
     return login_transaction(a, ctx, plan);
   });
   if (result === 'WITHDRAWN') return failure(E.CORE_ERROR_UNAUTHORIZED, plan.user_id, used);
-  if (result === 'FAILED') return failure(E.CORE_ERROR_INTERNAL, plan.user_id, used);
+  if (result === 'FAILED') return transaction_failed(a, input, plan.kind, 'run_request_transaction of the login', plan.user_id, used);
   if (is_error(result)) return failure(result, plan.user_id, used);
   return { ok: true, response: result.response, delta: result.delta, user_id: plan.user_id, ctx: used };
 }
@@ -248,21 +268,23 @@ function agreed(agreements: readonly CoreContract.TermsAgreement[]): [string, nu
 }
 
 /** The user of a social account: the linked user, or a new user that this request links when it wins the key. */
-async function social_user(a: AuthState, account: SocialAccount): Promise<{ user_id: bigint; created: boolean } | null> {
+async function social_user(a: AuthState, input: TokenlessInput<unknown>, account: SocialAccount): Promise<{ user_id: bigint; created: boolean } | TokenlessOutput<never>> {
   const { storage } = a.modules;
   const linked = find_social_link(storage.read_db(), account.provider, account.account_id);
   if (linked !== null) return { user_id: linked.user_id, created: false };
-  const new_user = await create_user(a);
-  if (new_user === null) return null;
+  const new_user = await create_user(a, input, 'core/Login');
+  if (typeof new_user !== 'bigint') return new_user;
   const owner = await claim_key(
     a,
+    input,
+    'core/Login',
     new_user,
     (db, ctx) => {
       insert_social_link(db, new_user, account.provider, account.account_id, ctx.request_time);
     },
     (db) => find_social_link(db, account.provider, account.account_id)?.user_id ?? null,
   );
-  return owner === null ? null : { user_id: owner, created: owner === new_user };
+  return typeof owner === 'bigint' ? { user_id: owner, created: owner === new_user } : owner;
 }
 
 /** `Login`. */
@@ -271,21 +293,21 @@ export async function login(a: AuthState, input: TokenlessInput<CoreContract.Log
   const terms = agreements_error(a, request.agreements);
   if (terms !== null) return failure(terms);
   const provider = request.provider;
-  let user: { user_id: bigint; created: boolean } | null;
+  let user: { user_id: bigint; created: boolean } | TokenlessOutput<never>;
   let apple_refresh_token: string | null = null;
   if (provider === CoreContract.LoginProvider.LOGIN_PROVIDER_GUEST) {
     if (request.credential !== '') return failure(E.CORE_ERROR_INVALID_REQUEST);
-    const new_user = await create_user(a);
-    user = new_user === null ? null : { user_id: new_user, created: true };
+    const new_user = await create_user(a, input, 'core/Login');
+    user = typeof new_user === 'bigint' ? { user_id: new_user, created: true } : new_user;
   } else {
     const social = social_provider(provider);
     if (social === null || adapter_of(a, social) === null) return failure(E.CORE_ERROR_INVALID_REQUEST);
     const account = await verify_credential(a, social, request.credential, { user_id: null, request_id: input.request_id, request: 'core/Login', ip: input.client_ip });
     if (is_error(account)) return failure(account);
     apple_refresh_token = account.refresh_token;
-    user = await social_user(a, account);
+    user = await social_user(a, input, account);
   }
-  if (user === null) return failure(E.CORE_ERROR_INTERNAL);
+  if ('ok' in user) return user;
   const plan: LoginPlan = { kind: 'core/Login', user_id: user.user_id, created: user.created, provider, agreements: agreed(request.agreements), apple_refresh_token, token_hash: null };
   return wrap(() => new CoreContract.LoginResponse(), await complete_login(a, input, plan));
 }
@@ -351,7 +373,7 @@ export async function refresh_token(a: AuthState, input: TokenlessInput<CoreCont
     return { response, delta: taken.delta };
   });
   if (result === 'WITHDRAWN') return failure(E.CORE_ERROR_UNAUTHORIZED, row.user_id, used);
-  if (result === 'FAILED') return failure(E.CORE_ERROR_INTERNAL, row.user_id, used);
+  if (result === 'FAILED') return transaction_failed(a, input, 'core/RefreshToken', 'run_request_transaction', row.user_id, used);
   if (is_error(result)) return failure(result, row.user_id, used);
   return { ok: true, response: result.response, delta: result.delta, user_id: row.user_id, ctx: used };
 }
