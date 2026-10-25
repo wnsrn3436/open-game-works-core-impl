@@ -1,0 +1,52 @@
+{
+  "runs": [
+    {
+      "command": "ogw core test godot BootstrapCore --file client/godot/core/bootstrap_core/tests/test_boot_login.gd",
+      "startedAt": 1792953109680,
+      "exitCode": 1,
+      "summary": {
+        "tests": 10,
+        "passed": 9
+      },
+      "job": "mvo5zlhv08b38d"
+    },
+    {
+      "command": "ogw job wait mvo5zlhv08b38d",
+      "startedAt": 1792953113390,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot BootstrapCore --file client/godot/core/bootstrap_core/tests/test_boot_login.gd",
+      "startedAt": 1792953127056,
+      "exitCode": 1,
+      "summary": {
+        "tests": 10,
+        "passed": 8
+      },
+      "job": "mvo5zywj61b863"
+    },
+    {
+      "command": "ogw job wait mvo5zywj61b863",
+      "startedAt": 1792953130538,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot BootstrapCore --file client/godot/core/bootstrap_core/tests/test_boot_login.gd",
+      "startedAt": 1792953143689,
+      "exitCode": 0,
+      "summary": {
+        "tests": 10,
+        "passed": 10
+      },
+      "job": "mvo60bqm3dae94"
+    },
+    {
+      "command": "ogw job wait mvo60bqm3dae94",
+      "startedAt": 1792953147769,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
