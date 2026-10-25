@@ -180,6 +180,75 @@ func test_fatal_screen_before_ui_core_is_a_canvas_layer() -> void:
 	assert_eq(UnitTestCore.check_logs("error", "BootstrapCore"), 2)
 
 
+## A fatal before UI ready after `LoadData` 4, reported on the `load_prompt_icons` error of an icon that is not in
+## the resource key list: the fatal screen text draws with the engine font, not the game font chain.
+func test_fatal_screen_after_load_fonts_before_ui_ready_draws_without_the_game_font_chain() -> void:
+	_SUPPORT.prepare()
+	UnitTestCore.set_test_settings("LocalizationCore.bodyFontWeight", 400)
+	var keys := _SUPPORT.resource_keys()
+	keys.erase("icon/pad_b")
+	ResourceCoreDev.set_test_key_list(keys)
+	var list := _with_fatal_on_log(_SUPPORT.modules(), BootstrapCore.BootStage.LOAD_DATA, "LocalizationCore", "is the fallback resource")
+	await _boot_until_halted(_ENTRY.new(), list)
+	assert_true("LocalizationCore.load_fonts" in BootstrapCore._trace)
+	assert_false(BootstrapCore._ui_ready)
+	_assert_fatal_screen_font()
+	assert_eq(UnitTestCore.check_logs("error", "BootstrapCore"), 1)
+	assert_eq(UnitTestCore.check_logs("error", "ResourceCore"), 1, "icon/pad_b is not in the resource key list")
+	assert_eq(UnitTestCore.check_logs("error", "LocalizationCore"), 1, "icon/pad_b is the fallback resource")
+
+
+static func _report_fatal_on_hidden() -> void:
+	BootstrapCore.report_fatal("fatal while the popups close")
+
+
+## A fatal after UI ready, reported by the hidden callback of a system popup that `UICore.close_all_popups` closes:
+## the fatal popup cannot be opened during `close_all_popups`, and the fatal screen text draws with the engine font,
+## not the game font chain.
+func test_fatal_screen_after_ui_ready_draws_without_the_game_font_chain() -> void:
+	_SUPPORT.prepare()
+	UnitTestCore.set_test_settings("LocalizationCore.bodyFontWeight", 400)
+	var latch := UnitTestCore.latch_event(BootCompletedEvent)
+	_SUPPORT.start(_ENTRY.new(), _SUPPORT.modules())
+	await UnitTestCore.wait_latch(latch)
+	var param := SystemPopupParam.new()
+	param.body = ReservedString.bootstrap_fatal_error()
+	var button := SystemPopupButton.new()
+	button.label = ReservedString.bootstrap_restart()
+	param.buttons.append(button)
+	assert_true(await UICore.open_system_popup(param, _report_fatal_on_hidden))
+	UICore.close_all_popups()
+	await UnitTestCore.wait_frames(3)
+	assert_true(BootstrapCore._ui_ready)
+	assert_eq(UICore.get_open_popup_count(), 0)
+	_assert_fatal_screen_font()
+	assert_eq(UnitTestCore.check_logs("error", "BootstrapCore"), 2, "the fatal and the fatal popup that could not be opened")
+	assert_eq(UnitTestCore.check_logs("warn", "UICore"), 1, "open_system_popup during close_all_popups")
+
+
+## Asserts that `load_fonts` set the game font chain as the theme default font, and that the fatal screen text
+## draws with `ThemeDB.fallback_font` instead. The theme is the project theme when it has a default font, else the
+## engine default theme.
+func _assert_fatal_screen_font() -> void:
+	var project: Theme = ThemeDB.get_project_theme()
+	var theme: Theme = project if project != null and project.has_default_font() else ThemeDB.get_default_theme()
+	var chain: Font = theme.default_font
+	assert_true(chain is FontVariation, "load_fonts set the font chain as the theme default font")
+	assert_ne(chain, ThemeDB.fallback_font)
+	var label: Label = null
+	if is_instance_valid(BootstrapCore._fatal_screen):
+		for child: Node in BootstrapCore._fatal_screen.get_children():
+			if child is Label:
+				label = child as Label
+	assert_not_null(label, "the fatal screen has its text")
+	if label == null:
+		return
+	assert_eq(label.text, BootstrapCore._FATAL_SCREEN_TEXT)
+	var font: Font = label.get_theme_font("font")
+	assert_ne(font, chain)
+	assert_eq(font, ThemeDB.fallback_font)
+
+
 func test_unpassed_adapter_error_is_in_log_file() -> void:
 	_SUPPORT.prepare({"OGW_DEV_ACCOUNT": "tester"})
 	UnitTestCore.set_test_settings("environments.DEV.adapters", {"ads": "fake"})

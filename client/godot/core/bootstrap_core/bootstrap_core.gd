@@ -1122,6 +1122,8 @@ static func _show_fatal_screen() -> void:
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var label := Label.new()
 	label.text = _FATAL_SCREEN_TEXT
+	# The engine font: after `LocalizationCore.load_fonts` the theme default font is the game font chain.
+	label.add_theme_font_override("font", ThemeDB.fallback_font)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
