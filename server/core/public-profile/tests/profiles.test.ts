@@ -1,7 +1,7 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import { ProfileUserState, QuestUserState, profile, quest } from '../../storage/tests/kinds.ts';
 import type { BuildPublicProfileHook } from '../index.ts';
-import { START, get_profiles, new_user, request, set_nickname, start, stop_all, withdraw, type Instance } from './helpers.ts';
+import { DB_KIND, START, get_profiles, hold_user_lock, new_user, request, set_nickname, start, stop_all, withdraw, type Instance } from './helpers.ts';
 
 const INVALID_REQUEST = CoreContract.CoreError.CORE_ERROR_INVALID_REQUEST;
 
@@ -254,5 +254,25 @@ describe('count_find_attempt', () => {
     expect(await instance.profile.count_find_attempt(a)).toBe('pass');
     expect(await instance.profile.count_find_attempt(a)).toBe('pass');
     expect(await instance.profile.count_find_attempt(a)).toBe(CoreContract.CoreError.CORE_ERROR_RATE_LIMITED);
+  });
+
+  it('is INTERNAL with one error log and counts nothing when the user transaction is FAILED', async () => {
+    const instance = await start({ 'public-profile.findPerMinute': 5, 'storage.userLockWaitMs': 200 });
+    const user = await new_user(instance);
+    expect(await instance.profile.count_find_attempt(user)).toBe('pass');
+    const counter = (): Record<string, unknown>[] =>
+      instance.storage.read_db().query('SELECT user_id, window_start, count FROM public_profile_find_counter WHERE user_id = $1', [user]);
+    const before = counter();
+    expect(before).toHaveLength(1);
+
+    const lock = await hold_user_lock(instance, user, DB_KIND === 'postgresql');
+    try {
+      expect(await instance.profile.count_find_attempt(user)).toBe(CoreContract.CoreError.CORE_ERROR_INTERNAL);
+    } finally {
+      await lock.release();
+    }
+
+    expect(counter()).toEqual(before);
+    expect(error_lines(instance)).toEqual([expect.objectContaining({ level: 'error', user_id: user.toString() })]);
   });
 });

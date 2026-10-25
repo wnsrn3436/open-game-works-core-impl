@@ -1,0 +1,84 @@
+{
+  "runs": [
+    {
+      "command": "ogw core test server public-profile --file profiles.test.ts",
+      "startedAt": 1792951390181,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvo4yqpreea2b8"
+    },
+    {
+      "command": "ogw job wait mvo4yqpreea2b8",
+      "startedAt": 1792951392370,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server public-profile --file server/core/public-profile/tests/profiles.test.ts",
+      "startedAt": 1792951396954,
+      "exitCode": 0,
+      "summary": {
+        "tests": 30,
+        "passed": 30
+      },
+      "job": "mvo4yvy2c3a277"
+    },
+    {
+      "command": "ogw job wait mvo4yvy2c3a277",
+      "startedAt": 1792951399091,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server public-profile --file server/core/public-profile/tests/profiles.test.ts",
+      "startedAt": 1792951412530,
+      "exitCode": 1,
+      "summary": {
+        "tests": 30,
+        "passed": 28
+      },
+      "job": "mvo4z7xy989b01"
+    },
+    {
+      "command": "ogw job wait mvo4z7xy989b01",
+      "startedAt": 1792951415092,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core dependents public-profile",
+      "startedAt": 1792951424569,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server public-profile admin-api auth block-report chat friend guild matchmaker notice ranking rating routing testing",
+      "startedAt": 1792951426888,
+      "exitCode": 0,
+      "summary": {
+        "tests": 1974,
+        "passed": 1974
+      },
+      "job": "mvo4zj1mfb45ee"
+    },
+    {
+      "command": "ogw job wait mvo4zj1mfb45ee",
+      "startedAt": 1792951429278,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792951510097,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvo51b8td08d8a"
+    },
+    {
+      "command": "ogw job wait mvo51b8td08d8a",
+      "startedAt": 1792951512438,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
