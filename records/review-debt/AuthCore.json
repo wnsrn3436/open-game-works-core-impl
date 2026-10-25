@@ -1,12 +1,30 @@
 {
   "target": "AuthCore",
-  "nextId": 2,
+  "nextId": 5,
   "items": [
     {
       "id": "D1",
       "location": "client/godot/core/auth_core/tests/test_login.gd:311",
       "problem": "`test_get_public_code_is_of_the_login_of_the_ban_session_and_empty_without_either` (added in this range) ends with `assert_eq(UnitTestCore.check_logs(\"error\", \"AuthCore\"), 0)`. The UnitTestCore spec `### log` says the error log count is asserted with `check_logs` only when the expected value is not 0. The assert checks nothing, because an unchecked error log left in the test already fails it",
       "foundBy": "UnitTestCore round 1"
+    },
+    {
+      "id": "D2",
+      "location": "client/godot/core/auth_core/tests/test_terms.gd:88",
+      "problem": "`test_get_terms_failure_fails_without_popup` asserts `check_logs(\"error\", \"AuthCore\")` equals 0, which unit-test-core.md:116 forbids; the unchecked-error-log rule (unit-test-core.md:114) already fails the test, so the assert checks nothing",
+      "foundBy": "AuthCore round 2"
+    },
+    {
+      "id": "D3",
+      "location": "client/godot/core/auth_core/tests/test_account.gd:188",
+      "problem": "asserts `check_logs(\"error\", \"AuthCore\")` equals 0 between the two `list_linked_providers` calls, which unit-test-core.md:116 forbids; an error log from the first call would also make the `check_logs(..., 1)` assert at `:192` count 2 and fail, so the assert checks nothing",
+      "foundBy": "AuthCore round 2"
+    },
+    {
+      "id": "D4",
+      "location": "client/godot/core/auth_core/tests/test_login.gd:471",
+      "problem": "asserts `check_logs(\"error\", \"AuthCore\")` equals 0 at the end of the test, which unit-test-core.md:116 forbids; the unchecked-error-log rule (unit-test-core.md:114) already fails the test, so the assert checks nothing",
+      "foundBy": "AuthCore round 2"
     }
   ]
 }
