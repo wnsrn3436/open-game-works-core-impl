@@ -1,4 +1,4 @@
-# PaymentCore review round 1
+# review PaymentCore round 1
 
 ## findings
 
@@ -22,7 +22,6 @@ none
 
 ## unknown
 
-- The commit range 772306a..7fa9648 changes no file under `client/godot/core/payment_core/`. It changes LocalizationCore only (`client/godot/core/localization_core/localization_core.gd`, its tests) and the settings keys `LocalizationCore.bodyFontWeight` and `LocalizationCore.headingFontWeight` (`settings/core-settings.json`, `settings/core-settings.schema.json`, `client/godot/generated/core_settings.json`, `client/godot/generated/core_settings_types.json`, `core-spec/LocalizationCore.json`). LocalizationCore is not in `## dependency` of the PaymentCore spec
-- Reach checked: `LocalizationCore.init` now needs the two new integer settings. `client/godot/core/payment_core/tests/support/payment_test_case.gd:92` calls `LocalizationCore.init`. CoreSettings reads `res://generated/core_settings.json` (`client/godot/core/core_settings.gd:8`), which has both keys, so the PaymentCore test boot still gets them. `LocalizationCore.load_fonts`, the one function whose behavior changed, is called only by `client/godot/core/bootstrap_core/bootstrap_core.gd:397` and never by PaymentCore or its tests. The guest warning popup (`client/godot/core/payment_core/payment_core.gd:486`) goes through `UICore.open_system_popup`. The font weight change affects only how its text looks, not its buttons, callbacks or result
-- I skimmed `client/godot/core/payment_core/payment_core.gd` and `client/godot/core/payment_core/adapters/plugin_store_adapter.gd` for older problems at `critical`, `high` or `medium` severity and found none at confidence 80 or above. That was not a full review of the whole target. The test files under `client/godot/core/payment_core/tests/`, `client/godot/core/payment_core/dev/` and `client/godot/core/payment_core/adapters/store_adapter.gd` were not reviewed line by line, because they are outside the range and the range does not reach them
-- The core tests were not run. The native plugins `ogw-iap-apple` and `ogw-iap-google` are outside this checkout and were not checked
+- The commit range 2ef5ae8..ceef0b0 changes no file under `client/godot/core/payment_core/` and no PaymentCore spec (`core-spec/PaymentCore.json` unchanged, `## spec changes` is `none`). The review covered the changes in the range that PaymentCore reaches: `client/godot/core/auth_core/auth_core.gd`, `auth_session.gd`, `login_result.gd` (only the added `public_code` field and `get_public_code`; `is_logged_in`, `list_linked_providers`, `is_provider_supported`, `LoginCompletedEvent`, `SessionEndedEvent` that `client/godot/core/payment_core/payment_core.gd` uses are unchanged) and `client/godot/generated/contract/core_contract.gd` (only additions: `public_code` on `BanDetail`, `AuthResult`, `PublicProfileEntry`, and the new `FindUserByPublicCode` messages; no message PaymentCore uses changed). PaymentCore code outside these call paths was not re-read, because it is unchanged and earlier rounds covered it
+- PaymentCore Godot tests were not run in this round; the conclusion that the range does not change their behavior comes from reading the diff, not from a test run
+- Server `iap` module changes are not part of this target. `server/core/routing/pipeline.ts` and `server/core/storage/*` changed in the range, and their effect on `iap` was not checked
