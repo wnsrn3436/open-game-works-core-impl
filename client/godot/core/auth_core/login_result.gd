@@ -6,6 +6,8 @@ extends RefCounted
 var status: AuthCore.LoginStatus = AuthCore.LoginStatus.FAILED
 ## User ID. Filled only for `SUCCESS` and `BANNED`.
 var user_id: int = 0
+## Public code of the user. Filled only for `SUCCESS` and `BANNED`.
+var public_code: String = ""
 ## Time the ban ends. Unix ms. Filled only for `BANNED`; 0 when the ban does not end.
 var ban_until_at: int = 0
 ## Address of the web account deletion page. Filled only for `BANNED`.

@@ -1,5 +1,5 @@
 import { StorageMisuse, type RawRow, type Storage } from '../index.ts';
-import { DB_KIND, instance, lock_holder, new_user, PG_LOCK_SQL, raw_rows, request, stop_all } from './helpers.ts';
+import { DB_KIND, instance, lock_holder, new_user, new_users, PG_LOCK_SQL, raw_rows, request, stop_all } from './helpers.ts';
 import { lock_key } from '../tx.ts';
 import { boss, BossGameState, profile, quest, wallet } from './kinds.ts';
 
@@ -315,7 +315,7 @@ describe('replace_game_rows lock', () => {
 describe('users', () => {
   it('scan_users leaves out withdrawn users, and with a version only gives users with a lower version row', async () => {
     const { storage } = await instance();
-    const [a, b, c, d] = [await new_user(storage), await new_user(storage), await new_user(storage), await new_user(storage)];
+    const [a, b, c, d] = (await new_users(storage, 4)) as [bigint, bigint, bigint, bigint];
     await request(storage, b, (ctx) => {
       storage.delete_user(ctx);
     });
@@ -334,8 +334,7 @@ describe('users', () => {
 
   it('sample_users leaves out withdrawn users, gives no user twice, up to the maximum in user ID order, and all users when fewer', async () => {
     const { storage } = await instance();
-    const users: bigint[] = [];
-    for (let i = 0; i < 6; i += 1) users.push(await new_user(storage));
+    const users = await new_users(storage, 6);
     const [, withdrawn] = users;
     await request(storage, withdrawn as bigint, (ctx) => {
       storage.delete_user(ctx);
@@ -391,7 +390,7 @@ describe('users', () => {
     if (typeof taken === 'string') throw new Error(taken);
     expect(taken.delta.user_state.entries).toEqual([]);
     await storage.run_user_transaction(user, (ctx) => (storage.set_user_created_at(ctx, 777n), 'pass'));
-    expect(storage.get_user_record(storage.read_db(), user)).toEqual({ created_at: 777n, withdrawn_at: null });
+    expect(storage.get_user_record(storage.read_db(), user)).toEqual({ public_code: expect.stringMatching(/^[0-9A-Z]{8}$/) as unknown, created_at: 777n, withdrawn_at: null });
     expect(raw_rows(storage, 'pending_delta', user)).toEqual([]);
     expect(storage.get_user_record(storage.read_db(), 123_456n)).toBeNull();
   });

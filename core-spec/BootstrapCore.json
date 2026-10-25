@@ -141,7 +141,7 @@
       "text": "[bootstrap_banned]",
       "arguments": [
         {
-          "name": "user_id",
+          "name": "public_code",
           "kind": "string"
         },
         {
@@ -158,7 +158,7 @@
       "text": "[bootstrap_banned_permanent]",
       "arguments": [
         {
-          "name": "user_id",
+          "name": "public_code",
           "kind": "string"
         },
         {
@@ -171,7 +171,7 @@
       "text": "[bootstrap_banned_deletion_code]",
       "arguments": [
         {
-          "name": "user_id",
+          "name": "public_code",
           "kind": "string"
         },
         {

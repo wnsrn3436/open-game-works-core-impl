@@ -578,13 +578,14 @@ export class Pipeline {
   /** Steps 6 and 7. */
   private check_ban_and_version(exchange: Exchange, target: AuthTarget, user_id: bigint): boolean {
     if (target.cheat) return true;
-    const { admin_api, game_update } = this.s.deps;
+    const { admin_api, game_update, storage } = this.s.deps;
     const ban = admin_api.is_banned(user_id);
     if (ban.banned && target.name !== BAN_EXEMPT_RPC) {
       const detail = new CoreContract.BanDetail();
       detail.user_id = user_id;
       detail.until_at = ban.until_at;
       detail.deletion_url = this.deletion_url();
+      detail.public_code = storage.get_user_record(storage.read_db(), user_id)?.public_code ?? '';
       return this.fail(exchange, E.CORE_ERROR_BANNED, 'step 6 ban', detail);
     }
     const headers = exchange.headers as CommonHeaders;

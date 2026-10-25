@@ -3,6 +3,7 @@
  * name, role, body form, input fields, `user_target` and the handler function.
  */
 import type { AuthState } from './context.ts';
+import { normalize_public_code } from '../storage/index.ts';
 import type { Ctx, GameTx } from './deps.ts';
 import { find_social_link } from './tables.ts';
 import { withdraw } from './withdraw.ts';
@@ -40,7 +41,17 @@ export function find_user_by_social_account(a: AuthState, input: Readonly<Record
   return { user_id: link.user_id, linked_at: link.linked_at };
 }
 
-export function admin_operations(a: AuthState): { withdraw_user: AdminOperation; find_user_by_social_account: AdminOperation } {
+/** `find_user_by_public_code`: the user of a public code input and its `withdrawn_at` (a withdrawn user's included). */
+export function find_user_by_public_code(a: AuthState, input: Readonly<Record<string, unknown>>, tx: GameTx): Record<string, unknown> | AdminFailure {
+  const { storage } = a.modules;
+  if (normalize_public_code(input.public_code) === null) return 'bad_request';
+  const db = storage.db(tx);
+  const user_id = storage.find_user_by_public_code(db, input.public_code as string);
+  if (user_id === null) return 'not_found';
+  return { user_id, withdrawn_at: storage.get_user_record(db, user_id)?.withdrawn_at ?? null };
+}
+
+export function admin_operations(a: AuthState): { withdraw_user: AdminOperation; find_user_by_social_account: AdminOperation; find_user_by_public_code: AdminOperation } {
   return {
     withdraw_user: {
       name: 'withdraw_user',
@@ -61,6 +72,17 @@ export function admin_operations(a: AuthState): { withdraw_user: AdminOperation;
       input: { provider: { type: { kind: 'enum', elements: ['APPLE', 'GOOGLE'] }, optional: false }, provider_account_id: { type: { kind: 'string' }, optional: false } },
       user_target: null,
       handler: (input, tx) => find_user_by_social_account(a, input, tx),
+      prepare: null,
+      audit_args: null,
+    },
+    find_user_by_public_code: {
+      name: 'find_user_by_public_code',
+      role: 'read',
+      body: 'json',
+      max_body_bytes: null,
+      input: { public_code: { type: { kind: 'string' }, optional: false } },
+      user_target: null,
+      handler: (input, tx) => find_user_by_public_code(a, input, tx),
       prepare: null,
       audit_args: null,
     },

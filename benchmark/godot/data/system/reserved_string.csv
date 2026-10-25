@@ -42,10 +42,10 @@ id,text
 [auth_google_desktop_done],Sign-in is done. Return to the game.
 [bootstrap_fatal_error],An error stopped the game.
 [bootstrap_login_failed],Sign-in failed.
-[bootstrap_banned],User {user_id} is restricted until {until_at:datetime}. Details: {url}
-[bootstrap_banned_permanent],User {user_id} is restricted. Details: {url}
+[bootstrap_banned],User code {public_code} is restricted until {until_at:datetime}. Details: {url}
+[bootstrap_banned_permanent],User code {public_code} is restricted. Details: {url}
 [bootstrap_banned_deletion],Request account deletion
-[bootstrap_banned_deletion_code],User {user_id}: enter code {code} at {url} before {expires_at:datetime}.
+[bootstrap_banned_deletion_code],User code {public_code}: enter code {code} at {url} before {expires_at:datetime}.
 [bootstrap_banned_deletion_failed],The deletion code could not be issued.
 [bootstrap_age_blocked],You cannot use this game at your age.
 [bootstrap_restart],Restart
@@ -82,8 +82,8 @@ id,text
 [ui_licenses_title],Licenses
 [ui_licenses_close],Close
 [auth_deletion_title],Delete account
-[auth_deletion_body],Enter your user ID and the deletion code from the game.
-[auth_deletion_user_id],User ID
+[auth_deletion_body],Enter your user code and the deletion code from the game.
+[auth_deletion_user_id],User code
 [auth_deletion_code],Deletion code
 [auth_deletion_confirm],I understand that deleted data cannot be restored.
 [auth_deletion_submit],Delete
@@ -109,8 +109,8 @@ id,text
 [bench_tick_mismatch],The tick count changed. It is up to date now.
 [bench_option_open],Options
 [bench_option_title],Options
-[bench_user_id],User ID: {user_id}
-[bench_copy_user_id],Copy user ID
+[bench_user_id],User code: {public_code}
+[bench_copy_user_id],Copy user code
 [bench_terms],Terms of service
 [bench_privacy],Privacy policy
 [bench_licenses],Licenses

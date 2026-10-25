@@ -21,24 +21,25 @@ describe('web account deletion form', () => {
   const parse = (body: string, google = true): ReturnType<typeof parse_form> => parse_form(body, 10, 64, google);
 
   it('reads the code method and normalizes the code', () => {
-    expect(parse('method=code&confirm=yes&user_id=12&code=abcd-efgh+jk')).toEqual({ method: 'code', user_id: 12n, code: 'ABCDEFGHJK' });
+    expect(parse('method=code&confirm=yes&public_code=ab0i-cdlz&code=abcd-efgh+jk')).toEqual({ method: 'code', public_code: 'AB01CD1Z', code: 'ABCDEFGHJK' });
   });
 
   it('refuses a missing confirm, an unknown field, a field twice, and fields of the other method', () => {
-    expect(parse('method=code&user_id=12&code=ABCDEFGHJK')).toBeNull();
-    expect(parse('method=code&confirm=no&user_id=12&code=ABCDEFGHJK')).toBeNull();
-    expect(parse('method=code&confirm=yes&user_id=12&code=ABCDEFGHJK&x=1')).toBeNull();
-    expect(parse('method=code&confirm=yes&confirm=yes&user_id=12&code=ABCDEFGHJK')).toBeNull();
-    expect(parse('method=code&confirm=yes&user_id=12&code=ABCDEFGHJK&credential=c')).toBeNull();
+    expect(parse('method=code&public_code=AB01CD1Z&code=ABCDEFGHJK')).toBeNull();
+    expect(parse('method=code&confirm=no&public_code=AB01CD1Z&code=ABCDEFGHJK')).toBeNull();
+    expect(parse('method=code&confirm=yes&public_code=AB01CD1Z&code=ABCDEFGHJK&x=1')).toBeNull();
+    expect(parse('method=code&confirm=yes&confirm=yes&public_code=AB01CD1Z&code=ABCDEFGHJK')).toBeNull();
+    expect(parse('method=code&confirm=yes&public_code=AB01CD1Z&code=ABCDEFGHJK&credential=c')).toBeNull();
     expect(parse('method=other&confirm=yes')).toBeNull();
   });
 
-  it('refuses a user ID that is not a positive int64 and a code of other characters or length', () => {
-    expect(parse('method=code&confirm=yes&user_id=0&code=ABCDEFGHJK')).toBeNull();
-    expect(parse('method=code&confirm=yes&user_id=9223372036854775808&code=ABCDEFGHJK')).toBeNull();
-    expect(parse('method=code&confirm=yes&user_id=9223372036854775807&code=ABCDEFGHJK')).not.toBeNull();
-    expect(parse('method=code&confirm=yes&user_id=12&code=ABCDEFGHJI')).toBeNull();
-    expect(parse('method=code&confirm=yes&user_id=12&code=ABCDEFGHJ')).toBeNull();
+  it('refuses a public_code that is not a public code input, a user_id field and a code of other characters or length', () => {
+    expect(parse('method=code&confirm=yes&public_code=AB01CD1&code=ABCDEFGHJK')).toBeNull();
+    expect(parse('method=code&confirm=yes&public_code=AB01CD1U&code=ABCDEFGHJK')).toBeNull();
+    expect(parse('method=code&confirm=yes&user_id=12&code=ABCDEFGHJK')).toBeNull();
+    expect(parse('method=code&confirm=yes&public_code=AB01CD1Z&code=ABCDEFGHJK')).not.toBeNull();
+    expect(parse('method=code&confirm=yes&public_code=AB01CD1Z&code=ABCDEFGHJI')).toBeNull();
+    expect(parse('method=code&confirm=yes&public_code=AB01CD1Z&code=ABCDEFGHJ')).toBeNull();
   });
 
   it('reads the google method only when the environment has a login-google adapter and the credential fits', () => {

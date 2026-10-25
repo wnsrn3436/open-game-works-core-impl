@@ -16,7 +16,7 @@ import {
   login,
   login_token_rows,
   missing,
-  next_user_id,
+  user_ids,
   personal_rows,
   probe,
   session_of,
@@ -48,6 +48,7 @@ describe('Login', () => {
     expect(result.access_token_expires_at).toBeGreaterThan(T0);
     expect(result.session_signing_key).not.toBe('');
     expect(result.linked_providers).toEqual([]);
+    expect(result.public_code).toMatch(/^[0-9A-HJKMNP-TV-Z]{8}$/);
     expect(result.consent).not.toBeNull();
     expect(result.remote_config).not.toBeNull();
     if (missing('remote-config')) {
@@ -61,27 +62,41 @@ describe('Login', () => {
     expect(result.remote_config?.encode()).toEqual(remote.response.encode());
   });
 
+  it('AuthResult of Login and AutoLogin has the public code of that user, the same one at every login', async () => {
+    const first = await social(server, P.LOGIN_PROVIDER_GOOGLE, 'public-code-1');
+    expect(first.result.public_code).toMatch(/^[0-9A-HJKMNP-TV-Z]{8}$/);
+    const again = await login(server, P.LOGIN_PROVIDER_GOOGLE, 'fake:public-code-1');
+    expect(again.code).toBe(0);
+    expect(again.response.result?.user_id).toBe(first.result.user_id);
+    expect(again.response.result?.public_code).toBe(first.result.public_code);
+    const auto = await auto_login(server, again.response.result?.login_token ?? '');
+    expect(auto.code).toBe(0);
+    expect(auto.response.result?.public_code).toBe(first.result.public_code);
+    const other = await guest(server);
+    expect(other.result.public_code).not.toBe(first.result.public_code);
+  });
+
   it('a GUEST Login with a credential is INVALID_REQUEST and makes no user', async () => {
-    const before = await next_user_id(server);
+    const before = await user_ids(server);
     expect((await login(server, P.LOGIN_PROVIDER_GUEST, 'something')).code).toBe(E.CORE_ERROR_INVALID_REQUEST);
-    expect(await next_user_id(server)).toBe(before + 1n);
+    expect(await user_ids(server)).toEqual(before);
   });
 
   it('a Login whose provider is UNSPECIFIED or not a LoginProvider value is INVALID_REQUEST and makes no user', async () => {
-    const before = await next_user_id(server);
+    const before = await user_ids(server);
     expect((await login(server, P.LOGIN_PROVIDER_UNSPECIFIED, 'fake:a')).code).toBe(E.CORE_ERROR_INVALID_REQUEST);
     expect((await login(server, 99 as CoreContract.LoginProvider, 'fake:a')).code).toBe(E.CORE_ERROR_INVALID_REQUEST);
-    expect(await next_user_id(server)).toBe(before + 1n);
+    expect(await user_ids(server)).toEqual(before);
   });
 
   it('an agreement list with TERMS_ITEM_UNSPECIFIED or TERMS twice is INVALID_REQUEST for Login and AutoLogin and writes nothing', async () => {
-    const before = await next_user_id(server);
+    const before = await user_ids(server);
     const unspecified = [agreement(CoreContract.TermsItem.TERMS_ITEM_UNSPECIFIED), ...current_agreements()];
     const twice = [agreement(TERMS), agreement(TERMS), agreement(PRIVACY)];
     expect((await login(server, P.LOGIN_PROVIDER_GUEST, '', unspecified)).code).toBe(E.CORE_ERROR_INVALID_REQUEST);
     expect((await login(server, P.LOGIN_PROVIDER_GUEST, '', twice)).code).toBe(E.CORE_ERROR_INVALID_REQUEST);
+    expect(await user_ids(server)).toEqual(before);
     const user = await guest(server);
-    expect(user.result.user_id).toBe(before + 1n);
     const rows = await personal_rows(server, user.result.user_id, 'auth_terms_agreement');
     expect((await auto_login(server, user.result.login_token, unspecified)).code).toBe(E.CORE_ERROR_INVALID_REQUEST);
     expect((await auto_login(server, user.result.login_token, twice)).code).toBe(E.CORE_ERROR_INVALID_REQUEST);
@@ -208,10 +223,10 @@ describe('DevLogin', () => {
   it('two concurrent DevLogins of a new name get one user; the other new user is withdrawn with no user scope rows', async () => {
     const server = await start();
     try {
-      const first = await next_user_id(server);
+      const before = await user_ids(server);
       const [a, b] = await Promise.all([testing.login(server, 'same_new_name'), testing.login(server, 'same_new_name')]);
       expect(a.user_id).toBe(b.user_id);
-      const made = [first + 1n, first + 2n];
+      const made = [...(await user_ids(server))].filter((id) => !before.has(id));
       // Both requests may make a new user, or the second may already find the first one's row.
       const records = (await Promise.all(made.map((id) => admin(server, 'get_user', { user_id: id.toString() })))).filter((r) => r.status === 200);
       const live = records.filter((r) => r.body.withdrawn_at === null);

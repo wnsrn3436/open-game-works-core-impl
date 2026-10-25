@@ -23,9 +23,12 @@ async function issue(session: TestSession): Promise<CoreContract.IssueDeletionCo
   return reply.response;
 }
 
-function by_code(user_id: bigint, code: string): Record<string, string> {
-  return { method: 'code', confirm: 'yes', user_id: user_id.toString(), code };
+function by_code(public_code: string, code: string): Record<string, string> {
+  return { method: 'code', confirm: 'yes', public_code, code };
 }
+
+/** A public code no user has: users are few, and a code is one of 32^8. */
+const NO_USER_CODE = 'ZZZZZZZZ';
 
 /** A page body without its per-response nonce. */
 function without_nonce(text: string): string {
@@ -56,13 +59,15 @@ describe('IssueDeletionCode and the code method', () => {
     expect(JSON.stringify(rows)).not.toContain(first.code);
     expect((logs(server)).some((l) => JSON.stringify(l).includes(first.code))).toBe(false);
     await issue(user.session);
-    expect((await post(server, by_code(user.result.user_id, first.code))).status).toBe(403);
+    expect((await post(server, by_code(user.result.public_code, first.code))).status).toBe(403);
   });
 
   it('the right code deletes the account: 200, no user scope rows, the next request UNAUTHORIZED, audit reason web_deletion', async () => {
     const user = await social(server, P.LOGIN_PROVIDER_GOOGLE, 'web-delete-1');
     const { code } = await issue(user.session);
-    const page = await post(server, by_code(user.result.user_id, code.toLowerCase().replace(/(.{5})/, '$1-')));
+    // The public code as a person may type it: lowercase with `-` after 4 characters.
+    const typed = user.result.public_code.toLowerCase().replace(/(.{4})/, '$1-');
+    const page = await post(server, by_code(typed, code.toLowerCase().replace(/(.{5})/, '$1-')));
     expect(page.status).toBe(200);
     expect(await personal_rows(server, user.result.user_id, 'auth_social_link')).toEqual([]);
     expect((await user_record(server, user.result.user_id))?.withdrawn_at).not.toBeNull();
@@ -74,35 +79,52 @@ describe('IssueDeletionCode and the code method', () => {
   it('a wrong code is 403 and counts an attempt; after auth.deletionCodeMaxAttempts wrong codes the right one is 403 too', async () => {
     const counted = await guest(server);
     const a = await issue(counted.session);
-    for (let i = 0; i < 2; i += 1) expect((await post(server, by_code(counted.result.user_id, wrong(a.code)))).status).toBe(403);
-    expect((await post(server, by_code(counted.result.user_id, a.code))).status).toBe(200);
+    for (let i = 0; i < 2; i += 1) expect((await post(server, by_code(counted.result.public_code, wrong(a.code)))).status).toBe(403);
+    expect((await post(server, by_code(counted.result.public_code, a.code))).status).toBe(200);
     const spent = await guest(server);
     const b = await issue(spent.session);
-    for (let i = 0; i < 3; i += 1) expect((await post(server, by_code(spent.result.user_id, wrong(b.code)))).status).toBe(403);
-    expect((await post(server, by_code(spent.result.user_id, b.code))).status).toBe(403);
+    for (let i = 0; i < 3; i += 1) expect((await post(server, by_code(spent.result.public_code, wrong(b.code)))).status).toBe(403);
+    expect((await post(server, by_code(spent.result.public_code, b.code))).status).toBe(403);
   });
 
   it('a code at its expires_at, a missing user and a withdrawn user are 403 with the same result page', async () => {
     const user = await guest(server);
     const { code, expires_at } = await issue(user.session);
     const pages: Page[] = [];
-    pages.push(await post(server, by_code(987_654_321n, code)));
+    pages.push(await post(server, by_code(NO_USER_CODE, code)));
     const left = await guest(server);
     const left_code = await issue(left.session);
     expect(await withdraw(left.session)).toBe(0);
-    pages.push(await post(server, by_code(left.result.user_id, left_code.code)));
+    pages.push(await post(server, by_code(left.result.public_code, left_code.code)));
     testing.set_time(server, expires_at);
-    pages.push(await post(server, by_code(user.result.user_id, code)));
+    pages.push(await post(server, by_code(user.result.public_code, code)));
     expect(pages.map((p) => p.status)).toEqual([403, 403, 403]);
     expect(new Set(pages.map((p) => without_nonce(p.text))).size).toBe(1);
+  });
+
+  it('a public_code that is not a public code input is 400 [auth_deletion_failed]; a code no user has is 403 [auth_deletion_failed]', async () => {
+    const user = await guest(server);
+    const { code } = await issue(user.session);
+    // The result page of [auth_deletion_failed]: that of a body without confirm.
+    const failed = await post(server, { method: 'code', public_code: user.result.public_code, code });
+    expect(failed.status).toBe(400);
+    for (const bad of [user.result.public_code.slice(0, 7), `${user.result.public_code.slice(0, 7)}U`, `${user.result.public_code}0`, user.result.user_id.toString()]) {
+      const page = await post(server, by_code(bad, code));
+      expect(page.status).toBe(400);
+      expect(without_nonce(page.text)).toBe(without_nonce(failed.text));
+    }
+    const unknown = await post(server, by_code(NO_USER_CODE, code));
+    expect(unknown.status).toBe(403);
+    expect(without_nonce(unknown.text)).toBe(without_nonce(failed.text));
+    expect(await probe(user.session)).toBe(0);
   });
 
   it('a body without confirm or with an unknown field is 400 and changes nothing', async () => {
     const user = await guest(server);
     const { code } = await issue(user.session);
     const before = await testing.read_user_state(server, user.result.user_id);
-    const form = by_code(user.result.user_id, code);
-    expect((await post(server, { method: 'code', user_id: form.user_id ?? '', code })).status).toBe(400);
+    const form = by_code(user.result.public_code, code);
+    expect((await post(server, { method: 'code', public_code: form.public_code ?? '', code })).status).toBe(400);
     expect((await post(server, { ...form, extra: '1' })).status).toBe(400);
     expect(await testing.read_user_state(server, user.result.user_id)).toEqual(before);
     expect(await probe(user.session)).toBe(0);
@@ -139,7 +161,7 @@ describe('the deletion page', () => {
   it('limits POSTs per IP and minute window with 429 and takes them again in the next window', async () => {
     const server = await start({ settings: { 'auth.deletionAttemptsPerMinute': 2 } });
     try {
-      const form = { method: 'code', confirm: 'yes', user_id: '1', code: '0000000000' };
+      const form = { method: 'code', confirm: 'yes', public_code: NO_USER_CODE, code: '0000000000' };
       expect((await post(server, form)).status).toBe(403);
       expect((await post(server, form)).status).toBe(403);
       expect((await post(server, form)).status).toBe(429);
@@ -156,7 +178,7 @@ describe('the deletion page', () => {
       const user = await guest(server);
       const { code } = await issue(user.session);
       expect((await admin(server, 'set_maintenance', { enabled: true })).status).toBe(200);
-      expect((await post(server, by_code(user.result.user_id, code))).status).toBe(503);
+      expect((await post(server, by_code(user.result.public_code, code))).status).toBe(503);
       expect((await raw(server, 'GET', {})).status).toBe(200);
       expect((await admin(server, 'set_maintenance', { enabled: false })).status).toBe(200);
       expect((await user_record(server, user.result.user_id))?.withdrawn_at).toBeNull();
@@ -212,7 +234,7 @@ describe('the deletion page', () => {
       expect(scripts.length).toBeGreaterThan(0);
       for (const script of scripts) expect(script).toContain(`nonce="${nonce ?? ''}"`);
       expect(page.headers['cache-control']).toBe('no-store');
-      const result = await post(server, { method: 'code', confirm: 'yes', user_id: '1', code: '0000000000' });
+      const result = await post(server, { method: 'code', confirm: 'yes', public_code: NO_USER_CODE, code: '0000000000' });
       expect(result.headers['content-security-policy']).toContain("frame-ancestors 'none'");
     } finally {
       await testing.stop_test_server(server);

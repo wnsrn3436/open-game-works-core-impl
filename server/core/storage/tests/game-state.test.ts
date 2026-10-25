@@ -1,6 +1,6 @@
 import { StorageMisuse, type GameTx, type Storage } from '../index.ts';
 import type { RequestCtx } from '../request_ctx.ts';
-import { DB_KIND, instance, lock_holder, new_user, PG_LOCK_SQL, request, stop_all, type LockHolder } from './helpers.ts';
+import { DB_KIND, instance, lock_holder, new_user, new_users, PG_LOCK_SQL, request, stop_all, type LockHolder } from './helpers.ts';
 import type { HolderResult } from './lock_holder.ts';
 import { lock_key } from '../tx.ts';
 import { boss, BossGameState, deck, DeckUserState, profile, ProfileUserState, quest } from './kinds.ts';
@@ -298,7 +298,7 @@ describe('read_public_state', () => {
   it('returns committed public values of other users in user ID order, leaving out withdrawn users and users without a value', async () => {
     const { db, storage } = await instance();
     const reader = await new_user(storage);
-    const [u1, u2, u3, u4] = [await new_user(storage), await new_user(storage), await new_user(storage), await new_user(storage)];
+    const [u1, u2, u3, u4] = (await new_users(storage, 4)) as [bigint, bigint, bigint, bigint];
     await request(storage, u1, (ctx) => {
       storage.put_state(ctx, profile(1n));
       storage.put_state(ctx, deck(2n, 20n));
@@ -329,11 +329,12 @@ describe('read_public_state', () => {
     });
     await holder?.ok('ROLLBACK');
     if (typeof read === 'string') throw new Error(read);
-    expect(read.profiles).toEqual([
+    const expected: [bigint, bigint][] = [
       [reader, 7n],
       [u1, 1n],
       [u2, 2n],
-    ]);
+    ];
+    expect(read.profiles).toEqual(expected.sort((a, b) => (a[0] < b[0] ? -1 : 1)));
     expect(read.decks).toEqual([[u1, [1n, 2n]]]);
     expect(read.taken.delta.user_state.entries.map((e) => e.kind)).toEqual(['ProfileUserState']);
   });

@@ -469,6 +469,7 @@
   "public-profile.maxRequestCount": "integer",
   "public-profile.maxProfileBytes": "integer",
   "public-profile.lastActiveGranularityMs": "integer",
+  "public-profile.findPerMinute": "integer",
   "push.maxDeviceTokenBytes": "integer",
   "push.maxDedupeKeyBytes": "integer",
   "push.maxScheduleAheadMs": "integer",

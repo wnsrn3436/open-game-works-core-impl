@@ -62,7 +62,7 @@ describe('Withdraw', () => {
     const created = await call<CoreContract.CreateGuildResponse>(
       staying.session,
       'core/CreateGuild',
-      Object.assign(new CoreContract.CreateGuildRequest(), { name: `g${staying.result.user_id.toString()}`, description: '', join_type: CoreContract.GuildJoinType.GUILD_JOIN_TYPE_OPEN }),
+      Object.assign(new CoreContract.CreateGuildRequest(), { name: `g${staying.result.user_id.toString().slice(-6)}`, description: '', join_type: CoreContract.GuildJoinType.GUILD_JOIN_TYPE_OPEN }),
     );
     expect(created.code).toBe(0);
     const join = Object.assign(new CoreContract.JoinGuildRequest(), { guild_id: created.response.guild_id });
@@ -161,7 +161,7 @@ describe('Withdraw', () => {
       const member_id = member.result.user_id;
       const before = { state: await testing.read_user_state(locked, member_id), links: await personal_rows(locked, member_id, 'auth_social_link') };
       const birth_below_minimum = Object.assign(new CoreContract.ConfirmAgeRequest(), { birth_year_month: 202601 });
-      const form = new URLSearchParams({ method: 'code', confirm: 'yes', user_id: member_id.toString(), code: issued.response.code }).toString();
+      const form = new URLSearchParams({ method: 'code', confirm: 'yes', public_code: member.result.public_code, code: issued.response.code }).toString();
 
       const release = await testing.hold_game_row_lock(locked, 'guild_guild', [guild_id]);
       try {

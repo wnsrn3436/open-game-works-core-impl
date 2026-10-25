@@ -51,7 +51,7 @@ async function start_instance(input: CoreTestServerInput, secret_file: string, u
 }
 
 async function new_user(core: Core): Promise<bigint> {
-  const user_id = await core.storage.run_game_transaction((tx) => core.storage.create_user(tx));
+  const user_id = await core.storage.run_game_transaction((tx) => core.storage.create_user(tx).user_id);
   if (user_id === 'FAILED') throw new Error('create_user ended with FAILED');
   return user_id;
 }

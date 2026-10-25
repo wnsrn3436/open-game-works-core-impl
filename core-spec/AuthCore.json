@@ -480,6 +480,10 @@
       "inputs": []
     },
     {
+      "name": "get_public_code",
+      "inputs": []
+    },
+    {
       "name": "get_access_token",
       "inputs": []
     },

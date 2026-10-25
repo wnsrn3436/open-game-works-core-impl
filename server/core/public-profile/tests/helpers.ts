@@ -116,7 +116,7 @@ export async function request<T>(instance: Instance, user_id: bigint, name: stri
 }
 
 export async function new_user(instance: Instance): Promise<bigint> {
-  const user = await instance.storage.run_game_transaction((tx: GameTx) => instance.storage.create_user(tx));
+  const user = await instance.storage.run_game_transaction((tx: GameTx) => instance.storage.create_user(tx).user_id);
   if (user === 'FAILED') throw new Error('create_user: FAILED');
   return user;
 }

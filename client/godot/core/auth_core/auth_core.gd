@@ -718,6 +718,7 @@ static func _open_session(result: CoreContract.AuthResult) -> LoginResult:
 	session.signing_key = result.session_signing_key
 	session.login_token = result.login_token
 	session.user_id = result.user_id
+	session.public_code = result.public_code
 	session.linked_providers = result.linked_providers
 	session.consent = result.consent if result.consent != null else CoreContract.ConsentUserState.new()
 	_session = session
@@ -733,6 +734,7 @@ static func _open_session(result: CoreContract.AuthResult) -> LoginResult:
 	EventCore.publish(event)
 	var done: LoginResult = _login_result(LoginStatus.SUCCESS)
 	done.user_id = result.user_id
+	done.public_code = result.public_code
 	return done
 
 
@@ -754,11 +756,13 @@ static func _login_failure(sent: AuthSendResult) -> LoginResult:
 			var ban: CoreContract.BanDetail = failure.ban
 			if ban != null:
 				result.user_id = ban.user_id
+				result.public_code = ban.public_code
 				result.ban_until_at = ban.until_at
 				result.deletion_url = ban.deletion_url
 				if _session == null and not ban.access_token.is_empty():
 					var ban_session: _SESSION = _SESSION.new()
 					ban_session.user_id = ban.user_id
+					ban_session.public_code = ban.public_code
 					ban_session.access_token = ban.access_token
 					ban_session.signing_key = ban.session_signing_key
 					_ban_session = ban_session
@@ -794,6 +798,17 @@ static func get_user_id() -> int:
 		LogCore.log_error(_TAG, "get_user_id: no session")
 		return 0
 	return _session.user_id
+
+
+static func get_public_code() -> String:
+	if not _check("get_public_code"):
+		return ""
+	if _session != null:
+		return _session.public_code
+	if _ban_session != null:
+		return _ban_session.public_code
+	LogCore.log_error(_TAG, "get_public_code: no session and no ban session")
+	return ""
 
 
 static func get_login_remote_config() -> CoreContract.GetRemoteConfigResponse:
@@ -1525,6 +1540,7 @@ static func switch_account(provider: CoreContract.LoginProvider) -> LoginResult:
 		return _login_result(LoginStatus.FAILED)
 	var result: LoginResult = _login_result(LoginStatus.SUCCESS)
 	result.user_id = response.result.user_id
+	result.public_code = response.result.public_code
 	return result
 
 

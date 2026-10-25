@@ -52,7 +52,7 @@ describe('grant failure', () => {
     const created = await before.storage.run_game_transaction((tx: GameTx) => before.coupon.create_coupon.handler(coupon_input('GONE1', '[coupon_gem]'), tx, null, null));
     expect(created).toEqual({ coupon_id: 1n });
     const after = await modules({ db: before.db, data: data_without('[coupon_gem]') });
-    const user_id = await after.storage.run_game_transaction((tx: GameTx) => after.storage.create_user(tx));
+    const user_id = await after.storage.run_game_transaction((tx: GameTx) => after.storage.create_user(tx).user_id);
     if (user_id === 'FAILED') throw new Error('create_user failed');
     const request = new CoreContract.RedeemCouponRequest();
     request.code = 'GONE1';
@@ -69,7 +69,7 @@ describe('grant failure', () => {
     const created = await before.storage.run_game_transaction((tx: GameTx) => before.coupon.create_coupon.handler(coupon_input('GONE2', '[coupon_gem]', 7), tx, null, null));
     expect(created).toEqual({ coupon_id: 1n });
     const after = await modules({ db: before.db, data: data_without('[coupon_gem]') });
-    const user_id = await after.storage.run_game_transaction((tx: GameTx) => after.storage.create_user(tx));
+    const user_id = await after.storage.run_game_transaction((tx: GameTx) => after.storage.create_user(tx).user_id);
     if (user_id === 'FAILED') throw new Error('create_user failed');
     const request = new CoreContract.RedeemCouponRequest();
     request.code = 'GONE2';

@@ -43,6 +43,8 @@ message BanDetail {
   string access_token = 4;
   // Session signing key. Filled only by the ban login.
   string session_signing_key = 5;
+  // Public code of the banned user.
+  string public_code = 6;
 }
 
 // UserState delta.
@@ -374,6 +376,9 @@ service Core {
   rpc GetPublicProfiles(GetPublicProfilesRequest) returns (GetPublicProfilesResponse) {
     option (ogw.silent) = true;
   }
+  // Returns the public profile of the user that has a public code.
+  // changes: none
+  rpc FindUserByPublicCode(FindUserByPublicCodeRequest) returns (FindUserByPublicCodeResponse);
   // Sends a friend request.
   // changes: content
   rpc SendFriendRequest(SendFriendRequestRequest) returns (SendFriendRequestResponse) {
@@ -1222,6 +1227,18 @@ message GetPublicProfilesResponse {
   repeated PublicProfileEntry profiles = 1;
 }
 
+// Request of FindUserByPublicCode.
+message FindUserByPublicCodeRequest {
+  // Public code as a person typed it.
+  string public_code = 1 [(ogw.v) = {max_len: 32}];
+}
+
+// Response of FindUserByPublicCode.
+message FindUserByPublicCodeResponse {
+  // Profile of the user.
+  PublicProfileEntry profile = 1;
+}
+
 // Request of SendFriendRequest.
 message SendFriendRequestRequest {
   // User ID.
@@ -1682,6 +1699,8 @@ message AuthResult {
   ConsentUserState consent = 8;
   // Remote config of the user.
   GetRemoteConfigResponse remote_config = 9;
+  // Public code of the user.
+  string public_code = 10;
 }
 
 // The current version and document URL of a terms item.
@@ -2006,6 +2025,8 @@ message PublicProfileEntry {
   bytes profile = 3;
   // Last access time. Unix ms. 0 when unknown.
   int64 last_active_at = 4;
+  // Public code of the user.
+  string public_code = 5;
 }
 
 // A friend or a pending friend request.

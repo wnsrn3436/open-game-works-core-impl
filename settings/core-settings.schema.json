@@ -873,6 +873,10 @@
       "type": "integer",
       "minimum": 1
     },
+    "public-profile.findPerMinute": {
+      "type": "integer",
+      "minimum": 1
+    },
     "gacha.historyRetentionMs": {
       "type": "integer",
       "minimum": 0
@@ -2031,6 +2035,7 @@
     "nickname.minLength",
     "public-profile.lastActiveGranularityMs",
     "public-profile.maxProfileBytes",
+    "public-profile.findPerMinute",
     "gacha.historyRetentionMs",
     "iap.fakeSubscriptionPeriodMs",
     "iap.maxTransactionIdLength",

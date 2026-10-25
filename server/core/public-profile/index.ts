@@ -1,18 +1,23 @@
 import * as CoreContract from '../../generated/contract/core_contract.ts';
 import type { LogEntry, LogFields, Logging } from '../logging/index.ts';
 import type { ServerTimeApi } from '../server-time/index.ts';
-import type { ColumnInput, DbHandle, RequestCtx, Storage } from '../storage/index.ts';
+import { normalize_public_code, type ColumnInput, type DbHandle, type RequestCtx, type Storage } from '../storage/index.ts';
 
 /** The last active table (`### last active`): `user` scope, key `user_id`, not in the user snapshot. */
 export const ACTIVITY_TABLE = 'public_profile_activity';
 
+/** The find counter table (`### find by public code`): `user` scope, key `user_id`, not in the user snapshot. */
+export const FIND_COUNTER_TABLE = 'public_profile_find_counter';
+
+const MINUTE_MS = 60_000n;
+
 const INT64_MAX = 2n ** 63n - 1n;
 
 /** The `storage` operations public-profile calls (`storage` `## API`). */
-export type PublicProfileStorage = Pick<Storage, 'register_table' | 'run_read_only' | 'run_user_transaction' | 'db' | 'read_db' | 'get_user_record'>;
+export type PublicProfileStorage = Pick<Storage, 'register_table' | 'run_read_only' | 'run_user_transaction' | 'db' | 'read_db' | 'get_user_record' | 'find_user_by_public_code'>;
 
 /** The `server-time` operations public-profile calls (`server-time` `## API`). */
-export type PublicProfileServerTime = Pick<ServerTimeApi, 'clock_now'>;
+export type PublicProfileServerTime = Pick<ServerTimeApi, 'clock_now' | 'get_window_start'>;
 
 /** The `logging` operations public-profile calls (`logging` `## API`). */
 export type PublicProfileLogging = Pick<Logging, 'write'>;
@@ -41,14 +46,20 @@ export type InvalidRequest = typeof CoreContract.CoreError.CORE_ERROR_INVALID_RE
 /** The handler of the core `rpc` `GetPublicProfiles`. */
 export type GetPublicProfilesHandler = (ctx: RequestCtx, request: CoreContract.GetPublicProfilesRequest) => CoreContract.GetPublicProfilesResponse | InvalidRequest;
 
+/** The handler of the core `rpc` `FindUserByPublicCode`. */
+export type FindUserByPublicCodeHandler = (ctx: RequestCtx, request: CoreContract.FindUserByPublicCodeRequest) => CoreContract.FindUserByPublicCodeResponse | CoreContract.CoreError;
+
 /** The `## API` operations of `public-profile`. */
 export interface PublicProfileApi {
   GetPublicProfiles: GetPublicProfilesHandler;
+  FindUserByPublicCode: FindUserByPublicCodeHandler;
   /** No user ID limit: `nickname.get_nicknames` gets `public-profile.maxRequestCount` IDs at most per call. Throws when the hook fails. */
   get_public_profiles(ctx: RequestCtx, user_ids: readonly bigint[]): CoreContract.PublicProfileEntry[];
   is_active_user(ctx: RequestCtx, user_id: bigint): boolean;
   /** Records the last active time; a failed transaction leaves an `error` log and resolves all the same. */
   on_request_start(user_id: bigint): Promise<null>;
+  /** The request prepare of `FindUserByPublicCode`: counts one find of the user in the current minute window. */
+  count_find_attempt(user_id: bigint): Promise<'pass' | CoreContract.CoreError>;
 }
 
 /** `public-profile` of one server instance: the `## API` operations, the hook slots and the lifecycle. */
@@ -75,6 +86,19 @@ const ACTIVITY_COLUMNS: readonly ColumnInput[] = [
   { name: 'user_id', type: 'int64' },
   { name: 'last_active_at', type: 'int64' },
 ];
+
+const FIND_COUNTER_COLUMNS: readonly ColumnInput[] = [
+  { name: 'user_id', type: 'int64' },
+  { name: 'window_start', type: 'int64' },
+  { name: 'count', type: 'int64' },
+  { name: 'expires_at', type: 'int64' },
+];
+
+/** The row of the current window with `count` incremented: a row of another window starts again from 0. */
+const COUNT_FIND =
+  `INSERT INTO ${FIND_COUNTER_TABLE} (user_id, window_start, count, expires_at) VALUES ($1, $2, 1, $3) ` +
+  `ON CONFLICT (user_id) DO UPDATE SET count = CASE WHEN ${FIND_COUNTER_TABLE}.window_start = $2 THEN ${FIND_COUNTER_TABLE}.count + 1 ELSE 1 END, ` +
+  'window_start = $2, expires_at = $3 RETURNING count';
 
 function integer_setting(settings: Readonly<Record<string, unknown>>, key: string, min: number): number {
   const value = settings[key];
@@ -138,11 +162,13 @@ export function create_public_profile(input: PublicProfileInput): PublicProfile 
   const max_request_count = integer_setting(settings, 'public-profile.maxRequestCount', 1);
   const max_profile_bytes = integer_setting(settings, 'public-profile.maxProfileBytes', 1);
   const granularity_ms = BigInt(integer_setting(settings, 'public-profile.lastActiveGranularityMs', 0));
-  const storage = required_module<PublicProfileStorage>(input.modules, 'storage', ['register_table', 'run_read_only', 'run_user_transaction', 'db', 'read_db', 'get_user_record']);
+  const find_per_minute = BigInt(integer_setting(settings, 'public-profile.findPerMinute', 1));
+  const storage = required_module<PublicProfileStorage>(input.modules, 'storage', ['register_table', 'run_read_only', 'run_user_transaction', 'db', 'read_db', 'get_user_record', 'find_user_by_public_code']);
   const nickname = required_module<PublicProfileNickname>(input.modules, 'nickname', ['get_nicknames']);
   const logging = required_module<PublicProfileLogging>(input.modules, 'logging', ['write']);
-  const server_time = required_module<PublicProfileServerTime>(input.modules, 'server-time', ['clock_now']);
+  const server_time = required_module<PublicProfileServerTime>(input.modules, 'server-time', ['clock_now', 'get_window_start']);
   storage.register_table(ACTIVITY_TABLE, 'user', ACTIVITY_COLUMNS, ['user_id'], null, false);
+  storage.register_table(FIND_COUNTER_TABLE, 'user', FIND_COUNTER_COLUMNS, ['user_id'], 'expires_at', false);
 
   const hook_slots: PublicProfileHookSlots = { build_public_profile: null };
 
@@ -178,7 +204,14 @@ export function create_public_profile(input: PublicProfileInput): PublicProfile 
 
   const get_public_profiles = (ctx: RequestCtx, user_ids: readonly bigint[]): CoreContract.PublicProfileEntry[] => {
     return storage.run_read_only(ctx, () => {
-      const ids = [...new Set(user_ids)].sort(compare).filter((id) => is_active_user(ctx, id));
+      const db = storage.db(ctx);
+      const records = new Map<bigint, string>();
+      const ids = [...new Set(user_ids)].sort(compare).filter((id) => {
+        const record = storage.get_user_record(db, id);
+        if (record === null || record.withdrawn_at !== null) return false;
+        records.set(id, record.public_code);
+        return true;
+      });
       const profiles = new Map(ids.map((id) => [id, build_profile(ctx, id)] as const));
       const nicknames = new Map<bigint, string>();
       const activity = new Map<bigint, bigint>();
@@ -193,6 +226,7 @@ export function create_public_profile(input: PublicProfileInput): PublicProfile 
         entry.nickname = nicknames.get(id) ?? '';
         entry.profile = profiles.get(id) ?? new Uint8Array(0);
         entry.last_active_at = activity.get(id) ?? 0n;
+        entry.public_code = records.get(id) ?? '';
         return entry;
       });
     });
@@ -223,6 +257,28 @@ export function create_public_profile(input: PublicProfileInput): PublicProfile 
     return null;
   };
 
+  /** Counted in its own transaction whatever the find gives later, so codes are not found by trying many. */
+  const count_find_attempt = async (user_id: bigint): Promise<'pass' | CoreContract.CoreError> => {
+    const window_start = server_time.get_window_start(MINUTE_MS, server_time.clock_now());
+    let count = 0n;
+    let result: Awaited<ReturnType<Storage['run_user_transaction']>>;
+    try {
+      result = await storage.run_user_transaction(user_id, (ctx) => {
+        count = int64(storage.db(ctx).query(COUNT_FIND, [user_id, window_start, window_start + MINUTE_MS])[0]?.count, `${FIND_COUNTER_TABLE}.count`);
+        return 'pass';
+      });
+    } catch (error) {
+      write_error(user_id, 'public-profile: counting a FindUserByPublicCode failed', { reason: message_of(error) });
+      return CoreContract.CoreError.CORE_ERROR_INTERNAL;
+    }
+    if (result === 'WITHDRAWN') return CoreContract.CoreError.CORE_ERROR_UNAUTHORIZED;
+    if (result !== 'COMMITTED') {
+      write_error(user_id, 'public-profile: counting a FindUserByPublicCode failed', { reason: result });
+      return CoreContract.CoreError.CORE_ERROR_INTERNAL;
+    }
+    return count > find_per_minute ? CoreContract.CoreError.CORE_ERROR_RATE_LIMITED : 'pass';
+  };
+
   return {
     GetPublicProfiles: (ctx, request) => {
       if (!valid_request_ids(request.user_ids, max_request_count)) return INVALID_REQUEST;
@@ -230,9 +286,19 @@ export function create_public_profile(input: PublicProfileInput): PublicProfile 
       response.profiles = get_public_profiles(ctx, request.user_ids);
       return response;
     },
+    FindUserByPublicCode: (ctx, request) => {
+      if (normalize_public_code(request.public_code) === null) return INVALID_REQUEST;
+      const user_id = storage.find_user_by_public_code(storage.db(ctx), request.public_code);
+      const profile = user_id === null ? undefined : get_public_profiles(ctx, [user_id])[0];
+      if (profile === undefined) return CoreContract.CoreError.CORE_ERROR_USER_NOT_FOUND;
+      const response = new CoreContract.FindUserByPublicCodeResponse();
+      response.profile = profile;
+      return response;
+    },
     get_public_profiles,
     is_active_user,
     on_request_start,
+    count_find_attempt,
     hook_slots,
     begin_start: () => {},
     complete_start: () => null,

@@ -478,6 +478,7 @@
   "SoundCore.voiceDuckDb": 9,
   "SoundCore.voiceDuckAttackMs": 150,
   "SoundCore.voiceDuckReleaseMs": 500,
+  "public-profile.findPerMinute": 10,
   "termsPopup": "prefab_terms",
   "agePopup": "",
   "privacyPopup": "",

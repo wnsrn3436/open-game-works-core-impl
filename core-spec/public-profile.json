@@ -34,6 +34,12 @@
       "type": "integer",
       "source": "core",
       "owner": "content"
+    },
+    {
+      "key": "public-profile.findPerMinute",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
     }
   ],
   "settingsConstraints": [
@@ -68,6 +74,12 @@
     },
     {
       "name": "on_request_start",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "count_find_attempt",
       "inputs": [
         "other"
       ]

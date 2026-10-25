@@ -3,7 +3,7 @@ import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import { SetTimeOffsetRequest } from '../../../dev/generated/contract/core_cheat_contract.ts';
 import * as GameDataDev from '../../../dev/generated/data/game_data_dev.ts';
 import { utc_year_month } from '../../auth/consent.ts';
-import { DB_KIND, lock_holder, stop_all } from '../../storage/tests/helpers.ts';
+import { DB_KIND, lock_holder, stop_all, storage_module } from '../../storage/tests/helpers.ts';
 import {
   admin,
   advance,
@@ -313,6 +313,9 @@ describe('ban', () => {
     expect(code(banned)).toBe(E.CORE_ERROR_BANNED);
     const ban = banned.envelope.error?.ban;
     expect(ban?.user_id).toBe(session.user_id);
+    const storage = storage_module(server);
+    expect(ban?.public_code).toBe(storage.get_user_record(storage.read_db(), session.user_id)?.public_code);
+    expect(ban?.public_code).toMatch(/^[0-9A-HJKMNP-TV-Z]{8}$/);
     expect(ban?.until_at).toBe(99999999999999n);
     expect(ban?.deletion_url).toMatch(/^http:\/\/127\.0\.0\.1:[0-9]+\/account\/deletion$/);
     expect(ban?.deletion_url).toBe((issued.response as CoreContract.IssueDeletionCodeResponse).url);

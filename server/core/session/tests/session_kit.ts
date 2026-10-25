@@ -72,7 +72,7 @@ export async function request<T>(storage: Storage, user_id: bigint, name: string
 }
 
 export async function new_user(storage: Storage): Promise<bigint> {
-  const user = await storage.run_game_transaction((tx) => storage.create_user(tx));
+  const user = await storage.run_game_transaction((tx) => storage.create_user(tx).user_id);
   if (user === 'FAILED') throw new Error('create_user: FAILED');
   return user;
 }

@@ -157,7 +157,7 @@ export function registerOtherJudges(core: TestCore): void {
 
 /** A new user, created at the clock's time. */
 export async function newUser(started: Started): Promise<bigint> {
-  const userId = await started.storage.run_game_transaction((tx: GameTx) => started.storage.create_user(tx));
+  const userId = await started.storage.run_game_transaction((tx: GameTx) => started.storage.create_user(tx).user_id);
   if (typeof userId !== 'bigint') throw new Error(`create_user: ${userId}`);
   return userId;
 }

@@ -35,7 +35,8 @@ function error_lines(instance: Instance): Record<string, unknown>[] {
 describe('profile build', () => {
   it('gives the profile from the public kind and the nickname of other users in user ID order, the own user too', async () => {
     const instance = await start();
-    const [a, b, c] = [await new_user(instance), await new_user(instance), await new_user(instance)];
+    // In user ID order: user IDs are random, so the order the users were made is not it.
+    const [a, b, c] = [await new_user(instance), await new_user(instance), await new_user(instance)].sort((x, y) => (x < y ? -1 : 1)) as [bigint, bigint, bigint];
     await set_nickname(instance, a, 'alice');
     await set_nickname(instance, c, 'carol');
     await put_profile(instance, b, 7n);
@@ -108,7 +109,9 @@ describe('profile build', () => {
     const instance = await start({ 'public-profile.maxRequestCount': max, 'public-profile.lastActiveGranularityMs': 60_000 });
     const users: bigint[] = [];
     for (let i = 0; i < max * 2 + 1; i += 1) users.push(await new_user(instance));
-    for (const user of users) await set_nickname(instance, user, `user${user.toString()}`);
+    users.sort((x, y) => (x < y ? -1 : 1));
+    const name = (user: bigint): string => `user${String(users.indexOf(user))}`;
+    for (const user of users) await set_nickname(instance, user, name(user));
     for (const user of users) await instance.profile.on_request_start(user);
     await put_profile(instance, users[4] as bigint, 6n);
     instance.profile.hook_slots.build_public_profile = profile_hook(instance);
@@ -123,7 +126,7 @@ describe('profile build', () => {
     const entries = await request(instance, users[0] as bigint, 'Test', (ctx) => instance.profile.get_public_profiles(ctx, [...users].reverse()));
 
     expect(entries.map((e) => e.user_id)).toEqual(users);
-    expect(entries.map((e) => e.nickname)).toEqual(users.map((user) => `user${user.toString()}`));
+    expect(entries.map((e) => e.nickname)).toEqual(users.map(name));
     expect(entries.map((e) => e.last_active_at)).toEqual(users.map(() => last_active));
     expect([...(entries[4]?.profile ?? [])]).toEqual([...profile(6n).encode()]);
     expect(lookups).toEqual([2, 2, 1]);
@@ -235,5 +238,18 @@ describe('is_active_user', () => {
     ]);
 
     expect(result).toEqual([true, false, false]);
+  });
+});
+
+describe('count_find_attempt', () => {
+  it('is UNAUTHORIZED for a withdrawn user, counts nothing for it, and counts the user of each call', async () => {
+    const instance = await start({ 'public-profile.findPerMinute': 2 });
+    const [a, gone] = [await new_user(instance), await new_user(instance)];
+    await withdraw(instance, gone);
+    expect(await instance.profile.count_find_attempt(gone)).toBe(CoreContract.CoreError.CORE_ERROR_UNAUTHORIZED);
+    expect(instance.storage.read_db().query('SELECT user_id FROM public_profile_find_counter WHERE user_id = $1', [gone])).toEqual([]);
+    expect(await instance.profile.count_find_attempt(a)).toBe('pass');
+    expect(await instance.profile.count_find_attempt(a)).toBe('pass');
+    expect(await instance.profile.count_find_attempt(a)).toBe(CoreContract.CoreError.CORE_ERROR_RATE_LIMITED);
   });
 });

@@ -73,6 +73,7 @@ export interface Auth {
   /** The admin operations auth exports, by name. */
   readonly withdraw_user: AdminOperation;
   readonly find_user_by_social_account: AdminOperation;
+  readonly find_user_by_public_code: AdminOperation;
 
   /** For the DEV code, before server start. */
   use_dev(slot: AuthDevSlot): void;
@@ -189,6 +190,7 @@ export function create_auth(input: AuthInput): Auth {
 
     withdraw_user: operations.withdraw_user,
     find_user_by_social_account: operations.find_user_by_social_account,
+    find_user_by_public_code: operations.find_user_by_public_code,
 
     use_dev(slot) {
       dev = slot;

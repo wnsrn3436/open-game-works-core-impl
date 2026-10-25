@@ -11,7 +11,7 @@ import {
   id_token,
   log_text,
   login,
-  next_user_id,
+  user_ids,
   personal_rows,
   rsa_key,
   social,
@@ -57,7 +57,7 @@ describe('social Login', () => {
     for (const limit_ms of [300, 1500]) {
       const own = await start({ settings: { 'auth.socialVerifyTimeoutMs': limit_ms } });
       try {
-        const before = await next_user_id(own);
+        const before = await user_ids(own);
         fake(own, 'login-google').set_failure('verify', 'timeout');
         const started = performance.now();
         expect((await login(own, P.LOGIN_PROVIDER_GOOGLE, 'fake:slow')).code).toBe(E.CORE_ERROR_EXTERNAL_SERVICE_FAILED);
@@ -66,7 +66,7 @@ describe('social Login', () => {
         expect(elapsed).toBeGreaterThanOrEqual(limit_ms - 5);
         expect(elapsed).toBeLessThan(limit_ms + 600);
         fake(own, 'login-google').set_failure('verify', null);
-        expect(await next_user_id(own)).toBe(before + 1n);
+        expect(await user_ids(own)).toEqual(before);
       } finally {
         await testing.stop_test_server(own);
       }
@@ -74,11 +74,13 @@ describe('social Login', () => {
   });
 
   it('two concurrent Logins of a new social account get one user; the losing new user is withdrawn and only the winner records core_user_created', async () => {
-    const first = await next_user_id(server);
+    const before = await user_ids(server);
     const [a, b] = await Promise.all([login(server, P.LOGIN_PROVIDER_GOOGLE, 'fake:race-1'), login(server, P.LOGIN_PROVIDER_GOOGLE, 'fake:race-1')]);
     expect([a.code, b.code]).toEqual([0, 0]);
     expect(a.response.result?.user_id).toBe(b.response.result?.user_id);
-    const made = [first + 1n, first + 2n];
+    const made = [...(await user_ids(server))].filter((id) => !before.has(id));
+    expect(made.length).toBeGreaterThanOrEqual(1);
+    expect(made.length).toBeLessThanOrEqual(2);
     // Both requests may make a new user, or the second may already find the first one's link.
     const records = await Promise.all(made.map((id) => admin(server, 'get_user', { user_id: id.toString() })));
     expect(records.filter((r) => r.status === 200 && r.body.withdrawn_at === null)).toHaveLength(1);
@@ -120,11 +122,11 @@ describe('social Login', () => {
     const g = await guest(server);
     expect((await link(g.session, P.LOGIN_PROVIDER_APPLE, 'fake:apple-2')).code).toBe(0);
     expect((await personal_rows(server, g.result.user_id, 'auth_apple_token')).map((r) => r.refresh_token)).toEqual(['fake:apple-2']);
-    const before = await next_user_id(server);
+    const before = await user_ids(server);
     apple.set_failure('exchange', 'rejected');
     expect((await login(server, P.LOGIN_PROVIDER_APPLE, 'fake:apple-3')).code).toBe(E.CORE_ERROR_SOCIAL_LOGIN_INVALID);
     apple.set_failure('exchange', null);
-    expect(await next_user_id(server)).toBe(before + 1n);
+    expect(await user_ids(server)).toEqual(before);
   });
 
   it('Withdraw of an APPLE user revokes its refresh token once; a failed revoke keeps the Withdraw and leaves an error log', async () => {

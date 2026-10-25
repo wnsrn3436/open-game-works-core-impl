@@ -269,10 +269,12 @@ func test_server_errors_map_to_login_status_and_ban_detail() -> void:
 	ban.user_id = 71
 	ban.until_at = Env.SERVER_TIME + 5000
 	ban.deletion_url = "https://example.com/account/deletion"
+	ban.public_code = "BANCODE7"
 	Env.respond_error("core/Login", CoreContract.CoreError.CORE_ERROR_BANNED, ban)
 	var banned: LoginResult = await AuthCore.login(CoreContract.LoginProvider.LOGIN_PROVIDER_GUEST)
 	assert_eq(banned.status, AuthCore.LoginStatus.BANNED)
 	assert_eq(banned.user_id, 71)
+	assert_eq(banned.public_code, "BANCODE7")
 	assert_eq(banned.ban_until_at, Env.SERVER_TIME + 5000)
 	assert_eq(banned.deletion_url, "https://example.com/account/deletion")
 	Env.respond_error("core/Login", CoreContract.CoreError.CORE_ERROR_AGE_BELOW_MINIMUM)
@@ -282,6 +284,31 @@ func test_server_errors_map_to_login_status_and_ban_detail() -> void:
 	var other: LoginResult = await AuthCore.login(CoreContract.LoginProvider.LOGIN_PROVIDER_GUEST)
 	assert_eq(other.status, AuthCore.LoginStatus.FAILED)
 	assert_eq(other.error_code, CoreContract.CoreError.CORE_ERROR_INVALID_REQUEST)
+
+
+func test_get_public_code_is_of_the_login_of_the_ban_session_and_empty_without_either() -> void:
+	assert_true(await env.boot())
+	assert_eq(AuthCore.get_public_code(), "")
+	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 1)
+	var ban: CoreContract.BanDetail = CoreContract.BanDetail.new()
+	ban.user_id = 72
+	ban.public_code = "BANCODE8"
+	ban.access_token = "ban-access"
+	ban.session_signing_key = "ban-key"
+	Env.agree_terms()
+	Env.respond_terms()
+	assert_eq(await AuthCore.prepare_terms(), AuthCore.TermsStatus.AGREED)
+	Env.respond_error("core/Login", CoreContract.CoreError.CORE_ERROR_BANNED, ban)
+	var banned: LoginResult = await AuthCore.login(CoreContract.LoginProvider.LOGIN_PROVIDER_GUEST)
+	assert_eq(banned.status, AuthCore.LoginStatus.BANNED)
+	assert_false(AuthCore.is_logged_in())
+	assert_eq(AuthCore.get_public_code(), "BANCODE8")
+	Env.respond_login(73, "token-73")
+	var result: LoginResult = await AuthCore.login(CoreContract.LoginProvider.LOGIN_PROVIDER_GUEST)
+	assert_eq(result.status, AuthCore.LoginStatus.SUCCESS)
+	assert_eq(result.public_code, Env.public_code(73))
+	assert_eq(AuthCore.get_public_code(), Env.public_code(73))
+	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)
 
 
 func test_social_sign_in_cancel_and_failure_send_nothing() -> void:

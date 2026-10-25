@@ -7,7 +7,7 @@ reserved_string.text.[auth_age_month],Month,310ca503ef36f177,310ca503ef36f177,Mo
 reserved_string.text.[auth_age_title],Enter your birth year and month,73728435232a4837,73728435232a4837,Enter your birth year and month
 reserved_string.text.[auth_age_year],Year,89f6832560dec0b7,89f6832560dec0b7,Year
 reserved_string.text.[auth_deletion_back],Back,76900f1bfd16c8d4,76900f1bfd16c8d4,Back
-reserved_string.text.[auth_deletion_body],Enter your user ID and the deletion code from the game.,b9329d0793cfd5ff,b9329d0793cfd5ff,Enter your user ID and the deletion code from the game.
+reserved_string.text.[auth_deletion_body],Enter your user code and the deletion code from the game.,75764b82baf94970,75764b82baf94970,Enter your user code and the deletion code from the game.
 reserved_string.text.[auth_deletion_code],Deletion code,83fff164f3435f84,83fff164f3435f84,Deletion code
 reserved_string.text.[auth_deletion_confirm],I understand that deleted data cannot be restored.,db2ab98752ccf871,db2ab98752ccf871,I understand that deleted data cannot be restored.
 reserved_string.text.[auth_deletion_done],Your account deletion was requested.,23ea81f208c259c9,23ea81f208c259c9,Your account deletion was requested.
@@ -17,7 +17,7 @@ reserved_string.text.[auth_deletion_rate_limited],Too many tries. Try again late
 reserved_string.text.[auth_deletion_retry],Retry,942087cc2d41e013,942087cc2d41e013,Retry
 reserved_string.text.[auth_deletion_submit],Delete,e2d0a54968ead24e,e2d0a54968ead24e,Delete
 reserved_string.text.[auth_deletion_title],Delete account,a2e20a33570001ae,a2e20a33570001ae,Delete account
-reserved_string.text.[auth_deletion_user_id],User ID,7967e089a7b94464,7967e089a7b94464,User ID
+reserved_string.text.[auth_deletion_user_id],User code,3a7f2e606d579364,3a7f2e606d579364,User code
 reserved_string.text.[auth_go_to_title],Go to title,93e18a3d1032a2b2,93e18a3d1032a2b2,Go to title
 reserved_string.text.[auth_google_desktop_done],Sign-in is done. Return to the game.,bea77386d2df7d82,bea77386d2df7d82,Sign-in is done. Return to the game.
 reserved_string.text.[auth_privacy_ad_personalization],Personalized ads,67cd5b3b82690c6a,67cd5b3b82690c6a,Personalized ads
@@ -57,7 +57,7 @@ reserved_string.text.[bench_cancel],Cancel,19766ed6ccb2f4a3,19766ed6ccb2f4a3,Can
 reserved_string.text.[bench_close],Close,7d9eb7acb13e2462,7d9eb7acb13e2462,Close
 reserved_string.text.[bench_copy_code],Copy code,49a0053f3b0d5045,49a0053f3b0d5045,Copy code
 reserved_string.text.[bench_copy_url],Copy page address,780fc9803f8d3111,780fc9803f8d3111,Copy page address
-reserved_string.text.[bench_copy_user_id],Copy user ID,a43cb32a519a22a3,a43cb32a519a22a3,Copy user ID
+reserved_string.text.[bench_copy_user_id],Copy user code,c2e493d44bb941ce,c2e493d44bb941ce,Copy user code
 reserved_string.text.[bench_deletion_info],"Code {code}, valid until {expires_at:datetime}. Enter it at {url}",e337be0e1c27b617,e337be0e1c27b617,"Code {code}, valid until {expires_at:datetime}. Enter it at {url}"
 reserved_string.text.[bench_deletion_issue],Get account deletion code,761f385cca5cd403,761f385cca5cd403,Get account deletion code
 reserved_string.text.[bench_info_open],Info,170322a32f3c35b2,170322a32f3c35b2,Info
@@ -78,16 +78,16 @@ reserved_string.text.[bench_tick_count],Ticks: {count},66876d495d45b031,66876d49
 reserved_string.text.[bench_tick_mismatch],The tick count changed. It is up to date now.,06171849693a5526,06171849693a5526,The tick count changed. It is up to date now.
 reserved_string.text.[bench_tick_send],Record tick,15065b6cfc33aee1,15065b6cfc33aee1,Record tick
 reserved_string.text.[bench_title],OGW Benchmark,9460a41c8cfa3710,9460a41c8cfa3710,OGW Benchmark
-reserved_string.text.[bench_user_id],User ID: {user_id},e7185a84cbec5107,e7185a84cbec5107,User ID: {user_id}
+reserved_string.text.[bench_user_id],User code: {public_code},94daac7e42089daa,94daac7e42089daa,User code: {public_code}
 reserved_string.text.[bench_withdraw],Withdraw,164546a9c5481480,164546a9c5481480,Withdraw
 reserved_string.text.[bench_withdraw_confirm],Withdraw your account? Your progress is deleted and cannot be restored.,9196cefb2a303d7f,9196cefb2a303d7f,Withdraw your account? Your progress is deleted and cannot be restored.
 reserved_string.text.[bench_withdraw_ok],Withdraw,164546a9c5481480,164546a9c5481480,Withdraw
 reserved_string.text.[bootstrap_age_blocked],You cannot use this game at your age.,65c9187c62c5e27c,65c9187c62c5e27c,You cannot use this game at your age.
-reserved_string.text.[bootstrap_banned],User {user_id} is restricted until {until_at:datetime}. Details: {url},cf3d2a5d5100fb93,cf3d2a5d5100fb93,User {user_id} is restricted until {until_at:datetime}. Details: {url}
+reserved_string.text.[bootstrap_banned],User code {public_code} is restricted until {until_at:datetime}. Details: {url},820a7cf5a794c753,820a7cf5a794c753,User code {public_code} is restricted until {until_at:datetime}. Details: {url}
 reserved_string.text.[bootstrap_banned_deletion],Request account deletion,6914ba38bf46fb13,6914ba38bf46fb13,Request account deletion
-reserved_string.text.[bootstrap_banned_deletion_code],User {user_id}: enter code {code} at {url} before {expires_at:datetime}.,a45e6bb68a7e3797,a45e6bb68a7e3797,User {user_id}: enter code {code} at {url} before {expires_at:datetime}.
+reserved_string.text.[bootstrap_banned_deletion_code],User code {public_code}: enter code {code} at {url} before {expires_at:datetime}.,ab30bf028c356072,ab30bf028c356072,User code {public_code}: enter code {code} at {url} before {expires_at:datetime}.
 reserved_string.text.[bootstrap_banned_deletion_failed],The deletion code could not be issued.,ffbc8d85f6754826,ffbc8d85f6754826,The deletion code could not be issued.
-reserved_string.text.[bootstrap_banned_permanent],User {user_id} is restricted. Details: {url},fe193d1f22f25d97,fe193d1f22f25d97,User {user_id} is restricted. Details: {url}
+reserved_string.text.[bootstrap_banned_permanent],User code {public_code} is restricted. Details: {url},064315e5c3b8af35,064315e5c3b8af35,User code {public_code} is restricted. Details: {url}
 reserved_string.text.[bootstrap_fatal_error],An error stopped the game.,cca2133931a0a490,cca2133931a0a490,An error stopped the game.
 reserved_string.text.[bootstrap_login_failed],Sign-in failed.,451132c8190e4a5d,451132c8190e4a5d,Sign-in failed.
 reserved_string.text.[bootstrap_restart],Restart,6b983a81e5e8099e,6b983a81e5e8099e,Restart

@@ -307,9 +307,14 @@ export function hold_next_transaction(server: TestServer, request_name: string):
   return { reached, release };
 }
 
-/** The next user ID the server will issue, read by making a guest. Users are numbered from 1 in order. */
-export async function next_user_id(server: TestServer): Promise<bigint> {
-  return (await guest(server)).result.user_id;
+/**
+ * The user IDs of every `user` row, withdrawn users included. User IDs are random, so a test compares these sets
+ * instead of counting on the next ID.
+ */
+export async function user_ids(server: TestServer): Promise<Set<bigint>> {
+  // The base session of `anonymous` makes a user the first time: made before the set is read.
+  await anonymous(server);
+  return new Set((await db_rows(server, 'SELECT user_id FROM "user"')).map((r) => r.user_id as bigint));
 }
 
 export function logs(server: TestServer, kind?: string): Record<string, unknown>[] {

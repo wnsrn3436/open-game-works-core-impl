@@ -964,7 +964,7 @@ static func _login_failed(result: LoginResult) -> void:
 		status = result.status
 	if status == AuthCore.LoginStatus.BANNED:
 		var args := FormatArgs.new()
-		args.set_string("user_id", str(result.user_id))
+		args.set_string("public_code", result.public_code)
 		args.set_int("until_at", result.ban_until_at)
 		args.set_string("url", result.deletion_url)
 		var body := ReservedString.bootstrap_banned()
@@ -972,7 +972,7 @@ static func _login_failed(result: LoginResult) -> void:
 			body = ReservedString.bootstrap_banned_permanent()
 		var args_text := ""
 		if _trace_enabled:
-			args_text = "user_id=%d until_at=%d url=%s" % [result.user_id, result.ban_until_at, result.deletion_url]
+			args_text = "public_code=%s until_at=%d url=%s" % [result.public_code, result.ban_until_at, result.deletion_url]
 		_open_failure_popup(body, args, true, true, args_text)
 	elif status == AuthCore.LoginStatus.AGE_BLOCKED:
 		_open_failure_popup(ReservedString.bootstrap_age_blocked(), null, false, true)
@@ -991,16 +991,16 @@ static func _on_deletion_pressed() -> void:
 		return
 	if code.ok:
 		var args := FormatArgs.new()
-		var user_id := 0
+		var public_code := ""
 		if _login_result != null:
-			user_id = _login_result.user_id
-		args.set_string("user_id", str(user_id))
+			public_code = _login_result.public_code
+		args.set_string("public_code", public_code)
 		args.set_string("code", code.code)
 		args.set_int("expires_at", code.expires_at)
 		args.set_string("url", code.url)
 		var args_text := ""
 		if _trace_enabled:
-			args_text = "user_id=%d code=%s expires_at=%d url=%s" % [user_id, code.code, code.expires_at, code.url]
+			args_text = "public_code=%s code=%s expires_at=%d url=%s" % [public_code, code.code, code.expires_at, code.url]
 		_open_failure_popup(ReservedString.bootstrap_banned_deletion_code(), args, false, true, args_text)
 	else:
 		_open_failure_popup(ReservedString.bootstrap_banned_deletion_failed(), null, false, true)

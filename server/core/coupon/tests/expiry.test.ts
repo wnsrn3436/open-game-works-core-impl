@@ -21,7 +21,7 @@ async function modules(settings: Readonly<Record<string, unknown>> = {}): Promis
 }
 
 async function new_user(m: Modules): Promise<bigint> {
-  const id = await m.storage.run_game_transaction((tx: GameTx) => m.storage.create_user(tx));
+  const id = await m.storage.run_game_transaction((tx: GameTx) => m.storage.create_user(tx).user_id);
   if (id === 'FAILED') throw new Error('create_user failed');
   return id;
 }

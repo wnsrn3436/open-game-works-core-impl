@@ -190,6 +190,11 @@ static func consent_state() -> CoreContract.ConsentUserState:
 	return consent
 
 
+## The public code the fake server gives `user_id`.
+static func public_code(user_id: int) -> String:
+	return "PC%06d" % user_id
+
+
 static func auth_result(
 	user_id: int, token: String, consent: CoreContract.ConsentUserState = null
 ) -> CoreContract.AuthResult:
@@ -200,6 +205,7 @@ static func auth_result(
 	result.access_token = "access-%d-%s" % [user_id, token]
 	result.access_token_expires_at = SERVER_TIME + TOKEN_TTL_MS
 	result.session_signing_key = "key-%d" % user_id
+	result.public_code = public_code(user_id)
 	result.consent = consent if consent != null else consent_state()
 	return result
 
