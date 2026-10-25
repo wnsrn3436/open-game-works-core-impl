@@ -1,0 +1,110 @@
+{
+  "runs": [
+    {
+      "command": "ogw core dependents RequirementCore",
+      "startedAt": 1792915783783,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot RequirementCore --file test_watch.gd",
+      "startedAt": 1792915787989,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvnjrnw2be4d0b"
+    },
+    {
+      "command": "ogw job wait mvnjrnw2be4d0b",
+      "startedAt": 1792915790463,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot RequirementCore --file client/godot/core/requirement_core/tests/test_watch.gd",
+      "startedAt": 1792915798943,
+      "exitCode": 0,
+      "summary": {
+        "tests": 18,
+        "passed": 18
+      },
+      "job": "mvnjrwck39dd29"
+    },
+    {
+      "command": "ogw job wait mvnjrwck39dd29",
+      "startedAt": 1792915799518,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot BadgeCore BootstrapCore ChatCore CutsceneCore NoticeCore QACore RequirementCore ShortcutCore TutorialCore UnitTestCore",
+      "startedAt": 1792915818662,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvnjsbk60450f3"
+    },
+    {
+      "command": "ogw core test godot BadgeCore BootstrapCore ChatCore CutsceneCore NoticeCore QACore RequirementCore ShortcutCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792915819270,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvnjsc16e406fc"
+    },
+    {
+      "command": "ogw job wait mvnjsbk60450f3",
+      "startedAt": 1792915821717,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvnjsc16e406fc",
+      "startedAt": 1792915833493,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot BadgeCore BootstrapCore ChatCore CutsceneCore NoticeCore QACore RequirementCore ShortcutCore TutorialCore UnitTestCore",
+      "startedAt": 1792915834144,
+      "exitCode": 1,
+      "summary": {
+        "tests": 739,
+        "passed": 739
+      },
+      "job": "mvnjsni90351e9"
+    },
+    {
+      "command": "ogw core test godot BadgeCore BootstrapCore ChatCore CutsceneCore NoticeCore QACore RequirementCore ShortcutCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792915834749,
+      "exitCode": 0,
+      "summary": {
+        "tests": 739,
+        "passed": 739
+      },
+      "job": "mvnjsnz28f8a40"
+    },
+    {
+      "command": "ogw job wait mvnjsni90351e9",
+      "startedAt": 1792915837336,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvnjsnz28f8a40",
+      "startedAt": 1792915871234,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792915895875,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvnjtz511facd6"
+    },
+    {
+      "command": "ogw job wait mvnjtz511facd6",
+      "startedAt": 1792915896450,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
