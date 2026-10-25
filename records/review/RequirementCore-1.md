@@ -1,11 +1,10 @@
-# review: RequirementCore round 1
+# review RequirementCore round 1
 
 ## findings
 
 | id | aspect | severity | location | evidence | fix | spec change | confidence |
 |---|---|---|---|---|---|---|---|
-| R1-1 | spec | medium | client/godot/core/requirement_core/requirement_core.gd:518 | The change adds `_owner_slots.remove_at(_owner_slots.find(slot))` to `_remove_watch_at`. Frame code calls `_remove_watch_at`: `requirement_core_node.gd` `_process()` → `RequirementCore._on_frame()` → `_remove_watch_at(slot)` (:631) when an owner is destroyed, and `_run_batch()` (:638) → `_remove_watch_at(i)` (:668, :677). `engines/godot.md` `## frame code` says core frame code does not change a collection size (`remove_at()` is named). It also says a reused collection is sized once outside frame code and only an `int` count changes. Run path: watch with an owner, free the owner, next `_process` shrinks `_owner_slots` inside frame code. The static frame check (`core-frame-check.ts`) covers only node finding and `await`, so no tool catches this | Keep `_owner_slots` as a buffer that grows only outside frame code (in `watch`/`_store_watch`) plus an `int` count. Remove by moving the last used entry into the freed index and lowering the count. The frame loop already knows index `i`, so it can do this without `find` | no | 90 |
-| R1-2 | efficiency | medium | client/godot/core/requirement_core/requirement_core.gd:518 | `_on_frame` (:628-631) goes over `_owner_slots` backward. For each destroyed owner watch it calls `_remove_watch_at(slot)`, which runs `_owner_slots.find(slot)`, a linear search from index 0 to the current index `i`, then `remove_at`, which shifts the tail. When k owner watches of one destroyed screen root go in one frame, out of n owner watches, that frame costs O(k·n) (k = n when a whole screen with all its watches is freed: O(n²)). Before the change, owner bookkeeping on removal was an O(1) counter decrement | Remove by known index as in R1-1: the frame loop passes `i`; `unwatch` may still search | no | 80 |
+| R1-1 | spec | medium | client/godot/core/requirement_core/requirement_core.gd:383 | `engines/godot.md` `## frame code` forbids adding a `Dictionary` key in frame code, and its log exception covers only building the log message. `_self_judge` :383 runs `_logged_types[type] = true` on the first self judgement of a type without a judge hook. Frame code reaches it: `requirement_core_node.gd:23` `_process` → `_on_frame` :803 (calls `_run_batch` :817) → `_run_batch` :852 → `_evaluate_entry` :308 → `_judge` :336/:359 → `_self_judge` :383. Run path: content code watches an `All` condition whose first child fails and whose second child has a type with no judge hook; `watch` :258 stops at the first child, so `_self_judge` of that type is not reached outside frame code and `_logged_types` has no key for it. A trigger of the first child's kind is raised after that child passes; the next `_process` judges the second child and adds the key in frame code. (The `%` messages at :384, :388, :829, :858 are `LogCore.log_error` messages built only on the path that writes them, which `## frame code` allows since harness commit faf984c.) | Keep the logged flags in a collection whose size does not change in frame code: e.g. fill `_logged_types` in `init` with a `false` value for every `GameData.RequirementType` value and test the value instead of `has`, or use a `PackedByteArray` sized in `init` and indexed by the position of the type value; update `test_lifecycle.gd:70`, which asserts `_logged_types.size()` 0 after `release` | no | 90 |
 
 ## previous
 
@@ -13,12 +12,14 @@ none
 
 ## out of scope
 
-- client/godot/core/requirement_core/requirement_core.gd:508: medium `_remove_watch_at` also runs `_free_slots.append(slot)` (:508), `slots.remove_at(...)` (:510) and `_slots_by_id.erase(...)` (:512). It does these from frame code (`_on_frame` :631, `_run_batch` :668, :677), which breaks the `engines/godot.md` `## frame code` rule against changing a collection size. These lines existed before the range
-- client/godot/core/requirement_core/requirement_core.gd:649: medium `_run_batch` (frame code via `_on_frame`) goes over every slot of `_watches` three times per round (:649, :655, :658). It does so even when only a few watches are pending, so the cost of one frame with a pending evaluation grows with the total number of watches, not the pending ones. `_on_user_state_changed`, `_on_named_trigger` and `_on_content_event` (:685, :698, :708) likewise go over every slot per event. This existed before the range
+none
 
 ## debt
 
-none
+| id | result | finding | evidence |
+|---|---|---|---|
+| D4 | open | R1-1 | Same problem as D5 at the line numbers before the lines moved (`_self_judge` is now :379, `_run_batch` :823). The `%` log message part is not a problem now: `engines/godot.md` `## frame code` lets frame code build the message of a `LogCore.log_error` call on a path that runs only when that log is written, and each of :384, :388, :829, :858 builds its message only as the argument of a `log_error` call that runs on that path. The `Dictionary` key add `_logged_types[type] = true` at :383 remains in frame code (R1-1) |
+| D5 | open | R1-1 | The `%` messages at :384, :388, :829, :858 are within the log message exception of `engines/godot.md` `## frame code` (each is built only as the argument of a `LogCore.log_error` call on the path that writes it). The `Dictionary` key add `_logged_types[type] = true` at :383, which frame code reaches through `_run_batch` :852 → `_evaluate_entry` → `_judge` → `_self_judge`, remains (R1-1) |
 
 ## must fix
 
@@ -26,6 +27,5 @@ none
 
 ## unknown
 
-- The core tests were not run in this review. The claim that the new test `test_the_owner_list_holds_only_the_owner_watch_slots_and_a_destroyed_owner_removes_exactly_its_watches` passes rests on the core agent report. A trace of the slot order (owner slots `[18,16,14,12,8]` after the `unwatch`) shows that a forward loop would index past the end. So the test does fail if the backward iteration is dropped
-- The BootstrapCore and QACore changes in the same commit range are outside the target and were not reviewed
-- The frame cost of R1-2 was not measured. The evidence is the code path only
+- The commit range is empty (`1f67b4e..1f67b4e`), so no changed code was reviewed; only the positions of D4 and D5 and the frame code path from `requirement_core_node.gd` `_process` through `_on_frame`, `_run_batch`, `_evaluate_entry`, `_judge`, `_self_judge`, `_call_judge`, `_guide_of`, `_is_cache_valid`, `_remove_watch_at` were read
+- Core tests were not run; R1-1 is from reading the code path, not from a run
