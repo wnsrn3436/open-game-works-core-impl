@@ -64,7 +64,14 @@ func test_invalid_value_tween_requests_return_the_invalid_handle_with_an_error_l
 	assert_eq(TweenCore.play_value(kind, Vector4.ZERO, Vector4.ONE, too_long, receiver), 0, "duration")
 	assert_eq(TweenCore.play_value(kind, Vector4(NAN, 0, 0, 0), Vector4.ONE, move(), receiver), 0, "start value")
 	assert_eq(TweenCore.play_value(kind, Vector4.ZERO, Vector4(INF, 0, 0, 0), move(), receiver), 0, "end value")
-	assert_eq(errors(), 7)
+	var other_kind: TweenCore.TweenValueKind = 99 as TweenCore.TweenValueKind
+	assert_eq(TweenCore.play_value(other_kind, Vector4.ZERO, Vector4.ONE, move(), receiver), 0, "value kind")
+	var other_easing: TweenDefinition = single(
+		change(TweenCore.TweenProperty.POSITION, Vector4.ONE, 100, 0, 99 as TweenCore.Easing)
+	)
+	assert_eq(TweenCore.play_value(kind, Vector4.ZERO, Vector4.ONE, other_easing, receiver), 0, "easing")
+	assert_eq(errors(), 9)
+	assert_eq(recorder.floats.size(), 0)
 	assert_eq(recorder.started_count, 0)
 
 

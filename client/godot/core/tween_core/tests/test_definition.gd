@@ -146,4 +146,7 @@ func test_evaluate_easing_ends_and_values() -> void:
 	assert_eq(TweenCore.evaluate_easing(TweenCore.Easing.QUAD_IN, -0.5), 0.0)
 	assert_eq(TweenCore.evaluate_easing(TweenCore.Easing.LINEAR, 0.3), 0.3)
 	assert_eq(TweenCore.evaluate_easing(TweenCore.Easing.QUAD_IN, NAN), 0.0)
-	assert_eq(errors(), 1)
+	assert_eq(errors(), 1, "a progress that is not finite")
+	assert_eq(TweenCore.evaluate_easing(99 as TweenCore.Easing, 0.5), 0.0)
+	assert_eq(TweenCore.evaluate_easing(-1 as TweenCore.Easing, 1.0), 0.0)
+	assert_eq(errors(), 2, "an easing that is not a member")

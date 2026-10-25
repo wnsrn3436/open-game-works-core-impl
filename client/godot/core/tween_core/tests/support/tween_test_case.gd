@@ -184,6 +184,7 @@ func failing_definitions() -> Dictionary[String, TweenDefinition]:
 	var opacity: TweenCore.TweenProperty = TweenCore.TweenProperty.OPACITY
 	var failing: Dictionary[String, TweenDefinition] = {
 		"step without change": definition([step([change(position, flat, 100)]), empty_step]),
+		"easing not a member": single(change(position, flat, 100, 0, 99 as TweenCore.Easing)),
 		"duration below 0": single(change(position, flat, -1)),
 		"duration above max": single(change(position, flat, MAX_DURATION_MS + 1)),
 		"delay below 0": single(change(position, flat, 100, -1)),

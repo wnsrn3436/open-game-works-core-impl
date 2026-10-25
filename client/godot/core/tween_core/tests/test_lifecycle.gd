@@ -92,13 +92,14 @@ func _assert_operations_fail() -> void:
 	assert_eq(TweenCore.stop_tag("tag"), 0)
 	assert_eq(TweenCore.skip_tag_to_end("tag"), 0)
 	assert_false(TweenCore.is_playing(1 << 20))
+	assert_eq(TweenCore.get_finite_playing_count(), 0)
 	var reason: TweenCore.TweenEndReason = await TweenCore.wait_end(1 << 20)
 	assert_eq(reason, TweenCore.TweenEndReason.NONE)
 	assert_false(TweenCore.copy_definition(move(), TweenDefinition.new()))
 	assert_eq(TweenCore.get_preset_kind(), -1)
 	assert_false(TweenCore.check_definition(move(), target))
 	assert_eq(TweenCore.evaluate_easing(TweenCore.Easing.LINEAR, 0.5), 0.0)
-	assert_eq(errors(), 15)
+	assert_eq(errors(), 16)
 	assert_eq(target.position, Vector2.ZERO)
 
 
