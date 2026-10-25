@@ -43,10 +43,10 @@ id,text
 [badge_count_over],{count}+
 [bootstrap_fatal_error],Bootstrap fatal error
 [bootstrap_login_failed],Bootstrap login failed
-[bootstrap_banned],Bootstrap banned
-[bootstrap_banned_permanent],Bootstrap banned permanent
+[bootstrap_banned],Bootstrap banned {public_code} {until_at} {url}
+[bootstrap_banned_permanent],Bootstrap banned permanent {public_code} {url}
 [bootstrap_banned_deletion],Bootstrap banned deletion
-[bootstrap_banned_deletion_code],Bootstrap banned deletion code
+[bootstrap_banned_deletion_code],Bootstrap banned deletion code {public_code} {code} {expires_at} {url}
 [bootstrap_banned_deletion_failed],Bootstrap banned deletion failed
 [bootstrap_age_blocked],Bootstrap age blocked
 [bootstrap_restart],Bootstrap restart
