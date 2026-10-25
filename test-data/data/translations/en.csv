@@ -269,9 +269,9 @@ reserved_string.text.[auth_web_link_google],Auth web link google,f26aed9a644b664
 reserved_string.text.[auth_web_link_later],Auth web link later,d3ab9cadafb87ecd,d3ab9cadafb87ecd,Auth web link later
 reserved_string.text.[badge_count_over],{count}+,4af395b8d907e1cc,4af395b8d907e1cc,{count}+
 reserved_string.text.[bootstrap_age_blocked],Bootstrap age blocked,a8872cba4a74544d,a8872cba4a74544d,Bootstrap age blocked
-reserved_string.text.[bootstrap_banned],Bootstrap banned {public_code} {until_at} {url},a361d34da19083ac,a361d34da19083ac,Bootstrap banned {public_code} {until_at} {url}
+reserved_string.text.[bootstrap_banned],Bootstrap banned {public_code} {until_at:ordinal} {url},8a3ba86860f3bc49,8a3ba86860f3bc49,Bootstrap banned {public_code} {until_at:ordinal} {url}
 reserved_string.text.[bootstrap_banned_deletion],Bootstrap banned deletion,18fc2e677b59bd66,18fc2e677b59bd66,Bootstrap banned deletion
-reserved_string.text.[bootstrap_banned_deletion_code],Bootstrap banned deletion code {public_code} {code} {expires_at} {url},6e42415fa88575c5,6e42415fa88575c5,Bootstrap banned deletion code {public_code} {code} {expires_at} {url}
+reserved_string.text.[bootstrap_banned_deletion_code],Bootstrap banned deletion code {public_code} {code} {expires_at:ordinal} {url},ece4e9940380c9a0,ece4e9940380c9a0,Bootstrap banned deletion code {public_code} {code} {expires_at:ordinal} {url}
 reserved_string.text.[bootstrap_banned_deletion_failed],Bootstrap banned deletion failed,82ab24e20e9a7601,82ab24e20e9a7601,Bootstrap banned deletion failed
 reserved_string.text.[bootstrap_banned_permanent],Bootstrap banned permanent {public_code} {url},81675449d378db47,81675449d378db47,Bootstrap banned permanent {public_code} {url}
 reserved_string.text.[bootstrap_fatal_error],Bootstrap fatal error,9479c403abbc4631,9479c403abbc4631,Bootstrap fatal error
