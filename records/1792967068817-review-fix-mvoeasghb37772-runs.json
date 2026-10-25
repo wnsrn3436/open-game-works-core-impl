@@ -1,0 +1,81 @@
+{
+  "runs": [
+    {
+      "command": "ogw core dependents AuthCore",
+      "startedAt": 1792967095973,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AuthCore AdCore BootstrapCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore TutorialCore UnitTestCore",
+      "startedAt": 1792967107108,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvoeblz68c2f05"
+    },
+    {
+      "command": "ogw core test godot AuthCore AdCore BootstrapCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792967107659,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvoebmeea88172"
+    },
+    {
+      "command": "ogw job wait mvoeblz68c2f05",
+      "startedAt": 1792967110353,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvoebmeea88172",
+      "startedAt": 1792967123182,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AuthCore AdCore BootstrapCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore TutorialCore UnitTestCore",
+      "startedAt": 1792967123662,
+      "exitCode": 0,
+      "summary": {
+        "tests": 871,
+        "passed": 871
+      },
+      "job": "mvoebyr34f474b"
+    },
+    {
+      "command": "ogw core test godot AuthCore AdCore BootstrapCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792967124161,
+      "exitCode": 0,
+      "summary": {
+        "tests": 865,
+        "passed": 865
+      },
+      "job": "mvoebz4vaafe14"
+    },
+    {
+      "command": "ogw job wait mvoebyr34f474b",
+      "startedAt": 1792967127996,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvoebz4vaafe14",
+      "startedAt": 1792967163685,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792967202316,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvoednfqd2c8b8"
+    },
+    {
+      "command": "ogw job wait mvoednfqd2c8b8",
+      "startedAt": 1792967206413,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
