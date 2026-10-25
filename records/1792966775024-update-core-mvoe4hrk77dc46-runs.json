@@ -1,0 +1,81 @@
+{
+  "runs": [
+    {
+      "command": "ogw core dependents ScreenEffectCore",
+      "startedAt": 1792966807118,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot ScreenEffectCore AccessibilityCore BootstrapCore CutsceneCore QACore SceneCore ShortcutCore TutorialCore UnitTestCore",
+      "startedAt": 1792966811121,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvoe59lbf33339"
+    },
+    {
+      "command": "ogw core test godot ScreenEffectCore AccessibilityCore BootstrapCore CutsceneCore QACore SceneCore ShortcutCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792966811643,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvoe59zpdf5548"
+    },
+    {
+      "command": "ogw job wait mvoe59lbf33339",
+      "startedAt": 1792966815153,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvoe59zpdf5548",
+      "startedAt": 1792966831062,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot ScreenEffectCore AccessibilityCore BootstrapCore CutsceneCore QACore SceneCore ShortcutCore TutorialCore UnitTestCore",
+      "startedAt": 1792966850279,
+      "exitCode": 0,
+      "summary": {
+        "tests": 690,
+        "passed": 690
+      },
+      "job": "mvoe63ryca93b1"
+    },
+    {
+      "command": "ogw core test godot ScreenEffectCore AccessibilityCore BootstrapCore CutsceneCore QACore SceneCore ShortcutCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792966851741,
+      "exitCode": 0,
+      "summary": {
+        "tests": 681,
+        "passed": 681
+      },
+      "job": "mvoe64vt521cd3"
+    },
+    {
+      "command": "ogw job wait mvoe63ryca93b1",
+      "startedAt": 1792966855395,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvoe64vt521cd3",
+      "startedAt": 1792966934414,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792966985301,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvoe8zzg4e8a8f"
+    },
+    {
+      "command": "ogw job wait mvoe8zzg4e8a8f",
+      "startedAt": 1792966988503,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
