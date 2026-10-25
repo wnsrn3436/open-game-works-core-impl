@@ -127,6 +127,7 @@
   "QACore.statsRefreshMs": "integer",
   "QACore.textMaxChars": "integer",
   "QACore.videoFps": "integer",
+  "QACore.captureJpgQuality": "integer",
   "QACore.videoMaxMs": "integer",
   "QACore.feedbackWindowMs": "integer",
   "QACore.idleThresholdMs": "integer",

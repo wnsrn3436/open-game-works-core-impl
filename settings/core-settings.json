@@ -478,5 +478,6 @@
   "SoundCore.voiceDuckDb": 9,
   "SoundCore.voiceDuckAttackMs": 150,
   "SoundCore.voiceDuckReleaseMs": 500,
-  "public-profile.findPerMinute": 10
+  "public-profile.findPerMinute": 10,
+  "QACore.captureJpgQuality": 850
 }

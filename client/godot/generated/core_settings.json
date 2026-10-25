@@ -479,6 +479,7 @@
   "SoundCore.voiceDuckAttackMs": 150,
   "SoundCore.voiceDuckReleaseMs": 500,
   "public-profile.findPerMinute": 10,
+  "QACore.captureJpgQuality": 850,
   "termsPopup": "prefab_terms",
   "agePopup": "",
   "privacyPopup": "",
@@ -535,7 +536,7 @@
   ],
   "gamepadSupported": false,
   "uiQuality": {
-    "settleMs": 1000,
+    "settleLimitMs": 3000,
     "maxFontSizes": 6,
     "minFontPx": 18,
     "minContrast": 3,
