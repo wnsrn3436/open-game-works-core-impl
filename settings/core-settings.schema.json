@@ -1749,7 +1749,7 @@
     },
     "QACore.captureJpgQuality": {
       "type": "integer",
-      "minimum": 1,
+      "minimum": 10,
       "maximum": 1000,
       "x-owner": "human"
     },
