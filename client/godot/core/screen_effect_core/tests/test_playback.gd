@@ -1,9 +1,10 @@
 extends "res://core/screen_effect_core/tests/support/screen_effect_test_case.gd"
-## Playback: real elapsed time, presets and the flash opacity limit.
+## Playback: real elapsed time, game time, presets and the flash opacity limit.
 
 
 func after_each() -> void:
 	if TimeCore.is_initialized():
+		TimeCoreDev.set_step_mode(false)
 		TimeCore.set_paused(false)
 		TimeCore.set_time_scale(1000)
 	super()
@@ -31,6 +32,72 @@ func test_fade_ends_after_its_real_elapsed_duration_in_game_time_pause_and_time_
 	await advance(500)
 	assert_results([COMPLETED])
 	assert_overlay(CUTSCENE, Color.WHITE, 0.0, true, "time scale 2000")
+
+
+func test_game_time_fade_holds_during_pause_and_ends_after_the_rest_of_its_duration_in_game_time() -> void:
+	assert_true(await start_modules())
+	var handle: ScreenEffectHandle = ScreenEffectCore.fade(
+		WORLD, make_owner(), Color.WHITE, 0.0, 1.0, 1000, TweenCore.TimeBasis.GAME_TIME
+	)
+	record(handle)
+	await advance(300)
+	var held: float = state(WORLD).opacity
+	assert_almost_eq(held, 0.3, OPACITY_EPSILON, "the fade advances with game time")
+	TimeCore.set_paused(true)
+	var real_start: int = TimeCore.get_real_time()
+	for frame: int in 10:
+		await advance(100)
+		assert_almost_eq(state(WORLD).opacity, held, OPACITY_EPSILON, "paused: opacity at frame %d" % frame)
+	assert_eq(TimeCore.get_real_time() - real_start, 1000, "1000 ms of real elapsed time")
+	assert_eq(results.size(), 0, "paused: the fade still plays")
+	TimeCore.set_paused(false)
+	TimeCore.set_time_scale(2000)
+	await advance(300)
+	assert_eq(results.size(), 0, "600 ms of game time is less than the 700 ms left")
+	assert_almost_eq(state(WORLD).opacity, 0.9, OPACITY_EPSILON, "the fade advances with game time again")
+	await advance(100)
+	assert_results([COMPLETED])
+	assert_overlay(WORLD, Color.WHITE, 1.0, true, "the fade reached its target")
+
+
+func test_game_time_flash_in_step_mode_changes_opacity_only_in_the_frames_of_a_step() -> void:
+	assert_true(await start_modules())
+	TimeCoreDev.set_step_mode(true)
+	var handle: ScreenEffectHandle = ScreenEffectCore.flash(
+		WORLD, make_owner(), Color.WHITE, 1.0, 100, 0, 100, TweenCore.TimeBasis.GAME_TIME
+	)
+	record(handle)
+	var stepped: int = 0
+	for frame: int in 5:
+		stepped += await _step_frame(false)
+	assert_eq(stepped, 0, "no frame of a step without a step budget")
+	assert_almost_eq(state(WORLD).opacity, 0.0, OPACITY_EPSILON, "no step budget: the flash has not risen")
+	TimeCoreDev.add_step_budget(50)
+	for frame: int in 6:
+		stepped += await _step_frame(true)
+	assert_eq(stepped, 4, "16, 16, 16 and 2 ms of the 50 ms step")
+	assert_almost_eq(state(WORLD).opacity, 0.5, OPACITY_EPSILON, "the flash rose for 50 ms of game time")
+	assert_eq(results.size(), 0, "the flash waits for the next step")
+	TimeCoreDev.add_step_budget(200)
+	for frame: int in 16:
+		await _step_frame(false)
+	assert_results([COMPLETED])
+	assert_overlay(WORLD, Color.WHITE, 0.0, true, "the ended flash")
+
+
+## Runs one 16 ms frame of the test clock and returns 1 when it advanced game time, else 0. The opacity of the `World`
+## overlay stays in a frame without game time; with `rising`, it rises in a frame with game time.
+func _step_frame(rising: bool) -> int:
+	var game_before: int = TimeCore.get_game_time()
+	var opacity_before: float = state(WORLD).opacity
+	await advance(16)
+	var opacity: float = state(WORLD).opacity
+	if TimeCore.get_game_time() == game_before:
+		assert_eq(opacity, opacity_before, "no game time in this frame: the opacity stays")
+		return 0
+	if rising:
+		assert_gt(opacity, opacity_before, "game time in this frame: the opacity rises")
+	return 1
 
 
 func test_opacity_only_preset_on_a_channel_without_effect_plays_in_black() -> void:

@@ -82,12 +82,12 @@ static func is_initialized() -> bool:
 
 
 ## Puts the overlay of `channel` in `color` and changes its opacity linearly from `start_opacity` to `target_opacity`
-## over `duration_ms`.
+## over `duration_ms`, progressing on `time_basis`.
 static func fade(
 	channel: ScreenEffectChannel, owner: Object, color: Color, start_opacity: float, target_opacity: float,
-	duration_ms: int
+	duration_ms: int, time_basis: TweenCore.TimeBasis = TweenCore.TimeBasis.REAL_TIME
 ) -> ScreenEffectHandle:
-	if not _check_request("fade", channel, owner):
+	if not _check_request("fade", channel, owner, time_basis):
 		return _failed_handle()
 	if (
 		not _check_color("fade", color) or not _check_opacity("fade", start_opacity)
@@ -107,18 +107,18 @@ static func fade(
 		var definition: TweenDefinition = TweenDefinition.new()
 		definition.repeat_count = 1
 		definition.steps.append(_opacity_step(start_opacity, target_opacity, duration_ms))
-		_play(channel, handle, definition)
+		_play(channel, handle, definition, time_basis)
 	_end_replaced(replaced)
 	return handle
 
 
 ## Puts the overlay of `channel` in `color` and raises its opacity from 0 to the smaller of `max_opacity` and the flash
-## opacity limit over `rise_ms`, keeps it for `hold_ms` and lowers it to 0 over `fall_ms`.
+## opacity limit over `rise_ms`, keeps it for `hold_ms` and lowers it to 0 over `fall_ms`, progressing on `time_basis`.
 static func flash(
 	channel: ScreenEffectChannel, owner: Object, color: Color, max_opacity: float, rise_ms: int, hold_ms: int,
-	fall_ms: int
+	fall_ms: int, time_basis: TweenCore.TimeBasis = TweenCore.TimeBasis.REAL_TIME
 ) -> ScreenEffectHandle:
-	if not _check_request("flash", channel, owner):
+	if not _check_request("flash", channel, owner, time_basis):
 		return _failed_handle()
 	if (
 		not _check_color("flash", color) or not _check_opacity("flash", max_opacity)
@@ -141,17 +141,19 @@ static func flash(
 		definition.steps.append(_opacity_step(0.0, peak, rise_ms))
 		definition.steps.append(_opacity_step(peak, peak, hold_ms))
 		definition.steps.append(_opacity_step(peak, 0.0, fall_ms))
-		_play(channel, handle, definition)
+		_play(channel, handle, definition, time_basis)
 	_end_replaced(replaced)
 	return handle
 
 
 ## Plays a loaded tween preset definition that changes only the overlay `Color` and `Opacity` and repeats a finite
-## number of times. A definition that does not change `Color` plays in the present overlay color.
+## number of times, progressing on `time_basis`. A definition that does not change `Color` plays in the present overlay
+## color.
 static func play_preset(
-	channel: ScreenEffectChannel, owner: Object, definition: TweenDefinition
+	channel: ScreenEffectChannel, owner: Object, definition: TweenDefinition,
+	time_basis: TweenCore.TimeBasis = TweenCore.TimeBasis.REAL_TIME
 ) -> ScreenEffectHandle:
-	if not _check_request("play_preset", channel, owner):
+	if not _check_request("play_preset", channel, owner, time_basis):
 		return _failed_handle()
 	if not _check_preset(definition, _overlays[channel]):
 		return _failed_handle()
@@ -164,7 +166,7 @@ static func play_preset(
 		_publish_started(channel)
 		handle._finish(ScreenEffectResult.COMPLETED)
 	else:
-		_play(channel, handle, definition)
+		_play(channel, handle, definition, time_basis)
 	_end_replaced(replaced)
 	return handle
 
@@ -337,9 +339,13 @@ static func _end_replaced(replaced: ScreenEffectHandle) -> void:
 		replaced._finish(ScreenEffectResult.CANCELLED)
 
 
-## Starts the tween of `handle` on the overlay of `channel`. When `TweenCore` does not start it, `handle` ends with
-## `Failed` and the channel has no effect.
-static func _play(channel: ScreenEffectChannel, handle: ScreenEffectHandle, definition: TweenDefinition) -> void:
+## Starts the tween of `handle` on the overlay of `channel`, progressing on `time_basis`. When `TweenCore` does not
+## start it, `handle` ends with `Failed` and the channel has no effect.
+static func _play(
+	channel: ScreenEffectChannel, handle: ScreenEffectHandle, definition: TweenDefinition,
+	time_basis: TweenCore.TimeBasis
+) -> void:
+	_tween_options.time_basis = time_basis
 	var tween: int = TweenCore.play(definition, _overlays[channel], _tween_options)
 	if not TweenCore.is_playing(tween):
 		_current[channel] = null
@@ -419,13 +425,16 @@ static func _apply_end_state(overlay: ColorRect, definition: TweenDefinition) ->
 				overlay.modulate.a = value.x
 
 
-## Channel and owner check of every request, with the init check.
-static func _check_request(operation: String, channel: int, owner: Object) -> bool:
+## Channel, time basis and owner check of every request, with the init check.
+static func _check_request(operation: String, channel: int, owner: Object, time_basis: int) -> bool:
 	if not _is_initialized:
 		LogCore.log_error(_TAG, "%s called before init" % operation)
 		return false
 	if channel < 0 or channel >= _CHANNEL_COUNT:
 		LogCore.log_error(_TAG, "%s: %d is not a ScreenEffectChannel" % [operation, channel])
+		return false
+	if time_basis < 0 or time_basis >= TweenCore.TimeBasis.size():
+		LogCore.log_error(_TAG, "%s: %d is not a TimeBasis" % [operation, time_basis])
 		return false
 	if not is_instance_valid(owner):
 		LogCore.log_error(_TAG, "%s: the owner object is missing or destroyed" % operation)
