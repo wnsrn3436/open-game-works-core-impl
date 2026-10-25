@@ -7,6 +7,8 @@ const GET_NOTICES: String = "core/GetNotices"
 const REPORT_CLIENT_ERRORS: String = "core/ReportClientErrors"
 const USER_ID: int = 4242
 const PUBLIC_CODE: String = "K7M2Q9XA"
+## `PUBLIC_CODE` as the `public_code` format argument: two groups of 4 joined with `-`.
+const GROUPED_PUBLIC_CODE: String = "K7M2-Q9XA"
 const SERVER_TIME_AT: int = 1700000000000
 const DELETION_URL: String = "https://example.com/delete"
 
@@ -38,14 +40,15 @@ static func _dev_login_success_body() -> PackedByteArray:
 	return response.encode()
 
 
-## A `DevLogin` server error `code`. `ban_until_at` is the ban end of a `CORE_ERROR_BANNED` error.
-static func add_dev_login_error(code: int, ban_until_at: int = 0) -> void:
+## A `DevLogin` server error `code`. `ban_until_at` and `public_code` are the ban end and public code of a
+## `CORE_ERROR_BANNED` error.
+static func add_dev_login_error(code: int, ban_until_at: int = 0, public_code: String = PUBLIC_CODE) -> void:
 	var error := CoreContract.ServerError.new()
 	error.code = code
 	if code == CoreContract.CoreError.CORE_ERROR_BANNED:
 		var ban := CoreContract.BanDetail.new()
 		ban.user_id = USER_ID
-		ban.public_code = PUBLIC_CODE
+		ban.public_code = public_code
 		ban.until_at = ban_until_at
 		ban.deletion_url = DELETION_URL
 		ban.access_token = "ban-access-token"

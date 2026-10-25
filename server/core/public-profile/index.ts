@@ -1,7 +1,7 @@
 import * as CoreContract from '../../generated/contract/core_contract.ts';
 import type { LogEntry, LogFields, Logging } from '../logging/index.ts';
 import type { ServerTimeApi } from '../server-time/index.ts';
-import { normalize_public_code, type ColumnInput, type DbHandle, type RequestCtx, type Storage } from '../storage/index.ts';
+import { is_public_code_input, type ColumnInput, type DbHandle, type RequestCtx, type Storage } from '../storage/index.ts';
 
 /** The last active table (`### last active`): `user` scope, key `user_id`, not in the user snapshot. */
 export const ACTIVITY_TABLE = 'public_profile_activity';
@@ -287,7 +287,7 @@ export function create_public_profile(input: PublicProfileInput): PublicProfile 
       return response;
     },
     FindUserByPublicCode: (ctx, request) => {
-      if (normalize_public_code(request.public_code) === null) return INVALID_REQUEST;
+      if (!is_public_code_input(request.public_code)) return INVALID_REQUEST;
       const user_id = storage.find_user_by_public_code(storage.db(ctx), request.public_code);
       const profile = user_id === null ? undefined : get_public_profiles(ctx, [user_id])[0];
       if (profile === undefined) return CoreContract.CoreError.CORE_ERROR_USER_NOT_FOUND;

@@ -4,7 +4,7 @@
  */
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import * as GameData from '../../generated/data/game_data.ts';
-import { normalize_public_code } from '../storage/index.ts';
+import { is_public_code_input } from '../storage/index.ts';
 import { DELETION_CODE_CHARS } from './account.ts';
 import { E, audit_log, deletion_url, error_log, security_log, truncated_ip, type AuthState } from './context.ts';
 import type { Ctx } from './deps.ts';
@@ -172,8 +172,8 @@ const FORM_FIELDS = { code: ['method', 'confirm', 'public_code', 'code'], google
 
 /** The `code` method form: a public code input of `storage` and a code of the deletion code characters. */
 function code_form(values: ReadonlyMap<string, string>, code_length: number): DeletionForm | null {
-  const public_code = normalize_public_code(values.get('public_code') ?? '');
-  if (public_code === null) return null;
+  const public_code = values.get('public_code') ?? '';
+  if (!is_public_code_input(public_code)) return null;
   const code = (values.get('code') ?? '').replace(/[\s-]/g, '').toUpperCase();
   if (!new RegExp(`^[${DELETION_CODE_CHARS}]{${String(code_length)}}$`).test(code)) return null;
   return { method: 'code', public_code, code };

@@ -375,6 +375,12 @@
       ]
     },
     {
+      "name": "is_public_code_input",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
       "name": "set_user_created_at",
       "inputs": [
         "other",
