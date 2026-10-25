@@ -211,8 +211,8 @@ static func _read_run_config() -> _CONFIG:
 
 
 ## Starts the run of `gut` with `config`, after `init`. Called by the pre-run hook. Puts the test host URL, the run
-## kind and the pass into the run, follows the GUT test start and end, hides the GUT runner GUI, and starts the run
-## time limit timer.
+## kind and the pass into the run, follows the GUT test start and end, hides the GUT runner GUI, starts the run time
+## limit timer, and sends the start signal, whose response it waits for, so it ends before the first test setup. Async.
 static func _begin_run(gut: GutMain, config: _CONFIG) -> void:
 	if not _is_initialized:
 		return
@@ -225,6 +225,7 @@ static func _begin_run(gut: GutMain, config: _CONFIG) -> void:
 	var timer: SceneTreeTimer = tree.create_timer(_run_time_limit_ms / 1000.0, true, false, true)
 	if timer.timeout.connect(_on_run_time_limit.bind(run)) != OK:
 		LogCore.log_error(_TAG, "could not start the run time limit timer")
+	await _send_started(config)
 
 
 ## Hides the GUT runner GUI for the whole run, so it takes no input over the test screen and is in no capture. GUT
@@ -281,8 +282,8 @@ static func _end_run() -> int:
 	return code
 
 
-## Sends the result of a run whose `init` failed in the pre-run hook, through a core node of its own: no test, and a
-## run failure with the reason, then the release signal. Returns whether the test host took the result. Called by the
+## Sends the result of a run whose `init` failed in the pre-run hook, through a core node of its own: the start signal,
+## then no test, and a run failure with the reason, then the release signal. Returns whether the test host took the result. Called by the
 ## pre-run hook, which then ends the GUT run with exit code 1.
 static func _send_init_failure(config: _CONFIG) -> bool:
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
@@ -292,6 +293,7 @@ static func _send_init_failure(config: _CONFIG) -> bool:
 	node.name = _TAG
 	node.released = true
 	tree.root.add_child(node)
+	await _send_started(config)
 	var sent: bool = await _send_result_through(node, _init_failure_run(config))
 	tree.root.remove_child(node)
 	node.queue_free()
@@ -932,6 +934,29 @@ static func _send_result_through(node: _NODE_SCRIPT, run: _RUN) -> bool:
 		_host_failure("PUT /result", reply)
 		return false
 	return true
+
+
+## The start signal of the run of `config`, once, when the engine is up and before the first test setup: sends
+## `PUT /started` with the run ID and waits for its response. The tool ends a run that does not send it within
+## `UnitTestCore.startTimeLimitMs`. Through a core node of its own, so a run whose `init` failed sends it too. Returns
+## whether the test host took it.
+static func _send_started(config: _CONFIG) -> bool:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null or config.test_host.is_empty():
+		LogCore.log_error(_TAG, "the run has no test host; the start signal was not sent")
+		return false
+	var node: _NODE_SCRIPT = _NODE_SCRIPT.new()
+	node.name = _TAG
+	node.released = true
+	tree.root.add_child(node)
+	var body: String = '{"run_id": %s}' % JSON.stringify(config.run_id)
+	var reply: _REPLY = await node.request(config.test_host + "/started", HTTPClient.METHOD_PUT, body)
+	tree.root.remove_child(node)
+	node.queue_free()
+	var sent: bool = reply.ok and reply.status == 204
+	if not sent:
+		_host_failure("PUT /started", reply)
+	return sent
 
 
 ## The release signal of the run of `config`, after its `release` (or after the result of a failed `init`): sends

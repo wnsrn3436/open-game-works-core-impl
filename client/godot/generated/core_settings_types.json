@@ -194,6 +194,7 @@
   "UICore.systemPopupScrollStep": "number",
   "UnitTestCore.testTimeLimitMs": "integer",
   "UnitTestCore.runTimeLimitMs": "integer",
+  "UnitTestCore.startTimeLimitMs": "integer",
   "VirtualPadCore.deadZonePermille": "integer",
   "VirtualPadCore.sensitivityPermille": "integer",
   "environments.DEV.adminOperators": "array<object>",

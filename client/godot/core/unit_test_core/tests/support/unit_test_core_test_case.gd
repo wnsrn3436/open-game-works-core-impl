@@ -88,6 +88,7 @@ func run_root(files: PackedStringArray, test_time_limit_ms: int, run_time_limit_
 	var host: String = await UnitTestCore.start_http_server()
 	assert_false(host.is_empty(), "a test host")
 	var none: Array[PackedStringArray] = []
+	assert_true(await UnitTestCore.add_http_response(host, "/started", 204, none, PackedByteArray()), "PUT /started")
 	assert_true(await UnitTestCore.add_http_response(host, "/result", 204, none, PackedByteArray()), "PUT /result")
 	assert_true(await UnitTestCore.add_http_response(host, "/released", 204, none, PackedByteArray()), "PUT /released")
 	assert_true(UnitTestCore.set_test_settings("UnitTestCore.testTimeLimitMs", test_time_limit_ms))
@@ -109,7 +110,7 @@ func run_root(files: PackedStringArray, test_time_limit_ms: int, run_time_limit_
 	config.test_host = host
 	config.has_core_fixture_dir = true
 	assert_true(UnitTestCore.init(), "init of the run")
-	UnitTestCore._begin_run(gut, config)
+	await UnitTestCore._begin_run(gut, config)
 	root.run = UnitTestCore._run
 	assert_false(layer.visible, "the run hides the GUT runner GUI")
 	gut.test_scripts()

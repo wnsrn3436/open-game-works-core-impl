@@ -27,6 +27,12 @@
       "type": "integer",
       "source": "core",
       "owner": "human"
+    },
+    {
+      "key": "UnitTestCore.startTimeLimitMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
     }
   ],
   "settingsConstraints": [],
