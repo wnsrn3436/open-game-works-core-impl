@@ -29,8 +29,8 @@ class Holder:
 
 ## `args` of the built-in command table of the spec, joined by commas.
 const BUILTIN_ARGS: Dictionary[String, String] = {
-	"get_state": "", "get_stats": "", "get_telemetry": "", "clear_telemetry": "", "capture_screen": "",
-	"capture_video": "ms", "list_ui": "", "get_anchor": "anchor,key", "tap": "x,y",
+	"get_state": "", "get_stats": "", "get_telemetry": "", "clear_telemetry": "", "capture_screen": "format",
+	"capture_video": "ms,format", "list_ui": "", "get_anchor": "anchor,key", "tap": "x,y",
 	"tap_anchor": "anchor,key", "drag": "x1,y1,x2,y2,ms", "key": "key,ms", "text": "text",
 	"touch_down": "index,x,y", "touch_move": "index,x,y", "touch_up": "index", "key_down": "key",
 	"key_up": "key", "mouse_move": "x,y", "mouse_down": "button,x,y", "mouse_up": "button,x,y",
@@ -96,6 +96,8 @@ func test_bad_arguments_fail_without_the_target_operation() -> void:
 		PackedStringArray(["set_virtual_notch", "NONE"]),
 		PackedStringArray(["capture_video", "0"]),
 		PackedStringArray(["capture_video", str(VIDEO_MAX_MS + 1)]),
+		PackedStringArray(["capture_video", "1000", "gif"]),
+		PackedStringArray(["capture_screen", "gif"]),
 		PackedStringArray(["drop_peer", "-1"]),
 		PackedStringArray(["drop_peer", "others"]),
 	]

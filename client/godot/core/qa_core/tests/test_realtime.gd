@@ -111,6 +111,21 @@ func test_step_in_a_lockstep_match() -> void:
 	TimeCoreDev.set_step_mode(false)
 
 
+func test_an_input_in_a_lockstep_match_adds_no_step_budget() -> void:
+	assert_true(await start_realtime(true))
+	TimeCoreDev.set_step_mode(true)
+	await reach_playing(2, 0, true)
+	var budgets: Array[int] = []
+	QACore._node.frame_started.connect(func() -> void: budgets.append(TimeCoreDev.get_step_budget()))
+	var game_time: int = TimeCore.get_game_time()
+	assert_true((await finish(start_command("key", PackedStringArray(["Space"])))).ok)
+	assert_false(budgets.is_empty())
+	assert_eq(budgets.count(0), budgets.size(), "no budget in Playing of a lockstep match")
+	assert_eq(TimeCore.get_game_time(), game_time, "only the steps of the match move game time")
+	assert_eq(warns(), 0)
+	TimeCoreDev.set_step_mode(false)
+
+
 func test_step_in_a_lockstep_match_ends_with_the_request_step_result() -> void:
 	assert_true(await start_realtime(true))
 	TimeCoreDev.set_step_mode(true)
