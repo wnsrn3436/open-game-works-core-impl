@@ -2,7 +2,7 @@
 
 ## done
 
-- `BootstrapCore` (client core, godot): the fatal screen `Label` now has its own font, `ThemeDB.fallback_font`, set with `add_theme_font_override("font", ...)` (client/godot/core/bootstrap_core/bootstrap_core.gd:1124). An own override comes before the theme `default_font` that `LocalizationCore.load_fonts` sets to the game font chain. So the fatal screen text draws with the engine font, at its default weight, in every boot stage, before and after `LoadData` 4, on both the `Fatal` UI layer and the canvas layer used before `UICore` init
+- `BootstrapCore` (client core, godot): the fatal screen `Label` now has its own font, `ThemeDB.fallback_font`, set with `add_theme_font_override("font", ...)` (client/godot/core/bootstrap_core/bootstrap_core.gd:1126). An own override comes before the theme `default_font` that `LocalizationCore.load_fonts` sets to the game font chain. So the fatal screen text draws with the engine font, at its default weight, in every boot stage, before and after `LoadData` 4, on both the `Fatal` UI layer and the canvas layer used before `UICore` init
 - Why `ThemeDB.fallback_font` is not a game resource: the engine sets it from project setting `gui/theme/custom_font` when that setting has a value, and otherwise uses its built-in font. Only the harness tool writes `project.godot`. Content can add engine settings only through `client/boot/project_settings.cfg`, and the allowed prefixes do not include `gui/theme/` (client-content engines/godot.md). No core module changes `ThemeDB.fallback_font`
 - Core tests in client/godot/core/bootstrap_core/tests/test_boot_fatal.gd:
   - `test_fatal_screen_after_load_fonts_before_ui_ready_draws_without_the_game_font_chain`: `icon/pad_b` is removed from the resource key list, and a fatal is reported on the `load_prompt_icons` error log during `LoadData`, which is after `load_fonts` and before UI ready. With `LocalizationCore.bodyFontWeight` 400, the test asserts that the theme default font is the `FontVariation` chain, and that the fatal screen text font is not that chain and is `ThemeDB.fallback_font`
@@ -15,7 +15,7 @@ none
 
 ## review
 
-- D1 (`records/review-debt/BootstrapCore.json`): fixed. Fix at client/godot/core/bootstrap_core/bootstrap_core.gd:1124. Tests added: the two tests above
+- D1 (`records/review-debt/BootstrapCore.json`): fixed. Fix at client/godot/core/bootstrap_core/bootstrap_core.gd:1126. Tests added: the two tests above
 
 ## unverified
 
