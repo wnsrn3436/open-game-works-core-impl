@@ -1,18 +1,5 @@
 {
   "target": "spec AuthCore",
   "nextId": 3,
-  "items": [
-    {
-      "id": "D1",
-      "location": "skills/client-content/SKILL.md:51",
-      "problem": "the option screen entry `user ID` shows the value of `AuthCore.get_user_id` as a decimal string with a copy button, while skills/client-content/SKILL.md:162 and skills/server-core/modules/auth.md:133 say a user ID is not shown on screen and a user is shown by its public code (`AuthCore.get_public_code`); the two rules of the same document contradict, and static check `option entry` enforces the entry of line 51",
-      "foundBy": "spec AuthCore"
-    },
-    {
-      "id": "D2",
-      "location": "skills/client-core/modules/auth-core.md:206",
-      "problem": "`issue_deletion_code` says \"The user enters the user ID and `code` on the server `auth` web account deletion page\", but the server `auth` spec (skills/server-core/modules/auth.md:289, :291, :299) defines the deletion code form input as the public code (`public_code` field, looked up with `storage.find_user_by_public_code`), and skills/server-core/modules/auth.md:133 says the user ID is not shown to a person. The two documents name the identifier the user types differently",
-      "foundBy": "spec BootstrapCore"
-    }
-  ]
+  "items": []
 }
