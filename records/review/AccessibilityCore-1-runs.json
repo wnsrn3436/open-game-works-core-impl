@@ -21,6 +21,22 @@
       "startedAt": 1792950317391,
       "exitCode": 1,
       "summary": null
+    },
+    {
+      "command": "ogw core test godot AccessibilityCore",
+      "startedAt": 1792970698192,
+      "exitCode": 0,
+      "summary": {
+        "tests": 43,
+        "passed": 43
+      },
+      "job": "mvoggkv508c6d7"
+    },
+    {
+      "command": "ogw job wait mvoggkv508c6d7",
+      "startedAt": 1792970701249,
+      "exitCode": 0,
+      "summary": null
     }
   ]
 }
