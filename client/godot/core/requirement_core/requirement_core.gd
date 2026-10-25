@@ -90,8 +90,10 @@ static var _recheck_at: int = 0
 static var _kind_counts: PackedInt32Array = PackedInt32Array([0, 0, 0, 0, 0])
 static var _content_counts: Dictionary[Script, int] = {}
 
-## Requirement IDs and types that already left their error log.
+## Requirement IDs that already left their error log.
 static var _logged_ids: Dictionary[int, bool] = {}
+## Whether each `RequirementType` value already left its no-judge-hook error log. `init` puts every value with
+## `false`, so the frame code only changes values and adds no key.
 static var _logged_types: Dictionary[int, bool] = {}
 
 
@@ -109,6 +111,8 @@ static func init() -> bool:
 		return false
 	_max_rounds = CoreSettings.get_int(_MAX_ROUNDS_KEY)
 	_recheck_ms = CoreSettings.get_int(_RECHECK_KEY)
+	for type: int in GameData.RequirementType.values():
+		_logged_types[type] = false
 	_time_head = _new_link(-1)
 	_session = RefCounted.new()
 	var node: _CORE_NODE = _CORE_NODE.new()
@@ -379,8 +383,10 @@ static func _judge(entry: _ENTRY) -> int:
 static func _self_judge(entry: _ENTRY) -> int:
 	var type: int = entry.row.type
 	if not _judges.has(type):
-		if not _logged_types.has(type):
-			_logged_types[type] = true
+		if not _logged_types.get(type, false):
+			# A value that is not a `RequirementType` element is not added, so it logs on every judgement.
+			if _logged_types.has(type):
+				_logged_types[type] = true
 			LogCore.log_error(_TAG, "no judge hook for RequirementType %d; its self judgement fails" % type)
 		return _FAIL
 	var output: int = _call_judge(_judges[type].judge, entry.row)

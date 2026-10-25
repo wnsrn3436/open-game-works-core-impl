@@ -543,7 +543,7 @@ func _collection_sizes() -> PackedInt64Array:
 		RequirementCore._round.size(), RequirementCore._owner_slots.size(), RequirementCore._link_next.size(),
 		RequirementCore._link_prev.size(), RequirementCore._link_slot.size(), RequirementCore._id_heads.size(),
 		RequirementCore._state_heads.size(), RequirementCore._request_heads.size(), RequirementCore._opened_heads.size(),
-		RequirementCore._closed_heads.size(), RequirementCore._content_heads.size(),
+		RequirementCore._closed_heads.size(), RequirementCore._content_heads.size(), RequirementCore._logged_types.size(),
 	])
 
 
