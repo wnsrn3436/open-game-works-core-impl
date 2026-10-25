@@ -211,6 +211,53 @@ func test_release_gives_a_heading_type_the_theme_had_its_base_and_font_back() ->
 	theme.remove_type(&"HeadingLabel")
 
 
+func test_release_leaves_a_heading_type_the_theme_had_without_a_font_item_without_one() -> void:
+	var theme: Theme = ThemeDB.get_default_theme()
+	# The engine default theme has a `Label` font item that holds no font.
+	assert_true(theme.get_font_list(&"Label").has("font"))
+	assert_eq(theme.get_font(&"font", &"Label"), theme.default_font)
+	var label_font: FontVariation = FontVariation.new()
+	theme.set_font(&"font", &"Label", label_font)
+	theme.set_type_variation(&"HeadingLabel", &"Label")
+	theme.set_color(&"font_color", &"HeadingLabel", Color.RED)
+	var label: Label = _label(&"HeadingLabel")
+	assert_eq(label.get_theme_font("font"), label_font)
+	var resources: Dictionary[String, String] = _resources(_SUPPORT.WEIGHT_AXIS_FONT, _SUPPORT.NO_WEIGHT_AXIS_FONT)
+	assert_eq(await _SUPPORT.start_language("zh-TW", resources), _SUPPORT.language_id("[lang_zh_tw]"))
+	assert_true(await LocalizationCore.load_fonts())
+	var fonts: Array[Font] = [_loaded_font(_SUPPORT.FONT_CJK), _loaded_font(_SUPPORT.FONT_MAIN)]
+	_assert_chain(label.get_theme_font("font"), fonts, PackedInt32Array([_UNWEIGHTED, _UNWEIGHTED]))
+	LocalizationCore.release()
+	assert_eq(theme.get_type_variation_base(&"HeadingLabel"), &"Label")
+	assert_false(theme.get_font_list(&"HeadingLabel").has("font"))
+	assert_eq(label.get_theme_font("font"), label_font)
+	assert_eq(_label(&"HeadingLabel").get_theme_font("font"), label_font)
+	assert_eq(label.get_theme_color("font_color"), Color.RED)
+	theme.remove_type(&"HeadingLabel")
+	theme.set_font(&"font", &"Label", null)
+
+
+func test_release_gives_a_heading_type_the_theme_had_its_font_item_without_a_font_back() -> void:
+	var theme: Theme = ThemeDB.get_default_theme()
+	var before: Font = theme.default_font
+	theme.set_type_variation(&"HeadingButton", &"Button")
+	theme.set_font(&"font", &"HeadingButton", null)
+	var button: Button = Button.new()
+	button.theme_type_variation = &"HeadingButton"
+	add_child_autofree(button)
+	assert_eq(button.get_theme_font("font"), before)
+	var resources: Dictionary[String, String] = _resources(_SUPPORT.WEIGHT_AXIS_FONT, _SUPPORT.NO_WEIGHT_AXIS_FONT)
+	assert_eq(await _SUPPORT.start_language("zh-TW", resources), _SUPPORT.language_id("[lang_zh_tw]"))
+	assert_true(await LocalizationCore.load_fonts())
+	assert_ne(button.get_theme_font("font"), before)
+	LocalizationCore.release()
+	assert_eq(theme.get_type_variation_base(&"HeadingButton"), &"Button")
+	assert_true(theme.get_font_list(&"HeadingButton").has("font"))
+	assert_eq(theme.get_font(&"font", &"HeadingButton"), before)
+	assert_eq(button.get_theme_font("font"), before)
+	theme.remove_type(&"HeadingButton")
+
+
 func test_second_load_fonts_applies_the_weights_again() -> void:
 	assert_true(UnitTestCore.set_test_settings(_BODY_WEIGHT, 600))
 	var resources: Dictionary[String, String] = _resources(_SUPPORT.NO_WEIGHT_AXIS_FONT, _SUPPORT.WEIGHT_AXIS_FONT)
