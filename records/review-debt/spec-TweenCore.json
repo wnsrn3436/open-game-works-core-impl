@@ -1,0 +1,12 @@
+{
+  "target": "spec TweenCore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/client-core/modules/tween-core.md:169",
+      "problem": "the TweenCore `## error` table and `### definition check` (lines 77-91) have no rule for a `TweenOptions` `TimeBasis` or a `TweenChange` `Easing` value outside its members, so under skills/client-core/engines/godot.md:159 the result of `play`, `play_preset` and `evaluate_easing` with such an `int` can differ per implementation",
+      "foundBy": "spec ScreenEffectCore"
+    }
+  ]
+}
