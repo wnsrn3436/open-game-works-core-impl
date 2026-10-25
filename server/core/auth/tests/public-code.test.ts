@@ -1,5 +1,5 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
-import { admin, call, guest, logs, start, testing, withdraw, type TestServer } from './helpers.ts';
+import { E, P, admin, call, guest, logs, probe, social, start, testing, withdraw, type TestServer } from './helpers.ts';
 
 let server: TestServer;
 beforeAll(async () => {
@@ -31,6 +31,7 @@ describe('find_user_by_public_code', () => {
 
 interface LookupStorage {
   find_user_by_public_code(db: unknown, public_code: string): bigint | null;
+  read_db(): { query(sql: string, params: readonly unknown[]): unknown };
 }
 
 describe('POST /account/deletion', () => {
@@ -70,5 +71,53 @@ describe('POST /account/deletion', () => {
     expect(text(failed.body)).toBe(text(retry.body));
     // Nothing was deleted: the same code still deletes the account.
     expect((await send()).status).toBe(200);
+  });
+
+  it('is 500 [auth_deletion_retry] with one error log when the read_db read of the auth_social_link row of the google method fails, and deletes nothing', async () => {
+    const user = await social(server, P.LOGIN_PROVIDER_GOOGLE, 'deletion-lookup-google');
+    const storage = server.running().instance.modules().get('storage') as unknown as LookupStorage;
+    const original = storage.read_db.bind(storage);
+    // Only the query of auth_social_link on the read handle fails.
+    storage.read_db = () => {
+      const db = original();
+      return new Proxy(db, {
+        get(target, key, receiver) {
+          if (key !== 'query') return Reflect.get(target, key, receiver) as unknown;
+          return (sql: string, params: readonly unknown[]) => {
+            if (sql.includes('auth_social_link')) throw new Error('the read connection is gone');
+            return target.query(sql, params);
+          };
+        },
+      });
+    };
+    const errors_before = logs(server, 'error').length;
+    const send = (): Promise<{ status: number; body: Uint8Array }> =>
+      testing.send_raw(
+        server,
+        'POST',
+        '/account/deletion',
+        { 'Content-Type': 'application/x-www-form-urlencoded' },
+        new TextEncoder().encode(new URLSearchParams({ method: 'google', confirm: 'yes', credential: 'fake:deletion-lookup-google' }).toString()),
+      );
+    let failed: { status: number; body: Uint8Array };
+    try {
+      failed = await send();
+    } finally {
+      storage.read_db = original;
+    }
+    expect(failed.status).toBe(500);
+    const errors = logs(server, 'error').slice(errors_before);
+    expect(errors).toHaveLength(1);
+    // The same result page as another [auth_deletion_retry]: a POST during maintenance.
+    expect((await admin(server, 'set_maintenance', { enabled: true })).status).toBe(200);
+    const retry = await send();
+    expect((await admin(server, 'set_maintenance', { enabled: false })).status).toBe(200);
+    expect(retry.status).toBe(503);
+    const text = (body: Uint8Array): string => new TextDecoder().decode(body).replace(/nonce="[^"]*"/g, 'nonce=""');
+    expect(text(failed.body)).toBe(text(retry.body));
+    // Nothing was deleted: the session still works, and the same credential then deletes the account.
+    expect(await probe(user.session)).toBe(0);
+    expect((await send()).status).toBe(200);
+    expect(await probe(user.session)).toBe(E.CORE_ERROR_UNAUTHORIZED);
   });
 });

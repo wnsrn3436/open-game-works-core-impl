@@ -243,7 +243,7 @@ async function check_code(a: AuthState, form: Extract<DeletionForm, { method: 'c
   });
 }
 
-/** The `google` method: `verify` outside any transaction, then the linked user's transaction. */
+/** The `google` method: `verify` outside any transaction, the link row read with `read_db`, then the linked user's transaction. */
 async function check_google(a: AuthState, form: Extract<DeletionForm, { method: 'google' }>, ip: string): Promise<Outcome> {
   const google = a.google;
   if (google === null) return { result: 'fail', user_id: null };
@@ -253,7 +253,12 @@ async function check_google(a: AuthState, form: Extract<DeletionForm, { method: 
     error_log(a, `login-google verify failed on the account deletion page: ${verified.failure}`, { request: 'POST /account/deletion' }, { ip: truncated_ip(ip) });
     return { result: 'unavailable', user_id: null };
   }
-  const link = find_social_link(a.modules.storage.read_db(), 'LOGIN_PROVIDER_GOOGLE', verified.value);
+  let link: { user_id: bigint } | null;
+  try {
+    link = find_social_link(a.modules.storage.read_db(), 'LOGIN_PROVIDER_GOOGLE', verified.value);
+  } catch {
+    return { result: 'lookup_failed', user_id: null };
+  }
   if (link === null) return { result: 'fail', user_id: null };
   return delete_in_transaction(a, link.user_id, () => true);
 }
@@ -294,7 +299,8 @@ export async function deletion_post(a: AuthState, texts: PageText, request: Rout
   }
   if (outcome.result === 'unavailable') return page(502, 'auth_deletion_retry');
   if (outcome.result === 'lookup_failed') {
-    error_log(a, 'account deletion failed: the read_db lookup of the public code failed', who, { method: form.method });
+    const looked_up = form.method === 'code' ? 'the public code' : 'the auth_social_link row';
+    error_log(a, `account deletion failed: the read_db lookup of ${looked_up} failed`, who, { method: form.method });
     return page(500, 'auth_deletion_retry');
   }
   if (outcome.result === 'retry') {
