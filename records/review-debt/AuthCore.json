@@ -1,0 +1,12 @@
+{
+  "target": "AuthCore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "client/godot/core/auth_core/tests/test_login.gd:311",
+      "problem": "`test_get_public_code_is_of_the_login_of_the_ban_session_and_empty_without_either` (added in this range) ends with `assert_eq(UnitTestCore.check_logs(\"error\", \"AuthCore\"), 0)`. The UnitTestCore spec `### log` says the error log count is asserted with `check_logs` only when the expected value is not 0. The assert checks nothing, because an unchecked error log left in the test already fails it",
+      "foundBy": "UnitTestCore round 1"
+    }
+  ]
+}
