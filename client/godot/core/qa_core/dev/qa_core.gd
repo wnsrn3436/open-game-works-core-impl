@@ -61,6 +61,8 @@ const _NORMAL_TIME_SCALE: int = 1000
 const _STEP_HOLD_REASON: String = "step"
 ## Process frames a capture waits for a drawn frame before it draws one itself.
 const _CAPTURE_DRAW_FRAMES: int = 2
+## The least `QACore.captureJpgQuality`: the engine takes the JPEG quality in whole percents.
+const _MIN_JPG_QUALITY: int = 10
 ## The largest `QACore.captureJpgQuality`, the permille of JPEG quality 1.
 const _MAX_JPG_QUALITY: int = 1000
 
@@ -1069,9 +1071,9 @@ static func _read_settings() -> bool:
 	# The least value of each integer setting.
 	var int_keys: Dictionary[String, int] = {
 		_KEY_COMMAND_TIMEOUT: 1, _KEY_CHANNEL_MAX_BYTES: 1, _KEY_STATS_REFRESH: 1, _KEY_TEXT_MAX_CHARS: 1,
-		_KEY_VIDEO_FPS: 1, _KEY_VIDEO_MAX: 1, _KEY_CAPTURE_JPG_QUALITY: 1, _KEY_FEEDBACK_WINDOW: 0,
-		_KEY_IDLE_THRESHOLD: 0, _KEY_TELEMETRY_MAX: 0, _KEY_SOFTLOCK_NO_RESPONSE: 0, _KEY_SOFTLOCK_INPUTS: 1, _KEY_STEP_MAX: 1,
-		_KEY_TIME_SCALE_MAX: _NORMAL_TIME_SCALE, _KEY_TOUCH_INDEX_COUNT: 1,
+		_KEY_VIDEO_FPS: 1, _KEY_VIDEO_MAX: 1, _KEY_CAPTURE_JPG_QUALITY: _MIN_JPG_QUALITY,
+		_KEY_FEEDBACK_WINDOW: 0, _KEY_IDLE_THRESHOLD: 0, _KEY_TELEMETRY_MAX: 0, _KEY_SOFTLOCK_NO_RESPONSE: 0,
+		_KEY_SOFTLOCK_INPUTS: 1, _KEY_STEP_MAX: 1, _KEY_TIME_SCALE_MAX: _NORMAL_TIME_SCALE, _KEY_TOUCH_INDEX_COUNT: 1,
 	}
 	for key: String in int_keys:
 		if not CoreSettings.has_int(key) or CoreSettings.get_int(key) < int_keys[key]:
