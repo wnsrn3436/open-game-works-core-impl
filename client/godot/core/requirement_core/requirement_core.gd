@@ -20,6 +20,11 @@ const _PROCESS_PRIORITY: int = -1000
 ## Number of `TriggerKind` members.
 const _TRIGGER_KINDS: int = 5
 
+# The pending buffer a watch is in.
+const _QUEUE_NONE: int = 0
+const _QUEUE_PENDING: int = 1
+const _QUEUE_ROUND: int = 2
+
 # Status of a judgement.
 const _PASS: int = 0
 const _FAIL: int = 1
@@ -45,17 +50,39 @@ static var _building: Dictionary[int, bool] = {}
 ## The result of requirement ID 0.
 static var _zero: RequirementResult = RequirementResult.new()
 
-## Watch slots. A removed watch leaves `null`, which a later `watch` reuses.
+## Watch slots. A removed watch leaves `null`, which a later `watch` reuses. The buffers below that hold slots or
+## watches grow only in `watch`, so a removal in frame code changes no collection size.
 static var _watches: Array[_WATCH] = []
-## The `null` slots of `_watches`, and the slots of the watches of each requirement ID value.
+## The `null` slots of `_watches`: the first `_free_count` entries. As long as `_watches`.
 static var _free_slots: PackedInt32Array = PackedInt32Array()
-static var _slots_by_id: Dictionary[int, PackedInt32Array] = {}
+static var _free_count: int = 0
+## Pending evaluations for the next round: the first `_pending_count` entries. The watches of the running round not
+## judged yet: the first `_round_count` entries of `_round`. Both as long as `_watches`; a watch is in at most one.
+static var _pending: Array[_WATCH] = []
 static var _pending_count: int = 0
+static var _round: Array[_WATCH] = []
+static var _round_count: int = 0
 ## The slots of the watches that have an owner object, which the frame code checks for destroyed owners. Only the
-## first `_owner_count` entries are in use. The buffer grows only in `watch`, so a removal in frame code changes no
-## collection size.
+## first `_owner_count` entries are in use.
 static var _owner_slots: PackedInt32Array = PackedInt32Array()
 static var _owner_count: int = 0
+## Link pool of the lists of watch slots. A list is a ring that starts at its head link; `_link_slot` is the watch
+## slot of a link (-1 for a head link). Unused links are chained through `_link_next` from `_free_link`. The pool
+## grows only outside frame code.
+static var _link_next: PackedInt32Array = PackedInt32Array()
+static var _link_prev: PackedInt32Array = PackedInt32Array()
+static var _link_slot: PackedInt32Array = PackedInt32Array()
+static var _free_link: int = -1
+## Head links of the lists: the watches of each requirement ID value; the watches each UserState kind marks; the
+## watches of each target name of `REQUEST_COMPLETED`, `UI_OPENED` and `UI_CLOSED` triggers; the watches of each
+## content event type; the watches of time-dependent conditions. A head stays until `release`.
+static var _id_heads: Dictionary[int, int] = {}
+static var _state_heads: Dictionary[GDScript, int] = {}
+static var _request_heads: Dictionary[String, int] = {}
+static var _opened_heads: Dictionary[String, int] = {}
+static var _closed_heads: Dictionary[String, int] = {}
+static var _content_heads: Dictionary[Script, int] = {}
+static var _time_head: int = -1
 ## Watches of time-dependent conditions, and the real elapsed time of the next time recheck.
 static var _time_watch_count: int = 0
 static var _recheck_at: int = 0
@@ -82,6 +109,7 @@ static func init() -> bool:
 		return false
 	_max_rounds = CoreSettings.get_int(_MAX_ROUNDS_KEY)
 	_recheck_ms = CoreSettings.get_int(_RECHECK_KEY)
+	_time_head = _new_link(-1)
 	_session = RefCounted.new()
 	var node: _CORE_NODE = _CORE_NODE.new()
 	node.name = _TAG
@@ -146,7 +174,7 @@ static func register_judge(type: GameData.RequirementType, judge: Callable, kind
 		if entry.types.has(type):
 			entry.valid = false
 			_refresh_kinds(entry)
-	_count_time_watches()
+	_relink_watches()
 	return true
 
 
@@ -231,8 +259,6 @@ static func watch(requirement_id: int, triggers: Array[RequirementTrigger], call
 	record.base_passed = result.passed
 	record.base_failed_id = result.failed_requirement_id
 	_store_watch(record)
-	if entry.time_dependent:
-		_add_time_watch()
 	return true
 
 
@@ -480,27 +506,48 @@ static func _is_event_type(type: Script) -> bool:
 
 
 static func _find_watch(requirement_id: int, callback: Callable) -> int:
-	if not _slots_by_id.has(requirement_id):
+	if not _id_heads.has(requirement_id):
 		return -1
-	for slot: int in _slots_by_id[requirement_id]:
+	var head: int = _id_heads[requirement_id]
+	var link: int = _link_next[head]
+	while link != head:
+		var slot: int = _link_slot[link]
 		if _watches[slot].callback == callback:
 			return slot
+		link = _link_next[link]
 	return -1
 
 
+## Puts `record` into a slot and into the lists of its requirement ID, its triggers and, when its condition is
+## time-dependent, the time-dependent watches. Grows the buffers when no slot is free.
 static func _store_watch(record: _WATCH) -> void:
 	var slot: int = _watches.size()
-	if _free_slots.is_empty():
+	if _free_count == 0:
 		_watches.append(record)
+		_free_slots.append(-1)
+		_pending.append(null)
+		_round.append(null)
 	else:
-		slot = _free_slots[_free_slots.size() - 1]
-		_free_slots.resize(_free_slots.size() - 1)
+		_free_count -= 1
+		slot = _free_slots[_free_count]
 		_watches[slot] = record
-	if not _slots_by_id.has(record.requirement_id):
-		_slots_by_id[record.requirement_id] = PackedInt32Array()
-	var slots: PackedInt32Array = _slots_by_id[record.requirement_id]
-	slots.append(slot)
-	_slots_by_id[record.requirement_id] = slots
+	record.slot = slot
+	if not _id_heads.has(record.requirement_id):
+		_id_heads[record.requirement_id] = _new_link(-1)
+	record.id_link = _add_link(_id_heads[record.requirement_id], slot)
+	for trigger: RequirementTrigger in record.triggers:
+		match trigger.kind:
+			TriggerKind.REQUEST_COMPLETED, TriggerKind.UI_OPENED, TriggerKind.UI_CLOSED:
+				var heads: Dictionary[String, int] = _named_heads(trigger.kind)
+				if not heads.has(trigger.target_name):
+					heads[trigger.target_name] = _new_link(-1)
+				record.trigger_links.append(_add_link(heads[trigger.target_name], slot))
+	for type: Script in record.event_types:
+		if not _content_heads.has(type):
+			_content_heads[type] = _new_link(-1)
+		record.trigger_links.append(_add_link(_content_heads[type], slot))
+	_link_state(record)
+	_link_time(record)
 	if record.owner_id != 0:
 		if _owner_count == _owner_slots.size():
 			_owner_slots.append(slot)
@@ -510,23 +557,65 @@ static func _store_watch(record: _WATCH) -> void:
 		_owner_count += 1
 
 
+## Puts `record` into the list of each UserState kind that raises its `USER_STATE_CHANGED` triggers: the target kind,
+## or every kind its condition sees for an empty target. Each kind once.
+static func _link_state(record: _WATCH) -> void:
+	var kinds: Array[GDScript] = []
+	for trigger: RequirementTrigger in record.triggers:
+		if trigger.kind != TriggerKind.USER_STATE_CHANGED:
+			continue
+		if trigger.user_state_kind != null:
+			if not kinds.has(trigger.user_state_kind):
+				kinds.append(trigger.user_state_kind)
+			continue
+		for kind: GDScript in (record.entry as _ENTRY).kinds:
+			if not kinds.has(kind):
+				kinds.append(kind)
+	for kind: GDScript in kinds:
+		if not _state_heads.has(kind):
+			_state_heads[kind] = _new_link(-1)
+		record.state_links.append(_add_link(_state_heads[kind], record.slot))
+
+
+## Puts `record` into the list of time-dependent watches when its condition is time-dependent and it is not there yet.
+static func _link_time(record: _WATCH) -> void:
+	if record.time_link >= 0 or not (record.entry as _ENTRY).time_dependent:
+		return
+	record.time_link = _add_link(_time_head, record.slot)
+	_add_time_watch()
+
+
+## Puts every watch again into the lists that depend on the kinds its condition sees and on whether the condition is
+## time-dependent, for `register_judge`, which changes both.
+static func _relink_watches() -> void:
+	for record: _WATCH in _watches:
+		if record == null:
+			continue
+		for link: int in record.state_links:
+			_remove_link(link)
+		record.state_links.clear()
+		_link_state(record)
+		_link_time(record)
+
+
+## Frame code may call it: changes no collection size.
 static func _remove_watch_at(slot: int) -> void:
 	var record: _WATCH = _watches[slot]
 	if record.owner_id != 0:
 		_remove_owner_at(record.owner_index)
 	_watches[slot] = null
-	_free_slots.append(slot)
-	var slots: PackedInt32Array = _slots_by_id[record.requirement_id]
-	slots.remove_at(slots.find(slot))
-	if slots.is_empty():
-		_slots_by_id.erase(record.requirement_id)
-	else:
-		_slots_by_id[record.requirement_id] = slots
-	if record.pending:
-		_pending_count -= 1
-	_unsubscribe_watch(record)
-	if (record.entry as _ENTRY).time_dependent:
+	_free_slots[_free_count] = slot
+	_free_count += 1
+	_remove_link(record.id_link)
+	for i: int in record.trigger_links.size():
+		_remove_link(record.trigger_links[i])
+	for i: int in record.state_links.size():
+		_remove_link(record.state_links[i])
+	if record.time_link >= 0:
+		_remove_link(record.time_link)
 		_time_watch_count -= 1
+	_dequeue(record)
+	_unsubscribe_watch(record)
 
 
 ## Takes entry `index` out of the used part of `_owner_slots` by moving the last used entry into it.
@@ -535,6 +624,68 @@ static func _remove_owner_at(index: int) -> void:
 	var moved: int = _owner_slots[_owner_count]
 	_owner_slots[index] = moved
 	_watches[moved].owner_index = index
+
+
+# --- watch lists ---
+
+
+## A link of `slot` that is a ring of its own, which makes it a head link for -1. Grows the pool when no link is free,
+## so frame code does not call it.
+static func _new_link(slot: int) -> int:
+	var link: int = _free_link
+	if link >= 0:
+		_free_link = _link_next[link]
+	else:
+		link = _link_slot.size()
+		_link_next.append(-1)
+		_link_prev.append(-1)
+		_link_slot.append(-1)
+	_link_next[link] = link
+	_link_prev[link] = link
+	_link_slot[link] = slot
+	return link
+
+
+static func _named_heads(kind: int) -> Dictionary[String, int]:
+	match kind:
+		TriggerKind.REQUEST_COMPLETED:
+			return _request_heads
+		TriggerKind.UI_OPENED:
+			return _opened_heads
+	return _closed_heads
+
+
+## Puts a new link of `slot` first into the list of head link `head` and returns it. Frame code does not call it.
+static func _add_link(head: int, slot: int) -> int:
+	var link: int = _new_link(slot)
+	var first: int = _link_next[head]
+	_link_next[link] = first
+	_link_prev[link] = head
+	_link_prev[first] = link
+	_link_next[head] = link
+	return link
+
+
+## Takes `link` out of its list and chains it to the unused links. Changes no collection size.
+static func _remove_link(link: int) -> void:
+	var prev: int = _link_prev[link]
+	var next: int = _link_next[link]
+	_link_next[prev] = next
+	_link_prev[next] = prev
+	_link_next[link] = _free_link
+	_link_prev[link] = -1
+	_link_slot[link] = -1
+	_free_link = link
+
+
+## Marks every watch of the list of head link `head`. Nothing for -1.
+static func _mark_list(head: int) -> void:
+	if head < 0:
+		return
+	var link: int = _link_next[head]
+	while link != head:
+		_mark(_watches[_link_slot[link]])
+		link = _link_next[link]
 
 
 ## Subscribes to the events of the triggers of `record` that no other watch subscribes to yet. On a failure undoes
@@ -614,22 +765,34 @@ static func _add_time_watch() -> void:
 	_time_watch_count += 1
 
 
-## Counts the watches of time-dependent conditions again, for `register_judge`, which changes whether an entry is
-## time-dependent. When the first one comes, the time recheck starts from now.
-static func _count_time_watches() -> void:
-	var count: int = 0
-	for record: _WATCH in _watches:
-		if record != null and (record.entry as _ENTRY).time_dependent:
-			count += 1
-	if _time_watch_count == 0 and count > 0:
-		_recheck_at = TimeCore.get_real_time() + _recheck_ms
-	_time_watch_count = count
-
-
+## Puts `record` into the pending evaluations of the next round, unless it is a pending evaluation already: in the
+## next round or in the running round, not judged yet.
 static func _mark(record: _WATCH) -> void:
-	if not record.pending:
-		record.pending = true
-		_pending_count += 1
+	if record.queue != _QUEUE_NONE:
+		return
+	record.queue = _QUEUE_PENDING
+	record.queue_index = _pending_count
+	_pending[_pending_count] = record
+	_pending_count += 1
+
+
+## Takes `record` out of the pending buffer it is in by moving the last used entry of that buffer into its index.
+static func _dequeue(record: _WATCH) -> void:
+	var index: int = record.queue_index
+	if record.queue == _QUEUE_PENDING:
+		_pending_count -= 1
+		var moved: _WATCH = _pending[_pending_count]
+		_pending[index] = moved
+		moved.queue_index = index
+		_pending[_pending_count] = null
+	elif record.queue == _QUEUE_ROUND:
+		_round_count -= 1
+		var moved: _WATCH = _round[_round_count]
+		_round[index] = moved
+		moved.queue_index = index
+		_round[_round_count] = null
+	record.queue = _QUEUE_NONE
+	record.queue_index = -1
 
 
 # --- internal: core node ---
@@ -654,7 +817,9 @@ static func _on_frame() -> void:
 		_run_batch()
 
 
-## The batch evaluation: rounds of the watches that were pending evaluations when the round started.
+## The batch evaluation: rounds of the watches that were pending evaluations when the round started. A round swaps
+## the pending buffer with the empty round buffer and judges its watches from the last one, so the marks of its
+## callbacks go to the next round.
 static func _run_batch() -> void:
 	var session: RefCounted = _session
 	var batch_round: int = 0
@@ -662,26 +827,27 @@ static func _run_batch() -> void:
 		batch_round += 1
 		if batch_round > _max_rounds:
 			LogCore.log_error(_TAG, "batch evaluation: more than %d rounds; the pending evaluations are dropped" % _max_rounds)
-			for record: _WATCH in _watches:
-				if record != null:
-					record.pending = false
-					record.batch_round = 0
+			for i: int in _pending_count:
+				_pending[i].queue = _QUEUE_NONE
+				_pending[i].queue_index = -1
+				_pending[i] = null
 			_pending_count = 0
 			return
-		for record: _WATCH in _watches:
-			if record != null and record.pending:
-				record.batch_round = batch_round
-		for i: int in _watches.size():
-			var record: _WATCH = _watches[i]
-			if record == null or record.batch_round != batch_round:
-				continue
-			record.batch_round = 0
-			if not record.pending:
-				continue
-			record.pending = false
-			_pending_count -= 1
+		var buffer: Array[_WATCH] = _round
+		_round = _pending
+		_round_count = _pending_count
+		_pending = buffer
+		_pending_count = 0
+		for i: int in _round_count:
+			_round[i].queue = _QUEUE_ROUND
+		while _round_count > 0:
+			_round_count -= 1
+			var record: _WATCH = _round[_round_count]
+			_round[_round_count] = null
+			record.queue = _QUEUE_NONE
+			record.queue_index = -1
 			if record.owner_id != 0 and not is_instance_id_valid(record.owner_id):
-				_remove_watch_at(i)
+				_remove_watch_at(record.slot)
 				continue
 			var result: RequirementResult = _evaluate_entry(record.entry as _ENTRY)
 			if result.passed == record.base_passed and result.failed_requirement_id == record.base_failed_id:
@@ -690,7 +856,7 @@ static func _run_batch() -> void:
 			record.base_failed_id = result.failed_requirement_id
 			if not record.callback.is_valid():
 				LogCore.log_error(_TAG, "the watch callback of requirement %d cannot be called; the watch is removed" % record.requirement_id)
-				_remove_watch_at(i)
+				_remove_watch_at(record.slot)
 				continue
 			record.callback.call(record.requirement_id, result)
 			if _session != session:
@@ -698,43 +864,25 @@ static func _run_batch() -> void:
 
 
 static func _on_user_state_changed(kind: GDScript) -> void:
-	for record: _WATCH in _watches:
-		if record == null or record.pending:
-			continue
-		for trigger: RequirementTrigger in record.triggers:
-			if trigger.kind != TriggerKind.USER_STATE_CHANGED:
-				continue
-			if trigger.user_state_kind == kind or (trigger.user_state_kind == null and (record.entry as _ENTRY).kinds.has(kind)):
-				_mark(record)
-				break
+	if _state_heads.has(kind):
+		_mark_list(_state_heads[kind])
 
 
 ## A `REQUEST_COMPLETED`, `UI_OPENED` or `UI_CLOSED` trigger with target `target_name`.
 static func _on_named_trigger(kind: TriggerKind, target_name: String) -> void:
-	for record: _WATCH in _watches:
-		if record == null or record.pending:
-			continue
-		for trigger: RequirementTrigger in record.triggers:
-			if trigger.kind == kind and trigger.target_name == target_name:
-				_mark(record)
-				break
+	var heads: Dictionary[String, int] = _named_heads(kind)
+	if heads.has(target_name):
+		_mark_list(heads[target_name])
 
 
 static func _on_content_event(type: Script) -> void:
-	for record: _WATCH in _watches:
-		if record == null or record.pending:
-			continue
-		for trigger: RequirementTrigger in record.triggers:
-			if trigger.kind == TriggerKind.CONTENT_EVENT and trigger.event_type == type:
-				_mark(record)
-				break
+	if _content_heads.has(type):
+		_mark_list(_content_heads[type])
 
 
 ## Marks every watch of a time-dependent condition as a pending evaluation.
 static func _mark_time_watches() -> void:
-	for record: _WATCH in _watches:
-		if record != null and (record.entry as _ENTRY).time_dependent:
-			_mark(record)
+	_mark_list(_time_head)
 
 
 ## The core node left the tree outside `release`: app exit or tree teardown. Cleans up as `release` does without
@@ -761,10 +909,24 @@ static func _reset() -> void:
 	_zero = RequirementResult.new()
 	_watches = []
 	_free_slots = PackedInt32Array()
-	_slots_by_id = {}
+	_free_count = 0
+	_pending = []
 	_pending_count = 0
+	_round = []
+	_round_count = 0
 	_owner_slots = PackedInt32Array()
 	_owner_count = 0
+	_link_next = PackedInt32Array()
+	_link_prev = PackedInt32Array()
+	_link_slot = PackedInt32Array()
+	_free_link = -1
+	_id_heads = {}
+	_state_heads = {}
+	_request_heads = {}
+	_opened_heads = {}
+	_closed_heads = {}
+	_content_heads = {}
+	_time_head = -1
 	_time_watch_count = 0
 	_recheck_at = 0
 	_kind_counts = PackedInt32Array([0, 0, 0, 0, 0])
