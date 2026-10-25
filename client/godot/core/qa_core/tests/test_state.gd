@@ -208,26 +208,55 @@ func test_step_while_paused() -> void:
 	await run_ok("set_step_mode", PackedStringArray(["off"]))
 
 
-func test_step_over_its_time_limit_after_a_pause_leaves_no_budget() -> void:
+func test_a_pause_during_a_step_fails_it_by_the_next_frame() -> void:
 	assert_true(await start())
 	await run_ok("set_step_mode", PackedStringArray(["on"]))
 	var step: Pending = start_command("step", PackedStringArray(["1000"]))
+	var ended_frames: Array[int] = []
+	step.finished.connect(func() -> void: ended_frames.append(Engine.get_process_frames()))
 	for i: int in 3:
 		await advance(16, 1)
 	assert_true(TimeCoreDev.get_step_budget() > 0, "the step runs")
+	var game_time: int = TimeCore.get_game_time()
 	TimeCore.set_paused(true)
-	var result: RunCommandResult = await finish(step, 100, 100)
+	var paused_frame: int = Engine.get_process_frames()
+	var result: RunCommandResult = await finish(step, 16, 3)
 	assert_false(result.ok)
-	assert_eq(JSONR.text(result.result, ""), "the command went over its time limit")
+	assert_eq(JSONR.text(result.result, ""), "game time is paused", "fails before the command time limit")
+	assert_eq(ended_frames.size(), 1)
+	if ended_frames.size() == 1:
+		assert_true(ended_frames[0] - paused_frame <= 1, "no later than the frame after the pause")
+	assert_eq(TimeCore.get_game_time(), game_time, "the game time of the step did not pass")
 	assert_eq(TimeCoreDev.get_step_budget(), 0, "the budget left is 0 when the step ends")
 	assert_eq(JSONR.integer(await state(), "step_budget_ms"), 0)
 	assert_true(TimeCoreDev.is_step_mode(), "step mode stays on")
 	TimeCore.set_paused(false)
-	var game_time: int = TimeCore.get_game_time()
 	for i: int in 5:
 		await advance(16, 1)
 	assert_eq(TimeCore.get_game_time(), game_time, "no budget runs after the pause")
 	assert_eq(warns(), 1)
+	await run_ok("set_step_mode", PackedStringArray(["off"]))
+
+
+func test_a_step_whose_budget_ran_out_in_the_frame_of_a_pause_succeeds() -> void:
+	assert_true(await start())
+	await run_ok("set_step_mode", PackedStringArray(["on"]))
+	var step: Pending = start_command("step", PackedStringArray(["100"]))
+	for i: int in 5:
+		if TimeCoreDev.get_step_budget() > 0:
+			break
+		await UnitTestCore.wait_frames(1)
+	assert_eq(TimeCoreDev.get_step_budget(), 100, "the step added its budget")
+	var game_time: int = TimeCore.get_game_time()
+	UnitTestCore.advance_clock(100, false)
+	TimeCore.set_paused(true)
+	assert_eq(TimeCoreDev.get_step_budget(), 0, "the budget ran out in the frame of the pause")
+	var result: RunCommandResult = await finish(step, 16, 3)
+	assert_true(result.ok, result.result)
+	assert_eq(TimeCore.get_game_time() - game_time, 100)
+	assert_eq(JSONR.integer(await state(), "step_budget_ms"), 0)
+	assert_eq(warns(), 0)
+	TimeCore.set_paused(false)
 	await run_ok("set_step_mode", PackedStringArray(["off"]))
 
 
