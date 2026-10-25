@@ -26,7 +26,8 @@ describe('ranking withdrawal and retention', () => {
     await submit(h, a.user_id, BOARD.sum(), 10n);
     const season = (await season_now(h, a.user_id, BOARD.daily())).season;
     await move_to(h, NEXT_DAY);
-    expect(retry_rows(h, BOARD.daily(), season).map((r) => r.user_id)).toEqual([a.user_id, b.user_id]);
+    // Retry rows are in user ID order, and random user IDs need not follow a, b.
+    expect(retry_rows(h, BOARD.daily(), season).map((r) => r.user_id)).toEqual([a.user_id, b.user_id].sort((x, y) => (x < y ? -1 : 1)));
     await as_user(h, a.user_id, (ctx, ranking) => ranking.remove_user(ctx));
     expect(retry_rows(h, BOARD.daily(), season).map((r) => r.user_id)).toEqual([b.user_id]);
     expect((await top(b, BOARD.sum(), 0, 10)).entries).toEqual([]);

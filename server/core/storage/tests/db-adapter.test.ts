@@ -137,7 +137,9 @@ describe('DB adapter', () => {
     await wait(300);
     expect(storage.read_db().query('SELECT 1 AS one')).toEqual([{ one: 1 }]);
     expect(await request(storage, user, () => 'ran')).toBe('ran');
-    expect(await new_user(storage)).toBeGreaterThan(user);
+    const next = await new_user(storage);
+    expect(next).not.toBe(user);
+    expect(storage.get_user_record(storage.read_db(), next)).not.toBeNull();
   });
 
   it.runIf(DB_KIND === 'postgresql')(

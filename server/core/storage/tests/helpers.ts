@@ -222,7 +222,14 @@ export function stop_all(): void {
 }
 
 export function new_user(storage: Storage): Promise<bigint> {
-  return storage.run_game_transaction((tx: GameTx) => storage.create_user(tx)) as Promise<bigint>;
+  return storage.run_game_transaction((tx: GameTx) => storage.create_user(tx).user_id) as Promise<bigint>;
+}
+
+/** `count` new users in ascending user ID order: user IDs are random, so the order they were made is not it. */
+export async function new_users(storage: Storage, count: number): Promise<bigint[]> {
+  const users: bigint[] = [];
+  for (let i = 0; i < count; i += 1) users.push(await new_user(storage));
+  return users.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
 export const FIELDS: RequestFields = { request_name: 'Test', request_id: 'r-1', silent: false, retry: false, session_id: '', client_version: '', platform: '' };

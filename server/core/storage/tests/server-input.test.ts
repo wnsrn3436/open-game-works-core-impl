@@ -47,7 +47,8 @@ describe('module input server', () => {
     });
     if (typeof i === 'string') throw new Error(i);
     try {
-      expect(await new_user(i.storage)).toBe(1n);
+      const user = await new_user(i.storage);
+      expect(i.storage.get_user_record(i.storage.read_db(), user)).not.toBeNull();
     } finally {
       i.stop();
     }

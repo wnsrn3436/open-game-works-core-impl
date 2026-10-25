@@ -469,6 +469,7 @@ class BanDetail extends ContractMessage:
 	var deletion_url: String = ""
 	var access_token: String = ""
 	var session_signing_key: String = ""
+	var public_code: String = ""
 
 
 	func encode() -> PackedByteArray:
@@ -478,6 +479,7 @@ class BanDetail extends ContractMessage:
 		_put_string(out, 3, deletion_url)
 		_put_string(out, 4, access_token)
 		_put_string(out, 5, session_signing_key)
+		_put_string(out, 6, public_code)
 		return out
 
 
@@ -495,6 +497,7 @@ class BanDetail extends ContractMessage:
 		deletion_url = other.deletion_url
 		access_token = other.access_token
 		session_signing_key = other.session_signing_key
+		public_code = other.public_code
 
 
 	func _reset() -> void:
@@ -503,6 +506,7 @@ class BanDetail extends ContractMessage:
 		deletion_url = ""
 		access_token = ""
 		session_signing_key = ""
+		public_code = ""
 
 
 	func _merge(_bytes: PackedByteArray) -> bool:
@@ -521,6 +525,8 @@ class BanDetail extends ContractMessage:
 					access_token = reader.string(wire)
 				5:
 					session_signing_key = reader.string(wire)
+				6:
+					public_code = reader.string(wire)
 				_:
 					reader.skip(wire)
 		return not reader.failed
@@ -4904,6 +4910,107 @@ class GetPublicProfilesResponse extends ContractMessage:
 		return not reader.failed
 
 
+class FindUserByPublicCodeRequest extends ContractRequest:
+	var public_code: String = ""
+
+
+	func encode() -> PackedByteArray:
+		var out: PackedByteArray = PackedByteArray()
+		_put_string(out, 1, public_code)
+		return out
+
+
+	func decode(_bytes: PackedByteArray) -> bool:
+		_reset()
+		return _merge(_bytes)
+
+
+	func copy_from(_source: ContractMessage) -> void:
+		if not (_source is FindUserByPublicCodeRequest):
+			return
+		var other: FindUserByPublicCodeRequest = _source as FindUserByPublicCodeRequest
+		public_code = other.public_code
+
+
+	func _reset() -> void:
+		public_code = ""
+
+
+	func _merge(_bytes: PackedByteArray) -> bool:
+		var reader: ContractMessage._WireReader = ContractMessage._WireReader.new(_bytes)
+		while reader.more():
+			var tag: int = reader.tag()
+			var wire: int = tag & 7
+			match tag >> 3:
+				1:
+					public_code = reader.string(wire)
+				_:
+					reader.skip(wire)
+		return not reader.failed
+
+
+	func request_name() -> String:
+		return "core/FindUserByPublicCode"
+
+
+	func is_silent() -> bool:
+		return false
+
+
+	func is_retry() -> bool:
+		return false
+
+
+	func is_sensitive() -> bool:
+		return false
+
+
+	func new_response() -> ContractMessage:
+		return FindUserByPublicCodeResponse.new()
+
+
+class FindUserByPublicCodeResponse extends ContractMessage:
+	var profile: PublicProfileEntry = null
+
+
+	func encode() -> PackedByteArray:
+		var out: PackedByteArray = PackedByteArray()
+		_put_message(out, 1, profile)
+		return out
+
+
+	func decode(_bytes: PackedByteArray) -> bool:
+		_reset()
+		return _merge(_bytes)
+
+
+	func copy_from(_source: ContractMessage) -> void:
+		if not (_source is FindUserByPublicCodeResponse):
+			return
+		var other: FindUserByPublicCodeResponse = _source as FindUserByPublicCodeResponse
+		profile = other.profile
+
+
+	func _reset() -> void:
+		profile = null
+
+
+	func _merge(_bytes: PackedByteArray) -> bool:
+		var reader: ContractMessage._WireReader = ContractMessage._WireReader.new(_bytes)
+		while reader.more():
+			var tag: int = reader.tag()
+			var wire: int = tag & 7
+			match tag >> 3:
+				1:
+					if profile == null:
+						profile = PublicProfileEntry.new()
+					if not _merge_child(profile, reader.bytes(wire)):
+						return false
+				_:
+					reader.skip(wire)
+		return not reader.failed
+
+
 class SendFriendRequestRequest extends ContractRequest:
 	var user_id: int = 0
 
@@ -8284,6 +8391,7 @@ class AuthResult extends ContractMessage:
 	var linked_providers: PackedInt32Array = PackedInt32Array()
 	var consent: ConsentUserState = null
 	var remote_config: GetRemoteConfigResponse = null
+	var public_code: String = ""
 
 
 	func encode() -> PackedByteArray:
@@ -8297,6 +8405,7 @@ class AuthResult extends ContractMessage:
 		_put_int32_list(out, 7, linked_providers)
 		_put_message(out, 8, consent)
 		_put_message(out, 9, remote_config)
+		_put_string(out, 10, public_code)
 		return out
 
 
@@ -8318,6 +8427,7 @@ class AuthResult extends ContractMessage:
 		linked_providers = other.linked_providers
 		consent = other.consent
 		remote_config = other.remote_config
+		public_code = other.public_code
 
 
 	func _reset() -> void:
@@ -8330,6 +8440,7 @@ class AuthResult extends ContractMessage:
 		linked_providers = PackedInt32Array()
 		consent = null
 		remote_config = null
+		public_code = ""
 
 
 	func _merge(_bytes: PackedByteArray) -> bool:
@@ -8362,6 +8473,8 @@ class AuthResult extends ContractMessage:
 						remote_config = GetRemoteConfigResponse.new()
 					if not _merge_child(remote_config, reader.bytes(wire)):
 						return false
+				10:
+					public_code = reader.string(wire)
 				_:
 					reader.skip(wire)
 		return not reader.failed
@@ -9816,6 +9929,7 @@ class PublicProfileEntry extends ContractMessage:
 	var nickname: String = ""
 	var profile: PackedByteArray = PackedByteArray()
 	var last_active_at: int = 0
+	var public_code: String = ""
 
 
 	func encode() -> PackedByteArray:
@@ -9824,6 +9938,7 @@ class PublicProfileEntry extends ContractMessage:
 		_put_string(out, 2, nickname)
 		_put_bytes(out, 3, profile)
 		_put_int64(out, 4, last_active_at)
+		_put_string(out, 5, public_code)
 		return out
 
 
@@ -9840,6 +9955,7 @@ class PublicProfileEntry extends ContractMessage:
 		nickname = other.nickname
 		profile = other.profile
 		last_active_at = other.last_active_at
+		public_code = other.public_code
 
 
 	func _reset() -> void:
@@ -9847,6 +9963,7 @@ class PublicProfileEntry extends ContractMessage:
 		nickname = ""
 		profile = PackedByteArray()
 		last_active_at = 0
+		public_code = ""
 
 
 	func _merge(_bytes: PackedByteArray) -> bool:
@@ -9863,6 +9980,8 @@ class PublicProfileEntry extends ContractMessage:
 					profile = reader.bytes(wire)
 				4:
 					last_active_at = reader.int64(wire)
+				5:
+					public_code = reader.string(wire)
 				_:
 					reader.skip(wire)
 		return not reader.failed

@@ -118,8 +118,8 @@ describe('GetChatChannels', () => {
 
   it('gives the first chat.maxChannelListCount Direct channels by last_at descending and other user ID ascending over channels where I am key_a and key_b, when blocked users hold the latest rows of one key column', async () => {
     h = await start({ settings: { 'chat.maxChannelListCount': 3 } });
-    const [low, me, high1, high2, high3, high4] = await users(h.server, 6);
-    // `low` shares channels where I am key_b, the `high` users channels where I am key_a.
+    // Sorted by user ID: `low` shares channels where I am key_b, the `high` users channels where I am key_a.
+    const [low, me, high1, high2, high3, high4] = (await users(h.server, 6)).sort((a, b) => (a.user_id < b.user_id ? -1 : 1));
     expect([low.user_id < me.user_id, me.user_id < high1.user_id]).toEqual([true, true]);
     for (const friend of [low, high1, high2, high3, high4]) await make_friends(me, friend);
     await sent(send_chat(high1, K.CHAT_CHANNEL_KIND_DIRECT, me.user_id, 'high1'));
@@ -150,7 +150,7 @@ describe('GetChatChannels', () => {
     const lookups = vi.spyOn(h.core()['public-profile'], 'get_public_profiles');
     const result = await channels(me);
     // The same last_at: user ID ascending.
-    expect(result.map((entry) => entry.profile?.user_id)).toEqual([f1.user_id, f2.user_id, f3.user_id]);
+    expect(result.map((entry) => entry.profile?.user_id)).toEqual([f1.user_id, f2.user_id, f3.user_id].sort((a, b) => (a < b ? -1 : 1)));
     expect(lookups.mock.calls.map(([, user_ids]) => user_ids.length)).toEqual([3]);
   });
 

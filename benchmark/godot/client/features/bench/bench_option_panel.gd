@@ -65,10 +65,10 @@ func _exit_tree() -> void:
 	EventCore.unsubscribe_all(self)
 
 
-## Writes the formatted texts: the user ID and the deletion code.
+## Writes the formatted texts: the user code and the deletion code.
 func _write_texts() -> void:
 	_format_args.clear()
-	_format_args.set_string("user_id", str(AuthCore.get_user_id()))
+	_format_args.set_string("public_code", _user_code())
 	user_id_label.text = LocalizationCore.format(ReservedString.bench_user_id(), _format_args)
 	var has_code: bool = _deletion != null and _deletion.ok
 	deletion_label.visible = has_code
@@ -86,8 +86,14 @@ func _on_input_prompt_changed(_event: InputPromptChangedEvent) -> void:
 	_write_texts()
 
 
+## The public code in two groups of 4 characters joined with `-`.
+func _user_code() -> String:
+	var code: String = AuthCore.get_public_code()
+	return "%s-%s" % [code.substr(0, 4), code.substr(4)]
+
+
 func _on_copy_user_id() -> void:
-	if not NativeUiCore.copy_text(str(AuthCore.get_user_id())):
+	if not NativeUiCore.copy_text(_user_code()):
 		MessageCore.show_toast(ReservedString.bench_option_failed())
 
 

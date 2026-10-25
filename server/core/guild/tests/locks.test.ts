@@ -270,7 +270,7 @@ describe('guild row lock', () => {
     expect(await committed).toBe('committed');
     expect(withdrawn_at(kit, a.user_id)).toBeNull();
     expect(member(kit, a.user_id)).toMatchObject({ guild_id, role: Role.GUILD_ROLE_MEMBER, joined_at });
-    expect(member_ids(kit, guild_id)).toEqual([l.user_id, a.user_id]);
+    expect(member_ids(kit, guild_id)).toEqual([l.user_id, a.user_id].sort((x, y) => (x < y ? -1 : 1)));
     expect(guild_row(kit, guild_id)).toMatchObject({ leader_id: l.user_id, member_count: 2 });
     expect(requests(kit)).toEqual([]);
   }, T);
@@ -297,7 +297,7 @@ describe('guild row lock', () => {
     expect(await committed).toBe('committed');
     expect(withdrawn_at(kit, a.user_id)).toBeNull();
     expect(member(kit, a.user_id)).toMatchObject({ guild_id: other, role: Role.GUILD_ROLE_MEMBER, joined_at });
-    expect(member_ids(kit, other)).toEqual([h.user_id, a.user_id]);
+    expect(member_ids(kit, other)).toEqual([h.user_id, a.user_id].sort((x, y) => (x < y ? -1 : 1)));
     expect(guild_row(kit, other)).toMatchObject({ leader_id: h.user_id, member_count: 2 });
     expect(member_ids(kit, first)).toEqual([l.user_id]);
     expect(guild_row(kit, first)).toMatchObject({ leader_id: l.user_id, member_count: 1 });

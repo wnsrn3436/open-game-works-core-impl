@@ -50,7 +50,7 @@ func test_banned_with_end_opens_banned_popup_with_format_args() -> void:
 	var entry := _ENTRY.new()
 	await _boot_to_failure(entry)
 	var buttons := PackedStringArray([ReservedString.bootstrap_banned_deletion(), ReservedString.bootstrap_restart()])
-	var args := "user_id=%d until_at=%d url=%s" % [_NETWORK.USER_ID, 1800000000000, _NETWORK.DELETION_URL]
+	var args := "public_code=%s until_at=%d url=%s" % [_NETWORK.PUBLIC_CODE, 1800000000000, _NETWORK.DELETION_URL]
 	assert_eq(_SUPPORT.popups(), PackedStringArray([_SUPPORT.popup(ReservedString.bootstrap_banned(), buttons, args)]))
 	assert_eq(UnitTestCore.check_logs("warn", "NetworkCore"), 1, "DevLogin ServerError BANNED")
 
@@ -62,12 +62,12 @@ func test_permanent_ban_opens_permanent_popup_and_deletion_code_popup_restarts()
 	var entry := _ENTRY.new()
 	await _boot_to_failure(entry)
 	var buttons := PackedStringArray([ReservedString.bootstrap_banned_deletion(), ReservedString.bootstrap_restart()])
-	var args := "user_id=%d until_at=0 url=%s" % [_NETWORK.USER_ID, _NETWORK.DELETION_URL]
+	var args := "public_code=%s until_at=0 url=%s" % [_NETWORK.PUBLIC_CODE, _NETWORK.DELETION_URL]
 	assert_eq(_SUPPORT.popups()[0], _SUPPORT.popup(ReservedString.bootstrap_banned_permanent(), buttons, args))
 	await _SUPPORT.press_popup_button(0)
 	await UnitTestCore.wait_frames(3)
 	assert_eq(_SUPPORT.count("AuthCore.issue_deletion_code"), 1)
-	var code_args := "user_id=%d code=ABCD1234 expires_at=1700000600000 url=%s" % [_NETWORK.USER_ID, _NETWORK.DELETION_URL]
+	var code_args := "public_code=%s code=ABCD1234 expires_at=1700000600000 url=%s" % [_NETWORK.PUBLIC_CODE, _NETWORK.DELETION_URL]
 	assert_eq(_SUPPORT.popups()[1], _SUPPORT.popup(ReservedString.bootstrap_banned_deletion_code(), _restart_buttons(), code_args))
 	assert_eq(_SUPPORT.count("stage:InitModules"), 1)
 	var latch := UnitTestCore.latch_event(BootCompletedEvent)

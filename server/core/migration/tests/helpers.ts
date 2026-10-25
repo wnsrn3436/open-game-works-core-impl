@@ -250,7 +250,7 @@ export async function next_step(s: Server, ms = BigInt(SETTINGS['migration.batch
 }
 
 export function new_user(s: Server): Promise<bigint> {
-  return s.storage.run_game_transaction((tx: GameTx) => s.storage.create_user(tx)) as Promise<bigint>;
+  return s.storage.run_game_transaction((tx: GameTx) => s.storage.create_user(tx).user_id) as Promise<bigint>;
 }
 
 const FIELDS = { request_name: 'Test', request_id: 'r-1', silent: false, retry: false, session_id: '', client_version: '', platform: '' };

@@ -45,6 +45,8 @@ describe('ban', () => {
       expect(detail?.deletion_url).toMatch(/\/account\/deletion$/);
       expect(detail?.access_token).not.toBe('');
       expect(detail?.session_signing_key).not.toBe('');
+      expect(detail?.public_code).toBe(user.result.public_code);
+      expect(detail?.public_code).toMatch(/^[0-9A-HJKMNP-TV-Z]{8}$/);
       const banned = { ...(await anonymous(server)), user_id: user.result.user_id, access_token: detail?.access_token ?? '', session_signing_key: detail?.session_signing_key ?? '' };
       const code = await call<CoreContract.IssueDeletionCodeResponse>(banned, 'core/IssueDeletionCode', new CoreContract.IssueDeletionCodeRequest());
       expect(code.code).toBe(0);

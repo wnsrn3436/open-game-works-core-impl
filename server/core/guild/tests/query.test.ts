@@ -48,8 +48,8 @@ describe('GetGuild', () => {
     expect(sent.response?.members.map((m) => [m.profile?.user_id, m.role])).toEqual([
       [l.user_id, Role.GUILD_ROLE_LEADER],
       [d.user_id, Role.GUILD_ROLE_OFFICER],
-      [a.user_id, Role.GUILD_ROLE_MEMBER],
-      [b.user_id, Role.GUILD_ROLE_MEMBER],
+      // `a` and `b` joined at the same time: user ID ascending.
+      ...[a.user_id, b.user_id].sort((x, y) => (x < y ? -1 : 1)).map((user_id) => [user_id, Role.GUILD_ROLE_MEMBER]),
       [c.user_id, Role.GUILD_ROLE_MEMBER],
     ]);
     expect((await get_guild(a, guild_id + 7n)).code).toBe(E.CORE_ERROR_GUILD_NOT_FOUND);
@@ -127,7 +127,7 @@ describe('GetMyGuild', () => {
     expect((await join_guild(x, g1)).code).toBe(0);
     const leader = await get_my_guild(l1);
     expect(leader.response?.guild?.guild_id).toBe(g1);
-    expect(leader.response?.join_requests.map((p) => p.user_id)).toEqual([u3.user_id, x.user_id, u1.user_id, u2.user_id]);
+    expect(leader.response?.join_requests.map((p) => p.user_id)).toEqual([u3.user_id, ...[x.user_id, u1.user_id, u2.user_id].sort((a, b) => (a < b ? -1 : 1))]);
     const mine = await get_my_guild(x);
     expect(mine.response?.guild?.guild_id).toBe(0n);
     expect(mine.response?.members).toEqual([]);
@@ -318,7 +318,7 @@ describe('content operations', () => {
       [g1, 'First'],
       [g2, 'Second'],
     ]);
-    expect(ids).toEqual([b.user_id, c.user_id]);
+    expect(ids).toEqual([b.user_id, c.user_id].sort((x, y) => (x < y ? -1 : 1)));
     expect(me).toMatchObject({ guild_id: g2, role: Role.GUILD_ROLE_MEMBER });
   }, T);
 });

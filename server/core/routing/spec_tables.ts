@@ -66,6 +66,7 @@ export const REQUEST_START_ORDER: readonly string[] = ['live-event', 'mailbox', 
 export const REQUEST_PREPARE: ReadonlyMap<string, { module: string; operation: string }> = new Map([
   ['core/ClaimAdReward', { module: 'ads-reward', operation: 'wait_ad_reward' }],
   ['core/RedeemCoupon', { module: 'coupon', operation: 'count_redeem_attempt' }],
+  ['core/FindUserByPublicCode', { module: 'public-profile', operation: 'count_find_attempt' }],
   ['core/LinkAccount', { module: 'auth', operation: 'prepare_link_account' }],
   ['core/VerifyPurchase', { module: 'iap', operation: 'prepare_verify_purchase' }],
   ['core/RecoverPurchase', { module: 'iap', operation: 'prepare_verify_purchase' }],
@@ -92,7 +93,7 @@ export const BAN_EXEMPT_RPC = 'core/IssueDeletionCode';
 
 /** Admin operations other modules export (`admin-api`'s collected operations; `caller` `operator`). */
 export const MODULE_ADMIN_OPERATIONS: Readonly<Record<string, readonly string[]>> = {
-  'auth': ['withdraw_user', 'find_user_by_social_account'],
+  'auth': ['withdraw_user', 'find_user_by_social_account', 'find_user_by_public_code'],
   'block-report': ['list_reports', 'resolve_report'],
   'chat': ['list_chat_messages', 'delete_chat_message', 'mute_chat_user', 'unmute_chat_user'],
   'coupon': ['create_coupon', 'get_coupon', 'list_coupon_codes', 'disable_coupon'],
@@ -129,7 +130,7 @@ export const MODULE_CORE_RPCS: Readonly<Record<string, readonly string[]>> = {
   'nickname': ['SetNickname'],
   'notice': ['GetNotices'],
   'play-session': ['StartPlaySession', 'ContinuePlaySession', 'FinishPlaySession'],
-  'public-profile': ['GetPublicProfiles'],
+  'public-profile': ['GetPublicProfiles', 'FindUserByPublicCode'],
   'push': ['RegisterPushToken'],
   'ranking': ['GetRankingTop', 'GetRankingAround'],
   'rating': ['RefreshRating'],

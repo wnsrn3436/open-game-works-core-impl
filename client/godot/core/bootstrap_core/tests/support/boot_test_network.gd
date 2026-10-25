@@ -6,6 +6,7 @@ const ISSUE_DELETION_CODE: String = "core/IssueDeletionCode"
 const GET_NOTICES: String = "core/GetNotices"
 const REPORT_CLIENT_ERRORS: String = "core/ReportClientErrors"
 const USER_ID: int = 4242
+const PUBLIC_CODE: String = "K7M2Q9XA"
 const SERVER_TIME_AT: int = 1700000000000
 const DELETION_URL: String = "https://example.com/delete"
 
@@ -26,6 +27,7 @@ static func release_pending_dev_login_success() -> bool:
 static func _dev_login_success_body() -> PackedByteArray:
 	var auth := CoreContract.AuthResult.new()
 	auth.user_id = USER_ID
+	auth.public_code = PUBLIC_CODE
 	auth.user_created_at = SERVER_TIME_AT
 	auth.login_token = "login-token"
 	auth.access_token = "access-token"
@@ -43,6 +45,7 @@ static func add_dev_login_error(code: int, ban_until_at: int = 0) -> void:
 	if code == CoreContract.CoreError.CORE_ERROR_BANNED:
 		var ban := CoreContract.BanDetail.new()
 		ban.user_id = USER_ID
+		ban.public_code = PUBLIC_CODE
 		ban.until_at = ban_until_at
 		ban.deletion_url = DELETION_URL
 		ban.access_token = "ban-access-token"

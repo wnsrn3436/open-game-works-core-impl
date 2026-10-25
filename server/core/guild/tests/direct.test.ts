@@ -61,7 +61,7 @@ describe('import_guild in PROD', () => {
   it('is conflict and changes nothing', async () => {
     const started = await start_direct({ env: 'PROD' });
     if (typeof started === 'string') throw new Error(`server start failed: ${started}`);
-    const user_id = await started.storage().run_game_transaction((tx: GameTx) => started.storage().create_user(tx));
+    const user_id = await started.storage().run_game_transaction((tx: GameTx) => started.storage().create_user(tx).user_id);
     if (typeof user_id !== 'bigint') throw new Error('create_user failed');
     const before = snapshot(started);
     const input = { operation_id: 'p', name: 'Prod', description: '', join_type: 'Open', join_value: '0', max_members: 5, members: [{ user_id: String(user_id), role: 'Leader' }] };

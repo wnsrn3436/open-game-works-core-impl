@@ -164,9 +164,9 @@ describe('clone record and sweep', () => {
   });
 
   it('a failed sweep clone wipe logs error, the sweep still wipes the next clone, and the next cycle wipes the failed one', async () => {
-    const first = await cloned(server, core);
-    const second = await cloned(server, core);
-    expect(first.target.user_id).toBeLessThan(second.target.user_id);
+    // The sweep goes in target_user_id order, and random user IDs need not follow the order the clones were made.
+    const [one, two] = [await cloned(server, core), await cloned(server, core)];
+    const [first, second] = one.target.user_id < two.target.user_id ? [one, two] : [two, one];
     const rows = await userRows(core, first.target.user_id);
     const restore = failCloneLocks(core, new Set([first.target.user_id]));
     try {

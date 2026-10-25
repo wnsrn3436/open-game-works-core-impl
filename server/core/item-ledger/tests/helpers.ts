@@ -175,7 +175,7 @@ export function items(...list: [string, bigint | number | string][]): CoreContra
 
 /** A new user, created at the clock's time. */
 export async function user(env: Env): Promise<{ user_id: bigint }> {
-  const user_id = await env.storage.run_game_transaction((tx: GameTx) => env.storage.create_user(tx));
+  const user_id = await env.storage.run_game_transaction((tx: GameTx) => env.storage.create_user(tx).user_id);
   if (typeof user_id !== 'bigint') throw new Error(`create_user: ${user_id}`);
   return { user_id };
 }

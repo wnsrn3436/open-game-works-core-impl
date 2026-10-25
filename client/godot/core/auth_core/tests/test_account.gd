@@ -97,6 +97,8 @@ func test_switch_account_success_restarts_then_returns_new_user_while_session_is
 	var result: LoginResult = await AuthCore.switch_account(CoreContract.LoginProvider.LOGIN_PROVIDER_GOOGLE)
 	assert_eq(result.status, AuthCore.LoginStatus.SUCCESS)
 	assert_eq(result.user_id, 302)
+	assert_eq(result.public_code, Env.public_code(302))
+	assert_eq(AuthCore.get_public_code(), Env.public_code(301))
 	assert_eq(env.recorder.order.slice(-2), PackedStringArray(["SessionEnded", "RestartRequested"]))
 	assert_eq(env.recorder.session_ends, PackedInt32Array([AuthCore.SessionEndReason.SWITCH]))
 	assert_eq(env.recorder.restarts, 1)

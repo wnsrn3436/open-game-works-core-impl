@@ -285,7 +285,9 @@ describe('ad push', () => {
     expect(text_failures()).toBe(1);
     await advance(server, 8n * HOUR);
     expect(await held(server)).toEqual([]);
-    expect(fake(server, 'push-fcm').calls().map((c) => (c.input as Sent).tokens)).toEqual([['fake:ko-day'], ['fake:ko-night-0'], ['fake:ko-night-1']]);
+    // The held pushes go in user ID order, and user IDs are random.
+    const night_tokens = [...nights].sort((x, y) => (x.user_id < y.user_id ? -1 : 1)).map((d) => [d.token]);
+    expect(fake(server, 'push-fcm').calls().map((c) => (c.input as Sent).tokens)).toEqual([['fake:ko-day'], ...night_tokens]);
     expect((await record(server, push_id))?.sent_count).toBe(3n);
     expect(text_failures()).toBe(1);
   });

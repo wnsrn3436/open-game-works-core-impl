@@ -51,7 +51,7 @@ async function start_instance(input: CoreTestServerInput, secret_file: string, u
 }
 
 async function new_user(core: Core): Promise<bigint> {
-  const user_id = await core.storage.run_game_transaction((tx) => core.storage.create_user(tx));
+  const user_id = await core.storage.run_game_transaction((tx) => core.storage.create_user(tx).user_id);
   if (user_id === 'FAILED') throw new Error('create_user ended with FAILED');
   return user_id;
 }
@@ -99,17 +99,22 @@ describe('nicknameUnique restart', () => {
         expect(name_rows(second.core)).toEqual(rows);
         expect(await set_nickname(second.core, c, 'twin')).toBe(CoreError.CORE_ERROR_NICKNAME_TAKEN);
         const names = await in_user_transaction(second.core, c, (ctx) => second.core.nickname.get_nicknames(ctx, [a, b]));
-        expect(names).toEqual([
-          { user_id: a, nickname: 'Twin' },
-          { user_id: b, nickname: 'TWIN' },
-        ]);
+        // `get_nicknames` and `nickname_name` give user ID ascending, and random user IDs need not follow a, b.
+        expect(names).toEqual(
+          [
+            { user_id: a, nickname: 'Twin' },
+            { user_id: b, nickname: 'TWIN' },
+          ].sort((x, y) => (x.user_id < y.user_id ? -1 : 1)),
+        );
         // A change to the same normalized nickname skips the duplicate check, though b has it too, and moves no row.
         await add_gems(second.core, a, 10n);
         expect(await set_nickname(second.core, a, 'T win')).toBe(0);
-        expect(name_rows(second.core)).toEqual([
-          { user_id: a, normalized: 'twin', nickname: 'T win' },
-          { user_id: b, normalized: 'twin', nickname: 'TWIN' },
-        ]);
+        expect(name_rows(second.core)).toEqual(
+          [
+            { user_id: a, normalized: 'twin', nickname: 'T win' },
+            { user_id: b, normalized: 'twin', nickname: 'TWIN' },
+          ].sort((x, y) => (x.user_id < y.user_id ? -1 : 1)),
+        );
       } finally {
         await second.instance.stop();
       }

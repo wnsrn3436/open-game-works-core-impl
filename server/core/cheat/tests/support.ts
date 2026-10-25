@@ -96,7 +96,7 @@ export function stop_all(): void {
 
 /** A new user. */
 export async function new_user(s: Server): Promise<bigint> {
-  const created = await s.storage.run_game_transaction((tx: GameTx) => s.storage.create_user(tx));
+  const created = await s.storage.run_game_transaction((tx: GameTx) => s.storage.create_user(tx).user_id);
   if (created === 'FAILED') throw new Error('create_user failed');
   return created;
 }

@@ -400,6 +400,7 @@ export const SETTING_TYPES: Readonly<Record<string, string>> = {
   'play-session.optionsMaxBytes': 'integer',
   'play-session.resultMaxBytes': 'integer',
   'privacyPopup': 'string',
+  'public-profile.findPerMinute': 'integer',
   'public-profile.lastActiveGranularityMs': 'integer',
   'public-profile.maxProfileBytes': 'integer',
   'public-profile.maxRequestCount': 'integer',

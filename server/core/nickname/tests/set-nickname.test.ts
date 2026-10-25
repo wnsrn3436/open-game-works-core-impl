@@ -97,7 +97,9 @@ describe('duplicate', () => {
       one.open(cost_gate(a.user_id));
       two.open(cost_gate(b.user_id));
       expect((await Promise.all(sent)).map((r) => r.code)).toEqual([0, 0]);
-      expect(h.core().storage.read_db().query('SELECT user_id FROM nickname_name WHERE normalized = $1 ORDER BY user_id', [normalizeText('Same')])).toEqual([{ user_id: a.user_id }, { user_id: b.user_id }]);
+      expect(h.core().storage.read_db().query('SELECT user_id FROM nickname_name WHERE normalized = $1 ORDER BY user_id', [normalizeText('Same')])).toEqual(
+        [a.user_id, b.user_id].sort((x, y) => (x < y ? -1 : 1)).map((user_id) => ({ user_id })),
+      );
     } finally {
       await stop_peer_processes();
       await stop_test_server(h.server);

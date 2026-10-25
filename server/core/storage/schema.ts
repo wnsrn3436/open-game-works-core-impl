@@ -4,9 +4,10 @@
  */
 import { createHash } from 'node:crypto';
 import type { DbConn, DbTxConn, Dialect } from './db/types.ts';
+import { pick_public_code } from './public_code.ts';
 
 /** The highest core schema version this `storage` applies. Same value as the file `core-schema-version`. */
-export const CORE_SCHEMA_VERSION = 1;
+export const CORE_SCHEMA_VERSION = 2;
 
 /** The key of the schema lock (`pg_advisory_xact_lock`). */
 const SCHEMA_LOCK_KEY = 0x6f6777n;
@@ -213,8 +214,13 @@ function base_v1(dialect: Dialect): string[] {
   ];
 }
 
+/** Core schema version 2: the public code of each user, unique. Rows of before are filled at server start. */
+function base_v2(dialect: Dialect): string[] {
+  return [`ALTER TABLE "user" ADD COLUMN public_code ${text_type(dialect)}`, `CREATE UNIQUE INDEX ix_user_public_code ON "user" (public_code)`];
+}
+
 /** Core schema changes by version: index 0 is version 1. A new version adds its statements at the end. */
-const CORE_SCHEMA: readonly ((dialect: Dialect) => string[])[] = [base_v1];
+const CORE_SCHEMA: readonly ((dialect: Dialect) => string[])[] = [base_v1, base_v2];
 
 function storage_schema_exists(conn: DbConn, dialect: Dialect): boolean {
   const sql =
@@ -300,12 +306,41 @@ function apply_table(conn: DbConn, dialect: Dialect, table: TableDef): string | 
   return null;
 }
 
+/** How many rows one fill query of server start takes. */
+const FILL_BATCH = 1000;
+
+/**
+ * The start fill: gives each `user` row whose `public_code` is null a public code. The update writes only while that
+ * row's code is still null and no row has the picked code; when it writes nothing and the row is still null, it picks
+ * again.
+ */
+function fill_public_codes(conn: DbConn): void {
+  for (;;) {
+    const rows = conn.query('SELECT user_id FROM "user" WHERE public_code IS NULL ORDER BY user_id LIMIT $1', [FILL_BATCH]);
+    if (rows.length === 0) return;
+    for (const row of rows) {
+      for (;;) {
+        const written = conn.query(
+          'UPDATE "user" SET public_code = $1 WHERE user_id = $2 AND public_code IS NULL AND NOT EXISTS (SELECT 1 FROM "user" WHERE public_code = $1) RETURNING user_id',
+          [pick_public_code(), row.user_id ?? null],
+        );
+        if (written.length > 0) break;
+        const now = conn.query('SELECT public_code FROM "user" WHERE user_id = $1', [row.user_id ?? null])[0];
+        if (now === undefined || now.public_code !== null) break;
+      }
+    }
+  }
+}
+
 /** The first statement of the schema transaction: the schema lock (SQLite holds it by `BEGIN IMMEDIATE`). */
 export function schema_lock(dialect: Dialect): { sql: string; params: readonly bigint[] } | null {
   return dialect === 'sqlite' ? null : { sql: 'SELECT pg_advisory_xact_lock(CAST($1 AS BIGINT)) AS locked', params: [SCHEMA_LOCK_KEY] };
 }
 
-/** Applies the base tables and the module tables in an open schema transaction. Returns why server start fails. */
+/**
+ * Applies the base tables and the module tables in an open schema transaction, then fills the null public codes.
+ * Returns why server start fails.
+ */
 export function apply_schema(conn: DbTxConn, dialect: Dialect, tables: readonly TableDef[]): string | null {
   const base = apply_base(conn, dialect);
   if (base !== null) return base;
@@ -313,6 +348,7 @@ export function apply_schema(conn: DbTxConn, dialect: Dialect, tables: readonly 
     const reason = apply_table(conn, dialect, table);
     if (reason !== null) return reason;
   }
+  fill_public_codes(conn);
   return null;
 }
 

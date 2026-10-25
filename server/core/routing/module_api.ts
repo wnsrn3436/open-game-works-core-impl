@@ -94,6 +94,7 @@ export interface ServerTimeModule extends ModuleLifecycle {
 
 export interface StorageModule extends ModuleLifecycle {
   read_db(): DbHandle;
+  get_user_record(db: DbHandle, user_id: bigint): { readonly public_code: string } | null;
   db(ctx_or_tx: unknown): DbHandle;
   register_table(
     name: string,

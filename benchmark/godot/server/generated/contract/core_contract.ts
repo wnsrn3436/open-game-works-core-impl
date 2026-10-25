@@ -405,6 +405,7 @@ export class BanDetail {
   deletion_url: string = '';
   access_token: string = '';
   session_signing_key: string = '';
+  public_code: string = '';
 
   encode(): Uint8Array {
     return Wire.encode(this, schema_BanDetail);
@@ -1440,6 +1441,30 @@ export class GetPublicProfilesResponse {
   }
 }
 
+export class FindUserByPublicCodeRequest {
+  public_code: string = '';
+
+  encode(): Uint8Array {
+    return Wire.encode(this, schema_FindUserByPublicCodeRequest);
+  }
+
+  static decode(bytes: Uint8Array): FindUserByPublicCodeRequest | null {
+    return Wire.decode(bytes, schema_FindUserByPublicCodeRequest);
+  }
+}
+
+export class FindUserByPublicCodeResponse {
+  profile: PublicProfileEntry | null = null;
+
+  encode(): Uint8Array {
+    return Wire.encode(this, schema_FindUserByPublicCodeResponse);
+  }
+
+  static decode(bytes: Uint8Array): FindUserByPublicCodeResponse | null {
+    return Wire.decode(bytes, schema_FindUserByPublicCodeResponse);
+  }
+}
+
 export class SendFriendRequestRequest {
   user_id: bigint = 0n;
 
@@ -2251,6 +2276,7 @@ export class AuthResult {
   linked_providers: LoginProvider[] = [];
   consent: ConsentUserState | null = null;
   remote_config: GetRemoteConfigResponse | null = null;
+  public_code: string = '';
 
   encode(): Uint8Array {
     return Wire.encode(this, schema_AuthResult);
@@ -2652,6 +2678,7 @@ export class PublicProfileEntry {
   nickname: string = '';
   profile: Uint8Array = new Uint8Array(0);
   last_active_at: bigint = 0n;
+  public_code: string = '';
 
   encode(): Uint8Array {
     return Wire.encode(this, schema_PublicProfileEntry);
@@ -3193,6 +3220,7 @@ const schema_BanDetail: Wire.Schema<BanDetail> = {
     { no: 3, name: 'deletion_url', kind: 'string', repeated: false },
     { no: 4, name: 'access_token', kind: 'string', repeated: false },
     { no: 5, name: 'session_signing_key', kind: 'string', repeated: false },
+    { no: 6, name: 'public_code', kind: 'string', repeated: false },
   ],
 };
 
@@ -3801,6 +3829,20 @@ const schema_GetPublicProfilesResponse: Wire.Schema<GetPublicProfilesResponse> =
   ],
 };
 
+const schema_FindUserByPublicCodeRequest: Wire.Schema<FindUserByPublicCodeRequest> = {
+  create: () => new FindUserByPublicCodeRequest(),
+  fields: [
+    { no: 1, name: 'public_code', kind: 'string', repeated: false },
+  ],
+};
+
+const schema_FindUserByPublicCodeResponse: Wire.Schema<FindUserByPublicCodeResponse> = {
+  create: () => new FindUserByPublicCodeResponse(),
+  fields: [
+    { no: 1, name: 'profile', kind: 'message', repeated: false, type: () => PublicProfileEntry },
+  ],
+};
+
 const schema_SendFriendRequestRequest: Wire.Schema<SendFriendRequestRequest> = {
   create: () => new SendFriendRequestRequest(),
   fields: [
@@ -4279,6 +4321,7 @@ const schema_AuthResult: Wire.Schema<AuthResult> = {
     { no: 7, name: 'linked_providers', kind: 'enum', repeated: true, values: LoginProvider },
     { no: 8, name: 'consent', kind: 'message', repeated: false, type: () => ConsentUserState },
     { no: 9, name: 'remote_config', kind: 'message', repeated: false, type: () => GetRemoteConfigResponse },
+    { no: 10, name: 'public_code', kind: 'string', repeated: false },
   ],
 };
 
@@ -4533,6 +4576,7 @@ const schema_PublicProfileEntry: Wire.Schema<PublicProfileEntry> = {
     { no: 2, name: 'nickname', kind: 'string', repeated: false },
     { no: 3, name: 'profile', kind: 'bytes', repeated: false },
     { no: 4, name: 'last_active_at', kind: 'int64', repeated: false },
+    { no: 5, name: 'public_code', kind: 'string', repeated: false },
   ],
 };
 
@@ -5204,6 +5248,16 @@ export const RPCS: readonly RpcInfo[] = [
     sensitive: false,
     errors: [],
     validate: (message, data) => validate_GetPublicProfilesRequest(message as GetPublicProfilesRequest, data),
+  },
+  {
+    name: 'core/FindUserByPublicCode',
+    request_class: FindUserByPublicCodeRequest,
+    response_class: FindUserByPublicCodeResponse,
+    silent: false,
+    retry: false,
+    sensitive: false,
+    errors: [],
+    validate: (message, data) => validate_FindUserByPublicCodeRequest(message as FindUserByPublicCodeRequest, data),
   },
   {
     name: 'core/SendFriendRequest',
@@ -5890,6 +5944,14 @@ const rules_CoreContract_GetPublicProfilesRequest: readonly Wire.Rule<GameData.D
 
 export function validate_GetPublicProfilesRequest(message: GetPublicProfilesRequest, data: GameData.DataSet): ValidationFailure | null {
   return Wire.validate(message, rules_CoreContract_GetPublicProfilesRequest, data, '');
+}
+
+const rules_CoreContract_FindUserByPublicCodeRequest: readonly Wire.Rule<GameData.DataSet>[] = [
+  { name: 'public_code', kind: 'string', repeated: false, max_len: 32 },
+];
+
+export function validate_FindUserByPublicCodeRequest(message: FindUserByPublicCodeRequest, data: GameData.DataSet): ValidationFailure | null {
+  return Wire.validate(message, rules_CoreContract_FindUserByPublicCodeRequest, data, '');
 }
 
 const rules_CoreContract_SendFriendRequestRequest: readonly Wire.Rule<GameData.DataSet>[] = [

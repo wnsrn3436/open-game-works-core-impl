@@ -21,6 +21,11 @@ import {
 const CHILD_BIRTH = 201801;
 const ADULT_BIRTH = 198912;
 
+/** `user_ids` user ID ascending: user IDs are random, not in the order the users were made. */
+function ascending(user_ids: bigint[]): bigint[] {
+  return [...user_ids].sort((x, y) => (x < y ? -1 : x > y ? 1 : 0));
+}
+
 afterEach(async () => {
   await stop_all();
 });
@@ -47,8 +52,7 @@ describe('GetFriends', () => {
     expect(friends.map((x) => [x.profile?.user_id, x.state, x.updated_at])).toEqual([
       [id(c), FriendState.FRIEND_STATE_FRIEND, START_AT + 1_000n],
       [id(b), FriendState.FRIEND_STATE_FRIEND, START_AT],
-      [id(e), FriendState.FRIEND_STATE_RECEIVED, START_AT + 3_000n],
-      [id(g), FriendState.FRIEND_STATE_RECEIVED, START_AT + 3_000n],
+      ...ascending([id(e), id(g)]).map((user_id) => [user_id, FriendState.FRIEND_STATE_RECEIVED, START_AT + 3_000n]),
       [id(d), FriendState.FRIEND_STATE_RECEIVED, START_AT + 2_000n],
       [id(f), FriendState.FRIEND_STATE_SENT, START_AT + 4_000n],
     ]);
@@ -75,10 +79,11 @@ describe('SearchUsers', () => {
     expect((await block(c, id(a))).code).toBe(0);
     const found = await search(a, 'Twin');
     expect(found.code).toBe(0);
-    expect(found.response?.users.map((u) => [u.user_id, u.nickname])).toEqual([
-      [id(d), 'Twin'],
-      [id(e), 'Twin'],
-    ]);
+    expect(found.response?.users.map((u) => [u.user_id, u.nickname])).toEqual(
+      ascending([id(d), id(e), id(f)])
+        .slice(0, 2)
+        .map((user_id) => [user_id, 'Twin']),
+    );
   });
 
   it('without the limit returns every user left, and nothing for a nickname nobody has', async () => {
@@ -86,7 +91,7 @@ describe('SearchUsers', () => {
     const [a, b, c, d] = await users(h, 4);
     for (const user of [a, b, c, d]) await set_nickname(user, 'Twin');
     expect((await block(a, id(b))).code).toBe(0);
-    expect((await search(a, 'twin')).response?.users.map((u) => u.user_id)).toEqual([id(c), id(d)]);
+    expect((await search(a, 'twin')).response?.users.map((u) => u.user_id)).toEqual(ascending([id(c), id(d)]));
     expect((await search(a, 'Nobody')).response?.users).toEqual([]);
   });
 
@@ -129,6 +134,6 @@ describe('internal operations', () => {
       list_a: friend.list_friend_ids(ctx, id(a)),
       list_d: friend.list_friend_ids(ctx, id(d)),
     }));
-    expect(result).toEqual({ ab: true, ba: true, ad: false, bc: false, list_a: [id(b), id(c)], list_d: [] });
+    expect(result).toEqual({ ab: true, ba: true, ad: false, bc: false, list_a: ascending([id(b), id(c)]), list_d: [] });
   });
 });

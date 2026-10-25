@@ -74,7 +74,7 @@ function stored_agreements_error(a: AuthState, db: DbHandle, user_id: bigint): C
 export async function create_user(a: AuthState): Promise<bigint | null> {
   const { storage } = a.modules;
   const created = await storage.run_game_transaction((tx) => storage.create_user(tx));
-  return created === 'FAILED' ? null : created;
+  return created === 'FAILED' ? null : created.user_id;
 }
 
 /**
@@ -122,7 +122,8 @@ async function ban_login(a: AuthState, input: TokenlessInput<unknown>, plan: Log
   const opened = await storage.run_request_transaction(plan.user_id, request_fields(plan.kind, input), (ctx) => {
     used = ctx;
     const { session_id, signing_key } = session.start_session(ctx);
-    return { session_id, signing_key, expires_at: ctx.request_time + a.settings.access_token_ttl_ms };
+    const public_code = storage.get_user_record(storage.db(ctx), plan.user_id)?.public_code ?? '';
+    return { session_id, signing_key, public_code, expires_at: ctx.request_time + a.settings.access_token_ttl_ms };
   });
   if (opened === 'WITHDRAWN') return failure(E.CORE_ERROR_UNAUTHORIZED, plan.user_id, used);
   if (opened === 'FAILED') return failure(E.CORE_ERROR_INTERNAL, plan.user_id, used);
@@ -132,6 +133,7 @@ async function ban_login(a: AuthState, input: TokenlessInput<unknown>, plan: Log
     deletion_url: deletion_url(a),
     access_token: sign_access_token(token_key(a), plan.user_id, opened.session_id, opened.expires_at),
     session_signing_key: opened.signing_key,
+    public_code: opened.public_code,
   });
   return { ok: false, error: E.CORE_ERROR_BANNED, ban, user_id: plan.user_id, ctx: used };
 }
@@ -220,6 +222,7 @@ function auth_result(
     linked_providers: provider_values(db, ctx.user_id),
     consent: made.consent,
     remote_config: Object.assign(new CoreContract.GetRemoteConfigResponse(), { entries: [...(remote?.entries ?? [])], assignments: [...(remote?.assignments ?? [])] }),
+    public_code: record?.public_code ?? '',
   });
 }
 

@@ -1,0 +1,707 @@
+{
+  "runs": [
+    {
+      "command": "ogw settings set core",
+      "startedAt": 1792944028879,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw settings set core public-profile.findPerMinute 10",
+      "startedAt": 1792944031117,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core spec",
+      "startedAt": 1792944034271,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw settings set core public-profile.findPerMinute 10",
+      "startedAt": 1792944034883,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw settings set core public-profile.findPerMinute 10",
+      "startedAt": 1792944042089,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server storage --file tests/schema.test.ts",
+      "startedAt": 1792944056185,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvo0ljrw7e7c6a"
+    },
+    {
+      "command": "ogw job wait mvo0ljrw7e7c6a",
+      "startedAt": 1792944083532,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server storage --file schema.test.ts",
+      "startedAt": 1792944089169,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvo0m984db4b02"
+    },
+    {
+      "command": "ogw job wait mvo0m984db4b02",
+      "startedAt": 1792944139918,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server storage --file server/core/storage/tests/schema.test.ts",
+      "startedAt": 1792944143577,
+      "exitCode": 1,
+      "summary": {
+        "tests": 20,
+        "passed": 17
+      },
+      "job": "mvo0nf7dd7c608"
+    },
+    {
+      "command": "ogw job wait mvo0nf7dd7c608",
+      "startedAt": 1792944177216,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server storage",
+      "startedAt": 1792944226183,
+      "exitCode": 1,
+      "summary": {
+        "tests": 280,
+        "passed": 270
+      },
+      "job": "mvo0p6y330c9b0"
+    },
+    {
+      "command": "ogw job wait mvo0p6y330c9b0",
+      "startedAt": 1792944252771,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server storage",
+      "startedAt": 1792944293984,
+      "exitCode": 0,
+      "summary": {
+        "tests": 280,
+        "passed": 280
+      },
+      "job": "mvo0qn9af74395"
+    },
+    {
+      "command": "ogw job wait mvo0qn9af74395",
+      "startedAt": 1792944352703,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server auth",
+      "startedAt": 1792944392690,
+      "exitCode": 1,
+      "summary": {
+        "tests": 248,
+        "passed": 244
+      },
+      "job": "mvo0sr6w761d9c"
+    },
+    {
+      "command": "ogw job wait mvo0sr6w761d9c",
+      "startedAt": 1792944454028,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server auth",
+      "startedAt": 1792944692531,
+      "exitCode": 0,
+      "summary": {
+        "tests": 248,
+        "passed": 248
+      },
+      "job": "mvo0z6m0d58ee7"
+    },
+    {
+      "command": "ogw core test server public-profile",
+      "startedAt": 1792944695397,
+      "exitCode": 1,
+      "summary": {
+        "tests": 68,
+        "passed": 62
+      },
+      "job": "mvo0z8w7231f08"
+    },
+    {
+      "command": "ogw core test godot AuthCore BootstrapCore",
+      "startedAt": 1792944704189,
+      "exitCode": 0,
+      "summary": {
+        "tests": 248,
+        "passed": 248
+      },
+      "job": "mvo0zffxcb65d7"
+    },
+    {
+      "command": "ogw core dependents storage auth routing public-profile admin-api AuthCore BootstrapCore",
+      "startedAt": 1792944714913,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo0z6m0d58ee7",
+      "startedAt": 1792944724233,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo0z8w7231f08",
+      "startedAt": 1792944786169,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server public-profile",
+      "startedAt": 1792944798277,
+      "exitCode": 0,
+      "summary": {
+        "tests": 68,
+        "passed": 68
+      },
+      "job": "mvo11gdicd7a02"
+    },
+    {
+      "command": "ogw job wait mvo0zffxcb65d7",
+      "startedAt": 1792944803030,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test tools",
+      "startedAt": 1792944808067,
+      "exitCode": 0,
+      "summary": {
+        "tests": 705,
+        "passed": 705
+      },
+      "job": "mvo11nxb702b05"
+    },
+    {
+      "command": "ogw job wait mvo11gdicd7a02",
+      "startedAt": 1792944808695,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792944842673,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvo12emq7616b0"
+    },
+    {
+      "command": "ogw job wait mvo12emq7616b0",
+      "startedAt": 1792944845979,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo11nxb702b05",
+      "startedAt": 1792944880523,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792944881787,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvo138t6c2604f"
+    },
+    {
+      "command": "ogw job wait mvo138t6c2604f",
+      "startedAt": 1792944883815,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server",
+      "startedAt": 1792944909028,
+      "exitCode": 1,
+      "summary": {
+        "tests": 5066,
+        "passed": 5016
+      },
+      "job": "mvo13ttv3dc52a"
+    },
+    {
+      "command": "ogw core test godot AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore ShortcutCore TutorialCore UnitTestCore",
+      "startedAt": 1792944909657,
+      "exitCode": 0,
+      "summary": {
+        "tests": 1398,
+        "passed": 1398
+      },
+      "job": "mvo13ubca0807a"
+    },
+    {
+      "command": "ogw job wait mvo13ubca0807a",
+      "startedAt": 1792944911664,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore ShortcutCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792944972937,
+      "exitCode": 0,
+      "summary": {
+        "tests": 1392,
+        "passed": 1392
+      },
+      "job": "mvo1574739320f"
+    },
+    {
+      "command": "ogw job wait mvo13ttv3dc52a",
+      "startedAt": 1792944975526,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo13ttv3dc52a",
+      "startedAt": 1792945098990,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo1574739320f",
+      "startedAt": 1792945140160,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server chat --file server/core/chat/tests/direct.test.ts",
+      "startedAt": 1792945173356,
+      "exitCode": 0,
+      "summary": {
+        "tests": 20,
+        "passed": 20
+      },
+      "job": "mvo19hscf38a54"
+    },
+    {
+      "command": "ogw core test server friend --file server/core/friend/tests/list-search.test.ts",
+      "startedAt": 1792945174018,
+      "exitCode": 0,
+      "summary": {
+        "tests": 14,
+        "passed": 14
+      },
+      "job": "mvo19iak4d1713"
+    },
+    {
+      "command": "ogw core test server migration --file server/core/migration/tests/batch.test.ts",
+      "startedAt": 1792945174392,
+      "exitCode": 0,
+      "summary": {
+        "tests": 28,
+        "passed": 28
+      },
+      "job": "mvo19ikvbd634d"
+    },
+    {
+      "command": "ogw core test server migration --file server/core/migration/tests/processes.test.ts",
+      "startedAt": 1792945175165,
+      "exitCode": 0,
+      "summary": {
+        "tests": 16,
+        "passed": 16
+      },
+      "job": "mvo19j6a216072"
+    },
+    {
+      "command": "ogw job wait mvo19ikvbd634d",
+      "startedAt": 1792945177896,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server nickname --file server/core/nickname/tests/restart.test.ts",
+      "startedAt": 1792945184052,
+      "exitCode": 0,
+      "summary": {
+        "tests": 2,
+        "passed": 2
+      },
+      "job": "mvo19q1g7c13c5"
+    },
+    {
+      "command": "ogw core test server public-profile --file server/core/public-profile/tests/profiles.test.ts",
+      "startedAt": 1792945184764,
+      "exitCode": 0,
+      "summary": {
+        "tests": 28,
+        "passed": 28
+      },
+      "job": "mvo19ql1c8e46f"
+    },
+    {
+      "command": "ogw core test server ranking --file server/core/ranking/tests/withdrawal.test.ts",
+      "startedAt": 1792945185589,
+      "exitCode": 0,
+      "summary": {
+        "tests": 6,
+        "passed": 6
+      },
+      "job": "mvo19r7p154925"
+    },
+    {
+      "command": "ogw core test server user-snapshot-clone --file server/core/user-snapshot-clone/tests/clone.test.ts",
+      "startedAt": 1792945186671,
+      "exitCode": 0,
+      "summary": {
+        "tests": 20,
+        "passed": 20
+      },
+      "job": "mvo19s0p6800cf"
+    },
+    {
+      "command": "ogw job wait mvo19q1g7c13c5",
+      "startedAt": 1792945189414,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo19j6a216072",
+      "startedAt": 1792945193761,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo19ql1c8e46f",
+      "startedAt": 1792945201295,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo19r7p154925",
+      "startedAt": 1792945201943,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo19s0p6800cf",
+      "startedAt": 1792945202601,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server push --file server/core/push/tests/lease.test.ts",
+      "startedAt": 1792945203934,
+      "exitCode": 0,
+      "summary": {
+        "tests": 14,
+        "passed": 14
+      },
+      "job": "mvo1a5dm26366b"
+    },
+    {
+      "command": "ogw core test server push --file server/core/push/tests/failure.test.ts",
+      "startedAt": 1792945204613,
+      "exitCode": 0,
+      "summary": {
+        "tests": 30,
+        "passed": 30
+      },
+      "job": "mvo1a5wde7b893"
+    },
+    {
+      "command": "ogw job wait mvo1a5dm26366b",
+      "startedAt": 1792945206963,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo1a5wde7b893",
+      "startedAt": 1792945219806,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server guild --file server/core/guild/tests/query.test.ts",
+      "startedAt": 1792945223421,
+      "exitCode": 0,
+      "summary": {
+        "tests": 26,
+        "passed": 26
+      },
+      "job": "mvo1akf4bc4f9b"
+    },
+    {
+      "command": "ogw core test server guild --file server/core/guild/tests/admin.test.ts",
+      "startedAt": 1792945224041,
+      "exitCode": 0,
+      "summary": {
+        "tests": 24,
+        "passed": 24
+      },
+      "job": "mvo1akwa3d3f30"
+    },
+    {
+      "command": "ogw core test server guild --file server/core/guild/tests/locks.test.ts",
+      "startedAt": 1792945224714,
+      "exitCode": 0,
+      "summary": {
+        "tests": 24,
+        "passed": 24
+      },
+      "job": "mvo1aleqe67c57"
+    },
+    {
+      "command": "ogw core test server guild --file server/core/guild/tests/withdraw.test.ts",
+      "startedAt": 1792945225518,
+      "exitCode": 0,
+      "summary": {
+        "tests": 16,
+        "passed": 16
+      },
+      "job": "mvo1am0t83b62c"
+    },
+    {
+      "command": "ogw job wait mvo19hscf38a54",
+      "startedAt": 1792945228188,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo19iak4d1713",
+      "startedAt": 1792945230902,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo1akf4bc4f9b",
+      "startedAt": 1792945234222,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo1akwa3d3f30",
+      "startedAt": 1792945245161,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo1aleqe67c57",
+      "startedAt": 1792945246779,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo1am0t83b62c",
+      "startedAt": 1792945247347,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792945289223,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvo1bz6u216029"
+    },
+    {
+      "command": "ogw job wait mvo1bz6u216029",
+      "startedAt": 1792945291515,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore ShortcutCore TutorialCore UnitTestCore",
+      "startedAt": 1792945320281,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvo1cn5e51a5f1"
+    },
+    {
+      "command": "ogw job wait mvo1cn5e51a5f1",
+      "startedAt": 1792945320921,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore ShortcutCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792945329344,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvo1cu560b3859"
+    },
+    {
+      "command": "ogw job wait mvo1cu560b3859",
+      "startedAt": 1792945329965,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test tools",
+      "startedAt": 1792945337812,
+      "exitCode": 0,
+      "summary": {
+        "tests": 705,
+        "passed": 705
+      },
+      "job": "mvo1d0oj4b97bc"
+    },
+    {
+      "command": "ogw job wait mvo1d0oj4b97bc",
+      "startedAt": 1792945338393,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore ShortcutCore TutorialCore UnitTestCore",
+      "startedAt": 1792945378568,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvo1dw4o9d44b4"
+    },
+    {
+      "command": "ogw job wait mvo1dw4o9d44b4",
+      "startedAt": 1792945379143,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore ShortcutCore TutorialCore UnitTestCore",
+      "startedAt": 1792945390885,
+      "exitCode": 0,
+      "summary": {
+        "tests": 1398,
+        "passed": 1398
+      },
+      "job": "mvo1e5mq27d48e"
+    },
+    {
+      "command": "ogw job wait mvo1e5mq27d48e",
+      "startedAt": 1792945391476,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore ShortcutCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792945428033,
+      "exitCode": 0,
+      "summary": {
+        "tests": 1392,
+        "passed": 1392
+      },
+      "job": "mvo1eyapf1cabe"
+    },
+    {
+      "command": "ogw job wait mvo1eyapf1cabe",
+      "startedAt": 1792945428597,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server",
+      "startedAt": 1792945516384,
+      "exitCode": 1,
+      "summary": {
+        "tests": 5066,
+        "passed": 5063
+      },
+      "job": "mvo1gugu70ffc5"
+    },
+    {
+      "command": "ogw job wait mvo1gugu70ffc5",
+      "startedAt": 1792945516985,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server friend --file server/core/friend/tests/request.test.ts",
+      "startedAt": 1792945716177,
+      "exitCode": 0,
+      "summary": {
+        "tests": 40,
+        "passed": 40
+      },
+      "job": "mvo1l4msd1c815"
+    },
+    {
+      "command": "ogw job wait mvo1l4msd1c815",
+      "startedAt": 1792945716757,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server nickname --file server/core/nickname/tests/set-nickname.test.ts",
+      "startedAt": 1792945730703,
+      "exitCode": 0,
+      "summary": {
+        "tests": 28,
+        "passed": 28
+      },
+      "job": "mvo1lfu76d989b"
+    },
+    {
+      "command": "ogw job wait mvo1lfu76d989b",
+      "startedAt": 1792945731300,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server push --file server/core/push/tests/send.test.ts",
+      "startedAt": 1792945744239,
+      "exitCode": 0,
+      "summary": {
+        "tests": 44,
+        "passed": 44
+      },
+      "job": "mvo1lqaa7985ff"
+    },
+    {
+      "command": "ogw job wait mvo1lqaa7985ff",
+      "startedAt": 1792945744809,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server",
+      "startedAt": 1792945766734,
+      "exitCode": 0,
+      "summary": {
+        "tests": 5066,
+        "passed": 5066
+      },
+      "job": "mvo1m7n2a83ed0"
+    },
+    {
+      "command": "ogw job wait mvo1m7n2a83ed0",
+      "startedAt": 1792945767299,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792946066026,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvo1smj385d485"
+    },
+    {
+      "command": "ogw job wait mvo1smj385d485",
+      "startedAt": 1792946067636,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}

@@ -147,7 +147,7 @@ export async function start(options: StartOptions = {}): Promise<Server> {
 }
 
 export function new_user(server: Server): Promise<bigint> {
-  return server.storage.run_game_transaction((tx: GameTx) => server.storage.create_user(tx)) as Promise<bigint>;
+  return server.storage.run_game_transaction((tx: GameTx) => server.storage.create_user(tx).user_id) as Promise<bigint>;
 }
 
 /** Writes the user's `ConsentUserState` with `analytics_allowed`. */

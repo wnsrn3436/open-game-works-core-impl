@@ -368,6 +368,13 @@
       ]
     },
     {
+      "name": "find_user_by_public_code",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
       "name": "set_user_created_at",
       "inputs": [
         "other",

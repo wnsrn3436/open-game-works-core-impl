@@ -11,6 +11,8 @@ var signing_key: String = ""
 var login_token: String = ""
 ## User ID.
 var user_id: int = 0
+## Public code of the user: of `AuthResult` for a session, of the ban detail for a ban session.
+var public_code: String = ""
 ## Linked providers (`CoreContract.LoginProvider` values).
 var linked_providers: PackedInt32Array = PackedInt32Array()
 ## Consent of the session user. `null` until a response gives it.

@@ -128,7 +128,7 @@ export interface Session {
 
 /** A new user, created at the clock's time. */
 export async function login(ms: MailServer): Promise<Session> {
-  const user_id = await ms.storage.run_game_transaction((tx: GameTx) => ms.storage.create_user(tx));
+  const user_id = await ms.storage.run_game_transaction((tx: GameTx) => ms.storage.create_user(tx).user_id);
   if (typeof user_id !== 'bigint') throw new Error(`create_user: ${user_id}`);
   return { user_id };
 }
