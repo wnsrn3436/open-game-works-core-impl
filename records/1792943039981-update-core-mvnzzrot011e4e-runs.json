@@ -1,0 +1,84 @@
+{
+  "runs": [
+    {
+      "command": "ogw core dependents TweenCore",
+      "startedAt": 1792943061547,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot TweenCore --file test_arranged.gd",
+      "startedAt": 1792943064456,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvo00ajqeee4d1"
+    },
+    {
+      "command": "ogw job wait mvo00ajqeee4d1",
+      "startedAt": 1792943067133,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot TweenCore --file client/godot/core/tween_core/tests/test_arranged.gd",
+      "startedAt": 1792943075372,
+      "exitCode": 0,
+      "summary": {
+        "tests": 4,
+        "passed": 4
+      },
+      "job": "mvo00iyy2e68e7"
+    },
+    {
+      "command": "ogw job wait mvo00iyy2e68e7",
+      "startedAt": 1792943077467,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot TweenCore AccessibilityCore AdCore AuthCore BadgeCore BootstrapCore CameraCore ChatCore CutsceneCore GameUpdateCore MessageCore NativeUiCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore SceneCore ScreenEffectCore ShortcutCore UICore UnitTestCore VirtualPadCore",
+      "startedAt": 1792943090536,
+      "exitCode": 0,
+      "summary": {
+        "tests": 1874,
+        "passed": 1874
+      },
+      "job": "mvo00uo96d7678"
+    },
+    {
+      "command": "ogw core test godot TweenCore AccessibilityCore AdCore AuthCore BadgeCore BootstrapCore CameraCore ChatCore CutsceneCore GameUpdateCore MessageCore NativeUiCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore SceneCore ScreenEffectCore ShortcutCore UICore UnitTestCore VirtualPadCore --web",
+      "startedAt": 1792943091148,
+      "exitCode": 0,
+      "summary": {
+        "tests": 1863,
+        "passed": 1863
+      },
+      "job": "mvo00v5a37d5ef"
+    },
+    {
+      "command": "ogw job wait mvo00uo96d7678",
+      "startedAt": 1792943093253,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo00v5a37d5ef",
+      "startedAt": 1792943164015,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792943193089,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvo031sye33d3f"
+    },
+    {
+      "command": "ogw job wait mvo031sye33d3f",
+      "startedAt": 1792943195403,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
