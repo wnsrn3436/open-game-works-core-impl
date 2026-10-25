@@ -69,6 +69,9 @@ static var _quit: Callable = Callable()
 ## The core settings type file read at `init`: the spec `## settings` type string by key. A key not here does not exist
 ## for `set_test_settings` and `set_invalid_test_settings`.
 static var _settings_types: Dictionary[String, String] = {}
+## Run config that `_read_run_config` gives in place of the one of the process, or null. The UnitTestCore core tests put
+## one here, so a GUT run of their own whose pre-run hook reads it does not send to the test host of the test run.
+static var _test_run_config: _CONFIG = null
 
 
 # --- lifecycle ---
@@ -178,6 +181,8 @@ static func _cleanup() -> void:
 ## Reads the test run config: the `-gconfig=` file of a native run, the page URL query of a browser run.
 # ogw:input_boundary
 static func _read_run_config() -> _CONFIG:
+	if _test_run_config != null:
+		return _test_run_config
 	var values: Dictionary[String, String] = {}
 	if OS.get_name() == "Web":
 		var search: Variant = JavaScriptBridge.eval("window.location.search", true)
