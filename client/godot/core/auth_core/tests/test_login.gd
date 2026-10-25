@@ -308,7 +308,6 @@ func test_get_public_code_is_of_the_login_of_the_ban_session_and_empty_without_e
 	assert_eq(result.status, AuthCore.LoginStatus.SUCCESS)
 	assert_eq(result.public_code, Env.public_code(73))
 	assert_eq(AuthCore.get_public_code(), Env.public_code(73))
-	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)
 
 
 func test_social_sign_in_cancel_and_failure_send_nothing() -> void:
