@@ -2,7 +2,9 @@
 
 ## findings
 
-none
+| id | aspect | severity | location | evidence | fix | spec change | confidence |
+|---|---|---|---|---|---|---|---|
+| R1-1 | spec | medium | client/godot/core/screen_effect_core/screen_effect_core.gd:169 | The spec (skills/client-core/modules/screen-effect-core.md:29, :78) gives `play_preset` an optional `TimeBasis` input, and playback runs on the `TimeBasis` of the request. No test checks that `play_preset` plays on the time basis it receives. In client/godot/core/screen_effect_core/tests/, `GAME_TIME` is passed only to `fade` (test_playback.gd:40, test_input_check.gd:92) and `flash` (test_playback.gd:67). `play_preset` only gets the default or the out-of-range bases (test_input_check.gd:91, :98). If line 169 is changed to `_play(channel, handle, definition, TweenCore.TimeBasis.REAL_TIME)`, every ScreenEffectCore test still passes. A `GameTime` preset would then keep playing during a game time pause | Add a core test: a `play_preset` with `TweenCore.TimeBasis.GAME_TIME` (for example an `Opacity` 0→1 over 1000 ms) keeps its opacity during `TimeCore.set_paused`(true) while real time passes, then completes after the rest of its duration in game time | no | 88 |
 
 ## previous
 
@@ -22,6 +24,5 @@ none
 
 ## unknown
 
-- No file under `client/godot/core/screen_effect_core/` changed in the range `2ef5ae8d..79a88f40`, and no definition changed (`## spec changes` is `none`). Of the modules ScreenEffectCore depends on (`LogCore`, `EventCore`, `TweenCore`, `ResolutionCore`, `UICore`), only `client/godot/core/tween_core/tween_core.gd` and `client/godot/core/tween_core/change_state.gd` changed. The change adds arranged-element handling (`_is_arranged`, `ChangeState.arranged`, `_write_offset`) that applies only when `property <= TweenProperty.SCALE` (`client/godot/core/tween_core/tween_core.gd:1028`, `:1068`; enum at `:6`). ScreenEffectCore plays only `Opacity` steps (`client/godot/core/screen_effect_core/screen_effect_core.gd:388`), and `_check_preset` rejects any property other than `Color` and `Opacity` (`screen_effect_core.gd:473`). So overlay reads and writes still go through the unchanged `Color`/`Opacity` paths of `_read`/`_write`. The rewritten start logic in `_set_step_values` (`tween_core.gd:644-652`) reads the start value under the same conditions as before (not started, not finishing, `local < duration`), so overlay fades, flashes and presets get the same start value as before
-- I did not run the ScreenEffectCore Godot tests (`client/godot/core/screen_effect_core/tests/`) in this round. The conclusion above comes only from reading the code
-- The other files changed in the range (`auth_core`, `bootstrap_core`, `sound_core`, generated contract and settings, server modules) neither call ScreenEffectCore nor are called by it, so I did not check them
+- I did not run the core tests (GUT) in this review. R1-1 comes from reading the code and searching every call in the module's tests that passes a time basis.
+- I did not check TweenCore's own `GameTime` and step-mode behavior, which the new tests rely on (`TweenCore.play` reads `TweenOptions.time_basis` when called, client/godot/core/tween_core/tween_core.gd:459). TweenCore is not the target.
