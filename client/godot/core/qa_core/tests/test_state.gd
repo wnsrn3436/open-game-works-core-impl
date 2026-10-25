@@ -242,10 +242,8 @@ func test_a_step_whose_budget_ran_out_in_the_frame_of_a_pause_succeeds() -> void
 	assert_true(await start())
 	await run_ok("set_step_mode", PackedStringArray(["on"]))
 	var step: Pending = start_command("step", PackedStringArray(["100"]))
-	for i: int in 5:
-		if TimeCoreDev.get_step_budget() > 0:
-			break
-		await UnitTestCore.wait_frames(1)
+	# The queue starts the command with a deferred call, which runs before the next frame.
+	await UnitTestCore.wait_frames(1)
 	assert_eq(TimeCoreDev.get_step_budget(), 100, "the step added its budget")
 	var game_time: int = TimeCore.get_game_time()
 	UnitTestCore.advance_clock(100, false)
