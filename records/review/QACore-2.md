@@ -2,13 +2,13 @@
 
 ## findings
 
-| id | aspect | severity | location | evidence | fix | spec change | confidence |
-|---|---|---|---|---|---|---|---|
-| R2-1 | spec | medium | client/godot/core/qa_core/tests/test_state.gd:245 | `test_a_step_whose_budget_ran_out_in_the_frame_of_a_pause_succeeds` waits for the `step` command to add its budget with `for i: int in 5: if TimeCoreDev.get_step_budget() > 0: break; await UnitTestCore.wait_frames(1)`, a polling loop with a frame count limit. `client-core/modules/unit-test-core.md` `### async wait` says an async wait is not done with a polling loop that has a frame count limit, and a condition without an event is checked every frame with no frame count limit. The budget is added by a deferred call: `start_command` → `QACore.run_command` → `_submit` queues the command and calls `_schedule_pump` (`client/godot/core/qa_core/dev/qa_core.gd:405`), which runs `_pump` with `call_deferred` (`qa_core.gd:414`). `_pump` → `_start` → `_execute` → `_BUILTINS.run` → `_step` then reaches `TimeCoreDev.add_step_budget` (`client/godot/core/qa_core/dev/qa_builtins.gd:764`) with no await before it. So the target is a deferred call, the one case where `wait_frames` is allowed. The commit range is empty, so the code is the same as when the debt item was written. The harness check `frame polling` (`tools/src/commands/check/static/frame-polling.ts` in the harness) flags every `for`/`while` loop that awaits frames, but it only scans `isClientTest` paths, so this core test is not blocked. This is the only frame-capped polling loop in the QACore tests: the other loops that await frames (`test_state.gd:54`, `test_render_capture.gd:190`, `test_render_capture.gd:202`) are `while` loops with no frame count | Replace the loop with one `await UnitTestCore.wait_frames(1)` (the deferred `_pump` runs before the next frame), then keep the `assert_eq(TimeCoreDev.get_step_budget(), 100, ...)` | no | 90 |
+none
 
 ## previous
 
-none (round 1 `records/review/QACore-1.md` has no findings and no open rows)
+| id | result | evidence |
+|---|---|---|
+| R1-1 | fixed | `settings/core-settings.schema.json:1752` now has `"minimum": 10` (`maximum` 1000). `client/godot/core/qa_core/dev/qa_core.gd:65` defines `_MIN_JPG_QUALITY` = 10, and `_read_settings` (`qa_core.gd:1074`) uses it as the least value of `_KEY_CAPTURE_JPG_QUALITY`. So 1 to 9 log an error and make `init` return `false`, the same as values over 1000 (`qa_core.gd:1081`). `client/godot/core/qa_core/tests/test_render_capture.gd:82-88` sets quality 9 and 1001 and asserts for each that `init` returns `false`, that QACore is not initialized and that one error is logged. `UnitTestCore.check_logs` marks the logs it counts as checked (`client/godot/core/unit_test_core/dev/unit_test_core.gd:1297-1300`), so each loop pass counts only its own error. With the old least value 1, quality 9 passes init and the `assert_false` fails, so the test catches the defect |
 
 ## out of scope
 
@@ -16,9 +16,7 @@ none
 
 ## debt
 
-| id | result | finding | evidence |
-|---|---|---|---|
-| D1 | open | R2-1 | `client/godot/core/qa_core/tests/test_state.gd:245`-`248` is unchanged (the commit range is empty), and the loop still waits on a condition with a frame count limit of 5. See R2-1 |
+none
 
 ## must fix
 
@@ -26,6 +24,6 @@ none
 
 ## unknown
 
-- The commit range `6c62379..6c62379` is empty, so no changed code was reviewed. This round covers only input item D1 and the rows of the previous round (round 1 has none)
-- `finish` (`client/godot/core/qa_core/tests/support/qa_test_case.gd:216`) waits for `Pending.done` in a loop that calls `advance(step_ms, 1)` at most `frames` times, even though `Pending` has a `finished` signal. The loop also moves the test clock forward, which the commands need in order to make progress, and some tests use its frame limit on purpose as an assertion (`finish(step, 16, 3)` in `test_state.gd:223` and `test_state.gd:254`). I could not decide with confidence 80 or more whether `### async wait` forbids this clock-driving loop, so it was not judged. It is older than this range
-- The Godot core tests were not run in this review. The claim that one `wait_frames(1)` is enough for the deferred `_pump` comes from reading the code, not from running it
+- The Godot tests (`ogw core test`) were not run in this review. The claim that the test fails on the old code comes from reading the code, not from restoring the defect and running the test. R1-1 is a `spec` finding, so step 5 does not require a restore run
+- The core agent report says the native render pass (`test_render_*`) was not run in its job because the screen was locked. It names only the `--web` run as the pass for `test_capture_formats`
+- The other changes in this range (the `records/` files and the UnitTestCore review records) belong to other targets or are process records, and were not reviewed
