@@ -29,11 +29,12 @@ export function create_auth_dev(auth: Auth): AuthDev {
       let user_id = find_dev_account(storage.read_db(), name);
       let created = false;
       if (user_id === null) {
-        const new_user = await create_user(a);
-        const owner = new_user === null ? null : await claim_key(a, new_user, (db) => {
+        const new_user = await create_user(a, input, 'core/cheat/DevLogin');
+        if (typeof new_user !== 'bigint') return new_user;
+        const owner = await claim_key(a, input, 'core/cheat/DevLogin', new_user, (db) => {
           insert_dev_account(db, new_user, name);
         }, (db) => find_dev_account(db, name));
-        if (owner === null) return failure(E.CORE_ERROR_INTERNAL);
+        if (typeof owner !== 'bigint') return owner;
         user_id = owner;
         created = owner === new_user;
       }
