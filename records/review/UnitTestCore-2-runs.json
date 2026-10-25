@@ -1,0 +1,52 @@
+{
+  "runs": [
+    {
+      "command": "ogw core test godot UnitTestCore --file client/godot/core/unit_test_core/tests/test_run.gd",
+      "startedAt": 1792971668674,
+      "exitCode": 1,
+      "summary": {
+        "tests": 27,
+        "passed": 25
+      },
+      "job": "mvoh1dpa5ff0e3"
+    },
+    {
+      "command": "ogw core test godot UnitTestCore --file client/godot/core/unit_test_core/tests/test_run.gd",
+      "startedAt": 1792971669219,
+      "exitCode": 1,
+      "summary": {
+        "tests": 27,
+        "passed": 26
+      },
+      "job": "mvoh1e4d8eba7f"
+    },
+    {
+      "command": "ogw job wait mvoh1dpa5ff0e3",
+      "startedAt": 1792971678507,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvoh1e4d8eba7f",
+      "startedAt": 1792971700075,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot UnitTestCore --file client/godot/core/unit_test_core/tests/test_run.gd",
+      "startedAt": 1792971704294,
+      "exitCode": 0,
+      "summary": {
+        "tests": 27,
+        "passed": 27
+      },
+      "job": "mvoh256oa14852"
+    },
+    {
+      "command": "ogw job wait mvoh256oa14852",
+      "startedAt": 1792971704509,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
