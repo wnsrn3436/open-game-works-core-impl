@@ -1,0 +1,101 @@
+{
+  "runs": [
+    {
+      "command": "ogw core dependents AuthCore",
+      "startedAt": 1792953433569,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AuthCore AdCore BootstrapCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore TutorialCore UnitTestCore",
+      "startedAt": 1792953436474,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvo66lnkf6cf9c"
+    },
+    {
+      "command": "ogw core test godot AuthCore AdCore BootstrapCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792953437062,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvo66m3u72d8eb"
+    },
+    {
+      "command": "ogw job wait mvo66lnkf6cf9c",
+      "startedAt": 1792953440471,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo66m3u72d8eb",
+      "startedAt": 1792953450489,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot auth_core ad_core bootstrap_core payment_core push_core qa_core realtime_core remote_config_core tutorial_core unit_test_core",
+      "startedAt": 1792953454648,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvo66zo5b15d4c"
+    },
+    {
+      "command": "ogw core test godot auth_core ad_core bootstrap_core payment_core push_core qa_core realtime_core remote_config_core tutorial_core unit_test_core --web",
+      "startedAt": 1792953455341,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvo6707baecba2"
+    },
+    {
+      "command": "ogw job wait mvo66zo5b15d4c",
+      "startedAt": 1792953458608,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AuthCore AdCore BootstrapCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore TutorialCore UnitTestCore",
+      "startedAt": 1792953523049,
+      "exitCode": 1,
+      "summary": {
+        "tests": 865,
+        "passed": 865
+      },
+      "job": "mvo68gg8ea4b1a"
+    },
+    {
+      "command": "ogw core test godot AuthCore AdCore BootstrapCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore TutorialCore UnitTestCore --web",
+      "startedAt": 1792953523683,
+      "exitCode": 0,
+      "summary": {
+        "tests": 865,
+        "passed": 865
+      },
+      "job": "mvo68gxx6a9eee"
+    },
+    {
+      "command": "ogw job wait mvo68gg8ea4b1a",
+      "startedAt": 1792953527449,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvo68gxx6a9eee",
+      "startedAt": 1792953565442,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792953596941,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvo6a1gzdc8052"
+    },
+    {
+      "command": "ogw job wait mvo6a1gzdc8052",
+      "startedAt": 1792953597486,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
