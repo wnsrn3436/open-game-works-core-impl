@@ -2,25 +2,28 @@
 
 ## findings
 
-| id | aspect | severity | location | evidence | fix | spec change | confidence |
-|---|---|---|---|---|---|---|---|
-| R2-1 | test evidence | medium | client/godot/core/auth_core/tests/test_login.gd:311 | Input item D1 remains. `test_get_public_code_is_of_the_login_of_the_ban_session_and_empty_without_either` still ends with `assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)`. UnitTestCore spec `### log` (unit-test-core.md:116) says the error log count is asserted with `check_logs` only when the expected value is not 0. `check_logs` (client/godot/core/unit_test_core/dev/unit_test_core.gd:1260-1271) only counts and marks unchecked logs, and unit-test-core.md:114 already fails a test with an unchecked error log left, so removing this assert does not change whether the test fails for any code change: an extra AuthCore error log after the `:292` check fails the test either way | Remove the `check_logs(..., 0)` assert at `:311` | no | 95 |
+none
 
 ## previous
 
-none
+| id | result | evidence |
+|---|---|---|
+| R1-1 | fixed | 1a946ad removed `assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)` from the end of `test_get_terms_failure_fails_without_popup` (client/godot/core/auth_core/tests/test_terms.gd:83-87). The test extends `UnitTestCase`, and `_finish_test` (client/godot/core/unit_test_core/dev/unit_test_core.gd:648-658) still fails it for any unchecked error log, so the check that the assert claimed is kept. This finding was about an assert that checked nothing, not a missing test, so no defect-restore test applies |
+| R1-2 | fixed | 1a946ad removed the 0 assert between the two `list_linked_providers` calls (client/godot/core/auth_core/tests/test_account.gd:168-195). An error log from the first call now stays unchecked and makes the `check_logs("error", "AuthCore")` assert expecting 1 at `:191` count 2 and fail (`unit_test_core.gd:1260` counts every unchecked log of that level and tag), so nothing is lost |
+| R1-3 | fixed | 1a946ad removed the 0 assert from the end of `test_pending_token_is_written_on_foreground` (client/godot/core/auth_core/tests/test_login.gd:448-468). Error logs after the `check_logs(..., 1)` at `:460` stay unchecked, and `_finish_test` fails the test for them |
 
 ## out of scope
 
-- client/godot/core/auth_core/tests/test_terms.gd:88: medium `test_get_terms_failure_fails_without_popup` asserts `check_logs("error", "AuthCore")` equals 0, which unit-test-core.md:116 forbids; the unchecked-error-log rule (unit-test-core.md:114) already fails the test, so the assert checks nothing
-- client/godot/core/auth_core/tests/test_account.gd:188: medium asserts `check_logs("error", "AuthCore")` equals 0 between the two `list_linked_providers` calls, which unit-test-core.md:116 forbids; an error log from the first call would also make the `check_logs(..., 1)` assert at `:192` count 2 and fail, so the assert checks nothing
-- client/godot/core/auth_core/tests/test_login.gd:471: medium asserts `check_logs("error", "AuthCore")` equals 0 at the end of the test, which unit-test-core.md:116 forbids; the unchecked-error-log rule (unit-test-core.md:114) already fails the test, so the assert checks nothing
+none
 
 ## debt
 
 | id | result | finding | evidence |
 |---|---|---|---|
-| D1 | open | R2-1 | client/godot/core/auth_core/tests/test_login.gd:311 still has `assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)`; the commit range d798f17..d798f17 is empty, so nothing changed it |
+| D2 | fixed | none | The assert is gone from client/godot/core/auth_core/tests/test_terms.gd (removed in 1a946ad). A search of the AuthCore tests finds no `check_logs` assert expecting 0 |
+| D3 | fixed | none | The assert is gone from client/godot/core/auth_core/tests/test_account.gd (removed in 1a946ad) |
+| D4 | fixed | none | Same assert as D5. It is gone from client/godot/core/auth_core/tests/test_login.gd (removed in 1a946ad) |
+| D5 | fixed | none | The assert is gone from client/godot/core/auth_core/tests/test_login.gd (removed in 1a946ad) |
 
 ## must fix
 
@@ -28,6 +31,5 @@ none
 
 ## unknown
 
-- The commit range d798f17..d798f17 is empty and there are no core agent reports or spec changes, so no AuthCore code was reviewed for new changes. Only the D1 position, the `check_logs` uses in `client/godot/core/auth_core/tests/` and `UnitTestCore.check_logs` (client/godot/core/unit_test_core/dev/unit_test_core.gd:1260) were read
-- Round 1 had no findings, so `## previous` has no rows
-- The AuthCore tests were not run. They run through `ogw core test` with its test host, and a review agent does not start that. The decisions above come from reading the code and unit-test-core.md
+- Within the commit range, AuthCore changed only through the three removed test lines in 1a946ad. The other files in the range (QACore settings, generated settings, core-spec JSON of QACore, ScreenEffectCore, TweenCore and UICore, records) are not AuthCore code. I did not review them, and I did not review AuthCore code outside the changed tests against the AuthCore spec
+- I did not run the AuthCore tests. They run through `ogw core test`, which a review agent does not start. The fix report says native 871/871 and web 865/865 passed, and I did not check that claim
