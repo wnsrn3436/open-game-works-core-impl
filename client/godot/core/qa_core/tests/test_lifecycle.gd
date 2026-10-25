@@ -28,6 +28,21 @@ func test_init_and_release() -> void:
 	assert_eq(errors(), 0, "release without init logs nothing")
 
 
+func test_capture_jpg_quality_out_of_range_fails_init() -> void:
+	assert_true(await start(false))
+	# The engine takes the JPEG quality in whole percents, so the range is 10 to 1000, as the other settings' ranges.
+	for quality: int in [9, 1001]:
+		set_int("QACore.captureJpgQuality", quality)
+		assert_false(QACore.init(), "quality %d fails init" % quality)
+		assert_false(QACore.is_initialized())
+		assert_eq(errors(), 1, "quality %d logs an error" % quality)
+	for quality: int in [10, 1000]:
+		set_int("QACore.captureJpgQuality", quality)
+		QACore._has_test_launch_values = true
+		assert_true(QACore.init(), "quality %d inits" % quality)
+		QACore.release()
+	assert_eq(errors(), 0)
+
 func test_release_clears_every_static_var() -> void:
 	assert_true(await start())
 	assert_true(QACore.register_command("qa.echo", "Echo.", PackedStringArray(), _echo))
