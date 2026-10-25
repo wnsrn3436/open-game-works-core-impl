@@ -255,6 +255,12 @@ func test_release_gives_a_heading_type_the_theme_had_its_font_item_without_a_fon
 	assert_true(theme.get_font_list(&"HeadingButton").has("font"))
 	assert_eq(theme.get_font(&"font", &"HeadingButton"), before)
 	assert_eq(button.get_theme_font("font"), before)
+	# An item that holds no font follows the theme's default font; one set to the old default font does not.
+	var other: FontVariation = FontVariation.new()
+	theme.default_font = other
+	assert_eq(theme.get_font(&"font", &"HeadingButton"), other)
+	assert_eq(button.get_theme_font("font"), other)
+	theme.default_font = before
 	theme.remove_type(&"HeadingButton")
 
 
