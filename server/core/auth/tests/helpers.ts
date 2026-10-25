@@ -279,6 +279,13 @@ export function login_token_rows(server: TestServer, user_id: bigint): Promise<R
 
 interface TransactionRunner {
   run_request_transaction(user_id: bigint, fields: { request_name: string }, fn: (ctx: unknown) => unknown): Promise<unknown>;
+  run_user_transaction(user_id: bigint, fn: (ctx: unknown) => unknown): Promise<unknown>;
+}
+
+function storage_of(server: TestServer): TransactionRunner {
+  const storage = server.running().instance.modules().get('storage') as unknown as TransactionRunner | undefined;
+  if (storage === undefined) throw new Error('auth test: no storage module');
+  return storage;
 }
 
 /**
@@ -286,8 +293,7 @@ interface TransactionRunner {
  * `reached` resolves there, and the transaction opens once `release` is called. Calls of other requests go on.
  */
 export function hold_next_transaction(server: TestServer, request_name: string): { reached: Promise<void>; release: () => void } {
-  const storage = server.running().instance.modules().get('storage') as unknown as TransactionRunner | undefined;
-  if (storage === undefined) throw new Error('auth test: no storage module');
+  const storage = storage_of(server);
   const original = storage.run_request_transaction.bind(storage);
   let reach = (): void => undefined;
   let release = (): void => undefined;
@@ -303,6 +309,30 @@ export function hold_next_transaction(server: TestServer, request_name: string):
     reach();
     await released;
     return original(user_id, fields, fn);
+  };
+  return { reached, release };
+}
+
+/**
+ * Holds the next `run_user_transaction` on the test server's instance before it opens: `reached` resolves there with
+ * its user ID, and the transaction opens once `release` is called.
+ */
+export function hold_next_user_transaction(server: TestServer): { reached: Promise<bigint>; release: () => void } {
+  const storage = storage_of(server);
+  const original = storage.run_user_transaction.bind(storage);
+  let reach = (_user_id: bigint): void => undefined;
+  let release = (): void => undefined;
+  const reached = new Promise<bigint>((resolve) => {
+    reach = resolve;
+  });
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  storage.run_user_transaction = async (user_id, fn) => {
+    storage.run_user_transaction = original;
+    reach(user_id);
+    await released;
+    return original(user_id, fn);
   };
   return { reached, release };
 }
