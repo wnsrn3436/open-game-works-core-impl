@@ -1,0 +1,68 @@
+{
+  "runs": [
+    {
+      "command": "ogw core dependents QACore",
+      "startedAt": 1792972016344,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot QACore BootstrapCore UnitTestCore",
+      "startedAt": 1792972022039,
+      "exitCode": 1,
+      "summary": {
+        "tests": 313,
+        "passed": 313
+      },
+      "job": "mvoh8yd437d630"
+    },
+    {
+      "command": "ogw core test godot QACore BootstrapCore UnitTestCore --web",
+      "startedAt": 1792972022523,
+      "exitCode": 0,
+      "summary": {
+        "tests": 313,
+        "passed": 313
+      },
+      "job": "mvoh8yqe03ee6c"
+    },
+    {
+      "command": "ogw job wait mvoh8yd437d630",
+      "startedAt": 1792972024757,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvoh8yqe03ee6c",
+      "startedAt": 1792972062067,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot QACore --web --file res://core/qa_core/tests/test_render_capture.gd",
+      "startedAt": 1792972100997,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvohanaa0585f5"
+    },
+    {
+      "command": "ogw job wait mvohanaa0585f5",
+      "startedAt": 1792972101161,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792972115975,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvohayui28e418"
+    },
+    {
+      "command": "ogw job wait mvohayui28e418",
+      "startedAt": 1792972116137,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
