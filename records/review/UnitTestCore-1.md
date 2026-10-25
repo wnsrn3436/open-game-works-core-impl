@@ -10,7 +10,7 @@ none
 
 ## out of scope
 
-none
+- client/godot/core/qa_core/tests/test_state.gd:245: medium The new test `test_a_step_whose_budget_ran_out_in_the_frame_of_a_pause_succeeds` waits for the `step` command to add its budget with `for i: int in 5: if TimeCoreDev.get_step_budget() > 0: break; await UnitTestCore.wait_frames(1)`, a polling loop with a frame count limit. `## async wait` of the UnitTestCore spec says a condition without an event is checked every frame without a frame count limit, and `wait_frames` is only for targets whose progress engine frames decide. The automated check that the spec says blocks this (`tools/src/commands/check/static/frame-polling.ts` in the harness) only scans `client/tests/` (`isClientTest`), so it does not reach core tests and does not block this loop
 
 ## debt
 
@@ -22,8 +22,7 @@ none
 
 ## unknown
 
-- The commit range 772306a..ce9e27a changes no file under `client/godot/core/unit_test_core/`. It changes LocalizationCore (font weight), its tests, the settings files (`settings/core-settings.json`, `settings/core-settings.schema.json`, `client/godot/generated/core_settings.json`, `client/godot/generated/core_settings_types.json`) and `core-spec/LocalizationCore.json`, plus review records. So I checked only the UnitTestCore code that these changes call: `set_test_settings`, `set_invalid_test_settings`, `_can_set_test_settings`, `_read_settings_types`, `_has_settings_type`, `_is_whole`, `_json_kind` (`client/godot/core/unit_test_core/dev/unit_test_core.gd:1516-1650`), `check_logs` with level `warn` (`client/godot/core/unit_test_core/dev/unit_test_core.gd:1260`), `require_platform`, and `CoreSettings._set_test_value` (`client/godot/core/core_settings.gd:225`)
-- With the new keys `LocalizationCore.bodyFontWeight` and `LocalizationCore.headingFontWeight` typed `integer` in `client/godot/generated/core_settings_types.json`, `set_test_settings(key, 400)` passes the type check, and `set_invalid_test_settings(key, "400")` stores a string value without the check, as `## settings` of the spec and the new LocalizationCore tests expect. I found no problem in these paths
-- The rest of UnitTestCore (test setup, fake network, test clock, test host, WebSocket relay, page input, run and result file, time limits) was not reviewed, because no change in the range touches it or calls it
+- The commit range 47b588d..8db97a6 changes no file under `client/godot/core/unit_test_core/`. It changes BootstrapCore (fatal screen font) and its tests, QACore (`step` fails when game time is paused) and its tests, RequirementCore (owner watch slots) and its tests, plus records. So I checked only the UnitTestCore code that the changed tests call: `set_test_settings` with `LocalizationCore.bodyFontWeight` (typed `integer` in `client/godot/generated/core_settings_types.json:80`, so `400` passes the type check), `check_logs` with levels `warn` and `error`, `check_script_errors`, `latch_event` and `wait_latch` for a latch made before the test boot, `wait_frames`, `advance_clock(100, false)` with `TimeCore` initialized, and `start_test_boot` through `client/godot/core/bootstrap_core/tests/support/boot_test_support.gd:256` (`client/godot/core/unit_test_core/dev/unit_test_core.gd:1213-1360`, `1516-1680`). I found no problem in these paths
+- The rest of UnitTestCore (test setup, fake network, test host, loopback HTTP server, WebSocket relay, page input, fake realtime transport, run and result file, time limits, fixtures) was not reviewed, because no change in the range touches it or calls it in a new way
+- I did not check whether the BootstrapCore, QACore and RequirementCore changes match their own specs, because those modules are outside this target
 - Tests were not run. I judged by reading the code only
-- I did not check whether the LocalizationCore changes match the LocalizationCore spec, because that module is outside this target
