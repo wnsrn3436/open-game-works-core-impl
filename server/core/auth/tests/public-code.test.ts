@@ -51,7 +51,7 @@ describe('POST /account/deletion', () => {
         '/account/deletion',
         { 'Content-Type': 'application/x-www-form-urlencoded' },
         new TextEncoder().encode(new URLSearchParams({ method: 'code', confirm: 'yes', public_code: user.result.public_code, code: issued.response.code }).toString()),
-      ) as Promise<{ status: number; body: Uint8Array }>;
+      );
     let failed: { status: number; body: Uint8Array };
     try {
       failed = await send();
