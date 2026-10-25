@@ -1,4 +1,4 @@
-import { new_db, new_user, started, stop_all } from './helpers.ts';
+import { DB_KIND, lock_holder, new_db, new_user, started, stop_all } from './helpers.ts';
 
 // The picks of user IDs and public codes: a queued value comes first, then the real secure random pick.
 const picks = vi.hoisted(() => ({ ids: [] as bigint[], codes: [] as string[] }));
@@ -72,4 +72,36 @@ describe('create_user on a taken value', () => {
       after.stop();
     }
   });
+
+  it.runIf(DB_KIND === 'postgresql')(
+    'PostgreSQL: the start fill picks again when its pick is a code that another server instance inserted and commits while the fill waits',
+    async () => {
+      const db = await new_db();
+      const before = started({ db });
+      const empty = await new_user(before.storage);
+      await before.storage.run_game_transaction((tx) => before.storage.db(tx).query('UPDATE "user" SET public_code = NULL WHERE user_id = $1', [empty]));
+      before.stop();
+
+      // A create_user of another server instance: inserted, not committed, so the fill's NOT EXISTS does not see it.
+      const holder = await lock_holder(db);
+      await holder.ok('BEGIN');
+      await holder.ok('INSERT INTO "user" (user_id, public_code, created_at) VALUES ($1, $2, $3)', [999n, 'XXXXXXXX', 0n]);
+      const release_after = 500;
+      const released = holder.run('COMMIT', [], release_after);
+      picks.codes.push('XXXXXXXX', 'YYYYYYYY');
+      const at = performance.now();
+      const after = started({ db });
+      const started_after = performance.now() - at;
+      try {
+        expect((await released).ok).toBe(true);
+        // The fill waited for the other transaction on the unique index, then picked again.
+        expect(started_after).toBeGreaterThanOrEqual(release_after - 50);
+        expect(picks.codes).toEqual([]);
+        expect(after.storage.get_user_record(after.storage.read_db(), empty)?.public_code).toBe('YYYYYYYY');
+        expect(after.storage.get_user_record(after.storage.read_db(), 999n)?.public_code).toBe('XXXXXXXX');
+      } finally {
+        after.stop();
+      }
+    },
+  );
 });

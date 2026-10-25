@@ -1,0 +1,77 @@
+{
+  "runs": [
+    {
+      "command": "ogw core test server storage --file server/core/storage/tests/create-user-conflict.test.ts",
+      "startedAt": 1792951655337,
+      "exitCode": 0,
+      "summary": {
+        "tests": 6,
+        "passed": 6
+      },
+      "job": "mvo54fa8c7f357"
+    },
+    {
+      "command": "ogw job wait mvo54fa8c7f357",
+      "startedAt": 1792951658000,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server storage --file server/core/storage/tests/create-user-conflict.test.ts",
+      "startedAt": 1792951677649,
+      "exitCode": 1,
+      "summary": {
+        "tests": 6,
+        "passed": 5
+      },
+      "job": "mvo54whh51d94d"
+    },
+    {
+      "command": "ogw job wait mvo54whh51d94d",
+      "startedAt": 1792951681736,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core dependents storage",
+      "startedAt": 1792951694862,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core dependents storage",
+      "startedAt": 1792951700375,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server admin-api ads-reward attendance auth block-report chat cheat coupon friend gacha game-update guild iap idempotency item-ledger live-event logging loot-table mailbox matchmaker migration mission nickname notice offer p2p-signaling play-session public-profile push ranking rating remote-config reset-counter routing session shop storage testing tutorial user-snapshot-clone validation",
+      "startedAt": 1792951704680,
+      "exitCode": 0,
+      "summary": {
+        "tests": 4936,
+        "passed": 4936
+      },
+      "job": "mvo55hb8787400"
+    },
+    {
+      "command": "ogw job wait mvo55hb8787400",
+      "startedAt": 1792951722406,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792951972671,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvo5b861a2d37c"
+    },
+    {
+      "command": "ogw job wait mvo5b861a2d37c",
+      "startedAt": 1792951975399,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
