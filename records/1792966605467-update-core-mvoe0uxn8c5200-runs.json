@@ -1,0 +1,61 @@
+{
+  "runs": [
+    {
+      "command": "ogw settings set core QACore.captureJpgQuality 850",
+      "startedAt": 1792966623916,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw settings set core QACore.captureJpgQuality 850",
+      "startedAt": 1792966628311,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot QACore",
+      "startedAt": 1792966631357,
+      "exitCode": 0,
+      "summary": {
+        "tests": 122,
+        "passed": 122
+      },
+      "job": "mvoe1evy5a9898"
+    },
+    {
+      "command": "ogw core test godot QACore --web",
+      "startedAt": 1792966631853,
+      "exitCode": 0,
+      "summary": {
+        "tests": 116,
+        "passed": 116
+      },
+      "job": "mvoe1f9e56e0aa"
+    },
+    {
+      "command": "ogw job wait mvoe1evy5a9898",
+      "startedAt": 1792966633963,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvoe1f9e56e0aa",
+      "startedAt": 1792966664178,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792966676773,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvoe2dxj43e20d"
+    },
+    {
+      "command": "ogw job wait mvoe2dxj43e20d",
+      "startedAt": 1792966678847,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}

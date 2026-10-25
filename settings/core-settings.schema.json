@@ -1742,6 +1742,12 @@
       "minimum": 1,
       "x-owner": "human"
     },
+    "QACore.captureJpgQuality": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000,
+      "x-owner": "human"
+    },
     "QACore.videoMaxMs": {
       "type": "integer",
       "minimum": 1,
@@ -2196,6 +2202,7 @@
     "QACore.statsRefreshMs",
     "QACore.textMaxChars",
     "QACore.videoFps",
+    "QACore.captureJpgQuality",
     "QACore.videoMaxMs",
     "QACore.feedbackWindowMs",
     "QACore.idleThresholdMs",
