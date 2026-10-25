@@ -1,0 +1,71 @@
+{
+  "runs": [
+    {
+      "command": "ogw core dependents admin-api",
+      "startedAt": 1792950339822,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server admin-api auth matchmaker notice rating routing testing",
+      "startedAt": 1792950345340,
+      "exitCode": 0,
+      "summary": {
+        "tests": 1322,
+        "passed": 1322
+      },
+      "job": "mvo4cci28d7a19"
+    },
+    {
+      "command": "ogw job wait mvo4cci28d7a19",
+      "startedAt": 1792950348056,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server admin-api --file server/core/admin-api/tests/auth.test.ts",
+      "startedAt": 1792950429904,
+      "exitCode": 1,
+      "summary": {
+        "tests": 64,
+        "passed": 62
+      },
+      "job": "mvo4e5qs702895"
+    },
+    {
+      "command": "ogw job wait mvo4e5qs702895",
+      "startedAt": 1792950432616,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server admin-api auth matchmaker notice rating routing testing",
+      "startedAt": 1792950454090,
+      "exitCode": 0,
+      "summary": {
+        "tests": 1322,
+        "passed": 1322
+      },
+      "job": "mvo4eoff65fdbe"
+    },
+    {
+      "command": "ogw job wait mvo4eoff65fdbe",
+      "startedAt": 1792950454721,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792950512759,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvo4fxow738b41"
+    },
+    {
+      "command": "ogw job wait mvo4fxow738b41",
+      "startedAt": 1792950513495,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}

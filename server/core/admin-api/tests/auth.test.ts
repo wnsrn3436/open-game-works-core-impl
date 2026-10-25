@@ -23,7 +23,7 @@ import {
 
 /** Admin operations other modules export (`## API` collected operation table), with their roles, by module. */
 const COLLECTED: Readonly<Record<string, readonly (readonly [string, string])[]>> = {
-  'auth': [['withdraw_user', 'ops'], ['find_user_by_social_account', 'read']],
+  'auth': [['withdraw_user', 'ops'], ['find_user_by_social_account', 'read'], ['find_user_by_public_code', 'read']],
   'logging': [['list_client_errors', 'read'], ['list_client_events', 'read'], ['list_server_events', 'read']],
   'game-update': [['get_deploy_list', 'read'], ['get_update_signing_key', 'read'], ['put_update_file', 'release'], ['publish_deploy_list', 'release'], ['prune_update_files', 'release']],
   'push': [['get_push', 'read'], ['list_pushes', 'read'], ['schedule_push', 'ops'], ['cancel_scheduled_push', 'ops']],
