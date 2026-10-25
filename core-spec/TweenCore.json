@@ -106,6 +106,10 @@
       ]
     },
     {
+      "name": "get_finite_playing_count",
+      "inputs": []
+    },
+    {
       "name": "wait_end",
       "inputs": [
         "other"

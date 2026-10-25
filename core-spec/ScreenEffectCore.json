@@ -37,6 +37,7 @@
         "other",
         "other",
         "other",
+        "other",
         "other"
       ]
     },
@@ -49,12 +50,14 @@
         "other",
         "other",
         "other",
+        "other",
         "other"
       ]
     },
     {
       "name": "play_preset",
       "inputs": [
+        "other",
         "other",
         "other",
         "other"

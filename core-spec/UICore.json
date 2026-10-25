@@ -257,6 +257,10 @@
       "inputs": []
     },
     {
+      "name": "is_flow_in_progress",
+      "inputs": []
+    },
+    {
       "name": "get_block_pass_list",
       "inputs": []
     },
