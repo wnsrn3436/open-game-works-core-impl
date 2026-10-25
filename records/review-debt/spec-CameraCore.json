@@ -1,0 +1,12 @@
+{
+  "target": "spec CameraCore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/client-core/modules/camera-core.md:103",
+      "problem": "`move_to` and `zoom_to` take an `Easing` and call `TweenCore.evaluate_easing` every frame. With the new TweenCore row, a non-member `Easing` returns `0` with an error log on every frame, and then the end value is set at progress 1. CameraCore's error table has no row for a non-member `Easing` (and `move_by_preset` reads it from a preset), so CameraCore's result (`Failed` or progress with per-frame error logs) is not set",
+      "foundBy": "spec TweenCore"
+    }
+  ]
+}
