@@ -67,6 +67,12 @@
       "owner": "human"
     },
     {
+      "key": "QACore.captureJpgQuality",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
       "key": "QACore.videoMaxMs",
       "type": "integer",
       "source": "core",

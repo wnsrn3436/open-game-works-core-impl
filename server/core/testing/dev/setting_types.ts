@@ -102,6 +102,7 @@ export const SETTING_TYPES: Readonly<Record<string, string>> = {
   'PoolCore.maxPoolSize': 'integer',
   'PushCore.deviceTokenTimeoutMs': 'integer',
   'PushCore.permissionReadTimeoutMs': 'integer',
+  'QACore.captureJpgQuality': 'integer',
   'QACore.channelMessageMaxBytes': 'integer',
   'QACore.commandTimeoutMs': 'integer',
   'QACore.feedbackWindowMs': 'integer',
