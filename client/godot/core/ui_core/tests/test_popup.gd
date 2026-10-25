@@ -1,5 +1,5 @@
 extends "res://core/ui_core/tests/support/ui_test_case.gd"
-## Popups, the popup queue, system popups over popups, `close_popup` and `close_all_popups`.
+## Popups, the popup queue, system popups over popups, `close_popup`, `close_all_popups` and `is_flow_in_progress`.
 
 
 func test_popups_open_one_at_a_time_in_order() -> void:
@@ -299,12 +299,73 @@ func test_memory_free_popup_counts() -> void:
 	for i: int in 100:
 		UICore.get_open_popup_count()
 		UICore.is_system_popup_visible()
+		UICore.is_flow_in_progress()
 	var objects: float = Performance.get_monitor(Performance.OBJECT_COUNT)
 	var memory: float = Performance.get_monitor(Performance.MEMORY_STATIC)
 	for i: int in 1000:
 		UICore.get_open_popup_count()
 		UICore.is_system_popup_visible()
+		UICore.is_flow_in_progress()
 	var objects_after: float = Performance.get_monitor(Performance.OBJECT_COUNT)
 	var memory_after: float = Performance.get_monitor(Performance.MEMORY_STATIC)
 	assert_true(objects_after <= objects, "no object made")
 	assert_true(memory_after <= memory, "no memory taken")
+
+
+func test_flow_in_progress_before_init() -> void:
+	assert_true(await start(false))
+	assert_false(UICore.is_flow_in_progress())
+	assert_eq(errors(), 1)
+
+
+func test_flow_in_progress_follows_the_flows() -> void:
+	set_string("UICore.systemPopupResource", POPUP_TWEEN)
+	assert_true(await start())
+	assert_false(UICore.is_flow_in_progress(), "no flow")
+	var panel_gate: GATE = LOG.add_gate(PANEL_A)
+	var panel: CALL = CALL.new()
+	panel.open_panel(PANEL_A)
+	await UnitTestCore.wait_frames(2)
+	assert_true(UICore.is_flow_in_progress(), "a panel transition")
+	panel_gate.open()
+	await finish(panel)
+	assert_true(panel.ok)
+	assert_false(UICore.is_flow_in_progress(), "the panel transition ended")
+	var popup_gate: GATE = LOG.add_gate(POPUP_A)
+	var first: CALL = CALL.new()
+	first.open_popup(POPUP_A)
+	var queued: CALL = CALL.new()
+	queued.open_popup(POPUP_TWEEN)
+	await UnitTestCore.wait_frames(2)
+	assert_true(UICore.is_flow_in_progress(), "an open flow in prepare and a queued popup")
+	popup_gate.open()
+	await wait_result(first)
+	assert_true(first.ok, "the flow of the first popup ended")
+	assert_false(queued.done)
+	assert_true(UICore.is_flow_in_progress(), "the queued popup in its open flow")
+	await finish(queued)
+	assert_true(queued.ok)
+	assert_false(UICore.is_flow_in_progress(), "the open tween ended")
+	var closing: CALL = CALL.new()
+	closing.close_popup(popup_of(POPUP_TWEEN))
+	await UnitTestCore.wait_frames(1)
+	assert_false(closing.done, "in the close tween")
+	assert_true(UICore.is_flow_in_progress(), "a popup close")
+	await finish(closing)
+	assert_false(UICore.is_flow_in_progress(), "the close ended")
+	var system: CALL = CALL.new()
+	system.open_system_popup(one_button_param())
+	await UnitTestCore.wait_frames(1)
+	assert_false(system.done, "in the open tween")
+	assert_true(UICore.is_flow_in_progress(), "a system popup open flow")
+	await finish(system)
+	assert_true(system.ok)
+	assert_false(UICore.is_flow_in_progress(), "the system popup is open")
+	var system_closing: CALL = CALL.new()
+	system_closing.close_popup(system_popup())
+	await UnitTestCore.wait_frames(1)
+	assert_false(system_closing.done, "in the close tween")
+	assert_true(UICore.is_flow_in_progress(), "a system popup close")
+	await finish(system_closing)
+	assert_null(system_popup())
+	assert_false(UICore.is_flow_in_progress(), "only open popups remain")

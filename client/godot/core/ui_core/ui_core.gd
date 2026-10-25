@@ -650,6 +650,21 @@ static func is_system_popup_visible() -> bool:
 	return not _shown_system.is_empty()
 
 
+## A panel transition, a queued popup, a popup open flow or close, or a system popup open flow or close runs.
+static func is_flow_in_progress() -> bool:
+	if not _check_initialized("is_flow_in_progress"):
+		return false
+	if _flow != null or _open_record != null or not _queue.is_empty():
+		return true
+	for record: _POPUP in _shown_normal:
+		if record.state == _POPUP.State.OPENING or record.state == _POPUP.State.CLOSING:
+			return true
+	for record: _POPUP in _shown_system:
+		if record.state == _POPUP.State.OPENING or record.state == _POPUP.State.CLOSING:
+			return true
+	return false
+
+
 ## The pass list of the blocks UICore puts: the system popup root and the `back` action. Do not change it.
 static func get_block_pass_list() -> BlockPassList:
 	if not _check_initialized("get_block_pass_list"):
