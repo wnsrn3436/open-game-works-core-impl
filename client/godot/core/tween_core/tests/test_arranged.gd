@@ -106,3 +106,42 @@ func test_a_change_from_its_current_value_starts_from_the_offset_of_an_arranged_
 	TweenCore.skip_target_to_end(target)
 	assert_eq(target.offset_transform_position, Vector2(10, 0))
 	assert_eq(errors(), 0)
+
+
+func test_rotation_and_scale_from_their_current_values_start_from_the_offset_of_an_arranged_element() -> void:
+	start()
+	var target: Control = await arranged_row()
+	target.offset_transform_enabled = true
+	target.offset_transform_rotation = deg_to_rad(40.0)
+	target.offset_transform_scale = Vector2(2, 3)
+	TweenCore.play(definition([step([
+		change(TweenCore.TweenProperty.ROTATION, Vector4(0, 0, 0, 0), 100),
+		change(TweenCore.TweenProperty.SCALE, Vector4(1, 1, 0, 0), 100),
+	])]), target)
+	await advance(50)
+	assert_almost_eq(rad_to_deg(target.offset_transform_rotation), 20.0, 0.001, "halfway from the offset rotation")
+	assert_almost_eq(target.offset_transform_scale.x, 1.5, 0.0001, "halfway from the offset scale")
+	assert_almost_eq(target.offset_transform_scale.y, 2.0, 0.0001)
+	assert_eq(target.rotation, 0.0, "the rotation the parent sees is unchanged")
+	assert_eq(target.scale, Vector2.ONE, "the scale the parent sees is unchanged")
+	assert_eq(errors(), 0)
+
+
+func test_skipping_to_the_end_before_a_later_step_starts_changes_the_offset_of_an_arranged_element() -> void:
+	start()
+	var target: Control = await arranged_row()
+	var place: Vector2 = target.position
+	var handle: int = TweenCore.play(definition([
+		step([change(TweenCore.TweenProperty.OPACITY, Vector4(0.5, 0, 0, 0), 100)]),
+		step([change(TweenCore.TweenProperty.POSITION, Vector4(10, 0, 0, 0), 100)]),
+	]), target)
+	await advance(50)
+	TweenCore.skip_to_end(handle)
+	assert_false(TweenCore.is_playing(handle))
+	assert_eq(target.offset_transform_position, Vector2(10, 0), "the change of the later step goes to the offset")
+	assert_eq(target.position, place, "the place the parent gives is unchanged")
+	await rearrange(target)
+	assert_eq(target.offset_transform_position, Vector2(10, 0))
+	assert_eq(target.position, place)
+	assert_eq(target.get_transform().origin, place + Vector2(10, 0), "drawn 10 to the right of its place")
+	assert_eq(errors(), 0)
