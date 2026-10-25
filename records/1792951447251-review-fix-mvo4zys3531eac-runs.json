@@ -1,0 +1,135 @@
+{
+  "runs": [
+    {
+      "command": "ogw core test godot TweenCore --file client/godot/core/tween_core/tests/test_arranged.gd",
+      "startedAt": 1792951492009,
+      "exitCode": 0,
+      "summary": {
+        "tests": 6,
+        "passed": 6
+      },
+      "job": "mvo50x96096018"
+    },
+    {
+      "command": "ogw job wait mvo50x96096018",
+      "startedAt": 1792951495403,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot TweenCore --file client/godot/core/tween_core/tests/test_arranged.gd",
+      "startedAt": 1792951521505,
+      "exitCode": 1,
+      "summary": {
+        "tests": 6,
+        "passed": 5
+      },
+      "job": "mvo51k0233ceb2"
+    },
+    {
+      "command": "ogw job wait mvo51k0233ceb2",
+      "startedAt": 1792951526852,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot TweenCore --file client/godot/core/tween_core/tests/test_arranged.gd",
+      "startedAt": 1792951544333,
+      "exitCode": 1,
+      "summary": {
+        "tests": 6,
+        "passed": 4
+      },
+      "job": "mvo521npabea6f"
+    },
+    {
+      "command": "ogw job wait mvo521npabea6f",
+      "startedAt": 1792951549170,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot TweenCore --file client/godot/core/tween_core/tests/test_arranged.gd",
+      "startedAt": 1792951559515,
+      "exitCode": 1,
+      "summary": {
+        "tests": 6,
+        "passed": 5
+      },
+      "job": "mvo52ddj5a5f44"
+    },
+    {
+      "command": "ogw job wait mvo52ddj5a5f44",
+      "startedAt": 1792951562147,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot TweenCore --file client/godot/core/tween_core/tests/test_arranged.gd",
+      "startedAt": 1792951573835,
+      "exitCode": 1,
+      "summary": {
+        "tests": 6,
+        "passed": 5
+      },
+      "job": "mvo52ofb140601"
+    },
+    {
+      "command": "ogw job wait mvo52ofb140601",
+      "startedAt": 1792951576608,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core dependents TweenCore",
+      "startedAt": 1792951589298,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AccessibilityCore AdCore AuthCore BadgeCore BootstrapCore CameraCore ChatCore CutsceneCore GameUpdateCore MessageCore NativeUiCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore SceneCore ScreenEffectCore ShortcutCore TutorialCore TweenCore UICore UnitTestCore VirtualPadCore",
+      "startedAt": 1792951595424,
+      "exitCode": 1,
+      "summary": {
+        "tests": 1938,
+        "passed": 1938
+      },
+      "job": "mvo5352z9a13be"
+    },
+    {
+      "command": "ogw job wait mvo5352z9a13be",
+      "startedAt": 1792951600425,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AccessibilityCore AdCore AuthCore BadgeCore BootstrapCore CameraCore ChatCore CutsceneCore GameUpdateCore MessageCore NativeUiCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore SceneCore ScreenEffectCore ShortcutCore TutorialCore TweenCore UICore UnitTestCore VirtualPadCore --web",
+      "startedAt": 1792951661087,
+      "exitCode": 0,
+      "summary": {
+        "tests": 1938,
+        "passed": 1938
+      },
+      "job": "mvo54jpm860383"
+    },
+    {
+      "command": "ogw job wait mvo54jpm860383",
+      "startedAt": 1792951666268,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1792951964247,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvo5b1nz8a9688"
+    },
+    {
+      "command": "ogw job wait mvo5b1nz8a9688",
+      "startedAt": 1792951967609,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
