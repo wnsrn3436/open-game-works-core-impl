@@ -1,0 +1,36 @@
+{
+  "runs": [
+    {
+      "command": "ogw core test godot LocalizationCore --file client/godot/core/localization_core/tests/test_font_weight.gd",
+      "startedAt": 1792902939921,
+      "exitCode": 0,
+      "summary": {
+        "tests": 10,
+        "passed": 10
+      },
+      "job": "mvnc4a9i46c25d"
+    },
+    {
+      "command": "ogw job wait mvnc4a9i46c25d",
+      "startedAt": 1792902942567,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot LocalizationCore --file client/godot/core/localization_core/tests/test_font_weight.gd",
+      "startedAt": 1792902967599,
+      "exitCode": 1,
+      "summary": {
+        "tests": 10,
+        "passed": 9
+      },
+      "job": "mvnc4vma22d30e"
+    },
+    {
+      "command": "ogw job wait mvnc4vma22d30e",
+      "startedAt": 1792902970258,
+      "exitCode": 1,
+      "summary": null
+    }
+  ]
+}
