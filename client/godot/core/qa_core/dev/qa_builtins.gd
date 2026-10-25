@@ -762,7 +762,10 @@ static func _step(command: _COMMAND) -> void:
 		return
 	command.on_fail = _clear_step_budget
 	TimeCoreDev.add_step_budget(ms)
+	# Once a frame, the budget and then the pause: a budget that reached 0 in the frame the pause came is a success.
 	while not _gone(command) and TimeCore.is_initialized() and TimeCoreDev.get_step_budget() > 0:
+		if not _need(command, not TimeCore.is_paused(), "game time is paused"):
+			return
 		await _frame()
 	if command.session != QACore._session:
 		return
@@ -783,8 +786,8 @@ static func _lockstep_step(command: _COMMAND, ms: int) -> void:
 	_result(command, stepped, "request_step failed")
 
 
-## A `step` that added budget failed (over its time limit): turning step mode on again makes the budget left 0, so it
-## does not run after the command.
+## A `step` that added budget failed (game time paused, or over its time limit): turning step mode on again makes the
+## budget left 0, so it does not run after the command.
 static func _clear_step_budget() -> void:
 	if TimeCore.is_initialized() and TimeCoreDev.is_step_mode():
 		QACore._set_step_mode(true)
