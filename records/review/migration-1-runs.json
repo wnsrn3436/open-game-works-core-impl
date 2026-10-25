@@ -1,0 +1,36 @@
+{
+  "runs": [
+    {
+      "command": "ogw core test server migration --file server/core/migration/tests/batch.test.ts",
+      "startedAt": 1792950222959,
+      "exitCode": 0,
+      "summary": {
+        "tests": 28,
+        "passed": 28
+      },
+      "job": "mvo49q2c8d57aa"
+    },
+    {
+      "command": "ogw job wait mvo49q2c8d57aa",
+      "startedAt": 1792950238474,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test server migration --file server/core/migration/tests/processes.test.ts",
+      "startedAt": 1792950240464,
+      "exitCode": 0,
+      "summary": {
+        "tests": 16,
+        "passed": 16
+      },
+      "job": "mvo4a3l3241efd"
+    },
+    {
+      "command": "ogw job wait mvo4a3l3241efd",
+      "startedAt": 1792950247022,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
