@@ -38,7 +38,13 @@ const _SETTING_MARGIN: String = "SoundCore.masterLimiterMarginDb"
 const _SETTING_LOUDNESS: String = "SoundCore.busLoudnessLufs"
 const _SETTING_BUS_PEAK: String = "SoundCore.busPeakMaxDbtp"
 const _SETTING_HAPTIC_LOG: String = "SoundCore.devHapticLogCount"
+const _SETTING_PITCH_VARIATION: String = "SoundCore.sfxPitchVariationCents"
+const _SETTING_VOLUME_VARIATION: String = "SoundCore.sfxVolumeVariationDb"
+const _SETTING_DUCK_DB: String = "SoundCore.voiceDuckDb"
+const _SETTING_DUCK_ATTACK: String = "SoundCore.voiceDuckAttackMs"
+const _SETTING_DUCK_RELEASE: String = "SoundCore.voiceDuckReleaseMs"
 const _VARIANT_PURPOSE: String = "sound_variant"
+const _VARIATION_PURPOSE: String = "sound_variation"
 const _POSITIONAL_GROUP: StringName = &"ogw_positional_sound"
 const _HAPTIC_PLATFORMS: PackedStringArray = ["android", "ios"]
 const _HAPTIC_SEGMENT_KEYS: PackedStringArray = ["delay_ms", "duration_ms", "intensity"]
@@ -55,6 +61,11 @@ static var _crossfade_ms: int = 0
 static var _max_concurrent: int = 0
 static var _max_per_key: int = 0
 static var _haptic_log_count: int = 0
+static var _pitch_variation_cents: float = 0.0
+static var _volume_variation_db: float = 0.0
+static var _duck_db: float = 0.0
+static var _duck_attack_ms: int = 0
+static var _duck_release_ms: int = 0
 
 ## Volume and mute by `SoundBus`.
 static var _volumes: PackedFloat64Array = PackedFloat64Array([1.0, 1.0, 1.0, 1.0, 1.0])
@@ -63,6 +74,8 @@ static var _haptic_enabled: bool = true
 ## Engine buses `init` added. `release` removes them.
 static var _created_buses: PackedStringArray = PackedStringArray()
 static var _limiter: AudioEffectHardLimiter = null
+## Duck gain of the `Bgm` bus: the last effect of that bus.
+static var _duck: AudioEffectAmplify = null
 static var _scope_listener: Callable = Callable()
 static var _positional_pause_call: Callable = Callable()
 static var _settle_call: Callable = Callable()
@@ -94,6 +107,8 @@ static var _slot_scopes: Array[Scope] = []
 static var _slot_lengths_ms: PackedInt64Array = PackedInt64Array()
 ## Real elapsed time by slot that the play spent outside pause.
 static var _slot_played_ms: PackedInt64Array = PackedInt64Array()
+## Pitch scale by slot: the play ends when its time played reaches its sound length ÷ this.
+static var _slot_pitches: PackedFloat64Array = PackedFloat64Array()
 ## Real elapsed time up to which `_slot_played_ms` is counted.
 static var _played_at: int = 0
 static var _start_order: int = 0
@@ -101,6 +116,7 @@ static var _next_handle: int = 0
 ## `play` requests whose sound is loading.
 static var _pending: Array[_SFX_REQUEST] = []
 static var _variant_random: UtilRandom = null
+static var _variation_random: UtilRandom = null
 ## Variant of the last play by resource key, for keys with two or more variants.
 static var _last_variants: Dictionary[String, int] = {}
 
@@ -113,6 +129,12 @@ static var _next_pause_token: int = 0
 static var _global_paused: bool = false
 static var _positional_pause_queued: bool = false
 static var _last_real_time: int = 0
+
+## Voice duck: the duck gain (dB, 0 or less) of the `Bgm` bus at real elapsed time `_duck_at`, and whether a voice
+## played from then on.
+static var _duck_gain_db: float = 0.0
+static var _duck_at: int = 0
+static var _voice_playing: bool = false
 
 ## Haptic.
 static var _haptic_kind: int = -1
@@ -181,9 +203,13 @@ static func init() -> bool:
 	var seed_value: int = UtilCore.make_purpose_seed(_VARIANT_PURPOSE, TimeCore.get_device_time())
 	_variant_random = UtilCore.create_random(seed_value)
 	LogCore.log_debug(_TAG, "random " + _VARIANT_PURPOSE + " seed " + str(seed_value))
+	var variation_seed: int = UtilCore.make_purpose_seed(_VARIATION_PURPOSE, TimeCore.get_device_time())
+	_variation_random = UtilCore.create_random(variation_seed)
+	LogCore.log_debug(_TAG, "random " + _VARIATION_PURPOSE + " seed " + str(variation_seed))
 	_game_paused = TimeCore.is_paused()
 	_last_real_time = TimeCore.get_real_time()
 	_played_at = _last_real_time
+	_duck_at = _last_real_time
 	_is_initialized = true
 	return true
 
@@ -453,14 +479,18 @@ static func _is_bus(bus: int) -> bool:
 
 
 static func _read_settings() -> bool:
-	var int_keys: PackedStringArray = [_SETTING_CROSSFADE, _SETTING_MAX_CONCURRENT, _SETTING_MAX_PER_KEY]
+	var int_keys: PackedStringArray = [
+		_SETTING_CROSSFADE, _SETTING_MAX_CONCURRENT, _SETTING_MAX_PER_KEY, _SETTING_DUCK_ATTACK, _SETTING_DUCK_RELEASE,
+	]
 	if CoreBuildInfo.has_dev_code:
 		int_keys.append(_SETTING_HAPTIC_LOG)
 	for key: String in int_keys:
 		if not CoreSettings.has_int(key):
 			LogCore.log_error(_TAG, "init found no integer core setting " + key)
 			return false
-	var number_keys: PackedStringArray = [_SETTING_PEAK, _SETTING_MARGIN]
+	var number_keys: PackedStringArray = [
+		_SETTING_PEAK, _SETTING_MARGIN, _SETTING_PITCH_VARIATION, _SETTING_VOLUME_VARIATION, _SETTING_DUCK_DB,
+	]
 	for key: String in number_keys:
 		if not CoreSettings.has_float(key):
 			LogCore.log_error(_TAG, "init found no number core setting " + key)
@@ -474,14 +504,32 @@ static func _read_settings() -> bool:
 	var max_concurrent: int = CoreSettings.get_int(_SETTING_MAX_CONCURRENT)
 	var max_per_key: int = CoreSettings.get_int(_SETTING_MAX_PER_KEY)
 	var haptic_log_count: int = CoreSettings.get_int(_SETTING_HAPTIC_LOG) if CoreBuildInfo.has_dev_code else 0
-	if crossfade_ms < 0 or max_concurrent < 1 or max_per_key < 1 or haptic_log_count < 0:
+	var pitch_variation: float = CoreSettings.get_float(_SETTING_PITCH_VARIATION)
+	var volume_variation: float = CoreSettings.get_float(_SETTING_VOLUME_VARIATION)
+	var duck_db: float = CoreSettings.get_float(_SETTING_DUCK_DB)
+	var duck_attack_ms: int = CoreSettings.get_int(_SETTING_DUCK_ATTACK)
+	var duck_release_ms: int = CoreSettings.get_int(_SETTING_DUCK_RELEASE)
+	if (
+		crossfade_ms < 0 or max_concurrent < 1 or max_per_key < 1 or haptic_log_count < 0
+		or not _is_nonnegative(pitch_variation) or not _is_nonnegative(volume_variation)
+		or not _is_nonnegative(duck_db) or duck_attack_ms < 1 or duck_release_ms < 1
+	):
 		LogCore.log_error(_TAG, "init found a core setting out of range")
 		return false
 	_crossfade_ms = crossfade_ms
 	_max_concurrent = max_concurrent
 	_max_per_key = max_per_key
 	_haptic_log_count = haptic_log_count
+	_pitch_variation_cents = pitch_variation
+	_volume_variation_db = volume_variation
+	_duck_db = duck_db
+	_duck_attack_ms = duck_attack_ms
+	_duck_release_ms = duck_release_ms
 	return true
+
+
+static func _is_nonnegative(value: float) -> bool:
+	return is_finite(value) and value >= 0.0
 
 
 static func _make_players(node: _NODE) -> void:
@@ -500,6 +548,8 @@ static func _make_players(node: _NODE) -> void:
 	_slot_scopes.resize(_max_concurrent)
 	_slot_lengths_ms.resize(_max_concurrent)
 	_slot_played_ms.resize(_max_concurrent)
+	_slot_pitches.resize(_max_concurrent)
+	_slot_pitches.fill(1.0)
 	for slot: int in _max_concurrent:
 		var player: AudioStreamPlayer = AudioStreamPlayer.new()
 		player.name = "Sfx" + str(slot)
@@ -509,7 +559,8 @@ static func _make_players(node: _NODE) -> void:
 		_players.append(player)
 
 
-## Adds the missing buses that send to `Master`, the `Master` limiter and applies the bus volumes and mutes.
+## Adds the missing buses that send to `Master`, the `Master` limiter, the duck gain as the last effect of `Bgm` and
+## applies the bus volumes and mutes.
 static func _setup_buses() -> void:
 	var master: int = AudioServer.get_bus_index(_BUS_NAMES[SoundBus.MASTER])
 	for bus: int in range(SoundBus.BGM, _BUS_NAMES.size()):
@@ -524,18 +575,18 @@ static func _setup_buses() -> void:
 	_limiter.ceiling_db = CoreSettings.get_float(_SETTING_PEAK) - CoreSettings.get_float(_SETTING_MARGIN)
 	if master != -1:
 		AudioServer.add_bus_effect(master, _limiter)
+	_duck = AudioEffectAmplify.new()
+	_duck.volume_db = 0.0
+	AudioServer.add_bus_effect(AudioServer.get_bus_index(_BUS_NAMES[SoundBus.BGM]), _duck)
 	for bus: int in _BUS_NAMES.size():
 		_apply_bus(bus)
 
 
-## Takes the limiter out, removes the buses `init` added and puts the other buses at volume 1 without mute.
+## Takes the limiter and the duck gain out, removes the buses `init` added and puts the other buses at volume 1 without
+## mute.
 static func _restore_buses() -> void:
-	var master: int = AudioServer.get_bus_index(_BUS_NAMES[SoundBus.MASTER])
-	if master != -1 and _limiter != null:
-		for effect: int in AudioServer.get_bus_effect_count(master):
-			if AudioServer.get_bus_effect(master, effect) == _limiter:
-				AudioServer.remove_bus_effect(master, effect)
-				break
+	_remove_effect(SoundBus.MASTER, _limiter)
+	_remove_effect(SoundBus.BGM, _duck)
 	for position: int in range(_created_buses.size() - 1, -1, -1):
 		var index: int = AudioServer.get_bus_index(_created_buses[position])
 		if index != -1:
@@ -545,6 +596,16 @@ static func _restore_buses() -> void:
 		if index != -1:
 			AudioServer.set_bus_volume_db(index, 0.0)
 			AudioServer.set_bus_mute(index, false)
+
+
+static func _remove_effect(bus: int, target: AudioEffect) -> void:
+	var index: int = AudioServer.get_bus_index(_BUS_NAMES[bus])
+	if index == -1 or target == null:
+		return
+	for effect: int in AudioServer.get_bus_effect_count(index):
+		if AudioServer.get_bus_effect(index, effect) == target:
+			AudioServer.remove_bus_effect(index, effect)
+			return
 
 
 static func _apply_bus(bus: int) -> void:
@@ -774,8 +835,16 @@ static func _start_sfx(handle: int, key: String, bus: int, priority: int, scope:
 	if player.bus != _BUS_NAMES[bus]:
 		player.bus = _BUS_NAMES[bus]
 	player.stream = _pick_stream(key, resource)
+	var pitch: float = 1.0
+	var gain: float = 1.0
+	if bus == SoundBus.SFX:
+		pitch = pow(2.0, _pick_variation(_pitch_variation_cents) / 1200.0)
+		gain = pow(10.0, _pick_variation(_volume_variation_db) / 20.0)
+	player.pitch_scale = pitch
+	player.volume_linear = gain
 	_slot_lengths_ms[slot] = _length_ms(player.stream)
 	_slot_played_ms[slot] = 0
+	_slot_pitches[slot] = player.pitch_scale
 	player.stream_paused = false
 	player.play()
 	if _is_bus_paused(bus):
@@ -787,6 +856,7 @@ static func _start_sfx(handle: int, key: String, bus: int, priority: int, scope:
 	_slot_priorities[slot] = priority
 	_slot_orders[slot] = _start_order
 	_slot_scopes[slot] = scope
+	_sync_duck(TimeCore.get_real_time())
 	var event: SoundPlayedEvent = EventCore.acquire(SoundPlayedEvent) as SoundPlayedEvent
 	event.bus = bus as SoundBus
 	EventCore.publish(event)
@@ -836,9 +906,20 @@ static func _has_ended(slot: int) -> bool:
 	return not player.playing and not player.stream_paused
 
 
-## Whether the time the play of `slot` spent outside pause, counted by `_count_played`, reached its sound length.
+## Whether the time the play of `slot` spent outside pause, counted by `_count_played`, reached its sound length ÷ its
+## pitch scale.
 static func _reached_length(slot: int) -> bool:
-	return _slot_lengths_ms[slot] > 0 and _slot_played_ms[slot] >= _slot_lengths_ms[slot]
+	return (
+		_slot_lengths_ms[slot] > 0
+		and float(_slot_played_ms[slot]) * _slot_pitches[slot] >= float(_slot_lengths_ms[slot])
+	)
+
+
+## A value uniform in ±`limit` from the `sound_variation` random instance. 0 when `limit` is 0.
+static func _pick_variation(limit: float) -> float:
+	if limit <= 0.0:
+		return 0.0
+	return (UtilCore.next_float(_variation_random) * 2.0 - 1.0) * limit
 
 
 ## Adds the real elapsed time since the last count up to `now` to every play outside pause. The browser runtime's
@@ -864,6 +945,7 @@ static func _update_game_pause(now: int) -> void:
 		return
 	_game_paused = game_paused
 	_apply_player_pause()
+	_sync_duck(now)
 	if not game_paused and _global_paused and not _positional_pause_queued:
 		_positional_pause_queued = true
 		_positional_pause_call.call_deferred()
@@ -903,6 +985,8 @@ static func _free_slot(slot: int) -> void:
 	_slot_scopes[slot] = null
 	_slot_lengths_ms[slot] = 0
 	_slot_played_ms[slot] = 0
+	_slot_pitches[slot] = 1.0
+	_sync_duck(TimeCore.get_real_time())
 
 
 ## The stream to play for `key` from its loaded `resource`: the resource itself, or for a key with two or more variants
@@ -943,6 +1027,7 @@ static func _update_global_pause() -> void:
 	_global_paused = paused
 	_apply_player_pause()
 	_apply_positional_pause()
+	_sync_duck(TimeCore.get_real_time())
 
 
 static func _apply_player_pause() -> void:
@@ -1049,6 +1134,7 @@ static func _on_frame() -> void:
 	for slot: int in _players.size():
 		if _slot_handles[slot] != INVALID_HANDLE and _reached_length(slot):
 			_free_slot(slot)
+	_sync_duck(now)
 	if not _global_paused:
 		for channel: _BGM_CHANNEL in _channels:
 			if not channel.fading:
@@ -1061,6 +1147,29 @@ static func _on_frame() -> void:
 				channel.volume = channel.fade_from + (channel.fade_to - channel.fade_from) * ratio
 				_apply_channel_volume(channel)
 	_step_haptic(now)
+
+
+## Moves the duck gain of `Bgm` up to `now` with whether a voice played since the last move, then takes whether a
+## voice plays now: called right after each change of it. The gain goes linearly in dB at `SoundCore.voiceDuckDb` per
+## `SoundCore.voiceDuckAttackMs` down and per `SoundCore.voiceDuckReleaseMs` up. Allocates no memory.
+static func _sync_duck(now: int) -> void:
+	if not _is_initialized:
+		return
+	var step: int = now - _duck_at
+	if step > 0:
+		_duck_at = now
+		if _voice_playing:
+			_duck_gain_db = maxf(_duck_gain_db - _duck_db * float(step) / float(_duck_attack_ms), -_duck_db)
+		else:
+			_duck_gain_db = minf(_duck_gain_db + _duck_db * float(step) / float(_duck_release_ms), 0.0)
+	_voice_playing = false
+	if not _is_bus_paused(SoundBus.VOICE):
+		for slot: int in _players.size():
+			if _slot_handles[slot] != INVALID_HANDLE and _slot_buses[slot] == SoundBus.VOICE and not _has_ended(slot):
+				_voice_playing = true
+				break
+	if _duck != null and _duck.volume_db != _duck_gain_db:
+		_duck.volume_db = _duck_gain_db
 
 
 static func _play_haptic(key: String, scope: Scope, target: HapticTarget, gamepad: int) -> bool:
@@ -1253,11 +1362,17 @@ static func _reset_state() -> void:
 	_max_concurrent = 0
 	_max_per_key = 0
 	_haptic_log_count = 0
+	_pitch_variation_cents = 0.0
+	_volume_variation_db = 0.0
+	_duck_db = 0.0
+	_duck_attack_ms = 0
+	_duck_release_ms = 0
 	_volumes = PackedFloat64Array([1.0, 1.0, 1.0, 1.0, 1.0])
 	_mutes = [false, false, false, false, false]
 	_haptic_enabled = true
 	_created_buses = PackedStringArray()
 	_limiter = null
+	_duck = null
 	_scope_listener = Callable()
 	_positional_pause_call = Callable()
 	_settle_call = Callable()
@@ -1280,11 +1395,13 @@ static func _reset_state() -> void:
 	_slot_scopes = []
 	_slot_lengths_ms = PackedInt64Array()
 	_slot_played_ms = PackedInt64Array()
+	_slot_pitches = PackedFloat64Array()
 	_played_at = 0
 	_start_order = 0
 	_next_handle = 0
 	_pending = []
 	_variant_random = null
+	_variation_random = null
 	_last_variants = {}
 	_game_paused = false
 	_focus_lost = false
@@ -1294,6 +1411,9 @@ static func _reset_state() -> void:
 	_global_paused = false
 	_positional_pause_queued = false
 	_last_real_time = 0
+	_duck_gain_db = 0.0
+	_duck_at = 0
+	_voice_playing = false
 	_haptic_kind = -1
 	_haptic_fallback = null
 	_haptic_patterns = {}

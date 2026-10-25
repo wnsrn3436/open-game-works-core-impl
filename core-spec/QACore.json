@@ -151,6 +151,12 @@
       "owner": "none"
     },
     {
+      "key": "uiQuality",
+      "type": "object",
+      "source": "game",
+      "owner": "none"
+    },
+    {
       "key": "supportedLanguages",
       "type": "array<string>",
       "source": "game",

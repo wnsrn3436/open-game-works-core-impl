@@ -41,6 +41,9 @@ func before_each() -> void:
 	super()
 	played_buses = PackedInt32Array()
 	set_int("SoundCore.bgmCrossfadeMs", CROSSFADE_MS)
+	# No variation, so a `Sfx` play ends at its sound length. The variation tests set their own.
+	set_float("SoundCore.sfxPitchVariationCents", 0.0)
+	set_float("SoundCore.sfxVolumeVariationDb", 0.0)
 
 
 func set_int(key: String, value: int) -> void:
@@ -164,6 +167,16 @@ func player_of(handle: int) -> AudioStreamPlayer:
 		if SoundCore._slot_handles[slot] == handle:
 			return SoundCore._players[slot]
 	return null
+
+
+## Duck gain (dB) of the `Bgm` bus: `volume_db` of its last effect, which SoundCore adds.
+func duck_db() -> float:
+	var index: int = bus_index(SoundCore.SoundBus.BGM)
+	var count: int = AudioServer.get_bus_effect_count(index)
+	if count == 0:
+		return NAN
+	var amplify: AudioEffectAmplify = AudioServer.get_bus_effect(index, count - 1) as AudioEffectAmplify
+	return amplify.volume_db if amplify != null else NAN
 
 
 func bus_index(bus: SoundCore.SoundBus) -> int:

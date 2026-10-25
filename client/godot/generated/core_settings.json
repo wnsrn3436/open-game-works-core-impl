@@ -473,6 +473,11 @@
   "QACore.timeScaleMaxPermille": 100000,
   "LocalizationCore.bodyFontWeight": 0,
   "LocalizationCore.headingFontWeight": 0,
+  "SoundCore.sfxPitchVariationCents": 50,
+  "SoundCore.sfxVolumeVariationDb": 1.5,
+  "SoundCore.voiceDuckDb": 9,
+  "SoundCore.voiceDuckAttackMs": 150,
+  "SoundCore.voiceDuckReleaseMs": 500,
   "termsPopup": "prefab_terms",
   "agePopup": "",
   "privacyPopup": "",
@@ -528,6 +533,13 @@
     }
   ],
   "gamepadSupported": false,
+  "uiQuality": {
+    "maxFontSizes": 6,
+    "minFontPx": 18,
+    "minContrast": 3,
+    "maxFlatShare": 0.85,
+    "maxEmptyShare": 0.6
+  },
   "targetFps": 60,
   "maxResolution": [
     1920,

@@ -472,5 +472,10 @@
   "QACore.touchIndexCount": 10,
   "QACore.timeScaleMaxPermille": 100000,
   "LocalizationCore.bodyFontWeight": 0,
-  "LocalizationCore.headingFontWeight": 0
+  "LocalizationCore.headingFontWeight": 0,
+  "SoundCore.sfxPitchVariationCents": 50,
+  "SoundCore.sfxVolumeVariationDb": 1.5,
+  "SoundCore.voiceDuckDb": 9,
+  "SoundCore.voiceDuckAttackMs": 150,
+  "SoundCore.voiceDuckReleaseMs": 500
 }

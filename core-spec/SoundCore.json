@@ -61,6 +61,36 @@
       "type": "integer",
       "source": "core",
       "owner": "content"
+    },
+    {
+      "key": "SoundCore.sfxPitchVariationCents",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "SoundCore.sfxVolumeVariationDb",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "SoundCore.voiceDuckDb",
+      "type": "number",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "SoundCore.voiceDuckAttackMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "SoundCore.voiceDuckReleaseMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
     }
   ],
   "settingsConstraints": [],
