@@ -264,8 +264,8 @@ func test_run_whose_test_does_not_return_quits_after_its_release() -> void:
 	_assert_ended_early(root, message)
 
 
-## A run that ended early with the run failure `message`: its result went to the test host with that one run failure
-## and its results, then the release signal, then the quit with exit code 1.
+## A run that ended early with the run failure `message`: the start signal went to the test host, then its result
+## with that one run failure and its results, then the release signal, then the quit with exit code 1.
 # ogw:input_boundary
 func _assert_ended_early(root: RootRun, message: String) -> void:
 	assert_eq(root.run.run_failures, PackedStringArray([message]), "one run failure")
@@ -274,9 +274,10 @@ func _assert_ended_early(root: RootRun, message: String) -> void:
 	var paths: PackedStringArray = PackedStringArray()
 	for request: UnitTestHttpRequest in root.requests:
 		paths.append(request.path)
-	assert_eq(paths, PackedStringArray(["/result", "/released"]), "the result, then the release signal")
-	if root.requests.size() == 2:
-		assert_eq(root.requests[1].body.get_string_from_utf8(), '{"run_id": "root"}')
+	assert_eq(paths, PackedStringArray(["/started", "/result", "/released"]), "the start signal, the result, then the release signal")
+	if root.requests.size() == 3:
+		assert_eq(root.requests[0].body.get_string_from_utf8(), '{"run_id": "root"}')
+		assert_eq(root.requests[2].body.get_string_from_utf8(), '{"run_id": "root"}')
 	var parsed: Variant = JSON.parse_string(root.result_text)
 	assert_true(parsed is Dictionary, "a result file")
 	if not parsed is Dictionary:
@@ -441,3 +442,60 @@ func test_release_signal_sends_the_run_id_to_the_test_host() -> void:
 		return
 	assert_eq(requests[0].path, "/released")
 	assert_eq(requests[0].body.get_string_from_utf8(), '{"run_id": "release-signal"}')
+
+
+## A run sends `PUT /started` with its run ID once, before the result that holds its first test. The core tests run in
+## the native run and in the browser run, so both send it.
+func test_run_sends_started_once_with_its_run_id_before_the_result_of_its_first_test() -> void:
+	EARLY.started.clear()
+	var root: RootRun = await run_root(PackedStringArray(["sample_run_time_limit.gd"]), NESTED_TIME_LIMIT_MS, 600, true)
+	var started: Array[UnitTestHttpRequest] = []
+	var first_result: int = -1
+	for index: int in root.requests.size():
+		if root.requests[index].path == "/started":
+			started.append(root.requests[index])
+		elif root.requests[index].path == "/result" and first_result < 0:
+			first_result = index
+	assert_eq(started.size(), 1, "one start signal")
+	assert_eq(root.requests[0].path if not root.requests.is_empty() else "", "/started", "the first request of the run")
+	assert_true(first_result > 0, "the result comes after the start signal")
+	if started.size() == 1:
+		assert_eq(started[0].body.get_string_from_utf8(), '{"run_id": "root"}')
+	assert_string_contains(root.result_text, "sample_run_time_limit.gd::test_a_waits_past_the_run_time_limit")
+
+
+## A run whose `init` failed sends the start signal before its result and its release signal.
+func test_run_whose_init_failed_sends_started_then_its_result_then_released() -> void:
+	var base_url: String = await UnitTestCore.start_http_server()
+	assert_false(base_url.is_empty(), "a base URL")
+	var none: Array[PackedStringArray] = []
+	for path: String in ["/started", "/result", "/released"]:
+		assert_true(await UnitTestCore.add_http_response(base_url, path, 204, none, PackedByteArray()), path)
+	var config: RunConfig = RunConfig.new()
+	config.run_id = "init-failure-signals"
+	config.test_host = base_url
+	assert_true(await UnitTestCore._send_init_failure(config), "the test host took the result")
+	var requests: Array[UnitTestHttpRequest] = await UnitTestCore.http_requests(base_url)
+	var paths: PackedStringArray = PackedStringArray()
+	for request: UnitTestHttpRequest in requests:
+		paths.append(request.path)
+	assert_eq(paths, PackedStringArray(["/started", "/result", "/released"]))
+	if requests.size() == 3:
+		assert_eq(requests[0].body.get_string_from_utf8(), '{"run_id": "init-failure-signals"}')
+
+
+## A start signal the test host does not take is a failed test host request: `false` and an error log.
+func test_start_signal_the_test_host_does_not_take_is_false_with_an_error_log() -> void:
+	assert_true(LogCore.init(), "LogCore.init")
+	var base_url: String = await UnitTestCore.start_http_server()
+	assert_false(base_url.is_empty(), "a base URL")
+	var config: RunConfig = RunConfig.new()
+	config.run_id = "start-refused"
+	config.test_host = base_url
+	assert_false(await UnitTestCore._send_started(config), "404 for a path not registered")
+	assert_eq(UnitTestCore.check_logs("error", "UnitTestCore"), 1, "one error log")
+	var requests: Array[UnitTestHttpRequest] = await UnitTestCore.http_requests(base_url)
+	assert_eq(requests.size(), 1, "one request")
+	if requests.size() == 1:
+		assert_eq(requests[0].path, "/started")
+		assert_eq(requests[0].body.get_string_from_utf8(), '{"run_id": "start-refused"}')

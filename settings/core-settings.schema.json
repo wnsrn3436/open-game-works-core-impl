@@ -1335,6 +1335,11 @@
       "minimum": 0,
       "x-owner": "human"
     },
+    "UnitTestCore.startTimeLimitMs": {
+      "type": "integer",
+      "minimum": 1,
+      "x-owner": "human"
+    },
     "UICore.buttonClickIntervalMs": {
       "type": "integer",
       "minimum": 0
@@ -2145,6 +2150,7 @@
     "TweenCore.maxRepeatCount",
     "UnitTestCore.testTimeLimitMs",
     "UnitTestCore.runTimeLimitMs",
+    "UnitTestCore.startTimeLimitMs",
     "UICore.buttonClickIntervalMs",
     "UICore.dimResource",
     "UICore.dimOpacity",

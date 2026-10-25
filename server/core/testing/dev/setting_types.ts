@@ -167,6 +167,7 @@ export const SETTING_TYPES: Readonly<Record<string, string>> = {
   'UICore.systemPopupResource': 'string',
   'UICore.systemPopupScrollStep': 'number',
   'UnitTestCore.runTimeLimitMs': 'integer',
+  'UnitTestCore.startTimeLimitMs': 'integer',
   'UnitTestCore.testTimeLimitMs': 'integer',
   'VirtualPadCore.deadZonePermille': 'integer',
   'VirtualPadCore.sensitivityPermille': 'integer',

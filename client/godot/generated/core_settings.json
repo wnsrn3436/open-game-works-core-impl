@@ -480,6 +480,7 @@
   "SoundCore.voiceDuckReleaseMs": 500,
   "public-profile.findPerMinute": 10,
   "QACore.captureJpgQuality": 850,
+  "UnitTestCore.startTimeLimitMs": 120000,
   "termsPopup": "prefab_terms",
   "agePopup": "",
   "privacyPopup": "",

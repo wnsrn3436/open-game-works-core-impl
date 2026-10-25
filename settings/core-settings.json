@@ -479,5 +479,6 @@
   "SoundCore.voiceDuckAttackMs": 150,
   "SoundCore.voiceDuckReleaseMs": 500,
   "public-profile.findPerMinute": 10,
-  "QACore.captureJpgQuality": 850
+  "QACore.captureJpgQuality": 850,
+  "UnitTestCore.startTimeLimitMs": 120000
 }
