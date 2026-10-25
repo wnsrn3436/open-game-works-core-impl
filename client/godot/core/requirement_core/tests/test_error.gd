@@ -34,6 +34,35 @@ func test_a_type_without_a_judge_hook_fails_its_item_with_one_error_per_type() -
 	assert_eq(errors(), 0, "no second log for FlagA")
 
 
+func test_a_type_without_a_judge_hook_first_judged_in_frame_code_logs_once_without_adding_a_key() -> void:
+	await start()
+	var a_kinds: Array[GDScript] = [CoreContract.TutorialProgressUserState]
+	assert_true(RequirementCore.register_judge(FLAG_A, Hooks.flag, a_kinds, GUIDE_A))
+	var types: PackedInt32Array = PackedInt32Array(GameData.RequirementType.values())
+	assert_eq(RequirementCore._logged_types.size(), types.size(), "init puts every RequirementType value")
+	for type: int in types:
+		assert_true(RequirementCore._logged_types.has(type) and not RequirementCore._logged_types[type], "no log flag set at init")
+	answer(false)
+	var all_1: int = id_of(ALL_1)
+	var recorder: Recorder = Recorder.new()
+	assert_true(RequirementCore.watch(all_1, triggers(content_trigger()), recorder.on_result))
+	assert_eq(errors(), 0, "the failed FlagA item stops All before FlagB")
+	var size: int = RequirementCore._logged_types.size()
+	answer(true)
+	put_tutorial()
+	publish_content()
+	await frame()
+	assert_eq(recorder.count(), 1)
+	assert_eq(recorder.last.failed_requirement_id, id_of(ALL_3), "the failed item moved from FlagA to FlagB")
+	assert_eq(errors(), 1, "FlagB, first judged by the batch evaluation, has no hook")
+	assert_eq(RequirementCore._logged_types.size(), size, "the frame code adds no key")
+	assert_true(RequirementCore._logged_types.has(FLAG_B) and RequirementCore._logged_types[FLAG_B])
+	publish_content()
+	await frame()
+	assert_eq(errors(), 0, "no second log for FlagB")
+	assert_eq(RequirementCore._logged_types.size(), size)
+
+
 func test_register_judge_of_a_registered_type_or_none_fails_and_keeps_the_first_hook() -> void:
 	await start()
 	var no_kinds: Array[GDScript] = []
