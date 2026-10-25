@@ -1,0 +1,12 @@
+{
+  "target": "QACore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "client/godot/core/qa_core/tests/test_state.gd:245",
+      "problem": "The new test `test_a_step_whose_budget_ran_out_in_the_frame_of_a_pause_succeeds` waits for the `step` command to add its budget with `for i: int in 5: if TimeCoreDev.get_step_budget() > 0: break; await UnitTestCore.wait_frames(1)`, a polling loop with a frame count limit. `## async wait` of the UnitTestCore spec says a condition without an event is checked every frame without a frame count limit, and `wait_frames` is only for targets whose progress engine frames decide. The automated check that the spec says blocks this (`tools/src/commands/check/static/frame-polling.ts` in the harness) only scans `client/tests/` (`isClientTest`), so it does not reach core tests and does not block this loop",
+      "foundBy": "UnitTestCore round 1"
+    }
+  ]
+}
