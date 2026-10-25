@@ -2,11 +2,15 @@
 
 ## findings
 
-none
+| id | aspect | severity | location | evidence | fix | spec change | confidence |
+|---|---|---|---|---|---|---|---|
+| R2-1 | test evidence | medium | test-data/data/system/reserved_string.csv:46 | bootstrap-core.md line 94-95 and the format argument table (lines 193, 195) set `until_at` and `expires_at` as `set_int` / `integer`. The range makes the ban popup tests assert the rendered body text (client/godot/core/bootstrap_core/tests/support/boot_test_support.gd `_popup_text`, test_boot_login.gd:53, 68, 85), and its core test data writes those arguments without a formatter (`{until_at}` at reserved_string.csv:46, `{expires_at}` at reserved_string.csv:49). In data SKILL.md, formatter `none` writes an integer as decimal without separators and a string as it is, so an integer and its decimal string give the same text. Run path: in a temporary copy (worktree of 2c764e2 under worktrees/_core/), bootstrap_core.gd:972 `args.set_int("until_at", result.ban_until_at)` was changed to `args.set_string("until_at", str(result.ban_until_at))`, and `ogw core test godot BootstrapCore --file client/godot/core/bootstrap_core/tests/test_boot_login.gd` passed. The same applies to `expires_at` at bootstrap_core.gd:1008 (read, not run). In a game whose translation uses an integer-only formatter (e.g. `{until_at:datetime}`), the string kind gives an error slot and the ban end time is left empty, and no core test catches it | Give `{until_at}` and `{expires_at}` in the core test data an integer-only formatter that does not depend on the device timezone (e.g. `ordinal` or `duration`), and change the expected text in test_boot_login.gd to match. A `set_string` or `set_float` value then becomes an error slot and the test fails | no | 88 |
 
 ## previous
 
-none
+| id | result | evidence |
+|---|---|---|
+| R1-1 | fixed | `_open_failure_popup` now keeps the `SystemPopupParam` it passes to `UICore.open_system_popup` (client/godot/core/bootstrap_core/bootstrap_core.gd:1055-1058). Test support renders the body with `LocalizationCore.format(param.body, param.format_args)` (tests/support/boot_test_support.gd:321-330). The core test data bodies now hold `{public_code}` (test-data/data/system/reserved_string.csv:46, 47, 49). Both defects of R1-1 were restored in temporary copies (worktrees of 2c764e2 under worktrees/_core/, removed afterwards), and `ogw core test godot BootstrapCore --file client/godot/core/bootstrap_core/tests/test_boot_login.gd` was run on each. (1) bootstrap_core.gd:971 `args.set_string("public_code", ...)` changed to `args.set_string("user_id", ...)`: fail. `test_banned_with_end_opens_banned_popup_with_format_args`, `test_banned_without_public_code_passes_empty_public_code` and `test_permanent_ban_opens_permanent_popup_and_deletion_code_popup_restarts` failed on the body text (`‼ {public_code}` instead of `K7M2-Q9XA` or empty), and three more tests failed on unchecked `LocalizationCore: format error slot {public_code}` logs. (2) bootstrap_core.gd:1005 `_grouped_public_code(_login_result.public_code)` changed to the ungrouped `_login_result.public_code`: `test_permanent_ban_opens_permanent_popup_and_deletion_code_popup_restarts` failed (`K7M2Q9XA` instead of `K7M2-Q9XA`) |
 
 ## out of scope
 
@@ -14,9 +18,7 @@ none
 
 ## debt
 
-| id | result | finding | evidence |
-|---|---|---|---|
-| D1 | fixed | none | client/godot/core/bootstrap_core/bootstrap_core.gd:1125-1126 gives the fatal screen `Label` `add_theme_font_override("font", ThemeDB.fallback_font)` (commit 97e51c7). An own theme override comes before any theme lookup, so the label no longer reads the theme `default_font` that `LocalizationCore._apply_fonts` sets to the weighted chain (client/godot/core/localization_core/localization_core.gd:628-629). `bodyFontWeight` lives only on that chain (`_weighted_chain`, localization_core.gd:639-650), so it no longer reaches the label either. The heading variations that `_apply_fonts` sets (localization_core.gd:631-633) do not reach a plain `Label` without `theme_type_variation`. Both run paths of the item are covered: before UI ready after `load_fonts` (client/godot/core/bootstrap_core/tests/test_boot_fatal.gd:185-200) and the fatal popup not opening after UI ready (test_boot_fatal.gd:208-229). Both tests assert, through `_assert_fatal_screen_font` (test_boot_fatal.gd:232-250), that the theme default font is the chain and the label font is `ThemeDB.fallback_font` |
+none
 
 ## must fix
 
@@ -24,7 +26,7 @@ none
 
 ## unknown
 
-- The commit range is empty (6c62379..6c62379), and there are no core agent reports. Round 1 had no findings, so step 5 has no rows. The review covered only the input `## debt` item D1
-- I read the tests for D1 but did not run them. D1 is a debt item, not a `test evidence` finding, so the defect was not restored to see them fail
-- `ThemeDB.fallback_font` is the engine built-in font only when `gui/theme/custom_font` is not set in `project.godot`. This was not checked in the `ogw generate` tool code (same as round 1)
-- The fatal screen label still gets the text-scale font size override from `LocalizationCore._on_node_added` (localization_core.gd:761-770), because it is a text element added to the tree. Font size is not data, translation or a game resource, so this is not part of D1. Whether the spec allows it was not judged
+- The range is 68dd3e2..2c764e2. BootstrapCore changes are client/godot/core/bootstrap_core/bootstrap_core.gd, tests/support/boot_test_support.gd, tests/test_boot_login.gd, and the core test data test-data/data/system/reserved_string.csv and test-data/data/translations/*.csv. The other changes of the range (TweenCore test, server core admin-api, friend, public-profile, storage, records/) are outside the target and were not reviewed
+- Only test_boot_login.gd was run, on the mutated copies above and once on the unchanged checkout (pass). The other BootstrapCore test files were not run. Their uses of `popups()`, `popup()` and `trace_between()` (test_boot_fatal.gd, test_boot_exit.gd, test_boot_dev_modules.gd, test_boot_update.gd, test_boot_dev_run.gd) were read only: none passes the third argument of `popup()`, and none calls them after a popup was traced and then `BootstrapCoreDev.shutdown()` was called. `_shutdown` (bootstrap_core.gd:1285) clears `_traced_popups` but not `_trace`, so such a call would index past `_traced_popups`. No test does this now
+- The `expires_at` mutation of R2-1 was not run. It was judged from the same rendering path and test data
+- `tools/tests/game/data/system/reserved_string.csv:46-49` still has the bootstrap ban texts without format arguments. That is the contract and data tool round trip data, not BootstrapCore core test data, and was not checked further
