@@ -18,6 +18,9 @@ https://github.com/user-attachments/assets/9cf4f284-32c5-4f82-9c3f-13d17cbc12ec
     <td align="center" width="50%"><img src=".github/media/pong.gif" alt="pong gameplay"><br><a href="https://github.com/wnsrn3436/open-game-works-game-pong">pong</a>: paddle game against the CPU</td>
     <td align="center" width="50%"><img src=".github/media/card-duel.gif" alt="card-duel gameplay" width="220"><br>card-duel: real-time card battle against an AI, made with a very early version of open-game-works (repository not published)</td>
   </tr>
+  <tr>
+    <td align="center" width="50%"><img src=".github/media/block-stack.gif" alt="block-stack gameplay"><br><a href="https://github.com/wnsrn3436/open-game-works-game-block-stack">block-stack</a>: one-tap block stacking</td>
+  </tr>
 </table>
 
 ## What it is
