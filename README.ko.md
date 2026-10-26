@@ -18,8 +18,6 @@ https://github.com/user-attachments/assets/fb74b4ca-cc63-430d-af79-5b5118ec9c8a
   </tr>
 </table>
 
-<p align="center"><img src=".github/media/block-stack.gif" alt="block-stack gameplay" width="640"><br><a href="https://github.com/wnsrn3436/open-game-works-game-block-stack">block-stack</a>: 원탭 블록 쌓기. 한 문단짜리 요청에서 루프 3번 만에 main까지 (<a href=".github/media/block-stack-promo.mp4">60초 영상</a>)</p>
-
 ## 소개
 
 [open-game-works](https://github.com/wnsrn3436/open-game-works-core)는 AI 에이전트가 서버-클라이언트 게임을 만드는
@@ -349,5 +347,5 @@ SPDX 라이선스, 소스 URL, 표시해야 하는 고지문, 플랫폼, 사용�
 License 1.1을 그대로 따르며, 저작권 고지와 라이선스 전문은 `benchmark/godot/LICENSES/OFL-1.1-NotoSansKR.txt`에 있다.
 이 파일은 폰트와 함께 `benchmark-godot.zip`에 들어간다.
 
-`.github/media/`의 게임플레이 GIF와 영상은 Apache License 2.0의 적용을 받지 않는다. open-game-works로 만든 게임을 보여
-주는 이 GIF와 영상은 [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/)을 따른다(`.github/media/LICENSE` 참고).
+`.github/media/`의 게임플레이 GIF는 Apache License 2.0의 적용을 받지 않는다. open-game-works로 만든 게임을 보여
+주는 이 GIF들은 [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/)을 따른다(`.github/media/LICENSE` 참고).

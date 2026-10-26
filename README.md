@@ -18,8 +18,6 @@ https://github.com/user-attachments/assets/fb74b4ca-cc63-430d-af79-5b5118ec9c8a
   </tr>
 </table>
 
-<p align="center"><img src=".github/media/block-stack.gif" alt="block-stack gameplay" width="640"><br><a href="https://github.com/wnsrn3436/open-game-works-game-block-stack">block-stack</a>: one-tap block stacking, from a one-paragraph request to main in 3 loop cycles (<a href=".github/media/block-stack-promo.mp4">60-second video</a>)</p>
-
 ## What it is
 
 [open-game-works](https://github.com/wnsrn3436/open-game-works-core) is a harness in which AI agents make server-client
@@ -353,5 +351,5 @@ The benchmark game bundles the Noto Sans KR font as `benchmark/godot/resource/fo
 SIL Open Font License 1.1; its copyright notice and license text are in
 `benchmark/godot/LICENSES/OFL-1.1-NotoSansKR.txt`, which ships with the font in `benchmark-godot.zip`.
 
-The gameplay GIFs and the video in `.github/media/` are not covered by the Apache License 2.0. They show games made with
+The gameplay GIFs in `.github/media/` are not covered by the Apache License 2.0. They show games made with
 open-game-works and are licensed under [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/) (see `.github/media/LICENSE`).
