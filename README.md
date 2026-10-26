@@ -46,6 +46,7 @@ Releases of this repository, and each game pins one release with `coreVersion` i
 | [open-game-works-game-mana-clash](https://github.com/wnsrn3436/open-game-works-game-mana-clash) | a game made with open-game-works |
 | [open-game-works-game-pong](https://github.com/wnsrn3436/open-game-works-game-pong) | a game made with open-game-works |
 | [open-game-works-game-iso-survivors](https://github.com/wnsrn3436/open-game-works-game-iso-survivors) | a game made with open-game-works |
+| [open-game-works-game-block-stack](https://github.com/wnsrn3436/open-game-works-game-block-stack) | a game made with open-game-works |
 
 ## Status
 
