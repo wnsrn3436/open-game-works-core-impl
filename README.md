@@ -7,6 +7,8 @@ data tools that every game made with the harness is built on.
 
 https://github.com/user-attachments/assets/fb74b4ca-cc63-430d-af79-5b5118ec9c8a
 
+https://github.com/user-attachments/assets/9cf4f284-32c5-4f82-9c3f-13d17cbc12ec
+
 <table>
   <tr>
     <td align="center" width="50%"><img src=".github/media/iso-survivors.gif" alt="iso-survivors gameplay"><br><a href="https://github.com/wnsrn3436/open-game-works-game-iso-survivors">iso-survivors</a>: isometric 3D horde survival</td>
