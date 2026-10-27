@@ -47,6 +47,22 @@
       "startedAt": 1792970748844,
       "exitCode": 0,
       "summary": null
+    },
+    {
+      "command": "ogw core test godot PushCore",
+      "startedAt": 1793100453144,
+      "exitCode": 0,
+      "summary": {
+        "tests": 61,
+        "passed": 61
+      },
+      "job": "mvqlpogmd2ee01"
+    },
+    {
+      "command": "ogw job wait mvqlpogmd2ee01",
+      "startedAt": 1793100455413,
+      "exitCode": 0,
+      "summary": null
     }
   ]
 }
