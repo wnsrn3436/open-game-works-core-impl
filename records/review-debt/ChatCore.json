@@ -1,12 +1,5 @@
 {
   "target": "ChatCore",
   "nextId": 2,
-  "items": [
-    {
-      "id": "D1",
-      "location": "client/godot/core/chat_core/tests/test_read_seq.gd:154",
-      "problem": "test evidence: `assert_eq(UnitTestCore.check_logs(\"error\", \"BadgeCore\"), 0, ...)` asserts an error log count whose expected value is 0, which the unit-test-core.md log rule (\"The error log count is asserted with `check_logs` only when the expected value is not 0\") does not allow. Any unchecked BadgeCore error log already fails the test at its end, so this assert catches nothing extra. It is the same defect as AuthCore R1-1/R1-2 and was there before d4e2728 (last change to the file is 301b3dd, an ancestor of d4e2728)",
-      "foundBy": "ChatCore round 1"
-    }
-  ]
+  "items": []
 }
