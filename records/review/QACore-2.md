@@ -1,4 +1,4 @@
-# review QACore round 2
+# QACore review round 2
 
 ## findings
 
@@ -8,7 +8,8 @@ none
 
 | id | result | evidence |
 |---|---|---|
-| R1-1 | fixed | `settings/core-settings.schema.json:1752` now has `"minimum": 10` (`maximum` 1000). `client/godot/core/qa_core/dev/qa_core.gd:65` defines `_MIN_JPG_QUALITY` = 10, and `_read_settings` (`qa_core.gd:1074`) uses it as the least value of `_KEY_CAPTURE_JPG_QUALITY`. So 1 to 9 log an error and make `init` return `false`, the same as values over 1000 (`qa_core.gd:1081`). `client/godot/core/qa_core/tests/test_render_capture.gd:82-88` sets quality 9 and 1001 and asserts for each that `init` returns `false`, that QACore is not initialized and that one error is logged. `UnitTestCore.check_logs` marks the logs it counts as checked (`client/godot/core/unit_test_core/dev/unit_test_core.gd:1297-1300`), so each loop pass counts only its own error. With the old least value 1, quality 9 passes init and the `assert_false` fails, so the test catches the defect |
+| R1-1 | fixed | `client/godot/core/qa_core/tests/test_telemetry.gd:102` (`test_a_release_input_is_not_in_input_count`) puts `key_down`, `key_up`, `tap` between two `Goal` marks and asserts `goal_intervals.1.input_count` is 2. Restored the defect in a temporary detached worktree of a866485 outside the checkout: added `_goal_inputs += 1` after `_activity(now())` in `add_release` (`client/godot/core/qa_core/dev/qa_telemetry.gd:157`). `ogw core test godot QACore --file client/godot/core/qa_core/tests/test_telemetry.gd` there: QACore fail, only `test_a_release_input_is_not_in_input_count` failed with `[3] expected to equal [2]: the key_up is not counted`. The same run on the unmodified copy: QACore pass |
+| R1-2 | fixed | `client/godot/core/qa_core/tests/test_telemetry.gd:168` (`test_a_release_input_ends_an_idle_span`) puts `key_down`, advances `IDLE_THRESHOLD_MS + 1`, puts `key_up`, and asserts one idle span with a non-null `end_at` and `duration_ms` `IDLE_THRESHOLD_MS + 1`. Restored the defect in a second temporary detached worktree of a866485: replaced the body of `add_release` (`qa_telemetry.gd:158`) with `pass`. The same `--file` run there: QACore fail, only `test_a_release_input_ends_an_idle_span` failed (`the key_up ends the span`; `[-1700000999999] expected to equal [1001]`; `[-999999] expected to equal [1001]`) |
 
 ## out of scope
 
@@ -24,6 +25,6 @@ none
 
 ## unknown
 
-- The Godot tests (`ogw core test`) were not run in this review. The claim that the test fails on the old code comes from reading the code, not from restoring the defect and running the test. R1-1 is a `spec` finding, so step 5 does not require a restore run
-- The core agent report says the native render pass (`test_render_*`) was not run in its job because the screen was locked. It names only the `--web` run as the pass for `test_capture_formats`
-- The other changes in this range (the `records/` files and the UnitTestCore review records) belong to other targets or are process records, and were not reviewed
+- The QACore change in the range is only the two tests above in `client/godot/core/qa_core/tests/test_telemetry.gd`; the implementation is unchanged. The other changes of the range (`server/core/storage/`, `server/core/routing/tests/`, `records/`) are outside QACore and were not checked
+- The mutation and control runs were the native headless pass of `ogw core test godot QACore --file` only (a `--file` run does not run the browser run). The full module suite and `--web` were not run in this round
+- The softlock count of release inputs (`_inputs_since_state += 1` at `client/godot/core/qa_core/dev/qa_core.gd:826`) is unchanged by this range and was not checked against tests
