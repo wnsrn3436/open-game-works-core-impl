@@ -1,8 +1,8 @@
 import type { RoutingInput } from '../routing_module.ts';
 import { create_routing } from '../routing_module.ts';
 
-/** Job `storage_sweep` of a routing module whose `storage` returns `failed` from `sweep_expired`, with the error logs it leaves. */
-function sweep_job(failed: readonly { table: string; code: string }[]): { run: () => Promise<void>; errors: string[]; calls: string[] } {
+/** Job `storage_sweep` of a routing module whose `storage` returns `failed` from `sweep_expired` and `user_changes` from `run_user_changes`, with the error logs it leaves. */
+function sweep_job(failed: readonly { table: string; code: string }[], user_changes: number | 'FAILED' = 0): { run: () => Promise<void>; errors: string[]; calls: string[] } {
   const errors: string[] = [];
   const calls: string[] = [];
   let job: (() => unknown) | null = null;
@@ -14,7 +14,7 @@ function sweep_job(failed: readonly { table: string; code: string }[]): { run: (
     },
     run_user_changes: () => {
       calls.push('run_user_changes');
-      return Promise.resolve(0);
+      return Promise.resolve(user_changes);
     },
   };
   const server_time = {
@@ -57,6 +57,19 @@ describe('job storage_sweep', () => {
     const sweep = sweep_job([]);
     await sweep.run();
     expect(sweep.calls).toEqual(['sweep_expired', 'run_user_changes']);
+    expect(sweep.errors).toEqual([]);
+  });
+
+  it('leaves one error log when run_user_changes is FAILED', async () => {
+    const sweep = sweep_job([], 'FAILED');
+    await sweep.run();
+    expect(sweep.calls).toEqual(['sweep_expired', 'run_user_changes']);
+    expect(sweep.errors).toEqual(['storage_sweep: run_user_changes failed']);
+  });
+
+  it('leaves no error log when run_user_changes returns a number', async () => {
+    const sweep = sweep_job([], 2);
+    await sweep.run();
     expect(sweep.errors).toEqual([]);
   });
 });
