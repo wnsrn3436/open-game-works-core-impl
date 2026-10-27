@@ -1,0 +1,12 @@
+{
+  "target": "ads-reward",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "open-game-works-core/skills/server-core/modules/ads-reward.md:80",
+      "problem": "The spec does not set the order of the two checks on a callback whose signature matched: the reward notify ID and user ID format check (line 80, `warn` log) and the `ads-admob` ad unit check (line 81, `security` log `ad_callback_ad_unit`). An AdMob callback with an ad unit not in `adUnits` and a `custom_data` that is not a lower-case UUID v4 (e.g. the callback of another publisher's ad unit) can leave either log kind depending on the implementation. The code runs the format checks first (`server/core/ads-reward/callback.ts:177`), so such a callback leaves only a `warn` log and no `ad_callback_ad_unit` security line. The spec should name the order",
+      "foundBy": "ads-reward round 1"
+    }
+  ]
+}
