@@ -1,3 +1,52 @@
 {
-  "runs": []
+  "runs": [
+    {
+      "command": "ogw core test godot QACore --file client/godot/core/qa_core/tests/test_telemetry.gd",
+      "startedAt": 1793101231101,
+      "exitCode": 1,
+      "summary": {
+        "tests": 15,
+        "passed": 14
+      },
+      "job": "mvqm6cq13f4adf"
+    },
+    {
+      "command": "ogw core test godot QACore --file client/godot/core/qa_core/tests/test_telemetry.gd",
+      "startedAt": 1793101235543,
+      "exitCode": 1,
+      "summary": {
+        "tests": 15,
+        "passed": 14
+      },
+      "job": "mvqm6g2m52bdc2"
+    },
+    {
+      "command": "ogw job wait mvqm6cq13f4adf",
+      "startedAt": 1793101241337,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvqm6g2m52bdc2",
+      "startedAt": 1793101341831,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot QACore --file client/godot/core/qa_core/tests/test_telemetry.gd",
+      "startedAt": 1793101346175,
+      "exitCode": 0,
+      "summary": {
+        "tests": 15,
+        "passed": 15
+      },
+      "job": "mvqm8tiw4bb769"
+    },
+    {
+      "command": "ogw job wait mvqm8tiw4bb769",
+      "startedAt": 1793101348195,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
 }
