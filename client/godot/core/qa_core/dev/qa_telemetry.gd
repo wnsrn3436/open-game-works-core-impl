@@ -153,6 +153,11 @@ func add_input(command: String) -> void:
 		dropped += 1
 
 
+## A release input: an input for idle spans only.
+func add_release() -> void:
+	_activity(now())
+
+
 ## A feedback event: counted on the last input in the feedback window, then a response event.
 func add_feedback(kind: Feedback) -> void:
 	var time: int = now()
