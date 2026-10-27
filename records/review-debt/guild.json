@@ -1,0 +1,12 @@
+{
+  "target": "guild",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/guild/core.ts:179",
+      "problem": "The cooldown check uses the request time (`is_reached_strict(ctx, ends_at)`), but `sweep_expired` deletes `guild_cooldown` rows with `ends_at` ≤ `clock_now` (server/core/storage/rows.ts sweep_sql). storage `### expiry` says such a row \"counts as a row that does not exist, also before it is deleted\", while guild `### tables` cooldown says `GUILD_COOLDOWN` while `is_reached_strict(ends_at)` is `false`. Run path (DEV, cheat offset allowed down to −clock): user sets `SetTimeOffset` −25h, gets kicked or leaves (`remove_member` writes `ends_at` = request time + `guild.rejoinCooldownMs` 86400000, which is about 1h before `clock_now`). Until the next `storage_sweep` run, `JoinGuild`/`CreateGuild` return `GUILD_COOLDOWN`. After the sweep deletes the row, the same requests succeed even though the request time is still before `ends_at`. Without an offset, the same split happens in the window between the transaction's request time and the sweep's `clock_now`. This code was here before the range (guild source unchanged since 301b3dd). The two defining documents disagree, so the fix needs a spec decision: judge the cooldown with `clock_now`, or exclude this table from the storage rule",
+      "foundBy": "guild round 1"
+    }
+  ]
+}
