@@ -1,0 +1,12 @@
+{
+  "target": "item-ledger",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/item-ledger/history.ts:104",
+      "problem": "`insert_history` gives `seq` as `MAX(seq) + 1` over every history row of the user, expired rows included. `storage` `### expiry` says a row with expiry column ≤ `clock_now` counts as a row that does not exist, also before it is deleted, and item-ledger `### storage and client delivery` says `seq` starts from the largest value among that user's history rows + 1, or from 1 when there are none. Run path: `add_items` at t0 (history seq 1), advance past `item-ledger.historyRetentionMs`, then `add_items` again before `sweep_expired` runs. The new row gets seq 2, but the defining documents give seq 1. After a sweep the same call gives seq 1, which `server/core/item-ledger/tests/history.test.ts:58` checks, so `seq` depends on when the sweep ran. If `MAX` only counted unexpired rows, a plain INSERT would hit the primary key `(user_id, seq)` of an expired row that has not been swept yet. A fix that keeps the documents is `MAX(seq)` over unexpired rows plus an upsert over the expired row with the same key, which is the storage upsert rule. This code is not changed in the range and the sweep batching does not change this behavior.",
+      "foundBy": "item-ledger round 1"
+    }
+  ]
+}
