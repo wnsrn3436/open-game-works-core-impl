@@ -18,6 +18,14 @@ vi.mock('../schema.ts', async (original) => {
   };
 });
 
+/** A table budget that has already passed when the first delete statement of the table ends. */
+const PASSED_BUDGET_MS = vi.hoisted(() => 987_654_321);
+
+vi.mock('../../server-time/network_time_limit.ts', async (original) => {
+  const actual = await original<typeof import('../../server-time/network_time_limit.ts')>();
+  return { network_time_limit: (ms: bigint) => (ms === BigInt(PASSED_BUDGET_MS) ? AbortSignal.abort() : actual.network_time_limit(ms)) };
+});
+
 afterEach(() => {
   stop_all();
 });
@@ -79,6 +87,45 @@ describe('sweep_expired batches', () => {
     ]);
     expect(await storage.sweep_expired()).toEqual({ deleted: 5, failed: [] });
     expect(storage.read_db().query('SELECT id FROM test_expiring')).toEqual([{ id: 6n }]);
+  });
+
+  it('one delete statement deletes at most storage.sweepBatchSize rows, and storage.sweepTableBudgetMs passed after a statement stops that table only', async () => {
+    const { storage, clock } = await instance({ settings: { 'storage.sweepBatchSize': 2, 'storage.sweepTableBudgetMs': PASSED_BUDGET_MS }, register: expiring_tables(undefined) });
+    const now = clock.now();
+    const expired = (ids: readonly bigint[]): (readonly [bigint, bigint])[] => ids.map((id) => [id, now - id]);
+    await insert_rows(storage, 'test_expiring', expired([1n, 2n, 3n, 4n, 5n]));
+    await insert_rows(storage, 'test_other', expired([1n, 2n, 3n]));
+    expect(await storage.sweep_expired()).toEqual({ deleted: 4, failed: [] });
+    expect(storage.read_db().query('SELECT id FROM test_expiring').length).toBe(3);
+    expect(storage.read_db().query('SELECT id FROM test_other').length).toBe(1);
+    expect(await storage.sweep_expired()).toEqual({ deleted: 3, failed: [] });
+    expect(await storage.sweep_expired()).toEqual({ deleted: 1, failed: [] });
+    expect(storage.read_db().query('SELECT id FROM test_expiring')).toEqual([]);
+    expect(storage.read_db().query('SELECT id FROM test_other')).toEqual([]);
+  });
+
+  it('with storage.sweepBatchSize 1 and storage.sweepTableBudgetMs 1, one sweep_expired deletes fewer than the 2000 expired rows of a table, and later runs delete the rest', async () => {
+    const { storage, clock } = await instance({ settings: { 'storage.sweepBatchSize': 1, 'storage.sweepTableBudgetMs': 1 }, register: expiring_tables(undefined) });
+    const now = clock.now();
+    const rows = 2000;
+    await insert_rows(
+      storage,
+      'test_expiring',
+      Array.from({ length: rows }, (_, i) => [BigInt(i + 1), now - 1n] as const),
+    );
+    const first = await storage.sweep_expired();
+    expect(first.failed).toEqual([]);
+    expect(first.deleted).toBeGreaterThan(0);
+    expect(first.deleted).toBeLessThan(rows);
+    let total = first.deleted;
+    while (total < rows) {
+      const next = await storage.sweep_expired();
+      expect(next.failed).toEqual([]);
+      expect(next.deleted).toBeGreaterThan(0);
+      total += next.deleted;
+    }
+    expect(total).toBe(rows);
+    expect(storage.read_db().query('SELECT id FROM test_expiring')).toEqual([]);
   });
 
   it.runIf(DB_KIND === 'postgresql')(
