@@ -1,3 +1,20 @@
 {
-  "runs": []
+  "runs": [
+    {
+      "command": "ogw core test server validation",
+      "startedAt": 1793100564258,
+      "exitCode": 0,
+      "summary": {
+        "tests": 200,
+        "passed": 200
+      },
+      "job": "mvqls273d3b09f"
+    },
+    {
+      "command": "ogw job wait mvqls273d3b09f",
+      "startedAt": 1793100567342,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
 }

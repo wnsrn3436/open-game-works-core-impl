@@ -1,4 +1,4 @@
-# review validation round 1
+# review: validation round 1
 
 ## findings
 
@@ -22,6 +22,5 @@ none
 
 ## unknown
 
-- The core tests of `validation` were not run: this checkout has no installed test dependencies (`server/node_modules` is missing), and `ogw core test` is run by the lead agent. The only change to `validation` in the range, `server/core/validation/tests/server.ts:160` (`create_user(tx).user_id`), was checked against the new `Storage.create_user` signature that returns `NewUser` (`server/core/storage/index.ts:162`, `server/core/storage/rows.ts:51`). It was checked by reading, not by running a type check
-- No code of `validation` outside `tests/` changed in the range. Its dependency on `storage` is only `run_read_only` and the `RequestCtx` type (`server/core/validation/index.ts:7`, `server/core/validation/index.ts:31`), and the range does not change them. The rest of the range (storage public code, public-profile `FindUserByPublicCode`, auth, routing, client modules) is outside the target and was read only where it reaches `validation`
-- The generated validator of the new core `rpc` `core/FindUserByPublicCode` (`server/generated/contract/core_contract.ts:5949`, `max_len: 32`) is run by `validate_request` through `CoreContract.RPCS` (`server/core/validation/validator.ts:48`) with no change to `validation`. A boundary test of that request belongs to the module that owns the `rpc` and was not checked here
+- The range cf89b7fd..319d929 changes no file under `server/core/validation/`, and no file under `server/core/item-ledger/` other than `server/core/item-ledger/tests/history.test.ts:1` (test only). The changed code the module reaches is in `storage`: `sweep_expired` and `SweepResult` (`server/core/storage/rows.ts`), the added expiry index and `CREATE INDEX IF NOT EXISTS` (`server/core/storage/schema.ts`), the new settings `storage.sweepBatchSize` and `storage.sweepTableBudgetMs` (`server/core/storage/core.ts`), and `NO_FREE_CONNECTION` changing from `55P03` to `POOL` while staying in `LOCK_CODES` (`server/core/storage/db/pg_messages.ts`, `server/core/storage/db/postgres.ts`). validation calls none of these. It uses only the `RequestCtx`/`Storage` types and, through judge hooks, `run_read_only`, `get_state` and `item-ledger.get_balance`, and the range did not change how those behave. So these changes cause or reveal no validation finding
+- `ogw core test server validation` passed on 319d929. This review did not re-check the whole module for problems that existed before the range (the commit range is not `none`)
