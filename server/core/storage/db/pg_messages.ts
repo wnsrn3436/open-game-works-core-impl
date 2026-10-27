@@ -49,8 +49,8 @@ export const READ_CONN = 0;
 /** The code of a transaction that PostgreSQL rolled back at `COMMIT` (SQLSTATE `in_failed_sql_transaction`). */
 export const ROLLED_BACK_AT_COMMIT = '25P02';
 
-/** The code of a transaction that got no connection within its wait (SQLSTATE `lock_not_available`). */
-export const NO_FREE_CONNECTION = '55P03';
+/** The code of a transaction that got no connection within its wait: a lock failure without a PostgreSQL answer. */
+export const NO_FREE_CONNECTION = 'POOL';
 
 /** The code of a worker failure that is not a PostgreSQL answer (for example a decode error): not a connection failure. */
 export const WORKER_ERROR = 'WORKER';

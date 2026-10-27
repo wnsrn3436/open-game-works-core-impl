@@ -39,6 +39,18 @@
       "owner": "content"
     },
     {
+      "key": "storage.sweepBatchSize",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "storage.sweepTableBudgetMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
       "key": "storage.maxShuffleCount",
       "type": "integer",
       "source": "core",

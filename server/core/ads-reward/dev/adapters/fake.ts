@@ -57,7 +57,7 @@ function parse(query: string): ParsedCallback | typeof FORMAT_ERROR {
   const bytes = base64url_bytes(signature);
   if (parse_decimal(key_text) === null) return FORMAT_ERROR;
   if (bytes === null || bytes.byteLength !== KEY_BYTES || signature.endsWith('=')) return FORMAT_ERROR;
-  return { key_id: key_text, signed_text: query.slice(0, query.indexOf(SIGNATURE)), signature, notify_id, user_id };
+  return { key_id: key_text, signed_text: query.slice(0, query.indexOf(SIGNATURE)), signature, notify_id, user_id, ad_unit: '' };
 }
 
 /**

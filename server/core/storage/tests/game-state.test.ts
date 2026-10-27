@@ -69,7 +69,7 @@ describe('game state', () => {
     const read = await request(storage, user, (ctx) => [hp(storage, ctx, 1n), storage.list_game_state(ctx, BossGameState, -1n, 10).map((b) => (b as BossGameState).key)]);
     expect(read).toEqual([0n, [2n]]);
     expect(storage.read_db().query('SELECT "key" FROM game_state')).toHaveLength(2);
-    expect(await storage.sweep_expired()).toBe(1);
+    expect((await storage.sweep_expired()).deleted).toBe(1);
     expect(storage.read_db().query('SELECT "key" FROM game_state')).toEqual([{ key: 2n }]);
   });
 

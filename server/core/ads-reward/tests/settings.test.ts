@@ -25,6 +25,13 @@ describe('ads-reward settings', () => {
   it.each(ONE_OR_MORE)('gives %s the minimum 1 in core-settings.schema.json', (key) => {
     expect(SCHEMA.properties[key]?.minimum).toBe(1);
   });
+
+  it('takes the part after / of each ad unit ID of every placement and platform of environments.<ENV>.adUnits', () => {
+    const ad_units = { '[ad_a]': { android: 'ca-app-pub-1/222', ios: 'ca-app-pub-1/333' }, '[ad_b]': { android: 'ca-app-pub-2/444' } };
+    expect([...read_settings({ ...SETTINGS, 'environments.<ENV>.adUnits': ad_units }).ad_units].sort()).toEqual(['222', '333', '444']);
+    expect(read_settings({ ...SETTINGS, 'environments.<ENV>.adUnits': {} }).ad_units.size).toBe(0);
+    expect(() => read_settings({ ...SETTINGS, 'environments.<ENV>.adUnits': { '[ad_a]': 'ca-app-pub-1/222' } })).toThrow('environments.<ENV>.adUnits');
+  });
 });
 
 describe('ads-reward idempotency.maxNotifyIdBytes', () => {

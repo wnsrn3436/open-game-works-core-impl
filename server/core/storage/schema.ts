@@ -174,24 +174,32 @@ export function table_def(input: TableInput): TableDef | string {
   if (typeof indexes === 'string') return fail(indexes);
   const shape = check_shape(input, columns, key);
   if (shape !== null) return fail(shape);
+  const expiry = typeof input.expiry === 'string' ? input.expiry : null;
   return {
     name,
     scope: input.scope,
     columns,
     key,
-    expiry: typeof input.expiry === 'string' ? input.expiry : null,
+    expiry,
     snapshot: input.snapshot === true,
     personal: typeof input.personal === 'string' ? input.personal : null,
-    indexes,
+    indexes: with_expiry_index(indexes, expiry),
   };
+}
+
+/** The index list with the index of the expiry column alone added when no index starts with that column. */
+function with_expiry_index(indexes: string[][], expiry: string | null): string[][] {
+  if (expiry === null || indexes.some((index) => index[0] === expiry)) return indexes;
+  return [...indexes, [expiry]];
 }
 
 function create_table_sql(dialect: Dialect, name: string, columns: readonly Column[], key: readonly string[]): string {
   return `CREATE TABLE ${quote(name)} (${columns.map((c) => column_sql(dialect, c)).join(', ')}, PRIMARY KEY (${key.map(quote).join(', ')}))`;
 }
 
+/** `IF NOT EXISTS` keeps an index of the same name that an operator made before, e.g. with `CREATE INDEX CONCURRENTLY`. */
 function create_index_sql(table: string, columns: readonly string[]): string {
-  return `CREATE INDEX ${quote(index_name(table, columns))} ON ${quote(table)} (${columns.map(quote).join(', ')})`;
+  return `CREATE INDEX IF NOT EXISTS ${quote(index_name(table, columns))} ON ${quote(table)} (${columns.map(quote).join(', ')})`;
 }
 
 /** Base table statements of core schema version 1. */

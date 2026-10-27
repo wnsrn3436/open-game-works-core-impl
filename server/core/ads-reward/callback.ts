@@ -1,7 +1,7 @@
 /**
  * The ad network callback route `GET /ads/callback/<network>` and the signing key cache.
  */
-import type { AdsAdapter, KeyFetchFailure, KeyList } from './adapter.ts';
+import type { AdsAdapter, KeyFetchFailure, KeyList, ParsedCallback } from './adapter.ts';
 import { FORMAT_ERROR, network_name, NOTIFY_ID, parse_user_id, timeout_on_abort } from './adapter.ts';
 import { grant, PASS, type AdsRewardCore } from './grant.ts';
 import { bump_ip_count, read_ip_count, read_ticket } from './tickets.ts';
@@ -168,6 +168,29 @@ async function process(core: AdsRewardCore, adapter: AdsAdapter, parsed: SignedC
   return { status: 200 };
 }
 
+/**
+ * The checks of a callback whose signature matched, before its transaction: the reward notify ID, the user ID and, for
+ * `ads-admob`, the ad unit. Null when the callback ends there with HTTP 200, without a count.
+ */
+function check_signed(core: AdsRewardCore, adapter: AdsAdapter, parsed: ParsedCallback, ip: string): SignedCallback | null {
+  // The client sets the reward notify ID and the user ID, so a bad value in a signed callback is not counted.
+  if (!NOTIFY_ID.test(parsed.notify_id)) {
+    warn_log(core, 'ad callback: the reward notify ID is not a lower-case UUID v4', parse_user_id(parsed.user_id));
+    return null;
+  }
+  const user_id = parse_user_id(parsed.user_id);
+  if (user_id === null) {
+    warn_log(core, `ad callback ${parsed.notify_id}: the user ID is not a decimal from 1 to 2^63 - 1`, null);
+    return null;
+  }
+  // AdMob signs the callbacks of every publisher with the same keys: only an ad unit of this game grants.
+  if (adapter.name === 'ads-admob' && (parsed.ad_unit === '' || !core.settings.ad_units.has(parsed.ad_unit))) {
+    security_log(core, ip, 'ad_callback_ad_unit', user_id);
+    return null;
+  }
+  return { notify_id: parsed.notify_id, user_id };
+}
+
 /** The callback processing order of the route `GET /ads/callback/<network>`. */
 export async function handle_callback(core: AdsRewardCore, keys: KeyCache, request: RouteRequest, ip: string): Promise<RouteResponse> {
   const adapter = core.adapter;
@@ -196,15 +219,6 @@ export async function handle_callback(core: AdsRewardCore, keys: KeyCache, reque
     security_log(core, ip, 'ad_callback_signature', null);
     return counted(core, ip, 403);
   }
-  // The client sets the reward notify ID and the user ID, so a bad value in a signed callback is not counted.
-  if (!NOTIFY_ID.test(parsed.notify_id)) {
-    warn_log(core, 'ad callback: the reward notify ID is not a lower-case UUID v4', parse_user_id(parsed.user_id));
-    return { status: 200 };
-  }
-  const user_id = parse_user_id(parsed.user_id);
-  if (user_id === null) {
-    warn_log(core, `ad callback ${parsed.notify_id}: the user ID is not a decimal from 1 to 2^63 - 1`, null);
-    return { status: 200 };
-  }
-  return process(core, adapter, { notify_id: parsed.notify_id, user_id });
+  const checked = check_signed(core, adapter, parsed, ip);
+  return checked === null ? { status: 200 } : process(core, adapter, checked);
 }

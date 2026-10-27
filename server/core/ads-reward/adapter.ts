@@ -14,6 +14,8 @@ export interface ParsedCallback {
   readonly notify_id: string;
   /** The user ID text as the query has it, empty when missing. The client sets it: `parse` does not check it. */
   readonly user_id: string;
+  /** The ad unit (`ads-admob`: the number after `/` of the ad unit ID), empty when missing; always empty for `fake`. */
+  readonly ad_unit: string;
 }
 
 export const FORMAT_ERROR = 'FORMAT_ERROR';

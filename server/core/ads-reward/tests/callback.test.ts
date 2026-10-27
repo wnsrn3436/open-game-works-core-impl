@@ -396,17 +396,23 @@ describe('ads-reward ads-admob adapter', () => {
   const base64 = pair.publicKey.export({ format: 'der', type: 'spki' }).toString('base64');
   const KEY_ID = 3335741209;
 
-  /** An AdMob callback query of the reward notify ID and the user ID, signed with `text` or with the query of `text`. */
-  function admob_query(custom_data: string, user_id: string, signed_text?: string): string {
+  /** The ad units of the environment: the `ad_unit` 1234567890 of the queries below is the android one. */
+  const AD_UNITS = { 'environments.<ENV>.adUnits': { '[ad_rewarded_basic]': { android: 'ca-app-pub-3940256099942544/1234567890', ios: 'ca-app-pub-3940256099942544/1111111111' } } };
+
+  /**
+   * An AdMob callback query of the reward notify ID and the user ID, signed with `text` or with the query of `text`.
+   * `ad_unit` is 1234567890 unless given.
+   */
+  function admob_query(custom_data: string, user_id: string, signed_text?: string, ad_unit = '1234567890'): string {
     const text =
-      `ad_network=5450213213286189855&ad_unit=1234567890&custom_data=${encodeURIComponent(custom_data)}&reward_amount=1&reward_item=coin` +
+      `ad_network=5450213213286189855&ad_unit=${ad_unit}&custom_data=${encodeURIComponent(custom_data)}&reward_amount=1&reward_item=coin` +
       `&timestamp=1507770365237823&transaction_id=18fa792de1bca816048293fc71035638&user_id=${user_id}`;
     const signature = sign('sha256', Buffer.from(signed_text ?? text, 'utf8'), { key: pair.privateKey, dsaEncoding: 'der' }).toString('base64url');
     return `${text}&signature=${signature}&key_id=${String(KEY_ID)}`;
   }
 
   it('grants an AdMob callback signed with a key of the key source, and answers HTTP 403 to another signature', async () => {
-    const server = await T.start_test_server(T0, undefined, undefined, undefined, { ads: 'ads-admob' });
+    const server = await T.start_test_server(T0, undefined, undefined, undefined, { ads: 'ads-admob' }, AD_UNITS);
     try {
       T.set_key_source(server, 'ads', [{ keyId: KEY_ID, base64 }]);
       const session = await user(server);
@@ -422,7 +428,7 @@ describe('ads-reward ads-admob adapter', () => {
   });
 
   it('answers HTTP 200 without a grant or a count to a signed AdMob callback whose user_id is x or whose custom_data is 36 × 가', async () => {
-    const settings = { 'idempotency.maxNotifyIdBytes': 64, 'ads-reward.callbackRateLimitPerMinute': 1 };
+    const settings = { ...AD_UNITS, 'idempotency.maxNotifyIdBytes': 64, 'ads-reward.callbackRateLimitPerMinute': 1 };
     const server = await T.start_test_server(T0, undefined, undefined, undefined, { ads: 'ads-admob' }, settings);
     try {
       T.set_key_source(server, 'ads', [{ keyId: KEY_ID, base64 }]);
@@ -435,6 +441,32 @@ describe('ads-reward ads-admob adapter', () => {
       expect(await balance(server, session.user_id, GEM())).toBe(0n);
       expect((await callback(server, admob_query(notify_id, String(session.user_id), 'other'), 'admob')).status).toBe(403);
       expect((await callback(server, admob_query(notify_id, String(session.user_id), 'other'), 'admob')).status).toBe(429);
+    } finally {
+      await T.stop_test_server(server);
+    }
+  });
+
+  it('answers HTTP 200 without a grant and with a security log to a signed AdMob callback of an ad unit not in adUnits, and grants the same reward notify ID with an ad unit in adUnits', async () => {
+    const settings = { 'environments.<ENV>.adUnits': { '[ad_rewarded_basic]': { android: 'ca-app-pub-1/222' } } };
+    const server = await T.start_test_server(T0, undefined, undefined, undefined, { ads: 'ads-admob' }, settings);
+    try {
+      T.set_key_source(server, 'ads', [{ keyId: KEY_ID, base64 }]);
+      const session = await user(server);
+      const notify_id = await notify_of(session, BASIC());
+      const user_id = String(session.user_id);
+      const rejected = (): number => T.read_logs(server, 'security').filter((l) => l.reason === 'ad_callback_ad_unit').length;
+      expect((await callback(server, admob_query(notify_id, user_id, undefined, '333'), 'admob')).status).toBe(200);
+      expect(rejected()).toBe(1);
+      // The full ad unit ID and an empty ad unit are not an ad unit of adUnits either; their security lines fall in the
+      // repeat window of the first one.
+      expect((await callback(server, admob_query(notify_id, user_id, undefined, 'ca-app-pub-1%2F222'), 'admob')).status).toBe(200);
+      expect((await callback(server, admob_query(notify_id, user_id, undefined, ''), 'admob')).status).toBe(200);
+      expect(rejected()).toBe(1);
+      expect(await balance(server, session.user_id, GEM())).toBe(0n);
+      expect((await callback(server, admob_query(notify_id, user_id, undefined, '222'), 'admob')).status).toBe(200);
+      expect(await balance(server, session.user_id, GEM())).toBe(10n);
+      expect(error_of(await claim(session, notify_id))).toBe(0);
+      expect(rejected()).toBe(1);
     } finally {
       await T.stop_test_server(server);
     }

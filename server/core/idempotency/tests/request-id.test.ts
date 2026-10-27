@@ -165,7 +165,7 @@ describe('request ID', () => {
     const user = await new_user(s);
     await send(s, user, BUMP, 'req-x', bump(s));
     s.clock.advance(RETENTION_MS);
-    expect(await s.storage.sweep_expired()).toBeGreaterThan(0);
+    expect((await s.storage.sweep_expired()).deleted).toBeGreaterThan(0);
     expect(rows(s, ROW, [user, 'req-x'])).toEqual([]);
     const again = await send(s, user, BUMP, 'req-x', bump(s));
     expect(calls.get(BUMP)).toBe(2);

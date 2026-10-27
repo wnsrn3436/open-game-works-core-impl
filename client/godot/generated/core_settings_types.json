@@ -534,6 +534,8 @@
   "storage.dbAnswerWaitMs": "integer",
   "storage.schemaLockWaitMs": "integer",
   "storage.schemaAnswerWaitMs": "integer",
+  "storage.sweepBatchSize": "integer",
+  "storage.sweepTableBudgetMs": "integer",
   "storage.maxShuffleCount": "integer",
   "storage.maxPublicReadCount": "integer",
   "storage.maxGameStateList": "integer",

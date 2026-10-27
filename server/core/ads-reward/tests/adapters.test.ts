@@ -77,7 +77,7 @@ describe('fake ads adapter', () => {
     ];
     for (const { notify_id, user_id } of values) {
       const callback = parsed(adapter.parse(`notify_id=${notify_id}&user_id=${user_id}&key_id=1&signature=${signature}`));
-      expect([callback.notify_id, callback.user_id, callback.key_id]).toEqual([notify_id, user_id, '1']);
+      expect([callback.notify_id, callback.user_id, callback.key_id, callback.ad_unit]).toEqual([notify_id, user_id, '1', '']);
     }
   });
 });
@@ -91,7 +91,7 @@ describe('ads-admob adapter', () => {
   it('parses the query, verifies the ECDSA signature with the key of key_id and rejects another text', async () => {
     const adapter = create_admob_adapter(() => Promise.resolve([{ keyId: 3335741209, base64 }]));
     const callback = parsed(adapter.parse(`${text}&signature=${signature}&key_id=3335741209`));
-    expect([callback.user_id, callback.key_id, callback.signed_text]).toEqual(['12', '3335741209', text]);
+    expect([callback.user_id, callback.key_id, callback.signed_text, callback.ad_unit]).toEqual(['12', '3335741209', text, '1234567890']);
     const keys = await adapter.fetch_keys(new AbortController().signal);
     if (typeof keys === 'string') throw new Error(keys);
     const key = keys.get('3335741209');
@@ -126,6 +126,12 @@ describe('ads-admob adapter', () => {
       const callback = parsed(adapter.parse(`${query}&signature=${signature}&key_id=1`));
       expect([callback.user_id, callback.notify_id]).toEqual([user_id, notify_id]);
     }
+  });
+
+  it('returns a missing ad_unit as an empty string', () => {
+    const adapter = create_admob_adapter(() => Promise.resolve([]));
+    expect(parsed(adapter.parse(`${text.replace('ad_unit=1234567890&', '')}&signature=${signature}&key_id=1`)).ad_unit).toBe('');
+    expect(parsed(adapter.parse(`${text.replace('ad_unit=1234567890', 'ad_unit=')}&signature=${signature}&key_id=1`)).ad_unit).toBe('');
   });
 
   it('turns a key source failure or a malformed key list into a fetch_keys failure', async () => {

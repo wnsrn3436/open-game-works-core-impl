@@ -25,6 +25,8 @@ export interface StorageSettings {
   readonly db_answer_wait_ms: number;
   readonly schema_lock_wait_ms: number;
   readonly schema_answer_wait_ms: number;
+  readonly sweep_batch_size: number;
+  readonly sweep_table_budget_ms: number;
   readonly max_shuffle_count: number;
   readonly max_public_read_count: number;
   readonly max_game_state_list: number;
@@ -313,6 +315,8 @@ export function read_settings(settings: Readonly<Record<string, unknown>>): Stor
     db_answer_wait_ms: int_setting(settings, 'storage.dbAnswerWaitMs'),
     schema_lock_wait_ms: int_setting(settings, 'storage.schemaLockWaitMs'),
     schema_answer_wait_ms: int_setting(settings, 'storage.schemaAnswerWaitMs'),
+    sweep_batch_size: int_setting(settings, 'storage.sweepBatchSize'),
+    sweep_table_budget_ms: int_setting(settings, 'storage.sweepTableBudgetMs'),
     max_shuffle_count: int_setting(settings, 'storage.maxShuffleCount'),
     max_public_read_count: int_setting(settings, 'storage.maxPublicReadCount'),
     max_game_state_list: int_setting(settings, 'storage.maxGameStateList'),

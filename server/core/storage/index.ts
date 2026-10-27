@@ -43,6 +43,7 @@ import {
   upgrade_user_rows,
   type NewUser,
   type RawRow,
+  type SweepResult,
   type UserRecord,
 } from './rows.ts';
 import { apply_schema, schema_lock, table_def, type ColumnType, type Scope } from './schema.ts';
@@ -96,7 +97,7 @@ export type { DbHandle, FailureCode, GameTx, ItemConverter, Pass, UserChangeAppl
 export type { FullStateResult, ResponseDelta, TakenDelta } from './delta.ts';
 export type { KindClass, KindValue } from './kinds.ts';
 export type { Random } from './random.ts';
-export type { NewUser, RawRow, UserRecord } from './rows.ts';
+export type { NewUser, RawRow, SweepFailure, SweepResult, UserRecord } from './rows.ts';
 /** The `## API` operation `is_public_code_input`. */
 export { is_public_code_input } from './public_code.ts';
 export type { ColumnType, Scope } from './schema.ts';
@@ -186,7 +187,7 @@ export interface Storage {
   ): void;
   export_user_rows(db: DbHandle, user_id: bigint): Record<string, Record<string, unknown>[]>;
   register_item_converter(fn: ItemConverter): void;
-  sweep_expired(): Promise<number | 'FAILED'>;
+  sweep_expired(): Promise<SweepResult>;
   random_u32(source: RandomSource): number;
   random_int(source: RandomSource, min: bigint, max: bigint): bigint;
   random_weighted(source: RandomSource, weights: readonly (bigint | number)[]): number;

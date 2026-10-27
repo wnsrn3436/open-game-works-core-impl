@@ -92,7 +92,7 @@
   "auth.deletionAttemptsPerMinute": 10,
   "routing.bodyReadTimeoutMs": 10000,
   "routing.userRateLimitPerMinute": 300,
-  "routing.ipRateLimitPerMinute": 60,
+  "routing.ipRateLimitPerMinute": 300,
   "routing.corsPreflightMaxAgeMs": 600000,
   "routing.storageSweepIntervalMs": 60000,
   "testing.maxFixtureBytes": 1048576,
@@ -480,5 +480,7 @@
   "SoundCore.voiceDuckReleaseMs": 500,
   "public-profile.findPerMinute": 10,
   "QACore.captureJpgQuality": 850,
-  "UnitTestCore.startTimeLimitMs": 120000
+  "UnitTestCore.startTimeLimitMs": 120000,
+  "storage.sweepBatchSize": 1000,
+  "storage.sweepTableBudgetMs": 2000
 }
