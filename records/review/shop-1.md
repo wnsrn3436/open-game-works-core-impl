@@ -1,4 +1,4 @@
-# review: shop round 1
+# review shop round 1
 
 ## findings
 
@@ -22,5 +22,6 @@ none
 
 ## unknown
 
-- Commit range 2ef5ae8d3d40c74ba1bc3385efee1c2c0591c772..806fccabef9d839da5a2843640d3683d784fa41c changes no file under `server/core/shop/`. In the dependency modules the range changes only `server/core/storage/` (`create_user` now returns `NewUser`, `get_user_record` adds `public_code`, new `find_user_by_public_code` / `is_public_code_input`, schema version bump) and test helpers of item-ledger, mailbox, logging and validation. `grep` shows that `server/core/shop/` does not call `create_user`, `get_user_record` or `public_code`, and the storage operations shop calls (`get_state`, `put_core_state`, `with_hook_change_source`, `check_hook_output`) are not in the storage diff. So no change in the range reaches shop code or shop tests.
-- Not checked, because the usage limit ended the review early: whether the storage schema changes (`server/core/storage/schema.ts`, `core-schema-version`) change how shop core state rows are stored; whether the changed test helpers of item-ledger, mailbox, logging and validation are used by `server/core/shop/tests/helpers.ts`; and running the shop tests on the range end commit. The defining documents (shop spec and dependency specs) were not re-read against the code, because the range does not change shop and `## spec changes` is `none`.
+- The commit range cf89b7fd..bb7a2504 changes no file under `server/core/shop/`. The changed server code reached from shop is limited to `server/core/storage/rows.ts` (`sweep_expired` batch delete, which shop does not call; it touches the `item-ledger` `once_key` history rows that `mailbox.grant_or_mail` writes for `shop:<request ID>` only after their expiry), `server/core/storage/schema.ts` (expiry index; shop defines no table) and `server/core/storage/db/postgres.ts` / `pg_messages.ts` (`NO_FREE_CONNECTION` as a lock code, handled in the `storage` and `routing` transaction path, not in shop). No change in shop behavior was found from these; their own correctness belongs to the `storage` and `routing` reviews and was not judged here.
+- `ogw core test server shop` passed on this checkout (job mvqlumdfc44984). The PostgreSQL runs of the changed `storage` sweep tests were not run, as they are outside the shop target.
+- The `shop_product` data rules (`max_quantity`, `limit_count`, `reset`, `offer`, empty `reward` with `extra_grant` `false`) are checked in `tools/data-tool/src/checks/shop.ts`, outside the shop module and unchanged in the range; not reviewed.
