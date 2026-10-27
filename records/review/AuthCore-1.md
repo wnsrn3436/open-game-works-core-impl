@@ -4,9 +4,7 @@
 
 | id | aspect | severity | location | evidence | fix | spec change | confidence |
 |---|---|---|---|---|---|---|---|
-| R1-1 | test evidence | medium | client/godot/core/auth_core/tests/test_terms.gd:88 | `test_get_terms_failure_fails_without_popup` ends with `assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)`. unit-test-core.md:116 allows a `check_logs` assert only when the expected value is not 0. `check_logs` counts only unchecked logs and marks them checked (`client/godot/core/unit_test_core/dev/unit_test_core.gd:1266-1271`), and an unchecked error log left at the end already fails the test (unit-test-core.md:114). So the assert catches nothing that the test would not catch without it | Remove the assert | no | 95 |
-| R1-2 | test evidence | medium | client/godot/core/auth_core/tests/test_account.gd:188 | `assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)` runs between the two `list_linked_providers` calls, and unit-test-core.md:116 does not allow it. Without this assert, an error log from the first call (`:180`) would stay unchecked, so the `check_logs(..., 1)` at `:192` would count 2 and fail (`unit_test_core.gd:1266-1271` counts every unchecked log). The assert therefore checks nothing that `:192` does not | Remove the assert | no | 92 |
-| R1-3 | test evidence | medium | client/godot/core/auth_core/tests/test_login.gd:470 | `test_pending_token_is_written_on_foreground` ends with `assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)`, which unit-test-core.md:116 does not allow. Any error log after the check at `:461` would stay unchecked, and the unchecked-error-log rule (unit-test-core.md:114) would already fail the test | Remove the assert | no | 95 |
+| R1-1 | spec | high | client/godot/engine.json:56 | The new `plugins` item `ogw-secure-storage` has `platforms` `["macos"]`, and `client/godot/plugins/ogw-secure-storage/` has only `macos/` source and `dist/macos/`. The target platforms in `open-game-works-core/skills/client-core/engines/godot.md:41` are `android`, `ios`, `macos`, `windows`, `linux`. The release condition in `open-game-works-core/skills/core/command.md:30` asks for build results only for the platforms in that list, so a release passes without the other four builds, and `ogw build run` (godot.md:106) puts no plugin into those builds. Run path: in an STG or PROD build for `android`, `ios`, `windows` or `linux`, `CoreBuildInfo.has_dev_code` is `false`, so `AuthCore._platform_storage` (`client/godot/core/auth_core/auth_core.gd:240-245`) returns `secure_storage_adapter.gd`. There is no `OgwSecureStorage` singleton, so every `read_item`/`write_item`/`remove_item` gives `UNSUPPORTED` (`client/godot/core/auth_core/adapters/secure_storage_adapter.gd:15-38`). The install marker check, which deletes the storage item, then fails, and `boot_login` is `Failed` on every launch of those builds (auth-core.md:140 and the install marker error row) | Add the `android`, `ios`, `windows` and `linux` plugin sources and their `dist/<platform>/` builds as godot.md:41, 56 and 57 describe, and list all five platforms in the `engine.json` item | no | 85 |
 
 ## previous
 
@@ -18,12 +16,7 @@ none
 
 ## debt
 
-| id | result | finding | evidence |
-|---|---|---|---|
-| D2 | open | R1-1 | The assert is still at client/godot/core/auth_core/tests/test_terms.gd:88 |
-| D3 | open | R1-2 | The assert is still at client/godot/core/auth_core/tests/test_account.gd:188 |
-| D4 | open | R1-3 | This is the same assert as D5. client/godot/core/auth_core/tests/test_login.gd:471 is now an empty line, and the assert is at :470 |
-| D5 | open | R1-3 | The assert is still at client/godot/core/auth_core/tests/test_login.gd:470 |
+none
 
 ## must fix
 
@@ -31,6 +24,9 @@ none
 
 ## unknown
 
-- The commit range 13d14bb..13d14bb is empty, so no change exists for this review to cause or reveal a finding. Only the positions of the input `## debt` items were read: `test_terms.gd:83-88`, `test_account.gd:168-196`, `test_login.gd:450-470`, and the `check_logs` implementation they rely on (`client/godot/core/unit_test_core/dev/unit_test_core.gd:1260-1271`). The other AuthCore code and tests were not reviewed against the AuthCore spec in this round, so `## out of scope` being `none` does not mean they are free of problems
-- A search of the AuthCore tests found no other `check_logs` assert expecting 0. `test_consent.gd:176`, `:192` and `:271` call `check_logs("error", "NetworkCore")` without asserting the count. Whether that is allowed was not judged, because unit-test-core.md does not address it
-- The AuthCore tests were not run. They run through `ogw core test`, which a review agent does not start
+- The AuthCore changes in the range are commit 6a76444 (`ogw-secure-storage` macOS plugin, its `engine.json` item and licenses entry, and `client/godot/core/auth_core/tests/test_secure_storage_plugin.gd`). The rest of the range changes server modules, QACore, README and records, which this review did not read. In AuthCore, only the code that the change calls was read: `adapters/secure_storage_adapter.gd`, `adapters/token_storage.gd`, `auth_storage_queue.gd`, `AuthCore._platform_storage`/`init`/`release`, `AuthCoreDev.use_dev_token_storage` and `tests/support/auth_test_env.gd`
+- The native code of the macOS plugin (`ogw_secure_storage.mm`, `register_types.mm`) was checked only by reading it against godot.md:41, 59, 65, 420 and auth-core.md `### login token storage`. Its keychain operations (item attributes `kSecUseDataProtectionKeychain`, `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, not synchronizable; status mapping; the add-then-update write; the result and cancel handling) have no automated test, because only a process signed with a keychain access group gets the singleton, and the Godot editor that runs core tests has none. Behavior in a signed app with an embedded provisioning profile was not run
+- Whether the committed `dist/macos/.../libogw-secure-storage.macos.dylib` was built from the committed source was not proven. The checks were: universal x86_64/arm64, `minos 11.0` in both slices, it contains the strings `keychain-access-groups`, `com.apple.application-identifier` and `ogw-secure-storage`, and it contains no `/Users` paths
+- Whether godot-cpp commit `2bb1acf6f8ae1ce96ac7b9ba3a10b499c59c49ec` is on the godot-cpp branch of Godot 4.7 (godot.md:57) was not checked against the remote. It is the same commit that `ogw-native-ui/build.sh` uses
+- Whether a game's macOS STG and PROD export embeds a provisioning profile that grants a keychain access group was not checked. Without one, the singleton is absent and login token storage is `UNSUPPORTED` on macOS too. That export belongs to the `build` skill, which is outside this target
+- The AuthCore tests, including `test_secure_storage_plugin.gd`, were not run. `client/godot/addons/` is absent from this checkout, and the tests run through `ogw core test`, which puts the plugins in first
