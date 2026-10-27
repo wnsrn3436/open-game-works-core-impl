@@ -1,0 +1,12 @@
+{
+  "target": "chat",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/chat/admin.ts:93",
+      "problem": "admin `delete_chat_message` reads the message row with `T.read_message` (server/core/chat/tables.ts, no `expires_at` condition) and treats any row as existing, so a message row whose `expires_at` ≤ request time that `sweep_expired` has not deleted yet gets `deleted` `true`, a new `chat_deletion` row and `last_delete_seq` + 1, and the operation returns `{}` instead of `not_found`. The storage `### expiry` rule (open-game-works-core/skills/server-core/modules/storage.md:269) says such a row counts as a row that does not exist, and the chat `### admin` rule gives `not_found` when there is no row. Run path: `chat.retentionMs` 10000, send a `World` message, advance the clock 10000 ms without running job `storage_sweep`, call `delete_chat_message` for that seq: 200 `{}`, not 404 `not_found`. The other reads of a message row (`ReportChatMessage`, `DeleteGuildChatMessage`) check `ChatModule.live` (server/core/chat/index.ts:223). The code is unchanged in the range; the batched sweep with a per-table time budget and failed table list in the range only lets expired rows stay longer",
+      "foundBy": "chat round 1"
+    }
+  ]
+}
