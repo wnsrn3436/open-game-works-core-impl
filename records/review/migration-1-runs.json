@@ -31,6 +31,22 @@
       "startedAt": 1792950247022,
       "exitCode": 0,
       "summary": null
+    },
+    {
+      "command": "ogw core test server migration",
+      "startedAt": 1793100367115,
+      "exitCode": 0,
+      "summary": {
+        "tests": 98,
+        "passed": 98
+      },
+      "job": "mvqlnu2u2632ee"
+    },
+    {
+      "command": "ogw job wait mvqlnu2u2632ee",
+      "startedAt": 1793100372511,
+      "exitCode": 0,
+      "summary": null
     }
   ]
 }
