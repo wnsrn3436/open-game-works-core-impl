@@ -1,5 +1,12 @@
 {
   "target": "AuthCore",
-  "nextId": 6,
-  "items": []
+  "nextId": 7,
+  "items": [
+    {
+      "id": "D6",
+      "location": "client/godot/plugins/ogw-secure-storage/desktop/src/backend_windows.cpp:59",
+      "problem": "On Windows `backend::available()` is always `true`, so `register_types.cpp:22-26` registers the singleton also in a logon session without a credential set (network logon, e.g. an OpenSSH session with key authentication, or a service logon), where `CredReadW`/`CredWriteW`/`CredDeleteW` fail with `ERROR_NO_SUCH_LOGON_SESSION` and every operation is `STATUS_UNSUPPORTED` (`backend_windows.cpp:45-47`, whose comment names that case). In a dev run with DEV code there, `AuthCore._platform_storage` (`auth_core.gd:243`) sees the singleton and picks `secure_storage_adapter.gd` instead of the DEV token storage that godot.md:420 sets for \"a process that cannot use OS secure storage\"; the install marker delete is then `Unsupported`, a check failure (auth-core.md:140), or the read is `Unsupported`, which is `Failed` (auth-core.md:94), so `boot_login` is `Failed` on every launch. This is the Windows form of R2-2. The code is from before this range; this range's new test `test_a_run_with_the_plugin_singleton_can_use_the_os_secure_storage` (`client/godot/core/auth_core/tests/test_secure_storage_plugin.gd:47-61`) and its header (`:5-6`, \"On every platform a run that has the singleton can use the OS secure storage\") state the property this breaks, and the fix report `## unverified` says the test would fail on such a session",
+      "foundBy": "AuthCore round 3"
+    }
+  ]
 }
