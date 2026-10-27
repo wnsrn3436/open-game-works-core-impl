@@ -68,6 +68,12 @@
       "owner": "none"
     },
     {
+      "key": "environments.<ENV>.adUnits",
+      "type": "object",
+      "source": "game",
+      "owner": "none"
+    },
+    {
       "key": "idempotency.maxNotifyIdBytes",
       "type": "integer",
       "source": "core",

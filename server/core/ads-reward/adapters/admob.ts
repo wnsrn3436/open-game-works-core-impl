@@ -48,7 +48,8 @@ function parse(query: string): ParsedCallback | typeof FORMAT_ERROR {
   if (key_id === null || base64url_bytes(signature) === null) return FORMAT_ERROR;
   const notify_id = values.get('custom_data') ?? '';
   const user_id = values.get('user_id') ?? '';
-  return { key_id: key_id.toString(), signed_text: query.slice(0, at), signature, notify_id, user_id };
+  const ad_unit = values.get('ad_unit') ?? '';
+  return { key_id: key_id.toString(), signed_text: query.slice(0, at), signature, notify_id, user_id, ad_unit };
 }
 
 /** The keys of a key source value: the `keys` entries of `verifier-keys.json`. Null when it is malformed. */

@@ -75,6 +75,8 @@ export interface AdsRewardSettings {
   readonly callback_rate_limit_per_minute: number;
   /** `environments.<ENV>.adapters.ads`: null when this environment has no ads adapter. */
   readonly adapter_name: string | null;
+  /** The parts after `/` of the ad unit IDs of `environments.<ENV>.adUnits`, of every placement and platform. */
+  readonly ad_units: ReadonlySet<string>;
   readonly external_max_response_bytes: number;
   /** `idempotency.maxNotifyIdBytes`. */
   readonly max_notify_id_bytes: number;
@@ -84,6 +86,30 @@ function integer(settings: Readonly<Record<string, unknown>>, key: string, min: 
   const value = settings[key];
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < min) throw new TypeError(`ads-reward: setting ${key} is not an integer of ${String(min)} or more`);
   return value;
+}
+
+function is_object(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * The ad units of `environments.<ENV>.adUnits` (placement ID name → platform → ad unit ID): the part after `/` of each
+ * ad unit ID. A missing value is no ad unit; a value that is not that shape throws.
+ */
+function ad_units_of(value: unknown): Set<string> {
+  const units = new Set<string>();
+  if (value === undefined || value === null) return units;
+  const malformed = (): TypeError => new TypeError('ads-reward: setting environments.<ENV>.adUnits is not an object of objects of strings');
+  if (!is_object(value)) throw malformed();
+  for (const platforms of Object.values(value)) {
+    if (!is_object(platforms)) throw malformed();
+    for (const id of Object.values(platforms)) {
+      if (typeof id !== 'string') throw malformed();
+      const at = id.indexOf('/');
+      if (at >= 0) units.add(id.slice(at + 1));
+    }
+  }
+  return units;
 }
 
 /** Reads `## settings`; a missing or malformed value, or a value below its range, throws. */
@@ -100,6 +126,7 @@ export function read_settings(settings: Readonly<Record<string, unknown>>): AdsR
     key_fetch_timeout_ms: BigInt(integer(settings, 'ads-reward.keyFetchTimeoutMs', 1)),
     callback_rate_limit_per_minute: integer(settings, 'ads-reward.callbackRateLimitPerMinute', 1),
     adapter_name: adapter ?? null,
+    ad_units: ad_units_of(settings['environments.<ENV>.adUnits']),
     external_max_response_bytes: integer(settings, 'routing.externalMaxResponseBytes', 1),
     max_notify_id_bytes: integer(settings, 'idempotency.maxNotifyIdBytes', 1),
   };
