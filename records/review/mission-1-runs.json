@@ -1,3 +1,40 @@
 {
-  "runs": []
+  "runs": [
+    {
+      "command": "ogw core test server mission --file server/core/mission/tests/claim.test.ts",
+      "startedAt": 1793100826646,
+      "exitCode": 0,
+      "summary": {
+        "tests": 30,
+        "passed": 30
+      }
+    },
+    {
+      "command": "ogw core test server mission --file server/core/mission/tests/progress.test.ts",
+      "startedAt": 1793100862637,
+      "exitCode": 0,
+      "summary": {
+        "tests": 14,
+        "passed": 14
+      }
+    },
+    {
+      "command": "ogw core test server mission --file server/core/mission/tests/reset.test.ts",
+      "startedAt": 1793100886854,
+      "exitCode": 0,
+      "summary": {
+        "tests": 14,
+        "passed": 14
+      }
+    },
+    {
+      "command": "ogw core test server mission --file server/core/mission/tests/start.test.ts",
+      "startedAt": 1793100908085,
+      "exitCode": 0,
+      "summary": {
+        "tests": 4,
+        "passed": 4
+      }
+    }
+  ]
 }
