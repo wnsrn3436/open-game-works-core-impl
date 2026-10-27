@@ -23,7 +23,7 @@ struct Result {
 
 namespace backend {
 
-// True when this run can call the OS secure storage. Without it the run gets no singleton.
+// True when this run can use the OS secure storage, checked once. Without it the run gets no singleton.
 bool available();
 // The item `name` (UTF-8, not empty). A missing item is `STATUS_NOT_FOUND`.
 Result read(const std::string &name);

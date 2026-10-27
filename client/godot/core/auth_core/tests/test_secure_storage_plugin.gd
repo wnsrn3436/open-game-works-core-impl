@@ -2,7 +2,8 @@ extends UnitTestCase
 ## The `ogw-secure-storage` plugin: its `engine.json` item and builds, and the build of this host. On macOS the data
 ## protection keychain needs a keychain access group, so the plugin singleton exists only in an app signed with one.
 ## The Godot editor that runs the core tests has none: the plugin build is loaded, there is no singleton, and AuthCore
-## keeps the DEV token storage.
+## keeps the DEV token storage. On every platform a run that has the singleton can use the OS secure storage: on Linux
+## the singleton needs a Secret Service with a default collection, not only libsecret.
 
 const Env := preload("res://core/auth_core/tests/support/auth_test_env.gd")
 const SecureStorage := preload("res://core/auth_core/adapters/secure_storage_adapter.gd")
@@ -13,6 +14,8 @@ const DIST: String = "res://plugins/ogw-secure-storage/dist/"
 ## Target platforms of `ogw-secure-storage` in the native plugin table of the Godot implementation rules.
 const PLATFORMS: PackedStringArray = ["android", "ios", "macos", "windows", "linux"]
 const DESKTOP_PLATFORMS: Array[String] = ["macos", "windows", "linux"]
+## Wait for one plugin operation of the OS secure storage, ms.
+const _OPERATION_WAIT_MS: int = 5000
 
 var env: Env = null
 
@@ -39,6 +42,23 @@ func test_a_run_without_a_keychain_access_group_has_no_plugin_singleton_and_keep
 	AuthCoreDev.use_dev_token_storage()
 	assert_true(AuthCore.init())
 	assert_true(AuthCore._storage is DevStorage)
+
+
+func test_a_run_with_the_plugin_singleton_can_use_the_os_secure_storage() -> void:
+	if not SecureStorage.is_available():
+		pass_test("this run has no plugin singleton, so AuthCore keeps the DEV token storage")
+		return
+	# The adapter counts its time limit in the `TimeCore` real elapsed time.
+	var started: bool = not TimeCore.is_initialized()
+	if started:
+		assert_true(TimeCore.init())
+	var storage: SecureStorage = SecureStorage.new()
+	storage.call_timeout_ms = _OPERATION_WAIT_MS
+	var outcome: SecureStorage.Outcome = await storage.read_item("ogw-core-test-missing-%d" % Time.get_ticks_usec())
+	if started:
+		TimeCore.release()
+	assert_ne(outcome.status, SecureStorage.Status.UNSUPPORTED, "the OS secure storage of this run is usable")
+	assert_ne(outcome.status, SecureStorage.Status.FAILED, "the read ends within the wait")
 
 
 func test_the_engine_json_item_targets_every_platform_of_the_native_plugin_table() -> void:
