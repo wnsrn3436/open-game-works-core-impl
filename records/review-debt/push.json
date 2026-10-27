@@ -1,0 +1,12 @@
+{
+  "target": "push",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/push/send.ts:522",
+      "problem": "`send_held_batch` selects due `push_held` rows with `expires_at > now` once (`now` taken at send.ts:496), then takes each row in its own game transaction with `DELETE FROM push_held WHERE push_id = $1 AND user_id = $2` that has no expiry condition, and sends every taken row. A row whose `expires_at` (`send_at` + `push.maxDelayMs`) is reached between the select and its take (the takes of up to `push.sendBatchSize` rows and `drop_held` run one after another before any send) is still taken and sent after `expires_at`. `storage` `### expiry` says a row with expiry column ≤ `clock_now` counts as a row that does not exist also before it is deleted, and `push` `### send` sends only when a row was deleted. The push source did not change in the range, so this existed before it",
+      "foundBy": "push round 1"
+    }
+  ]
+}
