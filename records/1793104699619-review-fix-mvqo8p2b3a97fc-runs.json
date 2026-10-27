@@ -1,0 +1,93 @@
+{
+  "runs": [
+    {
+      "command": "ogw core dependents AuthCore",
+      "startedAt": 1793104751783,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AdCore AuthCore BootstrapCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore TutorialCore UnitTestCore",
+      "startedAt": 1793104755525,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvqo9w765ec1ec"
+    },
+    {
+      "command": "ogw core test godot AdCore AuthCore BootstrapCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore TutorialCore UnitTestCore --web",
+      "startedAt": 1793104755958,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvqo9wj2c3f466"
+    },
+    {
+      "command": "ogw job wait mvqo9w765ec1ec",
+      "startedAt": 1793104758750,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvqo9w765ec1ec",
+      "startedAt": 1793104770193,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvqo9wj2c3f466",
+      "startedAt": 1793104770543,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvqo9wj2c3f466",
+      "startedAt": 1793104770849,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AdCore AuthCore BootstrapCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore TutorialCore UnitTestCore",
+      "startedAt": 1793104777383,
+      "exitCode": 0,
+      "summary": {
+        "tests": 893,
+        "passed": 893
+      },
+      "job": "mvqoad27ef7ed7"
+    },
+    {
+      "command": "ogw core test godot AdCore AuthCore BootstrapCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore TutorialCore UnitTestCore --web",
+      "startedAt": 1793104778224,
+      "exitCode": 0,
+      "summary": {
+        "tests": 885,
+        "passed": 885
+      },
+      "job": "mvqoadpm37d1c7"
+    },
+    {
+      "command": "ogw job wait mvqoad27ef7ed7",
+      "startedAt": 1793104778496,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvqoadpm37d1c7",
+      "startedAt": 1793104824514,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1793104870275,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvqoccqd561ed2"
+    },
+    {
+      "command": "ogw job wait mvqoccqd561ed2",
+      "startedAt": 1793104870567,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
