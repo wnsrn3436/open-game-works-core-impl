@@ -1,0 +1,103 @@
+{
+  "runs": [
+    {
+      "command": "ogw core dependents QACore",
+      "startedAt": 1793100642852,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot QACore --file client/godot/core/qa_core/tests/test_telemetry.gd",
+      "startedAt": 1793100651817,
+      "exitCode": 0,
+      "summary": {
+        "tests": 15,
+        "passed": 15
+      },
+      "job": "mvqltxr8557283"
+    },
+    {
+      "command": "ogw job wait mvqltxr8557283",
+      "startedAt": 1793100654799,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot QACore --file client/godot/core/qa_core/tests/test_telemetry.gd",
+      "startedAt": 1793100672046,
+      "exitCode": 1,
+      "summary": {
+        "tests": 15,
+        "passed": 14
+      },
+      "job": "mvqludd79adc18"
+    },
+    {
+      "command": "ogw job wait mvqludd79adc18",
+      "startedAt": 1793100675219,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot QACore --file client/godot/core/qa_core/tests/test_telemetry.gd",
+      "startedAt": 1793100691032,
+      "exitCode": 1,
+      "summary": {
+        "tests": 15,
+        "passed": 14
+      },
+      "job": "mvqlus0g105955"
+    },
+    {
+      "command": "ogw job wait mvqlus0g105955",
+      "startedAt": 1793100695640,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot QACore BootstrapCore UnitTestCore",
+      "startedAt": 1793100713751,
+      "exitCode": 1,
+      "summary": {
+        "tests": 317,
+        "passed": 317
+      },
+      "job": "mvqlv9jmc75185"
+    },
+    {
+      "command": "ogw core test godot QACore BootstrapCore UnitTestCore --web",
+      "startedAt": 1793100714398,
+      "exitCode": 0,
+      "summary": {
+        "tests": 317,
+        "passed": 317
+      },
+      "job": "mvqlva1l2b10b7"
+    },
+    {
+      "command": "ogw job wait mvqlv9jmc75185",
+      "startedAt": 1793100717439,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvqlva1l2b10b7",
+      "startedAt": 1793100760875,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1793100793111,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvqlwys39476fd"
+    },
+    {
+      "command": "ogw job wait mvqlwys39476fd",
+      "startedAt": 1793100796200,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
