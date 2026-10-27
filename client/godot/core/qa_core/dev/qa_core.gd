@@ -15,6 +15,8 @@ const _NODE := preload("res://core/qa_core/dev/qa_core_node.gd")
 const _COMMAND := preload("res://core/qa_core/dev/qa_command.gd")
 const _BUILTINS := preload("res://core/qa_core/dev/qa_builtins.gd")
 const _TELEMETRY := preload("res://core/qa_core/dev/qa_telemetry.gd")
+## Release inputs: not recorded in telemetry `inputs` and not counted in goal interval input counts.
+const _RELEASE_COMMANDS: PackedStringArray = ["touch_up", "key_up", "mouse_up", "pad_button_up"]
 const _CHANNEL := preload("res://core/qa_core/dev/qa_channel.gd")
 const _INPUT := preload("res://core/qa_core/dev/qa_input.gd")
 const _DEBUG := preload("res://core/qa_core/dev/qa_debug_screen.gd")
@@ -817,7 +819,10 @@ static func _note_input(command: _COMMAND) -> void:
 	if command == null or command.input_recorded:
 		return
 	command.input_recorded = true
-	_telemetry.add_input(command.name)
+	if command.name in _RELEASE_COMMANDS:
+		_telemetry.add_release()
+	else:
+		_telemetry.add_input(command.name)
 	_inputs_since_state += 1
 
 

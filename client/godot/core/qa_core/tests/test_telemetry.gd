@@ -38,6 +38,20 @@ func test_response_mark_without_feedback() -> void:
 	assert_eq(JSONR.count(json, "inputs.0.feedback"), 0, "a Response mark is no feedback")
 
 
+func test_a_release_input_is_not_recorded() -> void:
+	assert_true(await start())
+	await run_ok("key_down", PackedStringArray(["A"]))
+	await advance(30, 1)
+	await run_ok("key_up", PackedStringArray(["A"]))
+	await advance(20, 1)
+	publish(EventCore.acquire(SoundPlayedEvent))
+	var json: String = await telemetry()
+	assert_eq(JSONR.count(json, "inputs"), 1, "the key_up is not recorded")
+	assert_eq(JSONR.text(json, "inputs.0.command"), "key_down")
+	assert_eq(JSONR.integer(json, "inputs.0.latency_ms"), 50, "latency from the key_down")
+	assert_eq(JSONR.integer(json, "inputs.0.feedback.Sound"), 1, "the feedback goes to the key_down")
+
+
 func test_rewards() -> void:
 	assert_true(await start())
 	var gold: int = GameDataDev.find_id_value("[gold]")
