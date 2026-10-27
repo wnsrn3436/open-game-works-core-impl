@@ -15,7 +15,7 @@
 
 ## review
 
-- R2-2: fixed. `client/godot/plugins/ogw-secure-storage/desktop/src/backend_linux.cpp:162-177` (`available()` probes `open_collection` once). Rebuilt linux libraries in `dist/linux/`. Added test `test_a_run_with_the_plugin_singleton_can_use_the_os_secure_storage` (`client/godot/core/auth_core/tests/test_secure_storage_plugin.gd`). Cause reproduced and fix checked in a `debian:bookworm` arm64 container with Godot 4.7.2 headless loading the arm64 `.so`, old build vs new build:
+- R2-2: fixed. `client/godot/plugins/ogw-secure-storage/desktop/src/backend_linux.cpp:164-180` (`available()` probes `open_collection` once). Rebuilt linux libraries in `dist/linux/`. Added test `test_a_run_with_the_plugin_singleton_can_use_the_os_secure_storage` (`client/godot/core/auth_core/tests/test_secure_storage_plugin.gd`). Cause reproduced and fix checked in a `debian:bookworm` arm64 container with Godot 4.7.2 headless loading the arm64 `.so`, old build vs new build:
   - libsecret installed, no session bus: old `singleton true`, read `["3", ""]` (UNSUPPORTED); new `singleton false`
   - session bus with D-Bus-activated gnome-keyring and no default collection (the finding's run path): old `singleton true`, read `["3", ""]`; new `singleton false`
   - no libsecret: both `singleton false`
