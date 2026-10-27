@@ -1,4 +1,4 @@
-# review: idempotency round 1
+# review idempotency round 1
 
 ## findings
 
@@ -22,6 +22,6 @@ none
 
 ## unknown
 
-- In the commit range, the only change under `server/core/idempotency/` is `server/core/idempotency/tests/helpers.ts:85`: `new_user` now reads `.user_id` from the `NewUser` that `storage.create_user` returns. `server/core/idempotency/index.ts` is unchanged. It calls only `storage.register_table` and `storage.db`, and those did not change in the range. The range's storage changes (`server/core/storage/rows.ts`, `server/core/storage/schema.ts`, `server/core/storage/public_code.ts`) affect idempotency in one way: user IDs are now random below 2^53 instead of following creation order. They still fit the `int64` `user_id` column of `idempotency_response`. No idempotency test depends on the user ID value or on creation order: the multi-user test (`server/core/idempotency/tests/request-id.test.ts:122`) only keeps two users apart, and the access tokens are built from the user ID string.
-- I did not run the idempotency tests. A direct vitest run outside `ogw core test` failed in every test before reaching idempotency code, because no server build data folder was given (`OGW_SERVER_DATA`). That is a test-input problem, not an idempotency result. The update core record `records/1792943805934-update-core-mvo0g6paabed90.md` reports that `ogw core test server` passed for all modules after this change, but I did not reproduce that run.
-- I did not check PostgreSQL behavior.
+- The only change to the target in the range is `server/core/idempotency/tests/request-id.test.ts:168`, which follows the new `sweep_expired` result `{ deleted, failed }`. The test still checks that the expired row is gone (`rows(s, ROW, [user, 'req-x'])` is empty) and that the handler is called again. The storage changes that the target uses were checked against the idempotency rules: the batched delete `server/core/storage/rows.ts:375` keeps the outer `expires_at <= $1` condition, so a row that `save_response`, `save_withdrawn_response` or `claim_notify` rewrote by upsert over an expired row is not deleted. The expiry-column index that `register_table` now adds (`server/core/storage/schema.ts:191`) goes on the three idempotency tables, and `apply_schema` creates it on existing tables (`server/core/storage/schema.ts:310`). No defect was found
+- Only the SQLite runs were done (`core/idempotency` and `core/storage/tests/expiry.test.ts`: 27 passed). PostgreSQL runs were not done because no PostgreSQL was given, so the 2 PostgreSQL-only tests of `core/storage/tests/expiry.test.ts` were skipped. The PostgreSQL behavior of the batched `ctid` delete running at the same time as an upsert on the same idempotency row was checked by reading the code (the outer expiry condition is rechecked on the updated row version), not by a run
+- Code of the target outside the range (all of `server/core/idempotency/index.ts` and the other test files) was read to trace callers, but not reviewed for findings, because only problems that the range causes or reveals are in scope
