@@ -2,9 +2,7 @@
 
 ## findings
 
-| id | aspect | severity | location | evidence | fix | spec change | confidence |
-|---|---|---|---|---|---|---|---|
-| R1-1 | spec | medium | server/core/auth/login.ts:112 | This range changed `claim_key` so that a `WITHDRAWN` `run_user_transaction` of the new user (`Login` step 3 with a social provider, and `DevLogin` of a new name, via `server/core/auth/dev/index.ts:34`) returns `UNAUTHORIZED` instead of the earlier `INTERNAL`. auth.md `## error` row "`run_request_transaction` or `run_user_transaction` of `Login`, `AutoLogin`, `RefreshToken`, `DevLogin`, or the ban login transaction, is `WITHDRAWN`" → `UNAUTHORIZED`, no log sets this behavior. No test goes through this branch: `tests/transaction-failure.test.ts:241` covers only the ban login transaction (`hold_next_transaction` holds `run_request_transaction`, `tests/helpers.ts:300`), `tests/token.test.ts:95` covers `AutoLogin`/`RefreshToken` after `Logout`, and no test holds or withdraws the new user between `create_user` and the `run_user_transaction` of `claim_key`. Restoring the earlier `return null` → `INTERNAL` at line 112 fails no test. Run path: `Login` provider `GOOGLE` of an unlinked account; after the `storage.create_user` game transaction commits, `withdraw_user` of the new user ID commits before `claim_key` opens its user transaction | Add a test that withdraws the new user (e.g. by holding `run_user_transaction` of the new user, as `hold_next_transaction` does for `run_request_transaction`) and asserts `UNAUTHORIZED` and no `error` log for `Login` with a social provider and for `DevLogin` of a new name | no | 82 |
+none
 
 ## previous
 
@@ -24,7 +22,10 @@ none
 
 ## unknown
 
-- The tests were read, not run: `server/node_modules` is not installed in this checkout, so whether `server/core/auth/tests/transaction-failure.test.ts` and the other auth tests pass on this commit was not checked
-- Whether a lock failure thrown from `storage.create_user`, `session.start_session` or a query of a transaction DB handle (the arming of `fail_next_call` and `fail_next_query`, `server/core/auth/tests/transaction-failure.test.ts:55`, `:75`) makes `storage` answer `FAILED` was read only at `server/core/storage/tx.ts:163`, `:184` and `server/core/storage/core.ts:220`; the `storage` behavior itself is another review target and was not reviewed
-- The PostgreSQL path of the changed transactions was not run; only the code was read
-- Client `AuthCore` test changes in the range (`client/godot/core/auth_core/tests/`) are not part of server module `auth` and were not reviewed. The other client, settings and `testing` changes in the range (`QACore`, `UnitTestCore`, `TweenCore`, `ScreenEffectCore`, `UICore`) do not reach `auth` and were not reviewed
+- No file of `server/core/auth/` changed in `cf89b7fd..bb137f18`. Checked the changes of the range that auth's code reaches:
+  - `server/core/storage/rows.ts:385` batched `sweep_expired` with a per-table budget: auth's expiry tables `auth_deletion_code` and `auth_deletion_ip_counter` (`server/core/auth/tables.ts:78`, `server/core/auth/tables.ts:87`) may now keep expired rows across runs. Auth treats an expired deletion code as none (`server/core/auth/deletion.ts:240`), writes both tables with one upsert statement (`server/core/auth/tables.ts:290`, `server/core/auth/tables.ts:314`), and reads the IP counter only for the current minute window (`server/core/auth/deletion.ts:286`), as `storage` `### expiry` requires. The outer expiry condition of `sweep_sql` (`server/core/storage/rows.ts:372`) keeps a deletion code row that `IssueDeletionCode` upserted after the inner select
+  - `server/core/storage/schema.ts:191` adds the index `(expires_at)` to `auth_deletion_code` and `auth_deletion_ip_counter`, whose index lists are empty. `storage` `## API` (index list) defines this addition, so it is not a difference from `auth` `### table`
+  - `server/core/storage/db/pg_messages.ts:53` changed the code of a free connection wait to `POOL` and `server/core/storage/db/postgres.ts:19` keeps it a lock failure. auth reads no DB error code (no use of `55P03`, `DbError` or `is_db_failure` in `server/core/auth/`)
+  - `settings/core-settings.json:95` raised the `routing.ipRateLimitPerMinute` default to 300. auth's own limit `auth.deletionAttemptsPerMinute` and its counter are unchanged
+- Ran the auth core tests (`server/core/auth/tests`, 14 files, 138 tests) on the code at `bb137f18` with `OGW_DEFAULT_DB` `sqlite` and with `postgresql` (a temporary PostgreSQL 18.6 container), using the server build data of `open-game-works-core-impl/server/build/data`: all passed in both runs. The core tests of other modules were not run
+- `client/godot/plugins/ogw-secure-storage/` (macOS keychain plugin of client `AuthCore`) and `client/godot/core/auth_core/tests/test_secure_storage_plugin.gd` changed in the range. They belong to client `AuthCore`, not to the server module `auth` under review, and were only read briefly, not reviewed against the `AuthCore` spec
