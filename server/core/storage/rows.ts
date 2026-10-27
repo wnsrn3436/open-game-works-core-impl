@@ -377,6 +377,11 @@ function sweep_sql(dialect: Dialect, table: string, expiry: string): string {
   return `DELETE FROM ${quote(table)} WHERE rowid IN (SELECT rowid FROM ${quote(table)} WHERE ${expired} LIMIT $2) AND ${expired}`;
 }
 
+/** Resolves in a later event loop turn, after the timers that are due have run. */
+function next_turn(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
 /**
  * `sweep_expired`: batch deletes per table with an expiry column, each in its own transaction; no user lock and no
  * row lock. A table stops at a delete of fewer rows than the batch size, at the end of its time budget, or at a
@@ -396,7 +401,11 @@ export async function sweep_expired(core: StorageCore): Promise<SweepResult> {
       for (;;) {
         const count = await adapter.autocommit({ sql, params: [now, BigInt(batch)] }, core.settings.user_lock_wait_ms);
         deleted += count;
-        if (count < batch || budget.aborted) break;
+        if (count < batch) break;
+        // An uncontended SQLite statement resolves without leaving the event loop turn, so the budget's timer could
+        // never fire (and no other request could run) without this turn of the event loop.
+        await next_turn();
+        if (budget.aborted) break;
       }
     } catch (error) {
       if (!is_db_failure(error)) throw error;
