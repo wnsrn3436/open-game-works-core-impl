@@ -1,4 +1,4 @@
-# review: logging round 1
+# review logging round 1
 
 ## findings
 
@@ -22,7 +22,9 @@ none
 
 ## unknown
 
-- In the range `2ef5ae8d..4d3efc4` the only change under `server/core/logging/` is `server/core/logging/tests/helpers.ts:150` (`new_user` takes `.user_id` of the new `storage.create_user` result `NewUser`). It matches `server/core/storage/rows.ts:57` and `server/core/storage/index.ts:162`. No logging code calls `create_user`
-- The storage changes in the range that logging reaches were checked: user IDs are now random below 2^53 (`server/core/storage/public_code.ts:16`). logging keeps user IDs as `bigint` and writes them as decimal strings (`server/core/logging/log_line.ts:61`, `server/core/logging/adapters/analytics_ga4.ts:84`, `server/core/logging/adapters/analytics_ga4.ts:183`), and the security window group key uses `user_id.toString()` (`server/core/logging/log_line.ts:135`). No user ID is changed to `Number`. The admin list tests that order by `(time_at, user_id, seq)` sort the two users before they assert (`server/core/logging/tests/client-log.test.ts:208`, `server/core/logging/tests/server-event.test.ts:169`), so they do not depend on the order in which IDs are created
-- The `user` table's new `public_code` column and start fill (`server/core/storage/schema.ts:218`, `server/core/storage/schema.ts:317`) and the routing ban detail `public_code` (`server/core/routing/pipeline.ts:588`) are not used by logging, and the logging spec says nothing about public codes
-- The logging tests were run with vitest on SQLite only (`OGW_DEFAULT_DB=sqlite`). Server build data came from `open-game-works-core-impl/server/build/data`, not from a build of this checkout. 82 of 82 passed in each of 7 runs. They were not run on PostgreSQL, because no PostgreSQL connection was available to this review
+- No file under `server/core/logging/` changed in the range `cf89b7fd2768ede33b78f5948fb0fae06df506e2..bf6232cef27a94e8c84b7a7d86620fcde8afd8d6`. The changes that reach logging are the ones in `storage` (batched `sweep_expired` with the failed table list, the expiry column index that `register_table` adds, `NO_FREE_CONNECTION` `'POOL'` in `LOCK_CODES`) and in the `routing` job `storage_sweep`. Checked against logging:
+  - `server/core/logging/tables.ts:67-72`: the three log tables and `logging_report_counter` have the expiry column `expires_at`, and none of their index lists starts with it. So `register_table` now adds an `(expires_at)` index to each one. That is the rule of storage.md `## behavior` (index list), and it does not conflict with the `(time_at, user_id, seq)` index that logging.md writes
+  - `server/core/storage/rows.ts` `sweep_sql`: the outer expiry condition keeps a `logging_report_counter` row that the upsert `UPSERT_REPORT_COUNTER` (`server/core/logging/tables.ts:92`) rewrote with a new `expires_at` after the inner select. `list_rows` (`server/core/logging/tables.ts:128`) still filters `expires_at > now`, so a row left by a sweep cut short by its budget or a failure counts as absent, as storage.md requires
+  - Logging does not read the return value of `sweep_expired` or the DB error codes. Its tests call `sweep_expired()` without using the result (`server/core/logging/tests/client-log.test.ts:340`, `server/core/logging/tests/server-event.test.ts:195`)
+- Ran with `ogw core test server logging --file`: `server/core/logging/tests/client-log.test.ts` and `server/core/logging/tests/server-event.test.ts` (both pass) on the default DB kind of the test helpers. Did not run the other logging test files or the PostgreSQL run of these files. The lead agent runs the full core tests
+- Did not review logging code outside the paths the range reaches, because the commit range is not `none`
