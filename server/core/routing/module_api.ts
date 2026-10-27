@@ -109,7 +109,8 @@ export interface StorageModule extends ModuleLifecycle {
   run_game_transaction<T>(fn: (tx: GameTx) => T): Promise<T | 'FAILED'>;
   take_response_delta(ctx: RequestCtx): TakenResponseDelta;
   with_hook_change_source<T>(ctx: RequestCtx, source: CoreContract.ItemChangeSource, ref: string, fn: () => T): T;
-  sweep_expired(): Promise<number | 'FAILED'>;
+  /** The rows deleted, and each table whose delete was `FAILED` with its DB error code. */
+  sweep_expired(): Promise<{ deleted: number; failed: readonly { table: string; code: string }[] }>;
   run_user_changes(): Promise<number | 'FAILED'>;
 }
 

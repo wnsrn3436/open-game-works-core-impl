@@ -436,7 +436,7 @@ describe('expiry', () => {
     const holder = DB_KIND === 'postgresql' ? await lock_holder(db) : null;
     await holder?.ok('BEGIN');
     await holder?.ok('SELECT user_id FROM "user" WHERE user_id = $1 FOR UPDATE', [user]);
-    expect(await storage.sweep_expired()).toBe(1);
+    expect((await storage.sweep_expired()).deleted).toBe(1);
     await holder?.ok('ROLLBACK');
     expect(raw_rows(storage, 'test_cache', user)).toEqual([]);
     expect(storage.read_db().query('SELECT token, n FROM test_token ORDER BY token')).toEqual([

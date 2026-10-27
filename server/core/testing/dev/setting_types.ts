@@ -457,6 +457,8 @@ export const SETTING_TYPES: Readonly<Record<string, string>> = {
   'storage.maxShuffleCount': 'integer',
   'storage.schemaAnswerWaitMs': 'integer',
   'storage.schemaLockWaitMs': 'integer',
+  'storage.sweepBatchSize': 'integer',
+  'storage.sweepTableBudgetMs': 'integer',
   'storage.userChangeBatchSize': 'integer',
   'storage.userChangeMaxBytes': 'integer',
   'storage.userChangeRetryFactorPermille': 'integer',

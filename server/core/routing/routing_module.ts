@@ -153,16 +153,20 @@ export class RoutingModule {
     const error = (message: string, stack_trace: string | null): void => {
       logging.write({ level: 'error', kind: 'error', user_id: null, request_id: null, request: null, message, fields: { stack_trace } });
     };
-    const step = async (name: string, run: () => Promise<number | 'FAILED'>): Promise<void> => {
+    const step = async (name: string, run: () => Promise<boolean>): Promise<void> => {
       try {
-        if ((await run()) === 'FAILED') error(`storage_sweep: ${name} failed`, null);
+        if (!(await run())) error(`storage_sweep: ${name} failed`, null);
       } catch (e) {
         error(`storage_sweep: ${name} threw`, e instanceof Error ? (e.stack ?? String(e)) : String(e));
       }
     };
     server_time.schedule_job('storage_sweep', BigInt(interval), async () => {
-      await step('sweep_expired', () => storage.sweep_expired());
-      await step('run_user_changes', () => storage.run_user_changes());
+      // One error log per table whose delete failed, with its table name and DB error code.
+      await step('sweep_expired', async () => {
+        for (const { table, code } of (await storage.sweep_expired()).failed) error(`storage_sweep: sweep_expired failed on table ${table}, DB error code '${code}'`, null);
+        return true;
+      });
+      await step('run_user_changes', async () => (await storage.run_user_changes()) !== 'FAILED');
     });
   }
 

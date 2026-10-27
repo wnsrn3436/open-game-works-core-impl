@@ -120,7 +120,7 @@ describe('broadcast', () => {
     await touch(ms, user);
     expect(await broadcast_mails(ms, user)).toHaveLength(1);
     advance_time(ms, DAY_MS);
-    expect(await ms.storage.sweep_expired()).not.toBe('FAILED');
+    expect((await ms.storage.sweep_expired()).failed).toEqual([]);
     expect(await broadcast_rows(ms)).toEqual([]);
     const new_id = await broadcast(ms, START_AT + DAY_MS);
     expect(new_id > old_id).toBe(true);

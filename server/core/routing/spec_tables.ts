@@ -190,6 +190,7 @@ export const BEFORE_START_DEV_OPERATIONS: ReadonlySet<string> = new Set(['server
  * value of `server-core` `## module`. A core test checks the table against the core spec files.
  */
 export const ENV_GAME_SETTINGS: Readonly<Record<string, string>> = {
+  'adUnits': 'object',
   'adapters': 'object',
   'adapters.ads': 'string?',
   'adapters.analytics': 'string?',

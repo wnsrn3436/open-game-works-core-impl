@@ -52,7 +52,7 @@ describe('history', () => {
     advance_time(env, 1n);
     expect(history(env, user_id)).toEqual([]);
     expect(stored(user_id)).toEqual([1, 1]);
-    expect(await env.storage.sweep_expired()).toBeGreaterThanOrEqual(2);
+    expect((await env.storage.sweep_expired()).deleted).toBeGreaterThanOrEqual(2);
     expect(stored(user_id)).toEqual([0, 0]);
     expect(await tx(env, user_id, (ctx) => env.ledger.add_items(ctx, items(['[gold]', 1]), { once_key: 'h:1' }))).toBe('OK');
     expect(history(env, user_id).map((h) => h.seq)).toEqual([1n]);

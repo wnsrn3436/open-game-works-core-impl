@@ -577,6 +577,14 @@
       "type": "integer",
       "minimum": 0
     },
+    "storage.sweepBatchSize": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "storage.sweepTableBudgetMs": {
+      "type": "integer",
+      "minimum": 1
+    },
     "storage.userChangeBatchSize": {
       "type": "integer",
       "minimum": 1
@@ -1974,6 +1982,8 @@
     "storage.maxShuffleCount",
     "storage.schemaAnswerWaitMs",
     "storage.schemaLockWaitMs",
+    "storage.sweepBatchSize",
+    "storage.sweepTableBudgetMs",
     "storage.userChangeBatchSize",
     "storage.userChangeMaxBytes",
     "storage.userChangeRetryFactorPermille",

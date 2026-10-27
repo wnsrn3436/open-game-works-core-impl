@@ -2,7 +2,8 @@
  * Users, raw rows, export, expiry and `upgrade_user_rows` (`storage` `### base table`, `### raw row`, `### expiry`,
  * `### storage format`).
  */
-import { is_db_failure, type DbValue, type Row } from './db/types.ts';
+import { network_time_limit } from '../server-time/network_time_limit.ts';
+import { is_db_failure, type DbError, type DbValue, type Dialect, type Row } from './db/types.ts';
 import { adapter_of, any_state_of, big, bytes, DbHandle, q, StorageMisuse, user_state_of, writable, type StorageCore, type TxState } from './core.ts';
 import { ConversionFailed, read_value } from './state.ts';
 import { from_json_value, json_value, quote, type TableDef } from './schema.ts';
@@ -346,20 +347,61 @@ function upgrade_one(core: StorageCore, state: TxState, kind: Parameters<typeof 
   }
 }
 
-/** `sweep_expired`: one delete per table with an expiry column; no user lock and no row lock. */
-export async function sweep_expired(core: StorageCore): Promise<number | 'FAILED'> {
-  const targets = [{ name: 'game_state', expiry: 'expires_at' }, ...[...core.tables.values()].filter((t) => t.expiry !== null).map((t) => ({ name: t.name, expiry: t.expiry ?? '' }))];
-  let deleted = 0;
-  try {
-    for (const target of targets) {
-      deleted += await adapter_of(core).autocommit(
-        { sql: `DELETE FROM ${quote(target.name)} WHERE ${quote(target.expiry)} <= $1`, params: [core.time.clock_now()] },
-        core.settings.user_lock_wait_ms,
-      );
-    }
-  } catch (error) {
-    if (is_db_failure(error)) return 'FAILED';
-    throw error;
+/** A table whose expiry delete was `FAILED` in a `sweep_expired` run, with the DB error code. */
+export interface SweepFailure {
+  readonly table: string;
+  readonly code: string;
+}
+
+/** What one `sweep_expired` run did: the rows it deleted and the tables it stopped at. */
+export interface SweepResult {
+  readonly deleted: number;
+  readonly failed: readonly SweepFailure[];
+}
+
+/** The DB error code of a failed delete: a PostgreSQL SQLSTATE or a SQLite result code; empty without a DB answer. */
+function db_error_code(dialect: Dialect, error: DbError): string {
+  const answered = dialect === 'postgresql' ? /^[0-9A-Z]{5}$/.test(error.code) : /^[0-9]+$/.test(error.code);
+  return answered ? error.code : '';
+}
+
+/**
+ * One batch delete of the expired rows of a table, by row address: `$1` is the time, `$2` the batch size. The outer
+ * expiry condition keeps a PostgreSQL row that an upsert rewrote after the inner select.
+ */
+function sweep_sql(dialect: Dialect, table: string, expiry: string): string {
+  const expired = `${quote(expiry)} <= $1`;
+  if (dialect === 'postgresql') {
+    return `DELETE FROM ${quote(table)} WHERE ctid = ANY(ARRAY(SELECT ctid FROM ${quote(table)} WHERE ${expired} LIMIT $2)) AND ${expired}`;
   }
-  return deleted;
+  return `DELETE FROM ${quote(table)} WHERE rowid IN (SELECT rowid FROM ${quote(table)} WHERE ${expired} LIMIT $2) AND ${expired}`;
+}
+
+/**
+ * `sweep_expired`: batch deletes per table with an expiry column, each in its own transaction; no user lock and no
+ * row lock. A table stops at a delete of fewer rows than the batch size, at the end of its time budget, or at a
+ * `FAILED` delete, which goes to the failed table list.
+ */
+export async function sweep_expired(core: StorageCore): Promise<SweepResult> {
+  const targets = [{ name: 'game_state', expiry: 'expires_at' }, ...[...core.tables.values()].filter((t) => t.expiry !== null).map((t) => ({ name: t.name, expiry: t.expiry ?? '' }))];
+  const adapter = adapter_of(core);
+  const batch = core.settings.sweep_batch_size;
+  const failed: SweepFailure[] = [];
+  let deleted = 0;
+  for (const target of targets) {
+    const budget = network_time_limit(BigInt(core.settings.sweep_table_budget_ms));
+    const sql = sweep_sql(adapter.dialect, target.name, target.expiry);
+    const now = core.time.clock_now();
+    try {
+      for (;;) {
+        const count = await adapter.autocommit({ sql, params: [now, BigInt(batch)] }, core.settings.user_lock_wait_ms);
+        deleted += count;
+        if (count < batch || budget.aborted) break;
+      }
+    } catch (error) {
+      if (!is_db_failure(error)) throw error;
+      failed.push({ table: target.name, code: db_error_code(adapter.dialect, error) });
+    }
+  }
+  return { deleted, failed };
 }

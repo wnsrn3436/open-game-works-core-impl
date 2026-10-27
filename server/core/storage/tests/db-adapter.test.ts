@@ -121,9 +121,9 @@ describe('DB adapter', () => {
       }
       return { inserted: true };
     });
-    expect(await storage.sweep_expired()).toBe(3);
+    expect((await storage.sweep_expired()).deleted).toBe(3);
     expect(storage.read_db().query('SELECT id FROM test_expiring')).toEqual([{ id: 4n }]);
-    expect(await storage.sweep_expired()).toBe(0);
+    expect((await storage.sweep_expired()).deleted).toBe(0);
   });
 
   it.runIf(DB_KIND === 'postgresql')('PostgreSQL: after the server closes every connection (a restart), the read connection and new transactions connect again', async () => {
@@ -209,7 +209,7 @@ describe('DB adapter', () => {
   );
 
   it.runIf(DB_KIND === 'postgresql')(
-    'PostgreSQL: a sweep_expired statement that waits for a free connection and then for a row lock is FAILED within one storage.userLockWaitMs',
+    'PostgreSQL: a sweep_expired statement that waits for a free connection and then for a row lock is FAILED within one storage.userLockWaitMs, and its table is in the failed table list',
     async () => {
       const lock_wait = 1500;
       const { db, storage } = await instance({ settings: { 'storage.dbMaxConnections': 1, 'storage.userLockWaitMs': lock_wait } });
@@ -233,10 +233,10 @@ describe('DB adapter', () => {
       expect(await first).toBe('ran');
       const { result, waited } = await sweep;
       await holder_row.ok('ROLLBACK');
-      expect(result).toBe('FAILED');
+      expect(result).toEqual({ deleted: 0, failed: [{ table: 'game_state', code: '55P03' }] });
       expect(waited).toBeGreaterThanOrEqual(lock_wait - 50);
       expect(waited).toBeLessThan(lock_wait + lock_wait / 4);
-      expect(await storage.sweep_expired()).toBe(1);
+      expect((await storage.sweep_expired()).deleted).toBe(1);
     },
   );
 

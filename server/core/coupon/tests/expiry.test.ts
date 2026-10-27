@@ -39,10 +39,10 @@ describe('coupon_attempt', () => {
     const window_start = (START_AT / WINDOW_MS) * WINDOW_MS;
     expect(attempt_rows(m)).toEqual([{ user_id, window_start, count: 2n, expires_at: window_start + WINDOW_MS }]);
     m.clock.advance(window_start + WINDOW_MS - 1n - START_AT);
-    expect(await m.storage.sweep_expired()).toBe(0);
+    expect((await m.storage.sweep_expired()).deleted).toBe(0);
     expect(attempt_rows(m)).toHaveLength(1);
     m.clock.advance(1n);
-    expect(await m.storage.sweep_expired()).toBe(1);
+    expect((await m.storage.sweep_expired()).deleted).toBe(1);
     expect(attempt_rows(m)).toEqual([]);
   });
 

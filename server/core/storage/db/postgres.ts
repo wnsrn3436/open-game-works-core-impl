@@ -2,6 +2,7 @@ import { MessageChannel, receiveMessageOnPort, Worker, type MessagePort } from '
 import { parse_connection_string, PgError, type PgValue } from './pg_protocol.ts';
 import {
   answer_bound_ms,
+  NO_FREE_CONNECTION,
   READ_CONN,
   SIGNAL_ANSWERED,
   SIGNAL_DEAD,
@@ -14,8 +15,8 @@ import {
 } from './pg_messages.ts';
 import { DbError, type BeginOptions, type Begun, type DbAdapter, type DbConn, type DbTxConn, type DbValue, type Row, type Statement } from './types.ts';
 
-/** SQLSTATE of a lock wait over `lock_timeout`, a deadlock and a serialization failure. */
-const LOCK_CODES = new Set(['55P03', '40P01', '40001']);
+/** SQLSTATE of a lock wait over `lock_timeout`, a deadlock and a serialization failure, and the wait for a free connection. */
+const LOCK_CODES = new Set(['55P03', '40P01', '40001', NO_FREE_CONNECTION]);
 const READ_ONLY_CODE = '25006';
 
 function db_error(code: string, message: string): DbError {
