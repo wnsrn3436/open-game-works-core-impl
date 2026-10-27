@@ -99,6 +99,18 @@ func test_marks_and_goal_intervals() -> void:
 	assert_eq(JSONR.integer(json, "goal_intervals.1.input_count"), 2, "the inputs between the two Goal marks")
 
 
+func test_a_release_input_is_not_in_input_count() -> void:
+	assert_true(await start())
+	QACore.mark(QACore.MarkKind.GOAL)
+	await run_ok("key_down", PackedStringArray(["A"]))
+	await run_ok("key_up", PackedStringArray(["A"]))
+	await tap_empty()
+	QACore.mark(QACore.MarkKind.GOAL)
+	var json: String = await telemetry()
+	assert_eq(JSONR.count(json, "goal_intervals"), 2)
+	assert_eq(JSONR.integer(json, "goal_intervals.1.input_count"), 2, "the key_up is not counted")
+
+
 func test_play_at_and_goal_interval_duration() -> void:
 	assert_true(await start())
 	await run_ok("clear_telemetry")
@@ -151,6 +163,19 @@ func test_idle_span() -> void:
 	assert_eq(JSONR.count(json, "idle_spans"), 2, "a span that goes on")
 	assert_true(JSONR.is_null(json, "idle_spans.1.end_at"))
 	assert_true(JSONR.is_null(json, "idle_spans.1.duration_ms"))
+
+
+func test_a_release_input_ends_an_idle_span() -> void:
+	assert_true(await start())
+	await run_ok("clear_telemetry")
+	await run_ok("key_down", PackedStringArray(["A"]))
+	await advance(IDLE_THRESHOLD_MS + 1, 1)
+	await run_ok("key_up", PackedStringArray(["A"]))
+	var json: String = await telemetry()
+	assert_eq(JSONR.count(json, "idle_spans"), 1, "no span goes on after the key_up")
+	assert_false(JSONR.is_null(json, "idle_spans.0.end_at"), "the key_up ends the span")
+	assert_eq(JSONR.integer(json, "idle_spans.0.end_at") - JSONR.integer(json, "idle_spans.0.start_at"), IDLE_THRESHOLD_MS + 1)
+	assert_eq(JSONR.integer(json, "idle_spans.0.duration_ms"), IDLE_THRESHOLD_MS + 1)
 
 
 func test_scene_loads() -> void:
