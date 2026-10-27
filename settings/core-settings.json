@@ -92,7 +92,7 @@
   "auth.deletionAttemptsPerMinute": 10,
   "routing.bodyReadTimeoutMs": 10000,
   "routing.userRateLimitPerMinute": 300,
-  "routing.ipRateLimitPerMinute": 60,
+  "routing.ipRateLimitPerMinute": 300,
   "routing.corsPreflightMaxAgeMs": 600000,
   "routing.storageSweepIntervalMs": 60000,
   "testing.maxFixtureBytes": 1048576,
