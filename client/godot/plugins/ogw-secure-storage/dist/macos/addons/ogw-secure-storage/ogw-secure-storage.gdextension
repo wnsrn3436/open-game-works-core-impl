@@ -6,3 +6,6 @@ compatibility_minimum = "4.7"
 [libraries]
 
 macos = "res://addons/ogw-secure-storage/macos/libogw-secure-storage.macos.dylib"
+windows.x86_64 = "res://addons/ogw-secure-storage/windows/libogw-secure-storage.windows.x86_64.dll"
+linux.x86_64 = "res://addons/ogw-secure-storage/linux/libogw-secure-storage.linux.x86_64.so"
+linux.arm64 = "res://addons/ogw-secure-storage/linux/libogw-secure-storage.linux.arm64.so"

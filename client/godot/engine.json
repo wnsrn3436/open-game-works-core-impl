@@ -56,7 +56,11 @@
       "name": "ogw-secure-storage",
       "version": "1.0.0",
       "platforms": [
-        "macos"
+        "android",
+        "ios",
+        "macos",
+        "windows",
+        "linux"
       ]
     }
   ],
