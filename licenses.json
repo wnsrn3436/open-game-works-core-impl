@@ -1764,6 +1764,17 @@
       "modules": []
     },
     {
+      "name": "godot-cpp (ogw-secure-storage)",
+      "version": "2bb1acf6f8ae1ce96ac7b9ba3a10b499c59c49ec",
+      "license": "MIT",
+      "url": "https://github.com/godotengine/godot-cpp",
+      "notice": "Copyright (c) 2017-present Godot Engine contributors.",
+      "platforms": [
+        "macos"
+      ],
+      "modules": []
+    },
+    {
       "name": "Google Play In-App Review Library",
       "version": "2.0.2",
       "license": "LicenseRef-Play-Core-SDK-Terms-of-Service",

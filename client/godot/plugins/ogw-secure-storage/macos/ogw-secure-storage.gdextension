@@ -1,0 +1,8 @@
+[configuration]
+
+entry_symbol = "ogw_secure_storage_init"
+compatibility_minimum = "4.7"
+
+[libraries]
+
+macos = "res://addons/ogw-secure-storage/macos/libogw-secure-storage.macos.dylib"
