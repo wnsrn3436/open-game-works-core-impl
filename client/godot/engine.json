@@ -49,8 +49,8 @@
         "ios",
         "macos"
       ],
-      "url": "https://github.com/wnsrn3436/open-game-works-core-impl/releases/download/v0.4.0/client-godot-plugins.zip",
-      "sha256": "43c8b8d033c421e6db943131a387d071012d9d80f2024842d5bec26b9c85c5ad"
+      "url": "https://github.com/wnsrn3436/open-game-works-core-impl/releases/download/v0.5.0/client-godot-plugins.zip",
+      "sha256": "a1e35f0f5b92a99dad11b22ad67c532ce6d92f560984d88d303d0a8c0d656523"
     },
     {
       "name": "ogw-secure-storage",
@@ -61,7 +61,9 @@
         "macos",
         "windows",
         "linux"
-      ]
+      ],
+      "url": "https://github.com/wnsrn3436/open-game-works-core-impl/releases/download/v0.5.0/client-godot-plugins.zip",
+      "sha256": "a1e35f0f5b92a99dad11b22ad67c532ce6d92f560984d88d303d0a8c0d656523"
     }
   ],
   "buildTools": [
