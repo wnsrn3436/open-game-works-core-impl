@@ -1,0 +1,17 @@
+[config]
+
+name="OgwSecureStorage"
+binary="ogw-secure-storage.xcframework"
+initialization="ogw_secure_storage_init"
+deinitialization="ogw_secure_storage_deinit"
+
+[dependencies]
+
+linked=[]
+embedded=[]
+system=["Security.framework", "Foundation.framework"]
+capabilities=[]
+files=[]
+linker_flags=[]
+
+[plist]

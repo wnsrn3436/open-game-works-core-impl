@@ -1,0 +1,34 @@
+#!/usr/bin/env python
+# Windows and Linux GDExtension library of `ogw-secure-storage`. Run from this folder:
+#   scons platform=<windows|linux> arch=<arch> target=template_release godot_cpp=<godot-cpp checkout>
+# The library goes to `bin/libogw-secure-storage.<platform>.<arch>.<dll|so>`. The Linux build needs the libsecret
+# headers (`pkg-config libsecret-1`) but does not link libsecret: it is loaded at run time.
+import os
+
+godot_cpp = ARGUMENTS.pop("godot_cpp", os.environ.get("GODOT_CPP_DIR", ""))
+# `<from>=<to>` pairs joined by ";" for -ffile-prefix-map, so the library does not hold the build folders of the host
+file_prefix_maps = ARGUMENTS.pop("file_prefix_maps", "")
+if godot_cpp == "":
+    raise SystemExit("godot_cpp=<godot-cpp checkout> is required")
+ARGUMENTS.setdefault("api_version", "4.7")
+env = SConscript(os.path.join(godot_cpp, "SConstruct"))
+env.Append(CPPPATH=["src"])
+env.Append(CCFLAGS=["-ffile-prefix-map=" + m for m in file_prefix_maps.split(";") if m != ""])
+
+sources = ["src/ogw_secure_storage.cpp", "src/register_types.cpp"]
+if env["platform"] == "windows":
+    sources.append("src/backend_windows.cpp")
+    env.Append(LIBS=["advapi32"])
+    suffix = ".dll"
+elif env["platform"] == "linux":
+    sources.append("src/backend_linux.cpp")
+    env.ParseConfig("pkg-config --cflags libsecret-1")
+    env.Append(LIBS=["dl"])
+    suffix = ".so"
+else:
+    raise SystemExit("this library is for platform=windows or platform=linux")
+library = env.SharedLibrary(
+    "bin/libogw-secure-storage.{}.{}{}".format(env["platform"], env["arch"], suffix),
+    source=sources,
+)
+Default(library)
