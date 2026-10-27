@@ -1,8 +1,10 @@
 // Linux Secret Service through libsecret: one item per name in the default collection, with the schema below and the
 // attribute `name`, holding the UTF-8 text. libsecret is loaded at run time, so a system without it gets no singleton
-// instead of failing to load this library. An operation never unlocks a collection or an item, which would show the
-// OS unlock window: a locked collection or item is `STATUS_DENIED`, and a session without a default collection is
-// `STATUS_UNSUPPORTED`.
+// instead of failing to load this library. A run gets the singleton only when, at library load, libsecret loads and the
+// session's Secret Service has a default collection, so a run that cannot use Secret Service (no service on the session
+// bus, no default collection) has no singleton. An operation never unlocks a collection or an item, which would show
+// the OS unlock window: a locked collection or item is `STATUS_DENIED`, and a session that lost its Secret Service or
+// default collection after load is `STATUS_UNSUPPORTED`.
 
 #include "backend.h"
 
@@ -161,11 +163,21 @@ namespace backend {
 
 bool available() {
 	static bool tried = false;
+	static bool usable = false;
 	if (!tried) {
 		tried = true;
 		loaded = load();
+		if (loaded) {
+			// A locked default collection can still be used once the user unlocks it, so it counts as usable.
+			int32_t status = STATUS_FAILED;
+			SecretCollection *collection = open_collection(status);
+			if (collection != nullptr) {
+				api.object_unref(collection);
+			}
+			usable = collection != nullptr || status == STATUS_DENIED;
+		}
 	}
-	return loaded;
+	return usable;
 }
 
 Result read(const std::string &name) {

@@ -18,7 +18,7 @@ static void initialize_ogw_secure_storage(ModuleInitializationLevel level) {
 		return;
 	}
 	GDREGISTER_CLASS(ogw::OgwSecureStorage);
-	// Without the OS secure storage library the run has no singleton, as on a host without the plugin build.
+	// A run that cannot use the OS secure storage has no singleton, as on a host without the plugin build.
 	if (!ogw::backend::available()) {
 		return;
 	}
