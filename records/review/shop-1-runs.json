@@ -1,3 +1,20 @@
 {
-  "runs": []
+  "runs": [
+    {
+      "command": "ogw core test server shop",
+      "startedAt": 1793100683718,
+      "exitCode": 0,
+      "summary": {
+        "tests": 90,
+        "passed": 90
+      },
+      "job": "mvqlumdfc44984"
+    },
+    {
+      "command": "ogw job wait mvqlumdfc44984",
+      "startedAt": 1793100711300,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
 }
