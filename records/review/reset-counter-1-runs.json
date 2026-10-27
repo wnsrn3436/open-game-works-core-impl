@@ -1,3 +1,26 @@
 {
-  "runs": []
+  "runs": [
+    {
+      "command": "ogw core test server reset-counter",
+      "startedAt": 1793100213630,
+      "exitCode": 0,
+      "summary": {
+        "tests": 26,
+        "passed": 26
+      },
+      "job": "mvqlkjne435f85"
+    },
+    {
+      "command": "ogw job wait mvqlkjne435f85",
+      "startedAt": 1793100221352,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvqlkjne435f85",
+      "startedAt": 1793100228268,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
 }
