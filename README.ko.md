@@ -99,6 +99,7 @@ games/<game>/                             settings.json "coreVersion": "<version
 |---|---|
 | `client/godot/` | Godot 클라이언트 코어. 폴더 자체가 Godot 프로젝트다. `core/<module folder>/`에 모듈이 하나씩 있고, `engine.json`이 엔진, 테스트 도구, 플러그인, 플랫폼별 빌드 도구를 고정한다 |
 | `client/godot/plugins/ogw-native-ui/` | 네이티브 플러그인 `ogw-native-ui`(Android, iOS, macOS)의 소스, 미리 빌드한 `dist/`, `build.sh` |
+| `client/godot/plugins/ogw-secure-storage/` | 네이티브 플러그인 `ogw-secure-storage`(Android, iOS, macOS, Windows, Linux)의 소스, 미리 빌드한 `dist/`, `build.sh` |
 | `server/core/` | TypeScript 서버 코어. 모듈마다 폴더 하나와, 서버 프로세스 진입점 `start.ts` |
 | `server/generated/`, `server/dev/generated/` | 코어 테스트 데이터로 생성한 코드. 서버 코어 테스트가 쓴다 |
 | `proto/ogw/` | 기본 protobuf: `core.proto`, `options.proto` |
@@ -128,7 +129,7 @@ games/<game>/                             settings.json "coreVersion": "<version
 - 코어 테스트는 `UnitTestCore`를 통해 GUT로 돌린다. 네이티브 실행과, Web export를 띄운 헤드리스 브라우저 실행 두
   가지가 있다.
 - `engine.json` `plugins`의 네이티브 플러그인: `webrtc-native`(Godot WebRTC GDExtension, `RealtimeCore`가 사용)와,
-  코어가 직접 작성하는 `ogw-native-ui`.
+  코어가 직접 작성하는 `ogw-native-ui`, `ogw-secure-storage`.
 
 `ogw-native-ui`는 `NativeUiCore`에 스토어 리뷰 요청 창과 공유 창을 제공한다. 지원 플랫폼은 Android(Godot Android
 plugin v2, Gradle), iOS(xcframework에 담은 정적 라이브러리, Xcode 프로젝트), macOS(GDExtension, SCons)다. 빌드
@@ -136,6 +137,13 @@ plugin v2, Gradle), iOS(xcframework에 담은 정적 라이브러리, Xcode 프�
 Godot 소스와 godot-cpp를 한 번 받아 두며, Xcode, SCons, JDK 17(`JAVA_HOME`), Android SDK(`ANDROID_HOME`)가
 필요하다. `ogw core release`는 `dist/`를 릴리스 애셋 `client-godot-plugins.zip`으로 묶고, 그 URL과 SHA-256을
 `engine.json`에 쓴다.
+
+`ogw-secure-storage`는 `AuthCore`가 로그인 토큰을 보관하는 곳이다. Android에서는 Android Keystore 키로 암호화한 앱
+전용 저장소, iOS와 macOS에서는 이 기기에서만 읽을 수 있는 Keychain 항목, Windows에서는 Credential Manager,
+Linux에서는 Secret Service를 쓴다. 다섯 플랫폼 모두 Mac 호스트에서 빌드하며, `build.sh`는 Windows용 MinGW-w64와
+Linux용 Docker도 필요로 한다. Linux는 아키텍처마다 `debian:bullseye` 컨테이너에서 빌드하고, 그 glibc가 라이브러리가
+돌아가는 가장 낮은 Linux를 정한다. macOS에서는 토큰을 data protection keychain에 두므로 앱이 keychain access group을
+가진 서명으로 서명되어 있어야 한다. dev 실행과 ad-hoc 서명한 DEV 빌드는 대신 DEV 토큰 파일에 보관한다.
 
 ### 서버 코어 (TypeScript)
 
@@ -267,7 +275,7 @@ Godot 소스와 godot-cpp를 한 번 받아 두며, Xcode, SCons, JDK 17(`JAVA_H
 
 - main HEAD 커밋에서 모든 코어 테스트 대상이 통과한다
 - `core-spec/`이 현재 하네스 스펙과 같다
-- 모든 리뷰가 끝났고, 반드시 고칠 리뷰 항목이 남아 있지 않다
+- 모든 리뷰가 끝났고, 이전 릴리스 이후 바뀐 모듈과 도구는 모두 리뷰를 거쳤으며, 반드시 고칠 리뷰 항목이 남아 있지 않다
 - `ogw code check core`가 통과한다
 - 코어 설정 기본값이 설정 제약을 지킨다
 - 네이티브 플러그인 빌드가 모든 대상 플랫폼에 있다
@@ -290,7 +298,8 @@ buildx가 있는 Docker, uv와 Python, 로그인된 Claude Code 또는 Codex CLI
   `ogw env check --for update-core`로 이것들을 확인한다.
 - 릴리스 게시용: 하네스 설정 `coreReleaseRepository`의 릴리스 저장소(`wnsrn3436/open-game-works-core-impl`)에 push
   권한이 있는 GitHub CLI 로그인.
-- `ogw-native-ui` 재빌드용: Xcode, SCons, JDK 17, Android SDK가 있는 Mac.
+- 네이티브 플러그인 재빌드용: Xcode, SCons, JDK 17, Android SDK가 있는 Mac. `ogw-secure-storage`는 MinGW-w64와 Docker도
+  필요하다.
 
 주 호스트는 macOS다. iOS와 macOS 빌드에는 Xcode가 필요하다. 이 저장소에는 심볼릭 링크가 없지만 하네스와 게임
 저장소에는 있다. Windows에서는 그 저장소들을 클론하기 전에 개발자 모드를 켜고

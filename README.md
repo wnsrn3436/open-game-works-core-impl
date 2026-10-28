@@ -99,6 +99,7 @@ games/<game>/                             settings.json "coreVersion": "<version
 |---|---|
 | `client/godot/` | the Godot client core. The folder is itself a Godot project. `core/<module folder>/` holds one module each; `engine.json` pins the engine, test tools, plugins and platform build tools |
 | `client/godot/plugins/ogw-native-ui/` | source and prebuilt `dist/` of the native plugin `ogw-native-ui` (Android, iOS, macOS) and its `build.sh` |
+| `client/godot/plugins/ogw-secure-storage/` | source and prebuilt `dist/` of the native plugin `ogw-secure-storage` (Android, iOS, macOS, Windows, Linux) and its `build.sh` |
 | `server/core/` | the TypeScript server core: one folder per module, plus `start.ts`, the server process entry point |
 | `server/generated/`, `server/dev/generated/` | code generated from the core test data, used by server core tests |
 | `proto/ogw/` | the base protobuf: `core.proto` and `options.proto` |
@@ -127,8 +128,8 @@ harness tool commits them.
   service adapters), `dev/` (DEV code, left out of STG and PROD builds) and `tests/` (core tests, not released).
 - `core/web/` holds the HTML shell and the service worker of the Web export.
 - Core tests run with GUT through `UnitTestCore`, both natively and in a headless browser from a Web export.
-- Native plugins in `engine.json` `plugins`: `webrtc-native` (the Godot WebRTC GDExtension, used by `RealtimeCore`) and
-  `ogw-native-ui`, which core writes itself.
+- Native plugins in `engine.json` `plugins`: `webrtc-native` (the Godot WebRTC GDExtension, used by `RealtimeCore`), and
+  `ogw-native-ui` and `ogw-secure-storage`, which core writes itself.
 
 `ogw-native-ui` gives `NativeUiCore` the store review request window and the share window on Android (Godot Android
 plugin v2, Gradle), iOS (a static library in an xcframework, Xcode project) and macOS (GDExtension, SCons). Its build
@@ -136,6 +137,13 @@ results are committed in `dist/<platform>/`. On a Mac host, `build.sh <work fold
 Godot source and godot-cpp into the work folder once, and needs Xcode, SCons, JDK 17 (`JAVA_HOME`) and the Android SDK
 (`ANDROID_HOME`). `ogw core release` packs `dist/` into the release asset `client-godot-plugins.zip` and writes its URL
 and SHA-256 into `engine.json`.
+
+`ogw-secure-storage` is where `AuthCore` keeps the login token: app-private storage encrypted with an Android Keystore
+key on Android, a Keychain item readable only on this device on iOS and macOS, Credential Manager on Windows and Secret
+Service on Linux. It is built for all five platforms on a Mac host: its `build.sh` also needs MinGW-w64 for Windows and
+Docker for Linux, where each architecture is built in a `debian:bullseye` container whose glibc sets the lowest Linux the
+library runs on. On macOS the token is in the data protection keychain, so the app must be signed with a keychain access
+group; dev runs and ad-hoc signed DEV builds keep it in a DEV token file instead.
 
 ### Server core (TypeScript)
 
@@ -270,7 +278,8 @@ these hold:
 
 - every core test target passes on the main HEAD commit
 - `core-spec/` matches the current harness specs
-- every review is done and no must-fix review item remains
+- every review is done, every module and tool changed since the previous release has been reviewed, and no must-fix
+  review item remains
 - `ogw code check core` passes
 - the core settings defaults keep the settings constraints
 - the native plugin builds exist for all target platforms
@@ -293,7 +302,8 @@ needs:
   `ogw env check --for update-core` before it starts.
 - For publishing a release, a GitHub CLI login with push access to the release repository of harness settings
   `coreReleaseRepository` (`wnsrn3436/open-game-works-core-impl`).
-- For rebuilding `ogw-native-ui`, a Mac with Xcode, SCons, JDK 17 and the Android SDK.
+- For rebuilding the native plugins, a Mac with Xcode, SCons, JDK 17 and the Android SDK. `ogw-secure-storage` also
+  needs MinGW-w64 and Docker.
 
 macOS is the primary host: iOS and macOS builds need Xcode. This repository has no symbolic links, but the harness and
 the games do; on Windows, enable Developer Mode and set `git config --global core.symlinks true` before cloning them, or
