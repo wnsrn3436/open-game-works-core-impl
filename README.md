@@ -26,8 +26,9 @@ https://github.com/user-attachments/assets/9cf4f284-32c5-4f82-9c3f-13d17cbc12ec
 ## What it is
 
 [open-game-works](https://github.com/wnsrn3436/open-game-works-core) is a harness in which AI agents make server-client
-games. Features that many games would otherwise write again the same way are built once, in advance, as **core**.
-Agents write only the gameplay, as **content code**, on top of it. Core holds only features outside the gameplay loop:
+games. Features that many games would otherwise rewrite the same way each time are built once, in advance, as
+**core**. Agents write only the gameplay, as **content code**, on top of it. Core holds only features outside the
+gameplay loop.
 
 | area | examples |
 |---|---|
@@ -36,8 +37,8 @@ Agents write only the gameplay, as **content code**, on top of it. Core holds on
 | store policy | receipt verification and refund handling, consent to terms, age check, account deletion, probability disclosure, store privacy disclosure, tracking permission |
 | meta system | item, shop, mailbox, mission, attendance, gacha, ranking, rating, friend, guild |
 
-This repository is the implementation of that core. Agents develop it through the harness, it is released as GitHub
-Releases of this repository, and each game pins one release with `coreVersion` in its `settings.json`.
+This repository is the implementation of that core. Agents develop it through the harness and release it as GitHub
+Releases of this repository. Each game pins one release with `coreVersion` in its `settings.json`.
 
 | repository | contents |
 |---|---|
@@ -51,7 +52,7 @@ Releases of this repository, and each game pins one release with `coreVersion` i
 ## Status
 
 open-game-works is under active development, and so is this core. So far core work has been tested only on macOS, with
-Claude Code running Claude Opus 5.5 at high effort, and the `build` command has not been run yet; the
+Claude Code running Claude Opus 5.5 at high effort, and the `build` command has not been run yet. The
 [harness README](https://github.com/wnsrn3436/open-game-works-core#status) has the details.
 
 ## How it works
@@ -80,9 +81,10 @@ games/<game>/                             settings.json "coreVersion": "<version
 
 - **Spec first.** Every module has a spec in the harness that states its public API, behavior, hooks, events, errors,
   settings, data and tests, independent of the engine. The implementation changes only after the spec changes.
-  `core-spec/` is the part of those specs that tools read. `ogw core spec` writes it; it is never edited by hand.
-- **Core does not depend on content code.** Content code passes only hooks, callbacks and data to core. Hooks take over
-  game-specific decisions (validation, handling, after hooks); events tell content code about things.
+  `core-spec/` is the part of those specs that tools read. `ogw core spec` writes it, and no one edits it by hand.
+- **Core does not depend on content code.** Content code passes only hooks, callbacks and data to core. Decisions that
+  differ per game are left to hooks (validation hooks, handling hooks, after hooks), and what core needs to tell content
+  code goes out as events.
 - **One version for everything.** Client core, server core, contract tool, data tool and core settings share one core
   version.
 - **Core settings.** Defaults are in `settings/core-settings.json`, with keys of the form `<module name>.<camelCase>`
@@ -91,7 +93,7 @@ games/<game>/                             settings.json "coreVersion": "<version
   `coreModules`, and every module those depend on.
 - **Games do not edit core.** A game's `client/core/` and `server/core/` are copies of a core release, and the static
   check `core diff` compares them with the release. When core falls short, the content agent writes a core proposal in
-  the game's `records/core-proposals/`, and a human orders it applied with `update core`.
+  the game's `records/core-proposals/`, and a human has it applied with `update core`.
 
 ## Repository layout
 
@@ -141,15 +143,15 @@ and SHA-256 into `engine.json`.
 `ogw-secure-storage` is where `AuthCore` keeps the login token: app-private storage encrypted with an Android Keystore
 key on Android, a Keychain item readable only on this device on iOS and macOS, Credential Manager on Windows and Secret
 Service on Linux. It is built for all five platforms on a Mac host: its `build.sh` also needs MinGW-w64 for Windows and
-Docker for Linux, where each architecture is built in a `debian:bullseye` container whose glibc sets the lowest Linux the
-library runs on. On macOS the token is in the data protection keychain, so the app must be signed with a keychain access
+Docker for Linux, where each architecture is built in a `debian:bullseye` container whose glibc sets the oldest Linux the
+library can run on. On macOS the token is in the data protection keychain, so the app must be signed with a keychain access
 group; dev runs and ad-hoc signed DEV builds keep it in a DEV token file instead.
 
 ### Server core (TypeScript)
 
 - A module folder `server/core/<module>/` has `index.ts` (the entry file), `adapters/` (real, sandbox and clock
   adapters), `dev/` (DEV code, including fake adapters) and `tests/` (`<topic>.test.ts`). `cheat` and `testing` are
-  DEV code as a whole.
+  entirely DEV code.
 - The DB is behind an adapter: SQLite locally, PostgreSQL in DEV, STG and PROD. Server core tests run with vitest on
   both SQLite and PostgreSQL.
 - External services (e.g. store payment, ads, push, social login) are behind adapters: a fake, a sandbox and a real
@@ -168,11 +170,11 @@ group; dev runs and ad-hoc signed DEV builds keep it in a DEV token file instead
   (`silent`, `retry`, `errors`, `sensitive`), `core_errors`, `public`, `converters` and the field validation rules `v`.
 - The **contract tool** checks a game contract against the writing rules and backward compatibility, then generates
   client code and server code (and their DEV code) from it.
-- The **data tool** reads, checks and builds game data CSV tables into data proto, generated code and binaries, issuing
+- The **data tool** reads, checks and builds game data CSV tables into data proto, generated code and binaries, and issues
   ID values through the game's ID registry.
 - Each tool is one npm package. `npm run build` bundles it into `bin/<tool>.js` (not committed); its tests are
   `*.test.ts` under `tests/`, run with vitest. A release ships them as `contract-tool.tgz` and `data-tool.tgz`, each
-  with the base proto under `proto/`.
+  with the base protobuf under `proto/`.
 
 ## Modules
 
@@ -225,8 +227,8 @@ What `update core` does:
 2. Core agents implement the change, each in its own worktree `worktrees/_core/<id>/` on a branch `agent/<id>`.
    Before `ogw agent merge` merges a result into main, it checks that the agent's last `ogw core test` passed and that
    the result adds no new type check failure.
-3. Review agents review each changed module and tool against its spec, together with `ogw code check core`, round by
-   round until a round finds nothing open.
+3. Review agents review each changed module and tool against its spec and also run `ogw code check core`. These rounds
+   repeat until no open findings remain.
 4. The lead agent decides the version and runs `ogw core release <version>`.
 5. Each game moves to the new version in its own `update game`.
 
@@ -243,10 +245,10 @@ The `ogw` commands that work on this repository:
 | `ogw core licenses` | fills the full license texts of `licenses.json` |
 | `ogw core release <version>` | checks the release conditions, tags `v<version>` and publishes the GitHub Release |
 
-`ogw core test` takes module names to run only some modules, e.g. `ogw core test server item-ledger`.
+Pass module names to `ogw core test` to run only those modules, e.g. `ogw core test server item-ledger`.
 
-While core is being developed, harness settings `useLocalCore` can be set to `true`: the harness tool then uses this
-folder instead of the release of a game's core version, and does not start loop iterations or builds.
+While core is being developed, `useLocalCore` in harness settings can be set to `true`. The harness tool then uses this
+folder instead of the release for a game's core version and does not start loop iterations or builds.
 
 ## Versions and releases
 
@@ -254,7 +256,7 @@ The version format is `<major>.<minor>.<patch>`.
 
 | part | raised for |
 |---|---|
-| major | a change that breaks compatibility of the public API, behavior, hooks, events, core settings keys, system table schema, base proto, the code the two tools generate, the CLI of the two tools, or the `core-spec.json` format |
+| major | a change that breaks compatibility of the public API, behavior, hooks, events, core settings keys, system table schema, base protobuf, the code the two tools generate, the CLI of the two tools, or the `core-spec.json` format |
 | minor | an addition that keeps compatibility |
 | patch | a bug fix that does not change the public API |
 
@@ -264,16 +266,16 @@ A release puts the tag `v<version>` on a main commit and publishes a GitHub Rele
 |---|---|
 | `client-godot.zip` | `core/` of the Godot client core without `tests/`, and `engine.json` |
 | `client-godot-plugins.zip` | the build results of the `ogw-` native plugins |
-| `benchmark-godot.zip` | the benchmark game. `update env` measures with it how many instances the host can run at once |
+| `benchmark-godot.zip` | the benchmark game. `update env` uses it to measure how many instances the host can run at once |
 | `server.tgz` | `server/core/` without `tests/` |
-| `contract-tool.tgz`, `data-tool.tgz` | the bundled tool and the base proto |
+| `contract-tool.tgz`, `data-tool.tgz` | the bundled tool and the base protobuf |
 | `core-settings.json`, `core-settings.schema.json` | core settings defaults and schema |
 | `core-settings-constraints.json` | the settings constraints of all modules |
 | `core-spec.json` | the merged `core-spec/` |
 | `licenses.json` | the license manifest |
 | `manifest.json` | the version, the SHA-256 of every other asset, and the core schema version |
 
-The assets of a published version never change; a fix is a new version. `ogw core release` publishes only when all of
+The assets of a published version never change; a fix goes out as a new version. `ogw core release` publishes only when all of
 these hold:
 
 - every core test target passes on the main HEAD commit
@@ -283,7 +285,7 @@ these hold:
 - `ogw code check core` passes
 - the core settings defaults keep the settings constraints
 - the native plugin builds exist for all target platforms
-- a break of base proto compatibility with the previous release comes with a higher major version
+- if base protobuf compatibility with the previous release is broken, the major version has been raised
 
 A game names its version in `settings.json` `coreVersion`. The harness tool looks for that version in
 `open-game-works-core-releases/` and, when it is not there, fetches it from the GitHub Release and checks the files by
@@ -292,7 +294,7 @@ hash. `ogw generate` copies the release into the game's `client/core/` and `serv
 ## Requirements
 
 Everything the [harness](https://github.com/wnsrn3436/open-game-works-core) requires, including Node.js 24 or later,
-Git, GitHub CLI logged in, Docker with buildx, uv and Python, and Claude Code and/or Codex CLI logged in. Core work also
+Git, GitHub CLI logged in, Docker with buildx, uv and Python, and Claude Code or Codex CLI logged in. Core work also
 needs:
 
 - Godot at the version in `client/godot/engine.json`. `update env` installs it.
@@ -347,8 +349,8 @@ How to contribute:
 
 - Questions and ideas go to [Discussions](https://github.com/wnsrn3436/open-game-works-core/discussions) of the harness, and bugs in the core to [Issues](https://github.com/wnsrn3436/open-game-works-core-impl/issues).
 - For a larger change, open a discussion or an issue first, so the approach is agreed before you write code.
-- The module specs live in the harness, and this repository follows them: a behavior change starts as a spec change there. Through the harness, this is the `update core` command, and a new engine is `create client core: <engine>`.
-- A change here passes `ogw core test` for the modules it touches and `ogw code check core`.
+- The module specs live in the harness, and this repository follows them: a behavior change starts as a spec change there. In the harness, the `update core` command does this, and a new engine goes through `create client core: <engine>`.
+- A change here must pass `ogw core test` for the modules it touches and `ogw code check core`.
 - Code identifiers and commit messages are written in English.
 
 By contributing, you agree that your contribution is licensed under the Apache License 2.0, the license of this repository.
