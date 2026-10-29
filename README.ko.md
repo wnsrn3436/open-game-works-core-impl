@@ -103,7 +103,7 @@ games/<game>/                           settings.json "coreVersion": "<version>"
 - `client/godot/engine.json`에 적힌 버전의 Godot(`update env`가 설치한다).
 - 코어 테스트와 코드 검사가 쓰는 하네스 설정 `tools`: `tools.postgresql`, `tools.chromium`, `tools.gdtoolkit`.
 - 릴리스 게시용으로 이 저장소에 대한 push 권한.
-- 네이티브 플러그인 재빌드용으로 Xcode, SCons, JDK 17, Android SDK가 있는 Mac. `ogw-secure-storage`는 MinGW-w64와 Docker도 필요하다. 주 호스트는 macOS다.
+- 네이티브 플러그인을 다시 빌드하려면 `client/godot/plugins/` 아래 그 플러그인의 `build.sh` 맨 위에 적힌 도구가 필요하다. 주 호스트는 macOS다.
 
 설치: 이 저장소를 하네스 옆에 클론하고(하네스는 자기 `settings.json`의 `paths.coreImpl`로 이 폴더를 찾는다), 하네스 README의 [빠른 시작](https://github.com/wnsrn3436/open-game-works-core/blob/main/README.ko.md#빠른-시작)을 따른다. 코어를 개발하는 동안 하네스 설정 `useLocalCore`를 `true`로 두면 하네스 도구가 릴리스 대신 이 폴더를 쓴다.
 

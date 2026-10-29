@@ -103,7 +103,7 @@ Requirements: everything the [harness](https://github.com/wnsrn3436/open-game-wo
 - Godot at the version in `client/godot/engine.json` (`update env` installs it).
 - The harness settings `tools` that core tests and code checks use: `tools.postgresql`, `tools.chromium`, `tools.gdtoolkit`.
 - Push access to this repository, for publishing a release.
-- A Mac with Xcode, SCons, JDK 17 and the Android SDK, for rebuilding the native plugins; `ogw-secure-storage` also needs MinGW-w64 and Docker. macOS is the primary host.
+- For rebuilding a native plugin, the tools listed at the top of its `build.sh` under `client/godot/plugins/`. macOS is the primary host.
 
 Setup: clone this repository next to the harness (the harness finds it through `paths.coreImpl` in its `settings.json`), then follow the [quick start](https://github.com/wnsrn3436/open-game-works-core#quick-start) of the harness README. While developing core, harness settings `useLocalCore: true` makes the harness tool use this folder instead of a release.
 
