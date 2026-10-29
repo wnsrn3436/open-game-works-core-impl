@@ -3,6 +3,8 @@ extends RefCounted
 ## The bot of the benchmark cycle and the `open_<screen>` commands. One cycle: lobby, tick panel (one recorded tick),
 ## lobby, arena, notice popup, lobby. The bot reads the screen state each call and taps the anchor of the next step.
 ## A tap the UI dropped is tapped again on the next call; the screens ignore a tap that repeats one in progress.
+## The bot leaves a scene only after it was in it for `_SCENE_HOLD_MS`, so that the fps sampler of the performance
+## judgement, which drops the ticks of a scene load and the tick after it, gets samples of each scene.
 
 const _ANCHOR_INFO_OPEN: String = "bench_info_open"
 const _ANCHOR_ARENA_OPEN: String = "bench_arena_open"
@@ -11,6 +13,8 @@ const _ANCHOR_INFO_CLOSE: String = "bench_info_close"
 const _ANCHOR_NOTICE_OPEN: String = "bench_notice_open"
 const _ANCHOR_NOTICE_CLOSE: String = "bench_notice_close"
 const _ANCHOR_LOBBY_BACK: String = "bench_lobby_back"
+## The least time in a scene before the step that leaves it, in ms.
+const _SCENE_HOLD_MS: int = 6000
 
 ## The tick count the tick panel step waits for; 0 before its first record tap of the cycle.
 var _tick_target: int = 0
@@ -18,6 +22,9 @@ var _tick_target: int = 0
 var _info_done: bool = false
 ## The notice popup was open in this cycle.
 var _notice_seen: bool = false
+## The scene of the last call and when the bot first saw it, in `Time.get_ticks_msec()`.
+var _scene_seen: String = ""
+var _scene_seen_ms: int = 0
 
 
 ## `bench.bot_next_input`: the next input command, or `null` while a transition runs or a request is awaited.
@@ -90,6 +97,9 @@ func _next_anchor() -> String:
 	if SceneCore.is_transitioning() or UICore.is_panel_transitioning() or UICore.is_system_popup_visible():
 		return ""
 	var scene: String = SceneCore.current_scene_key()
+	if scene != _scene_seen:
+		_scene_seen = scene
+		_scene_seen_ms = Time.get_ticks_msec()
 	if scene == ResourceKey.SCENE__BENCH__LOBBY:
 		return _lobby_anchor()
 	if scene == ResourceKey.SCENE__BENCH__ARENA:
@@ -108,7 +118,9 @@ func _lobby_anchor() -> String:
 		_info_done = true
 		return _ANCHOR_INFO_CLOSE
 	if panel == ResourceKey.PREFAB__BENCH__LOBBY_PANEL:
-		return _ANCHOR_ARENA_OPEN if _info_done else _ANCHOR_INFO_OPEN
+		if not _info_done:
+			return _ANCHOR_INFO_OPEN
+		return _ANCHOR_ARENA_OPEN if _held() else ""
 	return ""
 
 
@@ -118,7 +130,13 @@ func _arena_anchor() -> String:
 		return _ANCHOR_NOTICE_CLOSE
 	if UICore.get_open_popup_count() > 0:
 		return ""
-	return _ANCHOR_LOBBY_BACK if _notice_seen else _ANCHOR_NOTICE_OPEN
+	if not _notice_seen:
+		return _ANCHOR_NOTICE_OPEN
+	return _ANCHOR_LOBBY_BACK if _held() else ""
+
+
+func _held() -> bool:
+	return Time.get_ticks_msec() - _scene_seen_ms >= _SCENE_HOLD_MS
 
 
 func _go_to_scene(scene_key: String) -> bool:
