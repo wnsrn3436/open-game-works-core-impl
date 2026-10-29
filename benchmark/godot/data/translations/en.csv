@@ -1,6 +1,6 @@
 key,source,source_hash,current_hash,text
 language.name.[lang_en],English,ba118bf7fc9c1aed,ba118bf7fc9c1aed,English
-reserved_string.text.[app_name],OGW Benchmark,9460a41c8cfa3710,9460a41c8cfa3710,OGW Benchmark
+reserved_string.text.[app_name],OGW Benchmark,a21640b336efb9b2,a21640b336efb9b2,OGW Benchmark
 reserved_string.text.[auth_age_confirm],Confirm,eebdd24a77d9ad32,eebdd24a77d9ad32,Confirm
 reserved_string.text.[auth_age_invalid],Enter a valid year and month.,d5894be0b86489e0,d5894be0b86489e0,Enter a valid year and month.
 reserved_string.text.[auth_age_month],Month,310ca503ef36f177,310ca503ef36f177,Month
@@ -77,7 +77,7 @@ reserved_string.text.[bench_terms],Terms of service,e69e06144877d81c,e69e0614487
 reserved_string.text.[bench_tick_count],Ticks: {count},66876d495d45b031,66876d495d45b031,Ticks: {count}
 reserved_string.text.[bench_tick_mismatch],The tick count changed. It is up to date now.,06171849693a5526,06171849693a5526,The tick count changed. It is up to date now.
 reserved_string.text.[bench_tick_send],Record tick,15065b6cfc33aee1,15065b6cfc33aee1,Record tick
-reserved_string.text.[bench_title],OGW Benchmark,9460a41c8cfa3710,9460a41c8cfa3710,OGW Benchmark
+reserved_string.text.[bench_title],OGW Benchmark,a21640b336efb9b2,a21640b336efb9b2,OGW Benchmark
 reserved_string.text.[bench_user_id],User code: {public_code},94daac7e42089daa,94daac7e42089daa,User code: {public_code}
 reserved_string.text.[bench_withdraw],Withdraw,164546a9c5481480,164546a9c5481480,Withdraw
 reserved_string.text.[bench_withdraw_confirm],Withdraw your account? Your progress is deleted and cannot be restored.,9196cefb2a303d7f,9196cefb2a303d7f,Withdraw your account? Your progress is deleted and cannot be restored.
