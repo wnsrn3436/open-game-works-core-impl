@@ -96,7 +96,7 @@ Core is changed only through the harness: a human gives a command in a Claude Co
 - Versions are `<major>.<minor>.<patch>`. Published assets never change; a fix is a new version.
 - A game names its version in `coreVersion`; the harness tool fetches that release, checks it by hash, and `ogw generate` copies it into the game.
 
-<details><summary>Requirements and setup for core development</summary>
+### Requirements and setup for core development
 
 Requirements: everything the [harness](https://github.com/wnsrn3436/open-game-works-core) requires, plus:
 
@@ -112,8 +112,6 @@ cd <workspace>
 git clone https://github.com/wnsrn3436/open-game-works-core.git
 git clone https://github.com/wnsrn3436/open-game-works-core-impl.git
 ```
-
-</details>
 
 ## Contributing
 

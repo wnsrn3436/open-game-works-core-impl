@@ -96,7 +96,7 @@ games/<game>/                           settings.json "coreVersion": "<version>"
 - 버전 형식은 `<major>.<minor>.<patch>`다. 게시한 애셋은 바뀌지 않고, 수정은 새 버전으로 낸다.
 - 게임은 `coreVersion`에 버전을 적는다. 하네스 도구가 그 릴리스를 받아 해시로 확인하고, `ogw generate`가 게임에 복사한다.
 
-<details><summary>코어 개발을 위한 요구 사항과 설치</summary>
+### 코어 개발을 위한 요구 사항과 설치
 
 요구 사항: [하네스](https://github.com/wnsrn3436/open-game-works-core)의 요구 사항 전부와 다음이 필요하다.
 
@@ -112,8 +112,6 @@ cd <workspace>
 git clone https://github.com/wnsrn3436/open-game-works-core.git
 git clone https://github.com/wnsrn3436/open-game-works-core-impl.git
 ```
-
-</details>
 
 ## 기여
 
