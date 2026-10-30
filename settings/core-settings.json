@@ -436,7 +436,7 @@
   "VirtualPadCore.deadZonePermille": 100,
   "VirtualPadCore.sensitivityPermille": 1000,
   "TutorialCore.anchorWaitWarnMs": 5000,
-  "UnitTestCore.testTimeLimitMs": 60000,
+  "UnitTestCore.testTimeLimitMs": 10000,
   "UnitTestCore.runTimeLimitMs": 1800000,
   "NativeUiCore.reviewMinIntervalMs": 2592000000,
   "NativeUiCore.shareTextMaxChars": 2000,
