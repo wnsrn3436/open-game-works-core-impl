@@ -5,6 +5,9 @@
     "client": [],
     "server": []
   },
+  "core": {
+    "UnitTestCore.testTimeLimitMs": 30000
+  },
   "appId": "com.example.coretest",
   "sourceLanguage": "en",
   "supportedLanguages": [
