@@ -1,0 +1,174 @@
+{
+  "runs": [
+    {
+      "command": "ogw core dependents UICore QACore",
+      "startedAt": 1793645144253,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot UICore --file client/godot/core/ui_core/tests/test_dimmed.gd",
+      "startedAt": 1793645256401,
+      "exitCode": 1,
+      "summary": {
+        "tests": 13,
+        "passed": 12
+      },
+      "job": "mvzm2pcea61ac8"
+    },
+    {
+      "command": "ogw job wait mvzm2pcea61ac8",
+      "startedAt": 1793645258994,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot UICore --file client/godot/core/ui_core/tests/test_dimmed.gd",
+      "startedAt": 1793645275014,
+      "exitCode": 0,
+      "summary": {
+        "tests": 13,
+        "passed": 13
+      },
+      "job": "mvzm33pfaca364"
+    },
+    {
+      "command": "ogw job wait mvzm33pfaca364",
+      "startedAt": 1793645275157,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot QACore --file client/godot/core/qa_core/tests/test_list_ui.gd",
+      "startedAt": 1793645284681,
+      "exitCode": 0,
+      "summary": {
+        "tests": 6,
+        "passed": 6
+      },
+      "job": "mvzm3b5yb1387b"
+    },
+    {
+      "command": "ogw job wait mvzm3b5yb1387b",
+      "startedAt": 1793645284824,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AccessibilityCore AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore MessageCore NativeUiCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore SceneCore ScreenEffectCore ShortcutCore TutorialCore UICore UnitTestCore VirtualPadCore",
+      "startedAt": 1793645301727,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvzm3obe44780b"
+    },
+    {
+      "command": "ogw core test godot AccessibilityCore AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore MessageCore NativeUiCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore SceneCore ScreenEffectCore ShortcutCore TutorialCore UICore UnitTestCore VirtualPadCore --web",
+      "startedAt": 1793645302146,
+      "exitCode": 1,
+      "summary": null,
+      "job": "mvzm3on1b12c7f"
+    },
+    {
+      "command": "ogw job wait mvzm3obe44780b",
+      "startedAt": 1793645304722,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvzm3on1b12c7f",
+      "startedAt": 1793645313576,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AccessibilityCore AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore MessageCore NativeUiCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore SceneCore ScreenEffectCore ShortcutCore TutorialCore UICore UnitTestCore VirtualPadCore",
+      "startedAt": 1793645317690,
+      "exitCode": 1,
+      "summary": {
+        "tests": 1861,
+        "passed": 1861
+      },
+      "job": "mvzm40mw8cbb3b"
+    },
+    {
+      "command": "ogw core test godot AccessibilityCore AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore MessageCore NativeUiCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore SceneCore ScreenEffectCore ShortcutCore TutorialCore UICore UnitTestCore VirtualPadCore --web",
+      "startedAt": 1793645318119,
+      "exitCode": 0,
+      "summary": {
+        "tests": 1861,
+        "passed": 1861
+      },
+      "job": "mvzm40yt753fbb"
+    },
+    {
+      "command": "ogw job wait mvzm40mw8cbb3b",
+      "startedAt": 1793645322318,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvzm40yt753fbb",
+      "startedAt": 1793645380406,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1793645417082,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvzm65bq63e993"
+    },
+    {
+      "command": "ogw job wait mvzm65bq63e993",
+      "startedAt": 1793645417223,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot AccessibilityCore AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore MessageCore NativeUiCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore SceneCore ScreenEffectCore ShortcutCore TutorialCore UICore UnitTestCore VirtualPadCore",
+      "startedAt": 1793645462985,
+      "exitCode": 1,
+      "summary": {
+        "tests": 1861,
+        "passed": 1861
+      },
+      "job": "mvzm74quc1a921"
+    },
+    {
+      "command": "ogw core test godot AccessibilityCore AdCore AuthCore BadgeCore BootstrapCore ChatCore CutsceneCore GameUpdateCore MessageCore NativeUiCore NetworkCore NoticeCore PaymentCore PushCore QACore RealtimeCore RemoteConfigCore RequirementCore SceneCore ScreenEffectCore ShortcutCore TutorialCore UICore UnitTestCore VirtualPadCore --web",
+      "startedAt": 1793645463401,
+      "exitCode": 0,
+      "summary": {
+        "tests": 1861,
+        "passed": 1861
+      },
+      "job": "mvzm752e361a60"
+    },
+    {
+      "command": "ogw job wait mvzm74quc1a921",
+      "startedAt": 1793645468547,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvzm752e361a60",
+      "startedAt": 1793645521336,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw code check core",
+      "startedAt": 1793645564564,
+      "exitCode": 0,
+      "summary": null,
+      "job": "mvzm9b4ic55ed8"
+    },
+    {
+      "command": "ogw job wait mvzm9b4ic55ed8",
+      "startedAt": 1793645564706,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
