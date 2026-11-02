@@ -1,6 +1,6 @@
 {
   "target": "spec UICore",
-  "nextId": 9,
+  "nextId": 10,
   "items": [
     {
       "id": "D1",
@@ -42,6 +42,12 @@
       "id": "D8",
       "location": "skills/client-core/modules/ui-core.md:319",
       "problem": "`append_items` and `prepend_items` called while a `set_items` is waiting are not set. ui-core.md:318 sets only a second `set_items`, and the error rows at ui-core.md:370 and ui-core.md:371 name only calls \"before `set_items`\". Whether such a call fails or applies to the previous item count, and whether the waiting `set_items` then overwrites it, can differ per implementation. It is reachable in chat: content code calls `set_items` for `Reset` and `append_items` for `Appended` (chat-core.md:124), and `set_items` waits for its prefill, so a message can be lost in one implementation and kept in another",
+      "foundBy": "spec UICore"
+    },
+    {
+      "id": "D9",
+      "location": "skills/client-core/modules/ui-core.md:165",
+      "problem": "The same unset case exists for panels and regular popups, and it predates this diff. With a tween preset of repeat count 0 as the UI property open tween, \"Wait for the open tween and end the transition\" never ends, so every later panel transition operation returns `false` (skills/client-core/modules/ui-core.md:156). A popup open flow never ends either, so the popup queue never runs its next request (skills/client-core/modules/ui-core.md:189, skills/client-core/modules/ui-core.md:190). Forced release frees only the block here, because no system popup timer hold applies. The behavior set for R1-1 should cover all UI property tweens.",
       "foundBy": "spec UICore"
     }
   ]
