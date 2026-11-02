@@ -1,3 +1,26 @@
 {
-  "runs": []
+  "runs": [
+    {
+      "command": "ogw core test godot ShortcutCore",
+      "startedAt": 1793646126496,
+      "exitCode": 0,
+      "summary": {
+        "tests": 51,
+        "passed": 51
+      },
+      "job": "mvzmlcpo7c5921"
+    },
+    {
+      "command": "ogw job wait mvzmlcpo7c5921",
+      "startedAt": 1793646129234,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job status mvzmlcpo7c5921",
+      "startedAt": 1793646140034,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
 }
