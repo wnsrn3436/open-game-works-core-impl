@@ -1,3 +1,10 @@
 {
-  "runs": []
+  "runs": [
+    {
+      "command": "ogw core dependents UICore",
+      "startedAt": 1793645961033,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
 }
