@@ -198,6 +198,18 @@ func test_system_popup_prefab_with_a_popup_root() -> void:
 	assert_eq(LOG.count(":"), 0, "no method of the panel interface")
 
 
+func test_system_popup_prefab_with_a_popup_root_with_dim_off() -> void:
+	set_string("UICore.systemPopupResource", POPUP_TWEEN)
+	assert_true(await start())
+	var panel_button: Button = await open_panel_button()
+	var opening: CALL = CALL.new()
+	opening.open_system_popup(one_button_param())
+	await finish(opening)
+	assert_true(opening.ok)
+	assert_false(UICore.is_dimmed(panel_button), "the dim of the root is off")
+	assert_true(UICore.is_modal_covered(panel_button), "still modal")
+
+
 func test_system_popup_prefab_without_a_popup_root() -> void:
 	set_string("UICore.systemPopupResource", FRAME)
 	assert_true(await start())
