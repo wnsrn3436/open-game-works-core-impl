@@ -1,0 +1,80 @@
+{
+  "runs": [
+    {
+      "command": "ogw core test godot UICore --file client/godot/core/ui_core/tests/test_dimmed.gd",
+      "startedAt": 1793646419584,
+      "exitCode": 0,
+      "summary": {
+        "tests": 14,
+        "passed": 14
+      },
+      "job": "mvzmrmv12707de"
+    },
+    {
+      "command": "ogw job wait mvzmrmv12707de",
+      "startedAt": 1793646421949,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job status mvzmrmv12707de",
+      "startedAt": 1793646435024,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot UICore --file client/godot/core/ui_core/tests/test_dimmed.gd",
+      "startedAt": 1793646453482,
+      "exitCode": 1,
+      "summary": {
+        "tests": 14,
+        "passed": 13
+      },
+      "job": "mvzmsd0o14b05d"
+    },
+    {
+      "command": "ogw job wait mvzmsd0o14b05d",
+      "startedAt": 1793646456029,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot UICore",
+      "startedAt": 1793646482743,
+      "exitCode": 0,
+      "summary": {
+        "tests": 181,
+        "passed": 181
+      },
+      "job": "mvzmszlg48a289"
+    },
+    {
+      "command": "ogw job wait mvzmszlg48a289",
+      "startedAt": 1793646487038,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw job status mvzmszlg48a289",
+      "startedAt": 1793646489765,
+      "exitCode": 0,
+      "summary": null
+    },
+    {
+      "command": "ogw core test godot UICore",
+      "startedAt": 1793646496121,
+      "exitCode": 0,
+      "summary": {
+        "tests": 181,
+        "passed": 181
+      },
+      "job": "mvzmt9x1513f90"
+    },
+    {
+      "command": "ogw job wait mvzmt9x1513f90",
+      "startedAt": 1793646496270,
+      "exitCode": 0,
+      "summary": null
+    }
+  ]
+}
