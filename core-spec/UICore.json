@@ -278,6 +278,12 @@
       ]
     },
     {
+      "name": "is_dimmed",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
       "name": "set_view_focus",
       "inputs": [
         "other",

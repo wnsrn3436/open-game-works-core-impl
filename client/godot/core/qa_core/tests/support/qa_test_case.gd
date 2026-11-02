@@ -11,6 +11,8 @@ const SCENE_OTHER: String = "scene/qa_test_other"
 const PANEL: String = "prefab/qa_test_panel"
 const PANEL_OTHER: String = "prefab/qa_test_panel_other"
 const POPUP: String = "prefab/qa_test_popup"
+## A popup with dim on.
+const POPUP_DIM: String = "prefab/qa_test_popup_dim"
 ## A popup whose open tween is `TWEEN`.
 const POPUP_TWEEN: String = "prefab/qa_test_popup_tween"
 ## One 100 ms change, repeat count 1.
@@ -124,6 +126,7 @@ func resource_keys() -> Dictionary[String, String]:
 		PANEL: RESOURCES + "qa_test_panel.tscn",
 		PANEL_OTHER: RESOURCES + "qa_test_panel.tscn",
 		POPUP: RESOURCES + "qa_test_popup.tscn",
+		POPUP_DIM: RESOURCES + "qa_test_popup_dim.tscn",
 		POPUP_TWEEN: RESOURCES + "qa_test_popup_tween.tscn",
 		TWEEN: RESOURCES + "qa_tween.tres",
 		CLICK: RESOURCES + "qa_click.tres",

@@ -694,7 +694,7 @@ static func hide_loading_icon(token: int) -> void:
 	_update_loading_icon()
 
 
-# --- Anchors, modal cover, focus ---
+# --- Anchors, modal cover, dim, focus ---
 
 
 static func get_anchor_rect(anchor_name: String, anchor_key: int = 0) -> AnchorResult:
@@ -745,6 +745,14 @@ static func is_modal_covered(element: Control) -> bool:
 	if element == null or not is_instance_valid(element) or not element.is_inside_tree():
 		return false
 	return _is_covered(element)
+
+
+static func is_dimmed(element: Control) -> bool:
+	if not _check_initialized("is_dimmed"):
+		return false
+	if element == null or not is_instance_valid(element) or not element.is_inside_tree():
+		return false
+	return _is_dimmed(element)
 
 
 ## Sets the focus elements of `view`: UI elements with a `UIButton`. An empty list clears the view focus.
@@ -2261,7 +2269,7 @@ static func _first_button_in(root: Control) -> Control:
 	return null
 
 
-# --- Internal: anchors, visibility, modal cover ---
+# --- Internal: anchors, visibility, modal cover, dim ---
 
 
 static func _register_anchor(anchor: UIAnchor) -> void:
@@ -2360,6 +2368,18 @@ static func _modal_popup_above(element: Control, holder: Control, layer: int, re
 		if layer < UILayer.POPUP or record.instance.is_greater_than(element):
 			return true
 	return false
+
+
+## A visible dim is drawn above `element`.
+static func _is_dimmed(element: Control) -> bool:
+	var layer: int = _layer_index_of(element)
+	return _dim_above(_popup_dim, UILayer.POPUP, element, layer) or _dim_above(_panel_dim, UILayer.PANEL, element, layer)
+
+
+static func _dim_above(dim: Control, dim_layer: int, element: Control, layer: int) -> bool:
+	if not dim.is_visible_in_tree():
+		return false
+	return layer < dim_layer or (layer == dim_layer and dim.is_greater_than(element))
 
 
 # --- Internal: focus ---

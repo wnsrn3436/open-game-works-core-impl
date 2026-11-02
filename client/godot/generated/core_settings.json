@@ -543,7 +543,6 @@
     "maxFontSizes": 6,
     "minFontPx": 18,
     "minContrast": 3,
-    "maxFlatShare": 0.85,
     "maxEmptyShare": 0.6
   },
   "targetFps": 60,

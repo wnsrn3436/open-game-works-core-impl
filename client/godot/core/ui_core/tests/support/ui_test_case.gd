@@ -19,6 +19,7 @@ const PANEL_IGNORE: String = "prefab/ui_test_panel_ignore"
 const PANEL_NONMODAL: String = "prefab/ui_test_panel_nonmodal"
 const PANEL_TWEEN: String = "prefab/ui_test_panel_tween"
 const PANEL_SCROLL: String = "prefab/ui_test_panel_scroll"
+const PANEL_DIM: String = "prefab/ui_test_panel_dim"
 const NOT_PANEL: String = "prefab/ui_test_not_panel"
 const NODE_ROOT: String = "prefab/ui_test_node_root"
 const FRAME: String = "prefab/ui_test_frame"
@@ -27,6 +28,8 @@ const POPUP_B: String = "prefab/ui_test_popup_b"
 const POPUP_C: String = "prefab/ui_test_popup_c"
 const POPUP_DIM_A: String = "prefab/ui_test_popup_dim_a"
 const POPUP_DIM_B: String = "prefab/ui_test_popup_dim_b"
+const POPUP_DIM_NONMODAL: String = "prefab/ui_test_popup_dim_nonmodal"
+const POPUP_DIM_TWEEN: String = "prefab/ui_test_popup_dim_tween"
 const POPUP_NONMODAL: String = "prefab/ui_test_popup_nonmodal"
 const POPUP_CUSTOM: String = "prefab/ui_test_popup_custom"
 const POPUP_IGNORE: String = "prefab/ui_test_popup_ignore"
@@ -125,6 +128,7 @@ func resource_keys() -> Dictionary[String, String]:
 		PANEL_NONMODAL: RESOURCES + "test_panel_nonmodal.tscn",
 		PANEL_TWEEN: RESOURCES + "test_panel_tween.tscn",
 		PANEL_SCROLL: RESOURCES + "test_panel_scroll.tscn",
+		PANEL_DIM: RESOURCES + "test_panel_dim.tscn",
 		NOT_PANEL: RESOURCES + "test_not_panel.tscn",
 		NODE_ROOT: RESOURCES + "test_node_root.tscn",
 		FRAME: RESOURCES + "test_frame.tscn",
@@ -133,6 +137,8 @@ func resource_keys() -> Dictionary[String, String]:
 		POPUP_C: RESOURCES + "test_popup.tscn",
 		POPUP_DIM_A: RESOURCES + "test_popup_dim.tscn",
 		POPUP_DIM_B: RESOURCES + "test_popup_dim.tscn",
+		POPUP_DIM_NONMODAL: RESOURCES + "test_popup_dim_nonmodal.tscn",
+		POPUP_DIM_TWEEN: RESOURCES + "test_popup_dim_tween.tscn",
 		POPUP_NONMODAL: RESOURCES + "test_popup_nonmodal.tscn",
 		POPUP_CUSTOM: RESOURCES + "test_popup_custom.tscn",
 		POPUP_IGNORE: RESOURCES + "test_popup_ignore.tscn",

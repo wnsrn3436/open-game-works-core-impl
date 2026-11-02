@@ -268,6 +268,7 @@ static func list_ui_json() -> String:
 			_JSON.pair("button", _JSON.boolean(ui_button != null)),
 			_JSON.pair("pad_action", _JSON.boolean(pad_action)),
 			_JSON.pair("modal_covered", _JSON.boolean(UICore.is_initialized() and UICore.is_modal_covered(element))),
+			_JSON.pair("dimmed", _JSON.boolean(UICore.is_initialized() and UICore.is_dimmed(element))),
 			_JSON.pair("text_input", _JSON.boolean(is_text_input(element))),
 			_JSON.pair("focused", _JSON.boolean(element == focus and (is_text_input(element) or ui_button != null))),
 		])))
