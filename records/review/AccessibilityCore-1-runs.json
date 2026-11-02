@@ -37,6 +37,34 @@
       "startedAt": 1792970701249,
       "exitCode": 0,
       "summary": null
+    },
+    {
+      "command": "ogw core test godot AccessibilityCore",
+      "startedAt": 1793645736818,
+      "exitCode": 1,
+      "summary": {
+        "tests": 40,
+        "passed": 40
+      },
+      "job": "mvzmd01a2230ba"
+    },
+    {
+      "command": "ogw job wait mvzmd01a2230ba",
+      "startedAt": 1793645740147,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job wait mvzmd01a2230ba",
+      "startedAt": 1793645758883,
+      "exitCode": 1,
+      "summary": null
+    },
+    {
+      "command": "ogw job status mvzmd01a2230ba",
+      "startedAt": 1793645762321,
+      "exitCode": 0,
+      "summary": null
     }
   ]
 }
