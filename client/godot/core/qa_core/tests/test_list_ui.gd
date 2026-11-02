@@ -1,6 +1,6 @@
 extends "res://core/qa_core/tests/support/qa_test_case.gd"
-## `list_ui`: visible elements without the debug layer, text and its clipping and size, owners, modal cover, buttons
-## and their gamepad action, text input elements and focus; `set_input_device` and `focus_ui`.
+## `list_ui`: visible elements without the debug layer, text and its clipping and size, owners, modal cover, dim,
+## buttons and their gamepad action, text input elements and focus; `set_input_device` and `focus_ui`.
 
 const ADVANCE: String = "cutscene_advance"
 
@@ -160,6 +160,24 @@ func test_modal_cover_buttons_and_text_input() -> void:
 	assert_true(JSONR.boolean(list, "%d.modal_covered" % element_index(list, "Go")), "a panel button under the popup")
 	assert_false(JSONR.boolean(list, "%d.modal_covered" % element_index(list, "Ok")), "the popup button")
 	assert_eq(JSONR.text(list, "%d.owner" % element_index(list, "Ok")), POPUP)
+
+
+func test_dimmed() -> void:
+	assert_true(await start())
+	await open_panel()
+	var list: String = await run_ok("list_ui")
+	assert_false(JSONR.boolean(list, "%d.dimmed" % element_index(list, "Go")), "no dim")
+	assert_eq(await UICore.open_popup(POPUP, null, Callable()), UICore.PopupOpenResult.OPENED)
+	await UnitTestCore.wait_frames(2)
+	list = await run_ok("list_ui")
+	assert_true(JSONR.boolean(list, "%d.modal_covered" % element_index(list, "Go")), "under a modal popup")
+	assert_false(JSONR.boolean(list, "%d.dimmed" % element_index(list, "Go")), "the popup has dim off")
+	UICore.close_all_popups()
+	assert_eq(await UICore.open_popup(POPUP_DIM, null, Callable()), UICore.PopupOpenResult.OPENED)
+	await UnitTestCore.wait_frames(2)
+	list = await run_ok("list_ui")
+	assert_true(JSONR.boolean(list, "%d.dimmed" % element_index(list, "Go")), "a panel element under the popup with dim on")
+	assert_false(JSONR.boolean(list, "%d.dimmed" % element_index(list, "Ok")), "an element inside that popup")
 
 
 func test_gamepad_focus() -> void:
