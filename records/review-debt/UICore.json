@@ -1,0 +1,12 @@
+{
+  "target": "UICore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "client/godot/core/ui_core/ui_core.gd:2374",
+      "problem": "`UICore.is_dimmed`, added in this range, looks only at the panel dim and the popup dim, so text under the dim of a shown tutorial step gives `dimmed` `false`, and the UI quality contrast check (`open-game-works-core/tools/src/commands/check/lib/ui-quality.ts:215`) still measures that text in the darkened capture. Run path: a `<feature>.open_<screen>` command opens a screen while a tutorial step with `anchor` is `Shown`; `TutorialCore._present` makes `view.dim` visible on the `Tutorial` layer (`client/godot/core/tutorial_core/tutorial_core.gd:1139`); the UI quality check has no tutorial handling. Calculated example with the test view dim `Color(0, 0, 0, 0.5)`, `minContrast` 3, and sRGB text 0.9 on background 0.4: 4.58:1 without the dim and 2.66:1 under it, a `low contrast` failure on text the tutorial dims on purpose. The defining documents do not settle whether this dim counts: `open-game-works-core/skills/client-core/modules/ui-core.md:131` defines only the panel and popup dim, while `:132` says \"a visible dim\" in UI layer order and `open-game-works-core/skills/client-core/modules/tutorial-core.md:75` calls the highlight a dim. Not reproduced in a game run. The cause is in UICore and the check, which is outside this target",
+      "foundBy": "TutorialCore round 1"
+    }
+  ]
+}
