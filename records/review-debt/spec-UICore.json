@@ -1,6 +1,6 @@
 {
   "target": "spec UICore",
-  "nextId": 3,
+  "nextId": 9,
   "items": [
     {
       "id": "D1",
@@ -9,10 +9,40 @@
       "foundBy": "spec UICore"
     },
     {
-      "id": "D2",
-      "location": "skills/client-core/modules/ui-core.md:132",
-      "problem": "`dimmed` depends on a \"visible dim\", but the time the dim is shown and moved within the popup and panel flows is not set. The modal covered definition (ui-core.md:130) excludes instances being prepared and instances whose destruction has started, and the dimmed definition has no such rule. The popup open flow (ui-core.md:190) and `close_popup` (ui-core.md:192) do not name the dim, and the test at ui-core.md:465 does not say when closing moves it. So `is_dimmed` of a lower element can differ per implementation during a `prepare` of a popup with dim on and during a close tween. QACore reads this after `ui_flow` is `false`, so a UI quality capture differs only when `uiQuality.settleLimitMs` passes first (qa-core.md:137). It belongs to the UICore spec.",
-      "foundBy": "spec QACore"
+      "id": "D3",
+      "location": "skills/client-core/modules/ui-core.md:168",
+      "problem": "`open_panels` whose last element has the panel key of the current panel is not settled. Step 3 replaces the current item and step 4 does not push a new item (ui-core.md:163, ui-core.md:164), while `open_panels` pushes the preceding elements \"in step 4, before pushing the new item\". For stack R, B and `open_panels`(A, B), following the text gives R, B, A, where top item A has no instance and B below it does, which breaks ui-core.md:153. Another implementation gives R, A, B. The tests at ui-core.md:436 and ui-core.md:437 do not cover it. It is reachable through `ShortcutCore` stage 8 with applied stack `Top` (shortcut-core.md:60, and shortcut-core.md:65 applies the replacement rule to those opens)",
+      "foundBy": "spec UICore"
+    },
+    {
+      "id": "D4",
+      "location": "skills/client-core/modules/ui-core.md:185",
+      "problem": "`reset_panel_stack` during step 5 of a close flow is not settled. The current panel has already received `on_closed(Closed)` and is in its close tween (ui-core.md:176). Flow cancel names only instances not yet shown and a panel in its open tween (ui-core.md:184), and \"closes the current panel immediately\" is defined at ui-core.md:163 as `on_closed(Closed)` then destroy, so one implementation calls `on_closed` twice and another once. The popup rule sets this case (\"calls `on_closed` only on a popup that has not received `on_closed`\", ui-core.md:197), and the panel rules have no equivalent. The test at ui-core.md:439 covers only an open flow. It is reachable when a scene transition reaches `reset_panel_stack` (scene-core.md:68) during a close tween",
+      "foundBy": "spec UICore"
+    },
+    {
+      "id": "D5",
+      "location": "skills/client-core/modules/ui-core.md:179",
+      "problem": "A close flow whose destination prefab is not a panel class has two results. ui-core.md:179 continues with the item below regardless of force, so `close_panel` without force in stack A, X, C shows A and ends with success. The error row at ui-core.md:356, which the test at ui-core.md:440 checks, gives `false` for a prefab root that is not `UIPanel`. When X is the root item with no item below, ui-core.md:180 ends with the stack empty, while ui-core.md:154 says only `reset_panel_stack` removes the root item",
+      "foundBy": "spec UICore"
+    },
+    {
+      "id": "D6",
+      "location": "skills/client-core/modules/ui-core.md:344",
+      "problem": "The order of `UIClosedEvent` and the after-close callback of `close_popup` is not set. ui-core.md:192 orders hidden callback then after-close callback, and ui-core.md:344 places the event only after the hidden callback. Delivery is synchronous (event-core.md:67), so a subscriber sees the popup's result callback (client-content SKILL.md:143) as already run or not yet run, depending on the implementation. When that callback calls `open_popup` for a popup that opens in the same call, `UIOpenedEvent` of the new popup can also come before `UIClosedEvent` of the old one",
+      "foundBy": "spec UICore"
+    },
+    {
+      "id": "D7",
+      "location": "skills/client-core/modules/ui-core.md:216",
+      "problem": "A system popup made from the `UICore.systemPopupResource` prefab is settled only for dim. For a `UIPopup` root, no document says whether `accepts_param`, `prepare`, `on_opened`, `on_closed` and its open and close tween presets (ui-core.md:128, ui-core.md:190) apply, although ui-core.md:217 relies on an open tween and ui-core.md:215 says it \"opens at once\". `accepts_param` defaults to accepting only param none (ui-core.md:141). \"popup area\" (ui-core.md:221, ui-core.md:464) is defined nowhere, and client-content SKILL.md:162 says the prefab holds no body or buttons because UICore puts them in it, without a defining document saying where. Button placement and open timing of a prefab system popup can therefore differ per implementation",
+      "foundBy": "spec UICore"
+    },
+    {
+      "id": "D8",
+      "location": "skills/client-core/modules/ui-core.md:319",
+      "problem": "`append_items` and `prepend_items` called while a `set_items` is waiting are not set. ui-core.md:318 sets only a second `set_items`, and the error rows at ui-core.md:370 and ui-core.md:371 name only calls \"before `set_items`\". Whether such a call fails or applies to the previous item count, and whether the waiting `set_items` then overwrites it, can differ per implementation. It is reachable in chat: content code calls `set_items` for `Reset` and `append_items` for `Appended` (chat-core.md:124), and `set_items` waits for its prefill, so a message can be lost in one implementation and kept in another",
+      "foundBy": "spec UICore"
     }
   ]
 }
