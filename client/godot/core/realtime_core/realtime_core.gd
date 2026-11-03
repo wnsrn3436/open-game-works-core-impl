@@ -98,8 +98,11 @@ static var _waiter: _MATCH_WAITER = null
 static var _room_started_published: bool = false
 ## Whether room updated with `Matching` was received for the current match.
 static var _room_matching_received: bool = false
-## Count of changes to `None`. A `poll` drops the rest of its notifications except room updated when it changes.
+## Count of changes to `None`. When it changes, a `poll` drops the rest of its notifications while the state stays `None`,
+## except room updated, room kicked and matchmaker lost.
 static var _none_count: int = 0
+## Number of `leave_room` calls that left a room or ended a wait. `_frame` compares it to discard the rest of a `poll`.
+static var _room_leave_count: int = 0
 ## Count of changes of the `MatchState` and the room.
 static var _change_count: int = 0
 
@@ -391,6 +394,7 @@ static func leave_room() -> void:
 		var waiter: _ROOM_WAITER = _room_waiter
 		_room_waiter = null
 		_change_count += 1
+		_room_leave_count += 1
 		_transport.leave_room()
 		waiter.finish(false, 0)
 		return
@@ -502,13 +506,24 @@ static func _frame() -> void:
 		return
 	_transport.poll()
 	var none_count: int = _none_count
+	var room_leave_count: int = _room_leave_count
 	var notice: RealtimeNotice = _transport.take_notice()
 	while notice != null:
-		if _none_count == none_count or _state != MatchState.NONE or notice.kind == RealtimeNotice.Kind.ROOM_UPDATED:
+		# The notifications after a `leave_room` belong to the room that was left.
+		if room_leave_count == _room_leave_count and (none_count == _none_count or _state != MatchState.NONE or _is_room_notice(notice)):
 			_handle_notice(notice)
 			if not _is_initialized or _transport == null:
 				return
 		notice = _transport.take_notice()
+
+
+## A notification handled after `MatchState` became `None` in the same `poll`.
+static func _is_room_notice(notice: RealtimeNotice) -> bool:
+	return (
+		notice.kind == RealtimeNotice.Kind.ROOM_UPDATED
+		or notice.kind == RealtimeNotice.Kind.ROOM_KICKED
+		or notice.kind == RealtimeNotice.Kind.MATCHMAKER_LOST
+	)
 
 
 static func _flush_pending() -> void:
@@ -1058,7 +1073,11 @@ static func _on_room_updated(info: RoomInfo) -> void:
 			var waiter: _MATCH_WAITER = _waiter
 			_set_none()
 			_finish(waiter, MatchJoinStatus.CANCELLED, 0)
-	elif _state == MatchState.NONE and not _is_host() and _room.status == CoreContract.RoomStatus.ROOM_STATUS_MATCHING:
+	elif _state == MatchState.NONE and _room.status == CoreContract.RoomStatus.ROOM_STATUS_MATCHING:
+		# A `Matching` that reaches a host in `None` is an entry that no `join_match` waits for.
+		if _is_host():
+			_transport.cancel_matching()
+			return
 		_begin_match(MatchOrigin.ROOM_MEMBER)
 		_set_state(MatchState.MATCHING)
 		_publish_room_match_started()
@@ -1105,6 +1124,7 @@ static func _leave_room_now() -> void:
 	_transport.leave_room()
 	_room = null
 	_change_count += 1
+	_room_leave_count += 1
 	_publish_room_changed(RoomChangeReason.LEFT)
 	_cancel_room_matching()
 
@@ -1255,6 +1275,7 @@ static func _teardown() -> void:
 	_room_started_published = false
 	_room_matching_received = false
 	_none_count = 0
+	_room_leave_count = 0
 	_change_count = 0
 	_room = null
 	_room_waiter = null
