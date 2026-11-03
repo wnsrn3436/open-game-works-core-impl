@@ -627,10 +627,12 @@ function other_user(c: IapContext, ctx: RequestCtx, v: Verified, product: GameDa
 
 /**
  * Grant order 4 for a store transaction without an account token: goes on when its original transaction ID is bound to
- * the ctx user, or binds it when it has no binding and was bought within `iap.withdrawnRecordRetentionMs`.
+ * the ctx user, or binds it when it has no binding, the receipt is a device receipt and it was bought within
+ * `iap.withdrawnRecordRetentionMs`.
  */
 function bind_tokenless(c: IapContext, ctx: RequestCtx, v: Verified, binding: BindingRow | null): boolean {
   if (binding !== null) return binding.user_id === ctx.user_id;
+  if (!v.tx.device_receipt) return false;
   if (v.tx.purchased_at + BigInt(c.settings.withdrawn_record_retention_ms) <= now_of(c, ctx)) return false;
   upsert_binding(db_of(c, ctx), { store: store_name(v.store), original_transaction_id: v.tx.original_transaction_id, user_id: ctx.user_id, delete_at: null });
   return true;
