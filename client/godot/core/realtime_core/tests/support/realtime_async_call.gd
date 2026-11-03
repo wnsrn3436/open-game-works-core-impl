@@ -24,6 +24,13 @@ func join_match_and_retry(mode_id: int) -> void:
 	_finish()
 
 
+## Calls `create_room` inside the continuation of the `join_match` result.
+func join_match_then_create_room(mode_id: int) -> void:
+	first_join_result = await RealtimeCore.join_match(mode_id)
+	room_result = await RealtimeCore.create_room(mode_id)
+	_finish()
+
+
 ## Calls `leave_room` and `join_room` inside the continuation of the `join_match` result.
 func join_match_then_join_other_room(mode_id: int, room_code: String) -> void:
 	first_join_result = await RealtimeCore.join_match(mode_id)

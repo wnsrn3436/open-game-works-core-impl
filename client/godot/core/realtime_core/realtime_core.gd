@@ -101,9 +101,11 @@ static var _room_matching_received: bool = false
 ## Count of changes to `None`. When it changes, a `poll` drops the rest of its notifications while the state stays `None`,
 ## except room updated, room kicked and matchmaker lost.
 static var _none_count: int = 0
-## Number of `leave_room` calls that left `MatchState` at `None`, by leaving a room or ending a wait. `_frame` compares it
-## to discard the rest of a `poll`.
+## Number of `leave_room` calls that left a room or ended a wait. `_frame` compares it to discard the room notifications
+## of the rest of a `poll`.
 static var _room_leave_count: int = 0
+## Number of those calls that left `MatchState` at `None`. `_frame` compares it to discard the rest of a `poll`.
+static var _room_leave_none_count: int = 0
 ## Count of changes of the `MatchState` and the room.
 static var _change_count: int = 0
 
@@ -396,6 +398,7 @@ static func leave_room() -> void:
 		_room_waiter = null
 		_change_count += 1
 		_room_leave_count += 1
+		_room_leave_none_count += 1
 		_transport.leave_room()
 		waiter.finish(false, 0)
 		return
@@ -508,10 +511,17 @@ static func _frame() -> void:
 	_transport.poll()
 	var none_count: int = _none_count
 	var room_leave_count: int = _room_leave_count
+	var room_leave_none_count: int = _room_leave_none_count
 	var notice: RealtimeNotice = _transport.take_notice()
 	while notice != null:
-		# The notifications after a `leave_room` that left the state at `None` belong to the room that was left.
-		if room_leave_count == _room_leave_count and (none_count == _none_count or _state != MatchState.NONE or _is_room_notice(notice)):
+		# After a `leave_room` the notifications of the room belong to the room that was left, and the other ones too when
+		# it left the state at `None`. A match in `Connecting` or `Playing` goes on.
+		var is_discarded: bool = (
+			room_leave_none_count != _room_leave_none_count
+			or (room_leave_count != _room_leave_count and _is_left_room_notice(notice))
+			or (none_count != _none_count and _state == MatchState.NONE and not _is_room_notice(notice))
+		)
+		if not is_discarded:
 			_handle_notice(notice)
 			if not _is_initialized or _transport == null:
 				return
@@ -524,6 +534,15 @@ static func _is_room_notice(notice: RealtimeNotice) -> bool:
 		notice.kind == RealtimeNotice.Kind.ROOM_UPDATED
 		or notice.kind == RealtimeNotice.Kind.ROOM_KICKED
 		or notice.kind == RealtimeNotice.Kind.MATCHMAKER_LOST
+	)
+
+
+## A notification of the room that a `leave_room` in the same `poll` left.
+static func _is_left_room_notice(notice: RealtimeNotice) -> bool:
+	return (
+		notice.kind == RealtimeNotice.Kind.ROOM_UPDATED
+		or notice.kind == RealtimeNotice.Kind.ROOM_FAILED
+		or notice.kind == RealtimeNotice.Kind.ROOM_KICKED
 	)
 
 
@@ -1096,16 +1115,21 @@ static func _on_room_failed(error_code: int, request: RoomRequest) -> void:
 				return
 		RoomRequest.START:
 			if _state == MatchState.MATCHING and _origin == MatchOrigin.START_ROOM:
-				_fail_match(CoreContract.MatchFailReason.MATCH_FAIL_REASON_UNSPECIFIED, error_code, "room failed for start_room", false)
+				_fail_room_match(error_code, "room failed for start_room")
 				return
 		RoomRequest.MATCH:
 			if _state == MatchState.MATCHING and _origin == MatchOrigin.ROOM_HOST:
-				# The room is busy with an entry that no `join_match` waits for.
-				if error_code == CoreContract.CoreError.CORE_ERROR_ROOM_BUSY:
-					_transport.cancel_matching()
-				_fail_match(CoreContract.MatchFailReason.MATCH_FAIL_REASON_UNSPECIFIED, error_code, "room failed for join_match", false)
+				_fail_room_match(error_code, "room failed for join_match")
 				return
 	LogCore.log_warn(_TAG, "room failed with no operation to take it")
+
+
+## Ends the `Matching` of `join_match` or `start_room` with its room failed.
+static func _fail_room_match(error_code: int, message: String) -> void:
+	# The room is busy with an entry that no operation waits for.
+	if error_code == CoreContract.CoreError.CORE_ERROR_ROOM_BUSY:
+		_transport.cancel_matching()
+	_fail_match(CoreContract.MatchFailReason.MATCH_FAIL_REASON_UNSPECIFIED, error_code, message, false)
 
 
 static func _on_room_kicked() -> void:
@@ -1128,9 +1152,10 @@ static func _leave_room_now() -> void:
 	_transport.leave_room()
 	_room = null
 	_change_count += 1
-	# `Matching` ends below. A match in `Connecting` or `Playing` goes on, so its notifications stay handled.
+	_room_leave_count += 1
+	# `Matching` ends below. A match in `Connecting` or `Playing` goes on, so its other notifications stay handled.
 	if _state == MatchState.NONE or _state == MatchState.MATCHING:
-		_room_leave_count += 1
+		_room_leave_none_count += 1
 	_publish_room_changed(RoomChangeReason.LEFT)
 	_cancel_room_matching()
 
@@ -1282,6 +1307,7 @@ static func _teardown() -> void:
 	_room_matching_received = false
 	_none_count = 0
 	_room_leave_count = 0
+	_room_leave_none_count = 0
 	_change_count = 0
 	_room = null
 	_room_waiter = null
