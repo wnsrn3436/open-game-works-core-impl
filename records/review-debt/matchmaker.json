@@ -1,0 +1,12 @@
+{
+  "target": "matchmaker",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/matchmaker/matching.ts:69",
+      "problem": "`efficiency`. `collect` keeps walking the whole queue after the collected headcount reached `max_players`, though no later entry can fit, and `run_queue` calls it once per match, so one `matchmaker_tick` over one queue is quadratic in the queue size and blocks the event loop of all `/realtime` connections and requests of that server instance. Run path: `run_tick` to `run_queue` to `collect`, growing amount: entries of one queue. Entries pile up behind an e0 that has no partner until its `match_wait` ends, because step 5 ends the queue at e0. Measured with `run_queue` directly, `max_players` 2, same ratings: 8000 entries 130 ms, 16000 entries 580 ms, 32000 entries 2583 ms. With `if (count === rule.max_players) break;` after the placement in a temporary copy: 32000 entries 229 ms, and `matching.test.ts` and `queue-rules.test.ts` pass on SQLite",
+      "foundBy": "matchmaker round 1"
+    }
+  ]
+}
