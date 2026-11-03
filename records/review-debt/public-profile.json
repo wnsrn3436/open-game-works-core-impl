@@ -1,0 +1,30 @@
+{
+  "target": "public-profile",
+  "nextId": 5,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/public-profile/index.ts:267",
+      "problem": "`spec`: `expires_at` of `public_profile_find_counter` being the window end has no test. Replacing `window_start + MINUTE_MS` with `window_start` in a temporary copy leaves all 35 tests of `server/core/public-profile/tests` passing, yet the row is then deleted by a `storage.sweep_expired` run inside the window and the count restarts: a temporary test with `public-profile.findPerMinute` 1 (`count_find_attempt`, `sweep_expired`, `count_find_attempt`) got `pass` instead of `RATE_LIMITED`. The same temporary test passes on the unchanged code.",
+      "foundBy": "public-profile round 1"
+    },
+    {
+      "id": "D2",
+      "location": "server/core/public-profile/index.ts:171",
+      "problem": "`spec`: the expiry column of `public_profile_find_counter` has no test. Registering the table with expiry column `null` in a temporary copy leaves all 35 tests passing, and the row of a finished window then stays after `storage.sweep_expired`: a temporary test that advanced the clock 120000 ms and swept still found the row.",
+      "foundBy": "public-profile round 1"
+    },
+    {
+      "id": "D3",
+      "location": "server/core/public-profile/index.ts:170",
+      "problem": "`spec`: snapshot flag `false` of `public_profile_activity` and `public_profile_find_counter` (`### last active`, `### find by public code`) has no test. Changing both flags to `true` here and at server/core/public-profile/index.ts:171 in a temporary copy leaves the 35 public-profile tests and the 80 tests of `server/core/user-snapshot-clone/tests` passing, and no other test file under `server/core` names these tables.",
+      "foundBy": "public-profile round 1"
+    },
+    {
+      "id": "D4",
+      "location": "server/core/public-profile/index.ts:210",
+      "problem": "`efficiency`: profile build runs one `storage.get_user_record` query (`SELECT ... FROM \"user\" WHERE user_id = $1`, server/core/storage/rows.ts:88) per input user ID, and `get_public_profiles` has no limit on the user ID count. Measured calls of one `get_public_profiles`: 1 ID gives 1, 3 give 3, 6 give 6, 12 give 12. The growing amount is the list that the caller passes, e.g. the channel list at server/core/chat/index.ts:398 and the block list at server/core/block-report/index.ts:428. `storage` has no read of several `user` rows and `## behavior` of the spec sets `get_user_record` as the source, so the fix needs a spec change in `storage` and `public-profile`.",
+      "foundBy": "public-profile round 1"
+    }
+  ]
+}
