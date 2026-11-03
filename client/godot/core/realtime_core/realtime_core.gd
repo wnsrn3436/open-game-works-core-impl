@@ -96,7 +96,9 @@ static var _connecting_at: int = 0
 static var _waiter: _MATCH_WAITER = null
 ## Whether `RoomMatchStartedEvent` was published for the current match.
 static var _room_started_published: bool = false
-## Count of changes to `None`. A `poll` drops the rest of its notifications when it changes.
+## Whether room updated with `Matching` was received for the current match.
+static var _room_matching_received: bool = false
+## Count of changes to `None`. A `poll` drops the rest of its notifications except room updated when it changes.
 static var _none_count: int = 0
 ## Count of changes of the `MatchState` and the room.
 static var _change_count: int = 0
@@ -502,12 +504,10 @@ static func _frame() -> void:
 	var none_count: int = _none_count
 	var notice: RealtimeNotice = _transport.take_notice()
 	while notice != null:
-		_handle_notice(notice)
-		if not _is_initialized or _transport == null:
-			return
-		if _none_count != none_count and _state == MatchState.NONE:
-			_transport.clear_notices()
-			return
+		if _none_count == none_count or _state != MatchState.NONE or notice.kind == RealtimeNotice.Kind.ROOM_UPDATED:
+			_handle_notice(notice)
+			if not _is_initialized or _transport == null:
+				return
 		notice = _transport.take_notice()
 
 
@@ -753,6 +753,7 @@ static func _begin_match(origin: MatchOrigin) -> _MATCH_WAITER:
 	_waiter = _MATCH_WAITER.new()
 	_origin = origin
 	_room_started_published = false
+	_room_matching_received = false
 	_pending_full_logged = false
 	_hook_throw_logged = false
 	return _waiter
@@ -794,6 +795,7 @@ static func _set_none() -> void:
 	_lost_at.resize(0)
 	_waiter = null
 	_room_started_published = false
+	_room_matching_received = false
 	_pending.clear()
 	_stop_rejoin()
 
@@ -1047,9 +1049,12 @@ static func _on_room_updated(info: RoomInfo) -> void:
 		return
 	# The match of a member is decided by how it started, not by the host of the update: a member that became the host
 	# because the host left still cancels the match it started as a member. `start_room` leaves the room `Open`, so an
-	# `Open` room does not end it.
+	# `Open` room does not end it. The server changes the room to `Matching` some time after `join_match`, so an `Open`
+	# before that is an ordinary room change or the end of an earlier entry.
 	if _state == MatchState.MATCHING and (_origin == MatchOrigin.ROOM_MEMBER or _origin == MatchOrigin.ROOM_HOST):
-		if _room.status == CoreContract.RoomStatus.ROOM_STATUS_OPEN:
+		if _room.status == CoreContract.RoomStatus.ROOM_STATUS_MATCHING:
+			_room_matching_received = true
+		elif _room.status == CoreContract.RoomStatus.ROOM_STATUS_OPEN and (_origin == MatchOrigin.ROOM_MEMBER or _room_matching_received):
 			var waiter: _MATCH_WAITER = _waiter
 			_set_none()
 			_finish(waiter, MatchJoinStatus.CANCELLED, 0)
@@ -1248,6 +1253,7 @@ static func _teardown() -> void:
 	_connecting_at = 0
 	_waiter = null
 	_room_started_published = false
+	_room_matching_received = false
 	_none_count = 0
 	_change_count = 0
 	_room = null

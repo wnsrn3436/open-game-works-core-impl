@@ -6,11 +6,20 @@ signal finished
 
 var done: bool = false
 var join_result: MatchJoinResult = null
+## Result of the first `join_match` of `join_match_and_retry`.
+var first_join_result: MatchJoinResult = null
 var room_result: RoomResult = null
 var step_result: bool = false
 
 
 func join_match(mode_id: int) -> void:
+	join_result = await RealtimeCore.join_match(mode_id)
+	_finish()
+
+
+## Calls `join_match` again inside the continuation of the first result.
+func join_match_and_retry(mode_id: int) -> void:
+	first_join_result = await RealtimeCore.join_match(mode_id)
 	join_result = await RealtimeCore.join_match(mode_id)
 	_finish()
 
