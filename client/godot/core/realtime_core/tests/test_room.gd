@@ -222,6 +222,55 @@ func test_member_matching_cancels_on_an_open_room_where_it_became_the_host() -> 
 	assert_eq(transport.count("start_room"), 1, "the new host starts the room")
 
 
+func test_host_join_match_cancels_on_an_open_room_after_a_member_left() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([USER_ID, OTHER_ID]))
+	transport.clear_calls()
+	events.lines.clear()
+	var op: RealtimeAsyncCall = await start_join()
+	var waiting: RealtimeAsyncCall = RealtimeAsyncCall.new()
+	waiting.wait_match()
+	push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames()
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.MATCHING)
+	assert_false(op.done, "join_match waits for the match")
+	# The member left: the server took the party out of the queue, so no match found or match failed follows.
+	push_room_updated(make_room(PackedInt64Array([USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN))
+	await frames()
+	assert_true(op.done, "join_match ended")
+	assert_true(waiting.done, "wait_match ended")
+	await op.wait()
+	await waiting.wait()
+	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.CANCELLED)
+	assert_eq(op.join_result.error_code, 0)
+	assert_eq(waiting.join_result.status, RealtimeCore.MatchJoinStatus.CANCELLED)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	assert_eq(RealtimeCore.room_info().members, PackedInt64Array([USER_ID]))
+	assert_eq(transport.count("cancel_matching"), 0)
+	assert_eq(transport.count("close"), 0)
+	assert_eq(events.count("room_match_started"), 0)
+	assert_eq(warn_logs(), 0)
+	# The room stays, and the next `join_match` of the host is taken.
+	transport.clear_calls()
+	var next: RealtimeAsyncCall = await start_join()
+	assert_eq(transport.count("start_matching"), 1)
+	assert_false(next.done, "the next join_match waits for the match")
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.MATCHING)
+
+
+func test_host_start_room_stays_matching_on_an_open_room() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([USER_ID, OTHER_ID]))
+	var op: RealtimeAsyncCall = RealtimeAsyncCall.new()
+	op.start_room()
+	await frames()
+	# `start_room` leaves the room `Open`: a member that joins while the match is made does not end it.
+	push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID, THIRD_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN))
+	await frames()
+	assert_false(op.done, "start_room waits for the match")
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.MATCHING)
+
+
 func test_host_start_room_plays_after_match_found_and_fails_on_start_room_failed() -> void:
 	await start_realtime()
 	await reach_room(PackedInt64Array([USER_ID, OTHER_ID]))

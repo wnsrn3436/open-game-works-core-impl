@@ -1046,8 +1046,9 @@ static func _on_room_updated(info: RoomInfo) -> void:
 	if _room == null:
 		return
 	# The match of a member is decided by how it started, not by the host of the update: a member that became the host
-	# because the host left still cancels the match it started as a member.
-	if _state == MatchState.MATCHING and _origin == MatchOrigin.ROOM_MEMBER:
+	# because the host left still cancels the match it started as a member. `start_room` leaves the room `Open`, so an
+	# `Open` room does not end it.
+	if _state == MatchState.MATCHING and (_origin == MatchOrigin.ROOM_MEMBER or _origin == MatchOrigin.ROOM_HOST):
 		if _room.status == CoreContract.RoomStatus.ROOM_STATUS_OPEN:
 			var waiter: _MATCH_WAITER = _waiter
 			_set_none()
