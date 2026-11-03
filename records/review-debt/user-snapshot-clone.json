@@ -1,0 +1,12 @@
+{
+  "target": "user-snapshot-clone",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/user-snapshot-clone/tests/export.test.ts:23",
+      "problem": "`### export_user_snapshot` (\"It can be called in every environment\") and `### game state snapshot` (the same sentence for `export_game_state` and `sample_game_state`) have no test on a PROD server, though exporting from PROD is the purpose of the module. The only PROD module instance in the tests is server/core/user-snapshot-clone/tests/import.test.ts:431, and it calls only the import prepare functions; the test server runs as LOCAL. Run path: in a temporary copy, `if (server.env === 'PROD') return 'conflict';` was added at the start of the handlers of `export_user_snapshot`, `export_game_state` and `sample_game_state` in server/core/user-snapshot-clone/index.ts, and all 80 tests of the module still passed. The problem existed before the range: the range does not change the module or its tests.",
+      "foundBy": "user-snapshot-clone round 1"
+    }
+  ]
+}
