@@ -58,6 +58,9 @@ func test_data_row_has_every_column_type() -> void:
 	if row.cells.size() == 2:
 		assert_eq(row.cells[0], Vector2i(1, 2))
 		assert_eq(row.cells[1], Vector2i(-3, 4))
+	assert_eq(row.points2, PackedVector2Array([Vector2(0.5, -1), Vector2(2, 3.25)]))
+	assert_eq(row.points3, PackedVector3Array([Vector3(1, 2, 3), Vector3(-0.5, 0, 0.25)]))
+	assert_eq(row.points4, PackedVector4Array([Vector4(1, 2, 3, 4)]))
 	assert_eq(row.grid.size(), 3)
 	if row.grid.size() == 3:
 		assert_eq(row.grid[0], PackedInt32Array([1, 2]))
@@ -92,6 +95,9 @@ func test_data_zero_values_and_nullable_columns() -> void:
 	assert_eq(row.note, "")
 	assert_eq(row.cell, Vector2i.ZERO)
 	assert_eq(row.smalls.size(), 0)
+	assert_eq(row.points2, PackedVector2Array())
+	assert_eq(row.points3, PackedVector3Array())
+	assert_eq(row.points4, PackedVector4Array())
 	assert_eq(row.slots.size(), 0)
 
 
@@ -134,6 +140,7 @@ func test_data_game_setting_accessors_read_every_type() -> void:
 	assert_eq(GameSetting.tool_test_cell(), Vector2i(2, -3))
 	assert_eq(GameSetting.tool_test_list(), PackedInt32Array([4, 5, 6]))
 	assert_eq(GameSetting.tool_test_words(), PackedStringArray(["a", "b"]))
+	assert_eq(GameSetting.tool_test_points(), PackedVector2Array([Vector2(1.5, 2), Vector2(-3, 4)]))
 	assert_eq(GameSetting.tool_test_since(), 1767323045000)
 
 
@@ -141,6 +148,8 @@ func test_data_game_setting_test_values_come_first_until_cleared() -> void:
 	GameDataDev.set_setting_tool_test_max(7)
 	GameDataDev.set_setting_tool_test_grade(GameData.ToolTestGrade.SILVER)
 	assert_eq(GameSetting.tool_test_max(), 7)
+	GameDataDev.set_setting_tool_test_points(PackedVector2Array([Vector2(9, 8)]))
+	assert_eq(GameSetting.tool_test_points(), PackedVector2Array([Vector2(9, 8)]))
 	assert_eq(GameSetting.tool_test_grade(), GameData.ToolTestGrade.SILVER)
 	GameDataDev.clear_settings()
 	assert_eq(GameSetting.tool_test_max(), 50)

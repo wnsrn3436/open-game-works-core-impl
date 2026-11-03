@@ -55,7 +55,7 @@ function listType(tables: ReadonlyMap<string, GenTable>, elem: ColumnType): stri
     case 'float': return 'PackedFloat32Array';
     case 'double': return 'PackedFloat64Array';
     case 'bool': return 'Array[bool]';
-    case 'vector': return `Array[${vectorType(s.size, s.elem)}]`;
+    case 'vector': return s.elem === 'float' ? `Packed${vectorType(s.size, s.elem)}Array` : `Array[${vectorType(s.size, s.elem)}]`;
     default: return 'PackedStringArray';
   }
 }

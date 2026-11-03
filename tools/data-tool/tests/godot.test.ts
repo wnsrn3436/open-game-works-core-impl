@@ -78,6 +78,34 @@ describe('Godot generation targets', () => {
     expect(read(f, 'client/build/data/data_version').trim()).toBe(read(f, 'server/build/data/client_data_version').trim());
   });
 
+  test('an array of float vectors is a Packed array, an array of int vectors is a typed array', () => {
+    const f = fixture({
+      files: {
+        'data/tables/route.csv': table(
+          ['id|id(key)|All', 'points2|array<vector2<float>>|All', 'points3|array<vector3<float>>|All', 'points4|array<vector4<float>>|All', 'cells2|array<vector2<int>>|All', 'cells3|array<vector3<int>>|All', 'cells4|array<vector4<int>>|All'],
+          [['[a]', '0.5,1\n2,3', '1,2,3', '1,2,3,4', '1,2', '1,2,3', '1,2,3,4']],
+        ),
+        'data/system/game_setting.csv': table(['id|id(key)|All', 'target|string|None', 'data_type|string|None', 'value|string|All'], [['[spawn_points]', 'All', 'array<vector2<float>>', '1,2\n3,4'], ['[spawn_cells]', 'All', 'array<vector2<int>>', '1,2']]),
+      },
+    });
+    const r = godot(f);
+    expect(r.stderr).toEqual([]);
+    expect(r.code).toBe(0);
+    const gd = read(f, 'client/generated/data/game_data.gd');
+    expect(gd).toContain('\tvar points2: PackedVector2Array = PackedVector2Array()');
+    expect(gd).toContain('\tvar points3: PackedVector3Array = PackedVector3Array()');
+    expect(gd).toContain('\tvar points4: PackedVector4Array = PackedVector4Array()');
+    expect(gd).toContain('\tvar cells2: Array[Vector2i] = []');
+    expect(gd).toContain('\tvar cells3: Array[Vector3i] = []');
+    expect(gd).toContain('\tvar cells4: Array[Vector4i] = []');
+    expect(gd).toContain('row.points2.append(_read_vector2(r.bytes(wire)))');
+    const setting = read(f, 'client/generated/data/game_setting.gd');
+    expect(setting).toContain('static func spawn_points() -> PackedVector2Array:');
+    expect(setting).toContain('\tvar values: PackedVector2Array = PackedVector2Array()');
+    expect(setting).toContain('static func spawn_cells() -> Array[Vector2i]:');
+    expect(read(f, 'client/dev/generated/data/game_data_dev.gd')).toContain('static func set_setting_spawn_points(value: PackedVector2Array) -> void:');
+  });
+
   test('the generated GDScript names follow the Godot naming rules', () => {
     const f = fixture({
       files: {
