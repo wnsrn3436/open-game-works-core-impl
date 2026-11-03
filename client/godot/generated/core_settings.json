@@ -483,6 +483,8 @@
   "UnitTestCore.startTimeLimitMs": 120000,
   "storage.sweepBatchSize": 1000,
   "storage.sweepTableBudgetMs": 2000,
+  "coupon.maxCodePicks": 100,
+  "matchmaker.roomCodeMaxPicks": 100,
   "termsPopup": "prefab_terms",
   "agePopup": "",
   "privacyPopup": "",
@@ -520,31 +522,6 @@
     1280,
     720
   ],
-  "uiCheckScreens": [
-    {
-      "name": "desktop",
-      "window": [
-        1280,
-        720
-      ],
-      "fillMode": "Letterbox",
-      "notch": [
-        0,
-        0,
-        0,
-        0
-      ],
-      "keyboard": 0
-    }
-  ],
-  "gamepadSupported": false,
-  "uiQuality": {
-    "settleLimitMs": 3000,
-    "maxFontSizes": 6,
-    "minFontPx": 18,
-    "minContrast": 3,
-    "maxEmptyShare": 0.6
-  },
   "targetFps": 60,
   "maxResolution": [
     1920,
@@ -553,6 +530,7 @@
   "loadingScreen": "prefab_loading",
   "dailyResetOffsetMs": 0,
   "tutorialView": "",
+  "gamepadSupported": false,
   "environments.DEV.adminOperators": [
     {
       "name": "ogw",

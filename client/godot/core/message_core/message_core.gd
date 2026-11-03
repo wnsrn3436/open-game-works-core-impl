@@ -125,8 +125,8 @@ static func show_toast(translation_key: String, args: FormatArgs = null, extra_t
 	_request(_toast, translation_key, args, extra_text)
 
 
-static func show_black_box(translation_key: String, args: FormatArgs = null, extra_text: String = "") -> void:
-	_request(_black_box, translation_key, args, extra_text)
+static func show_black_box(translation_key: String, args: FormatArgs = null) -> void:
+	_request(_black_box, translation_key, args, "")
 
 
 static func close_black_box() -> void:

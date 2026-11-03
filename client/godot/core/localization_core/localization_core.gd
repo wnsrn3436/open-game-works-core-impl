@@ -301,7 +301,7 @@ static func get_language_code() -> String:
 
 
 ## Fills `buffer` from index 0 with the ID values of the `language` rows in `order` order. Returns the count filled.
-static func list_languages(buffer: Array[int]) -> int:
+static func list_languages(buffer: PackedInt32Array) -> int:
 	if not _check_initialized("list_languages"):
 		return 0
 	var rows: Array[GameData.LanguageRow] = GameData.LanguageTable.all_rows()

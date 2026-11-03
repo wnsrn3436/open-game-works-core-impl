@@ -43,6 +43,17 @@ func test_capture_jpg_quality_out_of_range_fails_init() -> void:
 		QACore.release()
 	assert_eq(errors(), 0)
 
+
+func test_init_does_not_read_the_settings_that_only_ogw_check_uses() -> void:
+	assert_true(await start(false))
+	for key: String in ["AccessibilityCore.textScales", "gamepadSupported", "supportedLanguages"]:
+		assert_true(UnitTestCore.set_invalid_test_settings(key, "not the type of that setting"))
+	QACore._has_test_launch_values = true
+	assert_true(QACore.init())
+	QACore.release()
+	assert_eq(errors(), 0)
+
+
 func test_release_clears_every_static_var() -> void:
 	assert_true(await start())
 	assert_true(QACore.register_command("qa.echo", "Echo.", PackedStringArray(), _echo))

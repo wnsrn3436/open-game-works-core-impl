@@ -94,7 +94,7 @@ func test_init_while_initialized_is_an_error() -> void:
 func test_operations_before_init_log_and_return_the_failure_value() -> void:
 	assert_true(await _SUPPORT.start_dependencies())
 	var none: Array[DownloadedTranslation] = []
-	var buffer: Array[int] = [0, 0]
+	var buffer: PackedInt32Array = [0, 0]
 	var label: Label = Label.new()
 	add_child_autofree(label)
 	assert_eq(LocalizationCore.resolve_language(), 0)

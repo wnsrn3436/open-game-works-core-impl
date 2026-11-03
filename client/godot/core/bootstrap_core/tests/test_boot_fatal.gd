@@ -12,7 +12,7 @@ const _DEV_WITHOUT_FAKE_ADS := preload("res://core/bootstrap_core/tests/support/
 const _DEV_FATAL := preload("res://core/bootstrap_core/tests/support/boot_test_dev_fatal.gd")
 const _BUILD_INFO_FILE: String = "user://boot_test_build_info.json"
 ## A local data file without a schema version: `LocalDataCore` logs an error when it loads it.
-const _BROKEN_LOCAL_DATA := [1, 2]
+const _BROKEN_LOCAL_DATA: Array[int] = [1, 2]
 ## A fill image key in neither the resource key list nor a bundle: `ResourceCore` logs an error when
 ## `ResolutionCore.load_fill_image` loads it.
 const _MISSING_FILL_IMAGE: String = "image/boot_test_missing_fill"

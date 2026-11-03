@@ -43,9 +43,14 @@ function build_context(folder: string, server_modules: readonly string[], main_t
   return server;
 }
 
-/** Builds the image of a build context into the local image store the way the build does, under `tag`. */
-async function build_image(tag: string, server: string): Promise<void> {
-  const built = await run('docker', ['buildx', 'build', '--file', join(server, 'core', 'Dockerfile'), '--load', '--tag', tag, server]);
+/** Runs the image build of a build context, with `env_args` as the environment build arguments, into the local image store under `tag`. */
+function run_build(tag: string, server: string, env_args: readonly string[]): Promise<Run> {
+  return run('docker', ['buildx', 'build', '--file', join(server, 'core', 'Dockerfile'), ...env_args, '--load', '--tag', tag, server]);
+}
+
+/** Builds the image of a build context for an environment the way the build does, under `tag`. */
+async function build_image(tag: string, server: string, env: string): Promise<void> {
+  const built = await run_build(tag, server, ['--build-arg', `OGW_ENV=${env}`]);
   if (built.code !== 0) throw new Error(`docker buildx build failed: ${built.stderr}`);
 }
 
@@ -89,7 +94,9 @@ describe('server image file', () => {
 describe('server image', () => {
   const dev_tag = `ogw-core-test-${randomUUID()}`;
   const stg_tag = `ogw-core-test-${randomUUID()}`;
+  const prod_with_dev_list_tag = `ogw-core-test-${randomUUID()}`;
   let folder = '';
+  let dev_context = '';
 
   beforeAll(async () => {
     folder = mkdtempSync(join(tmpdir(), 'routing-server-image-'));
@@ -99,11 +106,12 @@ describe('server image', () => {
     writeFileSync(join(dev_server, 'secrets.json'), JSON.stringify(input.secrets.file));
     await input.drop();
     const stg_server = build_context(join(folder, 'stg'), with_dev.filter((module) => module !== 'cheat' && module !== 'testing'), 'export function register() {}\n');
-    await Promise.all([build_image(dev_tag, dev_server), build_image(stg_tag, stg_server)]);
+    dev_context = dev_server;
+    await Promise.all([build_image(dev_tag, dev_server, 'DEV'), build_image(stg_tag, stg_server, 'STG'), build_image(prod_with_dev_list_tag, dev_server, 'PROD')]);
   }, BUILD_TIME_MS);
 
   afterAll(async () => {
-    await run('docker', ['image', 'rm', '--force', dev_tag, stg_tag]);
+    await run('docker', ['image', 'rm', '--force', dev_tag, stg_tag, prod_with_dev_list_tag]);
     rmSync(folder, { recursive: true, force: true });
   });
 
@@ -123,7 +131,7 @@ describe('server image', () => {
     expect(started.stderr).toContain('--env must be');
   }, 60_000);
 
-  it('holds no DEV code, no regression test and no Dockerfile when the server module list has no DEV module, and such a server goes past the DEV code refusal on --env STG', async () => {
+  it('holds no DEV code, no regression test and no Dockerfile when OGW_ENV is STG, and such a server goes past the DEV code refusal on --env STG', async () => {
     const paths = await image_paths(stg_tag);
     expect(paths.filter(is_dev_code)).toEqual([]);
     expect(paths.filter((path) => path.startsWith('tests/') || /^core\/[^/]+\/tests\//.test(path))).toEqual([]);
@@ -136,7 +144,7 @@ describe('server image', () => {
     expect(errors.filter((message) => message.includes('DEV code'))).toEqual([]);
   }, 60_000);
 
-  it('holds the DEV code when the server module list has a DEV module, and such a server is refused on --env STG', async () => {
+  it('holds the DEV code when OGW_ENV is DEV, and such a server is refused on --env STG', async () => {
     const paths = await image_paths(dev_tag);
     expect(paths).toContain('core/cheat/dev/index.ts');
     expect(paths.some((path) => path.startsWith('dev/'))).toBe(true);
@@ -144,6 +152,24 @@ describe('server image', () => {
     expect(started.code).toBe(1);
     expect(error_messages(started.stdout).some((message) => message.includes('DEV code'))).toBe(true);
   }, 60_000);
+
+  it('holds no DEV code when OGW_ENV is PROD, whatever the server module list holds', async () => {
+    const paths = await image_paths(prod_with_dev_list_tag);
+    expect(paths.filter(is_dev_code)).toEqual([]);
+    expect(paths).toContain('core/start.ts');
+  }, 60_000);
+
+  it.each([
+    ['without OGW_ENV', []],
+    ['with an empty OGW_ENV', ['--build-arg', 'OGW_ENV=']],
+    ['with an OGW_ENV that is not DEV, STG or PROD', ['--build-arg', 'OGW_ENV=LOCAL']],
+  ])('fails %s', async (_name, env_args) => {
+    const tag = `ogw-core-test-${randomUUID()}`;
+    const built = await run_build(tag, dev_context, env_args);
+    expect(built.code).not.toBe(0);
+    expect(built.stderr).toContain('build argument OGW_ENV must be DEV, STG or PROD');
+    expect((await run('docker', ['image', 'inspect', tag])).code).not.toBe(0);
+  }, BUILD_TIME_MS);
 
   it('runs the server process as UID 10001, which answers HTTP on port 8080 of the container', async () => {
     const name = `ogw-core-test-${randomUUID()}`;

@@ -41,11 +41,7 @@ const _KEY_SOFTLOCK_INPUTS: String = "QACore.softlockNoResponseInputs"
 const _KEY_STEP_MAX: String = "QACore.stepMaxMs"
 const _KEY_TIME_SCALE_MAX: String = "QACore.timeScaleMaxPermille"
 const _KEY_TOUCH_INDEX_COUNT: String = "QACore.touchIndexCount"
-const _KEY_TEXT_SCALES: String = "AccessibilityCore.textScales"
 const _KEY_BASE_RESOLUTION: String = "baseResolution"
-const _KEY_UI_CHECK_SCREENS: String = "uiCheckScreens"
-const _KEY_GAMEPAD_SUPPORTED: String = "gamepadSupported"
-const _KEY_SUPPORTED_LANGUAGES: String = "supportedLanguages"
 ## Reason tags of `QACore.softlockBlockMs`: the block reasons that forced release does not cover.
 const _SOFTLOCK_REASONS: PackedStringArray = ["scene", "cutscene", "tutorial", "ad", "boot"]
 const _LAUNCH_PORT: String = "OGW_AUTOMATION_PORT"
@@ -1087,13 +1083,6 @@ static func _read_settings() -> bool:
 	if CoreSettings.get_int(_KEY_CAPTURE_JPG_QUALITY) > _MAX_JPG_QUALITY:
 		LogCore.log_error(_TAG, "init: setting %s is over %d" % [_KEY_CAPTURE_JPG_QUALITY, _MAX_JPG_QUALITY])
 		return false
-	for key: String in [_KEY_TEXT_SCALES, _KEY_UI_CHECK_SCREENS, _KEY_SUPPORTED_LANGUAGES]:
-		if not _is_array_setting(key):
-			LogCore.log_error(_TAG, "init: setting %s is missing or not an array" % key)
-			return false
-	if not CoreSettings.has_bool(_KEY_GAMEPAD_SUPPORTED):
-		LogCore.log_error(_TAG, "init: setting %s is missing or not a boolean" % _KEY_GAMEPAD_SUPPORTED)
-		return false
 	var base: PackedInt64Array = CoreSettings.get_int_array(_KEY_BASE_RESOLUTION)
 	if base.size() != 2 or base[0] < 1 or base[1] < 1:
 		LogCore.log_error(_TAG, "init: setting %s is missing or not 2 integers of at least 1" % _KEY_BASE_RESOLUTION)
@@ -1121,12 +1110,6 @@ static func _read_settings() -> bool:
 	_telemetry.idle_threshold_ms = CoreSettings.get_int(_KEY_IDLE_THRESHOLD)
 	_telemetry.max_records = maxi(CoreSettings.get_int(_KEY_TELEMETRY_MAX), 1)
 	return true
-
-
-# ogw:input_boundary
-static func _is_array_setting(key: String) -> bool:
-	var value: Variant = JSON.parse_string(CoreSettings.get_json(key))
-	return value is Array
 
 
 ## Reads `QACore.softlockBlockMs` into `out`: a non-negative integer for each reason tag of `_SOFTLOCK_REASONS`.
