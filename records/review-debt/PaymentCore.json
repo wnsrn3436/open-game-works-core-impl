@@ -1,0 +1,42 @@
+{
+  "target": "PaymentCore",
+  "nextId": 7,
+  "items": [
+    {
+      "id": "D1",
+      "location": "client/godot/core/payment_core/payment_core.gd:451",
+      "problem": "No test goes through the login session discard of `purchase` (`open-game-works-core/skills/client-core/modules/payment-core.md:160`) at its three places before `finish`. Removing the epoch check at line 412 (`buy` runs with the account token of the previous session), removing the check at line 443 (`VerifyPurchase` goes out in the new session), or removing it at line 451 (`finish` is called and the result is not discarded) each leaves all 74 PaymentCore tests passing. `test_login_session_change_during_finish_rejects_the_purchase` in `tests/test_purchase.gd:92` changes the session only after the verify response. This existed before the range.",
+      "foundBy": "PaymentCore round 1"
+    },
+    {
+      "id": "D2",
+      "location": "client/godot/core/payment_core/payment_core.gd:659",
+      "problem": "No test covers a login session that changes during `list_unfinished` or `list_owned`. Removing this check leaves all 74 PaymentCore tests passing, and each listed transaction then sends `RecoverPurchase` with the receipt in the new session before line 679 discards the response. `open-game-works-core/skills/client-core/modules/payment-core.md:160` discards the operation at that point. `tests/test_recovery.gd:155` changes the session only after `RecoverPurchase` was sent. This existed before the range.",
+      "foundBy": "PaymentCore round 1"
+    },
+    {
+      "id": "D3",
+      "location": "client/godot/core/payment_core/payment_core_node.gd:18",
+      "problem": "`SessionEndedEvent` as a login session change (`open-game-works-core/skills/client-core/modules/payment-core.md:146` and `:159`) has no test. No PaymentCore test ends a session: every session change in `tests/` is `log_in`. Making `_on_login_session_changed` return when `AuthCore.is_logged_in` is `false`, which ignores this event, leaves all 74 tests passing, so the `finish` success list and the store `GOOGLE` restore flag could survive the end of a session. This existed before the range.",
+      "foundBy": "PaymentCore round 1"
+    },
+    {
+      "id": "D4",
+      "location": "client/godot/core/payment_core/payment_core.gd:525",
+      "problem": "\"When a `recover_purchases` is in progress, returns that one's result\" (`open-game-works-core/skills/client-core/modules/payment-core.md:144`) has no test. Removing lines 525 to 529 leaves all 74 tests passing, although a second call then runs `list_unfinished` again and returns its own `RecoverySummary`. `test_two_prepares_at_once_connect_once_and_share_the_result` and `test_google_restore_of_paymentcore_is_shared_with_a_content_restore` cover the same rule for `prepare` and `restore_purchases` only. This existed before the range.",
+      "foundBy": "PaymentCore round 1"
+    },
+    {
+      "id": "D5",
+      "location": "client/godot/core/payment_core/payment_core.gd:892",
+      "problem": "\"`0` when `TimeCore.is_synced` is `false`\" of `get_pass_days_left` (`open-game-works-core/skills/client-core/modules/payment-core.md:168`) has no test. No PaymentCore test reads a pass before the first time sync. Removing `or not TimeCore.is_synced()` here leaves all 74 tests passing, although `_today()` then computes from `get_current_day` returning 0, so a held pass reports a wrong positive number of days left and `is_owned` and `can_claim_daily` follow it. This existed before the range.",
+      "foundBy": "PaymentCore round 1"
+    },
+    {
+      "id": "D6",
+      "location": "open-game-works-core/skills/client-core/modules/payment-core.md:147",
+      "problem": "Two defining documents set a different log level. This line says that the `RecoverPurchase` failure callback returns `true` for every failure with \"warn log, no screen\". `open-game-works-core/skills/client-core/modules/network-core.md:106` and `:264` make only a `ServerError` warn and give a communication failure one error log even when the callback returns `true`, and `client/godot/core/network_core/network_core.gd:1154` does that. Run path: on a foreground return with no network, each unfinished transaction writes an error log, not the warn this line states. The PaymentCore tests check only `IAP_VERIFY_UNAVAILABLE`, so they do not show the difference. This existed before the range.",
+      "foundBy": "PaymentCore round 1"
+    }
+  ]
+}
