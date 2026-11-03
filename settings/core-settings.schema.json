@@ -224,6 +224,10 @@
       "type": "integer",
       "minimum": 1
     },
+    "coupon.maxCodePicks": {
+      "type": "integer",
+      "minimum": 1
+    },
     "coupon.maxRewardItems": {
       "type": "integer",
       "minimum": 1
@@ -535,7 +539,7 @@
     },
     "routing.storageSweepIntervalMs": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "routing.userRateLimitPerMinute": {
       "type": "integer",
@@ -731,6 +735,10 @@
       "type": "string"
     },
     "matchmaker.roomCodeLength": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "matchmaker.roomCodeMaxPicks": {
       "type": "integer",
       "minimum": 1
     },
@@ -1894,6 +1902,7 @@
     "coupon.maxBatchCount",
     "coupon.maxCodeInputBytes",
     "coupon.maxCodeLength",
+    "coupon.maxCodePicks",
     "coupon.maxRewardItems",
     "coupon.minCodeLength",
     "gacha.maxHistoryRows",
@@ -2020,6 +2029,7 @@
     "matchmaker.reportMarginMs",
     "matchmaker.roomCodeAlphabet",
     "matchmaker.roomCodeLength",
+    "matchmaker.roomCodeMaxPicks",
     "matchmaker.sweepIntervalMs",
     "matchmaker.tickMs",
     "block-report.maxBlocks",

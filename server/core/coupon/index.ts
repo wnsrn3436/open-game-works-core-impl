@@ -118,6 +118,7 @@ type SettingKey =
   | 'coupon.minCodeLength'
   | 'coupon.maxCodeLength'
   | 'coupon.generatedCodeLength'
+  | 'coupon.maxCodePicks'
   | 'coupon.maxCodeInputBytes'
   | 'coupon.maxBatchCount'
   | 'coupon.maxRewardItems'
@@ -129,6 +130,7 @@ const INTEGER_KEYS: readonly SettingKey[] = [
   'coupon.minCodeLength',
   'coupon.maxCodeLength',
   'coupon.generatedCodeLength',
+  'coupon.maxCodePicks',
   'coupon.maxCodeInputBytes',
   'coupon.maxBatchCount',
   'coupon.maxRewardItems',
@@ -140,6 +142,7 @@ const INTEGER_KEYS: readonly SettingKey[] = [
 interface CouponSettings {
   readonly rules: CodeRules;
   readonly generated_code_length: number;
+  readonly max_code_picks: number;
   readonly max_batch_count: number;
   readonly max_reward_items: number;
   readonly max_attachments: number;
@@ -177,8 +180,6 @@ const COUNT_ATTEMPT =
 /** Codes per `IN (...)` lookup and rows per multi-row insert of `unique` codes. */
 const LOOKUP_CHUNK = 500;
 const INSERT_CHUNK = 200;
-/** Picks of one `unique` code before `create_coupon` gives up with `conflict`. */
-const MAX_CODE_PICKS = 100;
 
 const ITEM_FIELDS: Readonly<Record<string, AdminField>> = {
   item_id: { type: { kind: 'int32' }, optional: false },
@@ -219,6 +220,7 @@ function read_settings(settings: Readonly<Record<string, unknown>>): CouponSetti
   return {
     rules: { alphabet, min_length: get('coupon.minCodeLength'), max_length: get('coupon.maxCodeLength') },
     generated_code_length: get('coupon.generatedCodeLength'),
+    max_code_picks: get('coupon.maxCodePicks'),
     max_batch_count: get('coupon.maxBatchCount'),
     max_reward_items: get('coupon.maxRewardItems'),
     max_attachments: get('mailbox.maxAttachments'),
@@ -449,7 +451,7 @@ export function create_coupon(input: CouponInput): CouponModule {
 
   /**
    * `count` new codes, unlike each other and every stored code, or null when one code overlapped on all its
-   * `MAX_CODE_PICKS` picks.
+   * `coupon.maxCodePicks` picks.
    */
   const new_codes = (db: DbHandle, count: number): string[] | null => {
     const codes = new Set<string>();
@@ -461,7 +463,7 @@ export function create_coupon(input: CouponInput): CouponModule {
         let picks = done;
         let code: string;
         do {
-          if (picks === MAX_CODE_PICKS) return null;
+          if (picks >= settings.max_code_picks) return null;
           code = generate_code(settings.rules.alphabet, settings.generated_code_length);
           picks += 1;
         } while (codes.has(code) || picked.has(code));
