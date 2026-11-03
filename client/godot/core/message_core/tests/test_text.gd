@@ -29,8 +29,11 @@ func test_extra_text_follows_the_text_after_one_line_break() -> void:
 	assert_true(await start_prepared())
 	var args: FormatArgs = FormatArgs.new()
 	args.set_int("count", 3)
+	MessageCore.show_toast(key_a(), null, "code 42")
+	assert_eq(shown_text(toast()), LocalizationCore.get_text(key_a()) + "\ncode 42", "without FormatArgs")
+	MessageCore.close_all()
 	MessageCore.show_toast(count_key(), args, "code 42")
-	assert_eq(shown_text(toast()), LocalizationCore.format(count_key(), args) + "\ncode 42")
+	assert_eq(shown_text(toast()), LocalizationCore.format(count_key(), args) + "\ncode 42", "with FormatArgs")
 
 
 func test_text_does_not_change_when_caller_changes_format_args_after_request() -> void:
