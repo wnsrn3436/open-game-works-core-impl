@@ -18,5 +18,7 @@ id,target,data_type,value
 [tool_test_list],All,array<int>,"4,5,6"
 [tool_test_words],All,array<string>,"a
 b"
+[tool_test_points],All,array<vector2<float>>,"1.5,2
+-3,4"
 [tool_test_since],All,datetime,2026-01-02T03:04:05Z
 [tool_test_server],Server,int,1
