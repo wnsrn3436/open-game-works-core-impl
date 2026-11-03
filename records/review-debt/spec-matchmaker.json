@@ -1,0 +1,18 @@
+{
+  "target": "spec matchmaker",
+  "nextId": 3,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/server-core/modules/matchmaker.md:160",
+      "problem": "The state of queue entries and of the room after a match record save failure in queue matching is not set. Lines 125 and 126 say \"creates a match with the collected entries and goes back to 1\" without saying when the entries leave the queue, and line 153 changes a room to `Open` only on `TIMEOUT` and on becoming a match. Line 138 can be read as keeping the entries, and then the tick goes back to step 1 with the same entries and retries the save within one tick while the DB is failing. If the entries are removed, the room stays `Matching` with no party entry, and host `MATCH_REQUEST` and `ROOM_START` are `ROOM_BUSY` until host `MATCH_CANCEL`. The diff only removed a step reference from line 153 and did not change this.",
+      "foundBy": "spec matchmaker"
+    },
+    {
+      "id": "D2",
+      "location": "skills/server-core/modules/matchmaker.md:326",
+      "problem": "The failure value of `create_test_match` does not cover the game transaction that saves the match record. The cell lists only the two input throws, and the failure handling of step 1 of `### match creation` sends `MATCH_FAILED` to participants, which this operation does not have because it has no connections. So when that transaction is `FAILED`, throwing and returning `FAILED` both fit the spec, and `dev` of `routing` (skills/server-core/modules/routing.md:74) passes either result to the test differently.",
+      "foundBy": "spec matchmaker"
+    }
+  ]
+}
