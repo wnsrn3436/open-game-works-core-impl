@@ -1,6 +1,6 @@
 {
   "target": "PaymentCore",
-  "nextId": 10,
+  "nextId": 11,
   "items": [
     {
       "id": "D1",
@@ -55,6 +55,12 @@
       "location": "client/godot/core/payment_core/payment_core.gd:601",
       "problem": "For store `GOOGLE`, the restore of a new login session joins a `restore_purchases` still running from the previous session, and line 546 has already set `_google_restored` to `true`. The joined result is discarded and `list_owned` does not run again in that session, although `open-game-works-core/skills/client-core/modules/payment-core.md:146` has one restore per login session. Reproduced with a test in a temporary copy: first `recover_purchases` of session A, its restore held on `RecoverPurchase`, `log_in` of another user, `recover_purchases` in the new session, the held response released, then `recover_purchases` again. `list_owned` stayed at 1 call and `_google_restored` was `true`. The same join makes a `restore_purchases` that content code calls in the new session wait for the old session's run; that path was read in the code and not run. This existed before the range.",
       "foundBy": "PaymentCore round 1"
+    },
+    {
+      "id": "D10",
+      "location": "client/godot/core/payment_core/dev/payment_core_dev.gd:67",
+      "problem": "`spec`: `PaymentCoreDev` has the same difference from `open-game-works-core/skills/client-core/engines/godot.md:432`: it casts to `class_name` `FakeStoreAdapter` and reads and writes its members (e.g. `fake.next_buy_result` at line 12). Seen while checking the rule for NativeUiCore. The other files of PaymentCore were not checked for it",
+      "foundBy": "NativeUiCore round 1"
     }
   ]
 }

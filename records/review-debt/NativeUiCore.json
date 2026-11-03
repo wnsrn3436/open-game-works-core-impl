@@ -1,0 +1,36 @@
+{
+  "target": "NativeUiCore",
+  "nextId": 6,
+  "items": [
+    {
+      "id": "D1",
+      "location": "client/godot/core/native_ui_core/adapters/native_ui_plugin_adapter.gd:50",
+      "problem": "`test evidence`: no test goes through the mapping of `take_share_result` to `Closed` and `Failed`, which `open-game-works-core/skills/client-core/engines/godot.md:61` sets. `test_plugin_adapter.gd` only uses a plugin whose window never closes and, on macOS headless, a `start_share` that returns 0. In a temporary copy with `_STATUS_CLOSED` set to 1, so that a closed window gives `Failed` and a failed share gives `Closed`, the headless pass of `ogw core test godot NativeUiCore` did not fail. The render tests do not use this adapter. A test plugin that gives `[0]` and `[1]` would cover it",
+      "foundBy": "NativeUiCore round 1"
+    },
+    {
+      "id": "D2",
+      "location": "client/godot/core/native_ui_core/adapters/native_ui_web_adapter.gd:56",
+      "problem": "`test evidence`: no test goes through the end of a Web Share: a resolved `navigator.share`, an `AbortError` rejection or another rejection. `test_web_browser.gd` only covers a browser without the API and a `release` during an open share. In a temporary copy where a normal end no longer gives `Closed` (line 56 compares with `\"never\"`) and every rejection at line 39 reports `\"0\"`, `ogw core test godot --web NativeUiCore` printed `pass`",
+      "foundBy": "NativeUiCore round 1"
+    },
+    {
+      "id": "D3",
+      "location": "client/godot/core/native_ui_core/native_ui_core.gd:150",
+      "problem": "`test evidence`: the error row `capture_screen` failure of `open-game-works-core/skills/client-core/modules/native-ui-core.md` has no test. `test_render_capture.gd` holds one test, which is the success path, and the headless tests return at line 144 before this code. So lines 150-155 (no `Debug` layer, frame wait failure) and lines 308 and 315 (no image, PNG failure) never run in a test. Line 150 can be reached in a render test by calling `capture_screen` after `UICore.release`, because `UICore.get_layer` then returns `null` (`client/godot/core/ui_core/ui_core.gd:290`)",
+      "foundBy": "NativeUiCore round 1"
+    },
+    {
+      "id": "D4",
+      "location": "client/godot/core/native_ui_core/dev/native_ui_core_dev.gd:13",
+      "problem": "`spec`: `NativeUiCoreDev` reads the members of the fake adapter through `class_name` `FakeNativeUiAdapter` (lines 17-20), while `open-game-works-core/skills/client-core/engines/godot.md:432` requires DEV code to read them through a `preload()` constant of that file, as `client/godot/core/push_core/dev/push_core_dev.gd:10` does. The type check that the rule protects was not run for this line",
+      "foundBy": "NativeUiCore round 1"
+    },
+    {
+      "id": "D5",
+      "location": "client/godot/plugins/ogw-native-ui/android/plugin/src/main/java/io/github/wnsrn3436/ogw/nativeui/OgwNativeUiPlugin.java:77",
+      "problem": "`correctness`: `request_review` returns `true` before Google Play answers, and lines 71-73 drop a failed `requestReviewFlow` with no report. On a device where that task fails, `NativeUiCore.request_review` returns `Requested` and saves `last_review_at` (`client/godot/core/native_ui_core/native_ui_core.gd:127`), so the device is throttled for `reviewMinIntervalMs` (default 30 days) although no request was accepted. `open-game-works-core/skills/client-core/modules/native-ui-core.md` says a reported failure saves nothing. Found by reading the code and not run on a device. The fix needs a spec change, because `open-game-works-core/skills/client-core/engines/godot.md:61` and `NativeUiAdapter.request_review` are synchronous while this answer is asynchronous",
+      "foundBy": "NativeUiCore round 1"
+    }
+  ]
+}
