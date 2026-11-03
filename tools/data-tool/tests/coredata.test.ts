@@ -43,6 +43,28 @@ describe('core data', () => {
     expect(lines(r, 'empty_required').length).toBe(3);
   });
 
+  test.each([
+    ['usedTables', specModule({ name: 'gate', usedTables: ['requirement'] })],
+    ['a ref of its own table', specModule({ name: 'gate', tables: [specTable('gate_rule', ['id|id(key)|All', 'rule|ref<requirement.id>|All'])] })],
+    ['the ref of a table of a module the game does not use', specModule({ name: 'gate', usedTables: ['other_rule'] })],
+    ['a reserved ID row of', specModule({ name: 'gate', reserved: [{ table: 'reserved_id', id: '[gate_rule]', requiredWhen: null, rowOf: 'requirement' }] })],
+  ])('requirement reached by %s: the enums of its header go into data, its file does not', (_, gate) => {
+    const coreSpec = {
+      version: '1.0.0',
+      modules: [
+        gate,
+        specModule({ name: 'other', tables: [specTable('other_rule', ['id|id(key)|All', 'rule|ref<requirement.id>|All'])] }),
+        specModule({ name: 'RequirementCore', side: 'client', tables: [specTable('requirement', ['id|id(key)|All', 'children|array<ref<requirement.id>>|All', 'logic|enum<RequirementLogic>?|All'])], enums: [{ type: 'RequirementLogic', elements: ['All', 'Any'] }] }),
+      ],
+    };
+    const f = fixture({ coreSpec, modules: ['gate'] });
+    const r = run(f);
+    expect(read(f, 'data/enums.csv')).toBe('type,element,value,#comment\nRequirementLogic,All,1,\nRequirementLogic,Any,2,\n');
+    expect(has(f, 'data/tables/requirement.csv')).toBe(false);
+    expect(lines(r, 'reserved_name')).toEqual([]);
+    expect(lines(run(f), 'reserved_name')).toEqual([]);
+  });
+
   test('enum elements go to the end of data/enums.csv in core-spec.json module order, spec order inside a module', () => {
     const f = fixture({ coreSpec: SPEC, modules: ['shop', 'ShopCore'], files: { 'data/enums.csv': 'type,element,value,#comment\nKind,A,1,game\nItemType,Goods,2,\n' } });
     run(f);

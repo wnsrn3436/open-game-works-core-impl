@@ -193,15 +193,15 @@ function mergeReserved(list: CoreReserved[], r: SpecReserved, side: 'client' | '
   found.rowOf ??= r.rowOf;
 }
 
-function addTableClosure(data: CoreData, name: string): void {
-  if (data.tables.has(name)) return;
+function addTableClosure(data: CoreData, reached: Set<string>, name: string): void {
+  if (reached.has(name)) return;
   const entry = data.allTables.get(name);
-  if (!entry || name === REQUIREMENT_TABLE) return;
-  data.tables.add(name);
+  if (!entry) return;
+  reached.add(name);
   for (const col of entry.table.columns) {
     const t = parseColumnType(col.type);
     if (t === null) continue;
-    for (const ref of refsOf(t)) addTableClosure(data, ref.table);
+    for (const ref of refsOf(t)) addTableClosure(data, reached, ref.table);
   }
 }
 
@@ -214,14 +214,14 @@ function collectAll(spec: CoreSpec, data: CoreData): void {
   }
 }
 
-function collectUsed(spec: CoreSpec, data: CoreData): void {
+function collectUsed(spec: CoreSpec, data: CoreData, reached: Set<string>): void {
   for (const m of spec.modules) {
     if (!data.modules.has(m.name)) continue;
-    for (const t of m.tables) addTableClosure(data, t.name);
-    for (const t of m.usedTables) addTableClosure(data, t);
+    for (const t of m.tables) addTableClosure(data, reached, t.name);
+    for (const t of m.usedTables) addTableClosure(data, reached, t);
     for (const r of m.reserved) {
       mergeReserved(data.reserved, r, m.side);
-      if (r.rowOf !== null) addTableClosure(data, r.rowOf);
+      if (r.rowOf !== null) addTableClosure(data, reached, r.rowOf);
     }
     for (const e of m.enums) data.enums.set(e.type, e.elements);
     data.invariants.push(...m.invariants);
@@ -235,8 +235,11 @@ export function coreDataOf(spec: CoreSpec, modules: readonly string[]): CoreData
     invariants: [], reserved: [], formatArguments: new Map(), modules: new Set(modules),
   };
   collectAll(spec, data);
-  collectUsed(spec, data);
-  for (const name of data.tables) {
+  const reached = new Set<string>();
+  collectUsed(spec, data, reached);
+  for (const name of reached) {
+    // The tool makes the `requirement` rows, so it has no file; the enums of its header are core data all the same.
+    if (name !== REQUIREMENT_TABLE) data.tables.add(name);
     for (const col of (data.allTables.get(name)?.table.columns ?? [])) {
       const t = parseColumnType(col.type);
       for (const e of t === null ? [] : enumsOf(t)) {

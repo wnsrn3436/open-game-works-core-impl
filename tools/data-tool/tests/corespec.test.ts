@@ -39,6 +39,14 @@ const CORE_CONTRACT = `export class ItemAmount {
 `;
 
 describe('core-spec/ of this core', () => {
+  test('validation alone: the enums of the requirement header it uses go into data, and the second run has no reserved_name', () => {
+    const f = fixture({ coreSpec: coreSpec(), modules: ['validation'], settings: { sourceLanguage: 'ko', supportedLanguages: ['ko'] } });
+    run(f);
+    expect(read(f, 'data/enums.csv')).toContain('RequirementLogic,All,1,\nRequirementLogic,Any,2,\n');
+    expect(has(f, 'data/tables/requirement.csv')).toBe(false);
+    expect(run(f).stdout.filter((l) => l.split(' ')[2] === 'reserved_name')).toEqual([]);
+  });
+
   test('every module: every core table, enum, invariant and required reserved row goes into an empty game', () => {
     const spec = coreSpec();
     const f = fixture({ coreSpec: spec, modules: spec.modules.map((m) => m.name), settings: { sourceLanguage: 'ko', supportedLanguages: ['ko'] } });
