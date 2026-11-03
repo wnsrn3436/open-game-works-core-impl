@@ -3,6 +3,20 @@ import { readFileSync } from 'node:fs';
 import * as testing from '../../testing/dev/index.ts';
 import { admin, codes_of, coupon_body, create, gem, gold, item_id, start, type TestServer } from './helpers.ts';
 
+/** The `randomInt` calls so far, and the values of the next calls in place of secure random. */
+const secure = vi.hoisted(() => ({ calls: 0, script: [] as number[] }));
+
+vi.mock('node:crypto', async (import_original) => {
+  const crypto = await import_original<typeof import('node:crypto')>();
+  return {
+    ...crypto,
+    randomInt: (max: number) => {
+      secure.calls += 1;
+      return secure.script.shift() ?? crypto.randomInt(max);
+    },
+  };
+});
+
 const servers: TestServer[] = [];
 
 async function server(settings?: Readonly<Record<string, unknown>>): Promise<TestServer> {
@@ -15,7 +29,20 @@ afterEach(async () => {
   for (const s of servers.splice(0)) await testing.stop_test_server(s);
 });
 
+/**
+ * A unique `create_coupon` of `count` codes with the secure random values of `script`, and its `randomInt` calls. With
+ * `CODE_SPACE_AB` one call is one pick, and the values 0 and 1 pick A and B.
+ */
+async function create_scripted(s: TestServer, script: readonly number[], count = 1) {
+  secure.script = [...script];
+  secure.calls = 0;
+  const result = await admin(s, 'create_coupon', coupon_body({ kind: 'unique', count }));
+  secure.script = [];
+  return { result, picks: secure.calls };
+}
+
 const CODE = /^[A-Z0-9]+$/;
+const CODE_SPACE_AB = { 'coupon.codeAlphabet': 'AB', 'coupon.minCodeLength': 1, 'coupon.generatedCodeLength': 1 };
 const SETTINGS_FOLDER = new URL('../../../../settings/', import.meta.url);
 const CORE_SETTINGS = JSON.parse(readFileSync(new URL('core-settings.json', SETTINGS_FOLDER), 'utf8')) as Record<string, unknown>;
 const SCHEMA = JSON.parse(readFileSync(new URL('core-settings.schema.json', SETTINGS_FOLDER), 'utf8')) as { properties: Record<string, { minimum?: number }> };
@@ -71,16 +98,35 @@ describe('coupon admin operations', () => {
     for (const code of ['A', 'B']) expect((await admin(s, 'get_coupon', { code })).status).toBe(404);
   }, 10_000);
 
-  it('gives up on one unique code after coupon.maxCodePicks picks', async () => {
-    // Alphabet AB and length 4 make 16 codes. One pick per code makes all 16 differ only about once in a million runs.
-    const code_space = { 'coupon.codeAlphabet': 'AB', 'coupon.minCodeLength': 4, 'coupon.generatedCodeLength': 4 };
-    const one = await server({ ...code_space, 'coupon.maxCodePicks': 1 });
-    const refused = await admin(one, 'create_coupon', coupon_body({ kind: 'unique', count: 16 }));
-    expect(refused.status).toBe(409);
-    expect(refused.json['error']).toBe('conflict');
-    const many = await server({ ...code_space, 'coupon.maxCodePicks': 1_000 });
-    expect(await codes_of(many, await create(many, { kind: 'unique', count: 16 }))).toHaveLength(16);
-  }, 10_000);
+  it.each([1, 3])('accepts a code found on pick %i of coupon.maxCodePicks and ends in conflict after exactly that many picks', async (max_picks) => {
+    const s = await server({ ...CODE_SPACE_AB, 'coupon.maxCodePicks': max_picks });
+    await create(s, { code: 'A' });
+    const found = await create_scripted(s, [...new Array<number>(max_picks - 1).fill(0), 1]);
+    expect(found.result.status).toBe(200);
+    expect(found.picks).toBe(max_picks);
+    const id = BigInt(String(found.result.json['coupon_id']));
+    expect(await codes_of(s, id)).toEqual(['B']);
+    // A and B are now every code these settings allow.
+    const refused = await create_scripted(s, []);
+    expect(refused.result.status).toBe(409);
+    expect(refused.result.json['error']).toBe('conflict');
+    expect(refused.picks).toBe(max_picks);
+    expect((await admin(s, 'get_coupon', { coupon_id: String(id + 1n) })).status).toBe(404);
+  });
+
+  it('counts coupon.maxCodePicks per code against the codes picked earlier in the same create_coupon', async () => {
+    const s = await server({ ...CODE_SPACE_AB, 'coupon.maxCodePicks': 2 });
+    // The first code takes A on one pick. The second then overlaps A on both its picks.
+    const refused = await create_scripted(s, [0, 0, 0], 2);
+    expect(refused.result.status).toBe(409);
+    expect(refused.picks).toBe(3);
+    expect((await admin(s, 'get_coupon', { code: 'A' })).status).toBe(404);
+    // The second code finds B on its second pick: three picks in all over maxCodePicks 2.
+    const found = await create_scripted(s, [0, 0, 1], 2);
+    expect(found.result.status).toBe(200);
+    expect(found.picks).toBe(3);
+    expect(await codes_of(s, BigInt(String(found.result.json['coupon_id'])))).toEqual(['A', 'B']);
+  });
 
   it('gives coupon.maxCodePicks the minimum 1 in core-settings.schema.json and the default 100', () => {
     expect(SCHEMA.properties['coupon.maxCodePicks']?.minimum).toBe(1);
