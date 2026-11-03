@@ -1,0 +1,18 @@
+{
+  "target": "mission",
+  "nextId": 3,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/mission/tests/support.ts:293",
+      "problem": "`open-game-works-core/skills/server-core/modules/mission.md:88` says a `ClaimMission` sent again with the same request ID returns the response that `idempotency` saved, so the reward is not claimed twice, and no mission test goes through this. `claim` in `support.ts` passes no request ID to `send`, and `grep` for `request_id` and `same request` over `server/core/mission/tests/` finds nothing. `ClaimAttendance` has this test at `server/core/attendance/tests/claim.test.ts:176`. The retry flag is on (`proto/ogw/core.proto:349`), but no test was run that sends the same request ID twice, so whether the behavior holds for `ClaimMission` was read from code, not run. It existed before the range.",
+      "foundBy": "mission round 1"
+    },
+    {
+      "id": "D2",
+      "location": "server/core/mission/index.ts:144",
+      "problem": "`add_progress` runs one `SELECT` per in-window mission of the counter. The loop at line 142 calls `read`, `read` calls `storage.get_state` at line 113, and `get_state` reaches `raw_item` at `server/core/storage/state.ts:73`, which queries one `item_id`. The growing amount is the number of `mission` rows that point to that counter, per `add_progress` call. `storage.list_state` (`server/core/storage/state.ts:151`) reads all rows of the kind in one query. Read from code, not run. It existed before the range.",
+      "foundBy": "mission round 1"
+    }
+  ]
+}
