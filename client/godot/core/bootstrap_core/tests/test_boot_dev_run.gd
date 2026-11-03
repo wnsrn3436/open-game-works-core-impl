@@ -322,12 +322,12 @@ func test_dev_access_launch_value_reaches_cheat_request_header() -> void:
 
 func test_dev_access_of_a_dev_build_info_file_reaches_cheat_request_header() -> void:
 	_SUPPORT.prepare({"OGW_DEV_ACCESS": "launch-value-is-not-read"})
-	var file := {
+	var file: String = JSON.stringify({
 		"app_id": "boot.test", "app_version": "1.0.0", "environment": "DEV", "platform": CoreBuildInfo.os_platform(),
 		"server_url": "http://127.0.0.1", "game_update_url": "", "instance_id": "", "update_trust_keys": [],
 		"adapters": {}, "ad_units": {}, "dev_access": "build-dev-access",
-	}
-	var info := BootstrapCore._parse_build_info(JSON.stringify(file))
+	})
+	var info := BootstrapCore._parse_build_info(file)
 	assert_not_null(info)
 	BootstrapCore._build_info = info
 	await _boot()
