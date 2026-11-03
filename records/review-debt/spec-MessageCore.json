@@ -1,0 +1,24 @@
+{
+  "target": "spec MessageCore",
+  "nextId": 4,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/client-core/modules/message-core.md:87",
+      "problem": "Whether \"wording\" includes the extra text is not set, so the same-text check and the empty-wording check of `show_toast` can differ per implementation. Line 33 and the test at line 160 treat the extra text as separate from the wording (\"appended after the wording\", \"the wording, one line break, and the extra text joined\"), while line 64 describes appending it while making the wording. Input 1: two `[network_error_rate_limited]` toasts from different requests in an environment with DEV code, where `skills/client-core/modules/network-core.md:130` appends the request name as diagnostic wording. Comparing with the extra text shows both, comparing without it ignores the second. Input 2: a missing key in a STG build (`get_text` is an empty string) with extra text. Line 120 ignores the request when the empty check excludes the extra text, and shows it when the check includes the extra text",
+      "foundBy": "spec MessageCore"
+    },
+    {
+      "id": "D2",
+      "location": "skills/client-core/modules/message-core.md:121",
+      "problem": "The `error` log of \"toast object cannot be borrowed\", and of a borrowed toast object destroyed outside at line 122, logs a failure that another module already logged, against \"Failures of the same cause are logged only once\" of `skills/core/SKILL.md:104` and \"one error log per failure\" of the test at line 169. Every `borrow` failure that applies to a non-owner-bound borrow of the global scope pool is already logged by `PoolCore` or `ResourceCore` (`skills/client-core/modules/pool-core.md:125-127`), and `skills/client-core/modules/pool-core.md:133` logs a pool object destroyed outside PoolCore. Run path: `borrow` of the toast prefab returns an empty handle after `PoolCore` logged the failure, MessageCore then logs its own `error`, and the failure has two error logs. Line 123 uses \"`InputBlockCore` writes it\" for the same situation with a block",
+      "foundBy": "spec MessageCore"
+    },
+    {
+      "id": "D3",
+      "location": "skills/client-core/modules/message-core.md:71",
+      "problem": "\"resets the tween properties to the prefab's values\" sets no values for a screen made by code, which has no prefab (lines 52 and 80), although the tween preset keys of lines 133-136 apply whichever resource key is used. Run path: `MessageCore.toastResource` is an empty string, and `MessageCore.toastExitTween` is a preset that changes `Opacity` to 0. The second toast on the reused object is visible when the values are restored to those at creation, and stays invisible when an implementation resets nothing because there is no prefab. The test at line 156 covers only the prefab, and the test at line 170 does not set an exit tween",
+      "foundBy": "spec MessageCore"
+    }
+  ]
+}
