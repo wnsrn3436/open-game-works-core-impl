@@ -40,6 +40,13 @@ func join_match_then_create_other_room(mode_id: int) -> void:
 	_finish()
 
 
+## Calls `leave_room` inside the continuation of the `join_match` result.
+func join_match_then_leave_room(mode_id: int) -> void:
+	join_result = await RealtimeCore.join_match(mode_id)
+	RealtimeCore.leave_room()
+	_finish()
+
+
 ## Inside the continuation of the `join_match` result, starts a `create_room`, ends its wait with `leave_room` and calls
 ## `create_room` again.
 func join_match_then_recreate_room(mode_id: int) -> void:
