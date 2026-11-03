@@ -1,0 +1,13 @@
+{
+  "target": "RealtimeCore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "M1",
+      "severity": "high",
+      "location": "client/godot/core/realtime_core/realtime_core.gd:1050",
+      "problem": "The pending `join_match` of a room host never ends after a member leaves or is kicked while the room is `Matching`. Server `leave_room` removes the party entry and sends `ROOM_STATE`(`Open`) (`server/core/matchmaker/realtime.ts:283`, `open-game-works-core/skills/server-core/modules/matchmaker.md` row `ROOM_LEAVE`, and `ROOM_KICK` is handled the same), so no `MATCH_FOUND` or `MATCH_FAILED` follows. `_on_room_updated` handles `Open` in `Matching` only when `_origin` is `ROOM_MEMBER`, and `Matching` has no time limit, so with `_origin` `ROOM_HOST` the state stays `Matching` until `leave` or the background time limit, and a further `join_match` fails with a warn log. Run path: host `create_room`, a member joins, host `join_match`, the member calls `leave_room`, the host receives room updated with `Open`. `open-game-works-core/skills/client-core/modules/realtime-core.md:183` defines this handling only for a non-host member, so the fix needs a spec change, and no test in `client/godot/core/realtime_core/tests/test_room.gd` pushes `Open` to a host in `Matching`",
+      "foundBy": "RealtimeCore round 1"
+    }
+  ]
+}

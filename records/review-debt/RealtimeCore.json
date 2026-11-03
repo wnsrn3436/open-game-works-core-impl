@@ -1,0 +1,18 @@
+{
+  "target": "RealtimeCore",
+  "nextId": 3,
+  "items": [
+    {
+      "id": "D1",
+      "location": "client/godot/core/realtime_core/p2p_realtime_transport.gd:485",
+      "problem": "A P2P connection that became lost outside `_PEER.poll` raises no peer lost, which differs from `open-game-works-core/skills/client-core/modules/realtime-core.md:97` (`connect_peer` failed). `_start_peer` (line 441) and `_PEER.apply` (`client/godot/core/realtime_core/p2p_peer.gd:70`, `set_remote_description` not `OK`) set `Status.LOST` before `_poll_peer` reads `before`, so `peer.status != before` is false in every later poll, and the object stays in `_peers`. In `Connecting` there is no retry and the match fails at the connect time limit. When an offer with a larger number whose SDP is refused replaces a connected connection, the participant stays `Connected` with no reconnection or `PeerLeftEvent`, and each `send` to that participant is `false` without log",
+      "foundBy": "RealtimeCore round 1"
+    },
+    {
+      "id": "D2",
+      "location": "client/godot/core/realtime_core/p2p_realtime_transport.gd:569",
+      "problem": "No time limit covers a connection that replaces a connected connection. After `PEER_REJOINED`, the offering side drops the connected connection and starts a new one with `replaces_connected`, and the participant stays `Connected` as `open-game-works-core/skills/client-core/modules/realtime-core.md:126` and `:129` require. `_check_time_limits` (`client/godot/core/realtime_core/realtime_core.gd:524`) measures only `Connecting` and `Disconnected`, and server `PEER_LEFT` does not change participant state. Run path: index 1 rejoins and ends before it answers the new offer; index 0 then has `peer_state`(1) `Connected`, each `send` to it is `false`, and no `PeerDisconnectedEvent` or `PeerLeftEvent` comes unless WebRTC itself reports a failure. The duration is not set by the spec, so the fix needs a spec change",
+      "foundBy": "RealtimeCore round 1"
+    }
+  ]
+}
