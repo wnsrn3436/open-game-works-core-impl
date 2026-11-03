@@ -1,6 +1,6 @@
 {
   "target": "spec QACore",
-  "nextId": 3,
+  "nextId": 4,
   "items": [
     {
       "id": "D1",
@@ -12,6 +12,12 @@
       "id": "D2",
       "location": "skills/client-core/modules/qa-core.md:151",
       "problem": "The contrast condition measures text that another UI element fully covers, when no dim is above it. It skips only `dimmed`, and has no condition for `modal_covered` or for being drawn under another element. The UI properties default to modal on and dim off (ui-core.md:128), and `SceneUI` stays drawn under a panel, so `SceneUI` or panel text under an opaque panel or popup with dim off is measured on the pixels of the element on top. On a uniform plate, the median and the 99.9th percentile luminance are equal, the ratio is 1, it is under `minContrast` (schema default 3), and the UI quality check fails for text the player cannot see. This existed before the range; the same spec line now excludes only the dimmed case of it.",
+      "foundBy": "spec QACore"
+    },
+    {
+      "id": "D3",
+      "location": "skills/client-core/modules/qa-core.md:128",
+      "problem": "The `ok` of a cheat command when its request fails is not set, and this gap existed before the diff. `set_server_time_offset`, `set_user_state`, `set_item_balance`, `delete_user_state`, `set_mission_progress` and `set_reset_counter` (qa-core.md:83-88) and the cheat rule at qa-core.md:128 say only that the command sends with `NetworkCore.send_cheat` and passes no callbacks, and that a failed request goes through the `Interaction` default handling. `send_cheat` returns a success flag (network-core.md:233), but no text ties it to `ok`, while `set_language` (qa-core.md:82) and `go_to_scene`, `open_panel`, `drop_peer`, `drop_matchmaker` (qa-core.md:340) do state this. The `## error` table (qa-core.md:261-272) has no row for it, and the `## test` item at qa-core.md:343-344 goes through no failed request. Run path: `set_mission_progress` with progress over `target` gets `INVALID_REQUEST` (skills/server-core/modules/mission.md:171); one implementation returns `ok` = `true` because the request was sent, another returns `ok` = `false` from the success flag, so a bot playtest setup step passes or fails per implementation",
       "foundBy": "spec QACore"
     }
   ]
