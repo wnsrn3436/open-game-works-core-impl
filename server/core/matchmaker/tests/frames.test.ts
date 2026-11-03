@@ -215,6 +215,7 @@ function base_settings(overrides: Record<string, unknown>): Record<string, unkno
     'matchmaker.helloTimeoutMs': 10000,
     'matchmaker.roomCodeAlphabet': 'ABC',
     'matchmaker.roomCodeLength': 6,
+    'matchmaker.roomCodeMaxPicks': 100,
     'matchmaker.lockstepMaxDurationMs': 3600000,
     ...overrides,
   };

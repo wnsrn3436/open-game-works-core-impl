@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import * as testing from '../../testing/dev/index.ts';
 import { admin, codes_of, coupon_body, create, gem, gold, item_id, start, type TestServer } from './helpers.ts';
 
@@ -15,6 +16,9 @@ afterEach(async () => {
 });
 
 const CODE = /^[A-Z0-9]+$/;
+const SETTINGS_FOLDER = new URL('../../../../settings/', import.meta.url);
+const CORE_SETTINGS = JSON.parse(readFileSync(new URL('core-settings.json', SETTINGS_FOLDER), 'utf8')) as Record<string, unknown>;
+const SCHEMA = JSON.parse(readFileSync(new URL('core-settings.schema.json', SETTINGS_FOLDER), 'utf8')) as { properties: Record<string, { minimum?: number }> };
 
 describe('coupon admin operations', () => {
   it('makes count different unique codes and list_coupon_codes returns them all in byte order', async () => {
@@ -66,6 +70,22 @@ describe('coupon admin operations', () => {
     // A and B are every code these settings allow: neither has a code row.
     for (const code of ['A', 'B']) expect((await admin(s, 'get_coupon', { code })).status).toBe(404);
   }, 10_000);
+
+  it('gives up on one unique code after coupon.maxCodePicks picks', async () => {
+    // Alphabet AB and length 4 make 16 codes. One pick per code makes all 16 differ only about once in a million runs.
+    const code_space = { 'coupon.codeAlphabet': 'AB', 'coupon.minCodeLength': 4, 'coupon.generatedCodeLength': 4 };
+    const one = await server({ ...code_space, 'coupon.maxCodePicks': 1 });
+    const refused = await admin(one, 'create_coupon', coupon_body({ kind: 'unique', count: 16 }));
+    expect(refused.status).toBe(409);
+    expect(refused.json['error']).toBe('conflict');
+    const many = await server({ ...code_space, 'coupon.maxCodePicks': 1_000 });
+    expect(await codes_of(many, await create(many, { kind: 'unique', count: 16 }))).toHaveLength(16);
+  }, 10_000);
+
+  it('gives coupon.maxCodePicks the minimum 1 in core-settings.schema.json and the default 100', () => {
+    expect(SCHEMA.properties['coupon.maxCodePicks']?.minimum).toBe(1);
+    expect(CORE_SETTINGS['coupon.maxCodePicks']).toBe(100);
+  });
 
   it('ends a unique create_coupon with conflict when stored codes take the whole code space, writing nothing', async () => {
     const s = await server({ 'coupon.codeAlphabet': 'AB', 'coupon.minCodeLength': 1, 'coupon.generatedCodeLength': 1 });

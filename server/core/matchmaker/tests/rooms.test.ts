@@ -1,4 +1,5 @@
 /** `### room` and party handling through `/realtime`. */
+import { readFileSync } from 'node:fs';
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import { read_logs, send, type TestSession } from '../../testing/dev/index.ts';
 import {
@@ -48,6 +49,9 @@ const ROOM_TEAMS = mode(7305, { max_players: 4, min_players: 4, team_size: 2, ma
 
 const MODES = [ROOM4, PARTY2, BOTH, QUEUE1, ROOM_TEAMS];
 const RoomStatus = CoreContract.RoomStatus;
+const SETTINGS_FOLDER = new URL('../../../../settings/', import.meta.url);
+const CORE_SETTINGS = JSON.parse(readFileSync(new URL('core-settings.json', SETTINGS_FOLDER), 'utf8')) as Record<string, unknown>;
+const SCHEMA = JSON.parse(readFileSync(new URL('core-settings.schema.json', SETTINGS_FOLDER), 'utf8')) as { properties: Record<string, { minimum?: number }> };
 
 afterEach(async () => {
   await stop_all();
@@ -121,6 +125,29 @@ describe('rooms', () => {
     const joined = await join(code, guest);
     expect(joined.find((f) => f.kind === K.MATCHMAKER_FRAME_KIND_ROOM_STATE)?.room_members).toEqual([host.user_id, guest.user_id]);
     expect((await last_state(host))?.room_members).toEqual([host.user_id, guest.user_id]);
+  });
+
+  it('gives up on a room code after matchmaker.roomCodeMaxPicks picks', async () => {
+    // Alphabet AB and length 4 make 16 codes. One pick per room gives 16 rooms different codes only about once in a million runs.
+    const code_space = { 'matchmaker.roomCodeAlphabet': 'AB', 'matchmaker.roomCodeLength': 4 };
+    const one = await harness({ modes: MODES, settings: { ...code_space, 'matchmaker.roomCodeMaxPicks': 1 } });
+    const refused: [number, number][] = [];
+    for (let room = 0; room < 16 && refused.length === 0; room += 1) {
+      const m = await member(one);
+      refused.push(...failures(await send_and_wait(m.conn, frame(K.MATCHMAKER_FRAME_KIND_ROOM_CREATE, (f) => {
+        f.mode_id = ROOM4.id;
+      }))));
+    }
+    expect(refused).toEqual([[CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_ROOM_CREATE]]);
+    const many = await harness({ modes: MODES, settings: { ...code_space, 'matchmaker.roomCodeMaxPicks': 1_000 } });
+    const codes = new Set<string>();
+    for (let room = 0; room < 16; room += 1) codes.add((await create(many, ROOM4.id)).code);
+    expect(codes.size).toBe(16);
+  }, 30_000);
+
+  it('gives matchmaker.roomCodeMaxPicks the minimum 1 in core-settings.schema.json and the default 100', () => {
+    expect(SCHEMA.properties['matchmaker.roomCodeMaxPicks']?.minimum).toBe(1);
+    expect(CORE_SETTINGS['matchmaker.roomCodeMaxPicks']).toBe(100);
   });
 
   it('answers the second ROOM_CREATE with ROOM_FAILED ROOM_BUSY ROOM_CREATE when roomCodeAlphabet is A and roomCodeLength is 1, keeps one room, and goes on handling frames', async () => {

@@ -45,6 +45,7 @@ export interface MatchmakerSettings {
   readonly hello_timeout_ms: bigint;
   readonly room_code_alphabet: string;
   readonly room_code_length: number;
+  readonly room_code_max_picks: number;
   readonly lockstep_max_duration_ms: bigint;
 }
 
@@ -82,6 +83,7 @@ export function read_settings(settings: Readonly<Record<string, unknown>>): Matc
     hello_timeout_ms: ms('matchmaker.helloTimeoutMs'),
     room_code_alphabet: text(settings, 'matchmaker.roomCodeAlphabet'),
     room_code_length: integer(settings, 'matchmaker.roomCodeLength'),
+    room_code_max_picks: integer(settings, 'matchmaker.roomCodeMaxPicks'),
     lockstep_max_duration_ms: ms('matchmaker.lockstepMaxDurationMs'),
   };
 }

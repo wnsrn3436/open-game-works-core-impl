@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import type { RoutingInput } from '../routing_module.ts';
 import { create_routing } from '../routing_module.ts';
 
@@ -40,6 +41,11 @@ function sweep_job(failed: readonly { table: string; code: string }[], user_chan
 }
 
 describe('job storage_sweep', () => {
+  it('gives routing.storageSweepIntervalMs the minimum 1 in core-settings.schema.json', () => {
+    const schema = JSON.parse(readFileSync(new URL('../../../../settings/core-settings.schema.json', import.meta.url), 'utf8')) as { properties: Record<string, { minimum?: number }> };
+    expect(schema.properties['routing.storageSweepIntervalMs']?.minimum).toBe(1);
+  });
+
   it('leaves one error log per table of the failed table list of sweep_expired, with its table name and DB error code, and calls run_user_changes', async () => {
     const sweep = sweep_job([
       { table: 'item_ledger_history', code: '57014' },

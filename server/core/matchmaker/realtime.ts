@@ -39,8 +39,6 @@ export interface Realtime {
 const DATA_VERSION = /^[0-9a-f]{64}-[0-9a-f]{64}$/;
 const APP_VERSION = /^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/;
 const WINDOW_MS = 1000n;
-/** Room code draws before a `ROOM_CREATE` is `ROOM_BUSY` (`### room`). */
-const ROOM_CODE_DRAWS = 100;
 /** The WebSocket close code after `CLOSE`; its reason is the `CLOSE` code. */
 const CLOSE_WITH_CODE = 4000;
 
@@ -291,10 +289,10 @@ export function create_realtime(env: Env, results: Results): Realtime {
     else send_room_state(room);
   };
 
-  /** A room code no room has, or null when all `ROOM_CODE_DRAWS` draws collide. */
+  /** A room code no room has, or null when all `matchmaker.roomCodeMaxPicks` picks collide. */
   const new_room_code = (): string | null => {
     const alphabet = settings.room_code_alphabet;
-    for (let draw = 0; draw < ROOM_CODE_DRAWS; draw += 1) {
+    for (let pick = 0; pick < settings.room_code_max_picks; pick += 1) {
       let code = '';
       for (let i = 0; i < settings.room_code_length; i += 1) code += alphabet[randomInt(alphabet.length)] ?? '';
       if (!rooms.has(code)) return code;
