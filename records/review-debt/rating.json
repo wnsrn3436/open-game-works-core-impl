@@ -1,0 +1,24 @@
+{
+  "target": "rating",
+  "nextId": 4,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/rating/index.ts:224",
+      "problem": "`test evidence` No core test goes through the `ALREADY_SENT` counts as success rule of `rating` `### season settle`. `server/core/rating/tests/` has no `ALREADY_SENT` case, and every test mail there is the first send of its `once_key`. In a temporary copy, line 224 was changed to accept only `OK` and `ALREADY_SENT` was made to throw; all 28 `rating` tests still passed. Reproducing input for the missing test: send a mail with `once_key` `rating:<rule ID value>:<past season>` first, advance the season with `ranking.close_season_now`, then send `RefreshRating`. It must succeed and write the settled row. This path was not changed in the range",
+      "foundBy": "rating round 1"
+    },
+    {
+      "id": "D2",
+      "location": "server/core/rating/index.ts:225",
+      "problem": "`test evidence` No core test goes through the row of `rating` `## error` \"`INVALID_INPUT` from season reward `send_mail` | throw | `INTERNAL`\". In the same temporary copy, `INVALID_INPUT` was made to return without a throw, so settle is written and the reward is lost; all 28 `rating` tests still passed. Reproducing path for the missing test: make `mailbox.send_mail` return `INVALID_INPUT` during `RefreshRating` after a season change. The response must be `INTERNAL` and the row must stay unsettled. This path was not changed in the range",
+      "foundBy": "rating round 1"
+    },
+    {
+      "id": "D3",
+      "location": "server/core/rating/index.ts:195",
+      "problem": "`test evidence` No core test goes through the row of `rating` `## error` \"failure of `validation.apply_permille` in step 2 of season settle | throw | `INTERNAL`\". In the same temporary copy, the `!scaled.success` throw was removed, so settle uses a scaled value of 0; all 28 `rating` tests still passed. Reproducing input for the missing test: `set_rating` of 2^60 on `[rating_rule_basic]`, advance the season, then `RefreshRating`. `value × permille` is then outside int64, and the response must be `INTERNAL` with the row unchanged. This path was not changed in the range",
+      "foundBy": "rating round 1"
+    }
+  ]
+}
