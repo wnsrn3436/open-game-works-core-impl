@@ -1,6 +1,6 @@
 {
   "target": "BootstrapCore",
-  "nextId": 5,
+  "nextId": 6,
   "items": [
     {
       "id": "D2",
@@ -18,6 +18,12 @@
       "id": "D4",
       "location": "client/godot/core/bootstrap_core/tests/test_boot_exit.gd:76",
       "problem": "`open-game-works-core/skills/client-core/modules/bootstrap-core.md:266` requires that `content_release` is not called on a restart or app exit during `Update` and on a `shutdown` before `ContentInit`, and no test covers these three cases. The tests assert `release_count` 0 only for an update reboot (`tests/test_boot_restart.gd:156`), a restart in `TitleScene` (`tests/test_boot_restart.gd:171`) and an exit in `TitleScene` (`tests/test_boot_exit.gd:85`). No test halts in `BootStage.UPDATE`, and no test that calls `shutdown` before `ContentInit` asserts `content_release`. By reading, the implementation guard `_content_inited` (`client/godot/core/bootstrap_core/bootstrap_core.gd`, `_reverse_release` and `_shutdown`) gives the required result, so this is a missing test and not a wrong result. This is not caused by the commit range.",
+      "foundBy": "BootstrapCore round 1"
+    },
+    {
+      "id": "D5",
+      "location": "client/godot/core/bootstrap_core/bootstrap_core.gd:449",
+      "problem": "The `TitleScene` behavior \"On success, destroys the boot entry scene\" of the spec table has no test. `_boot_entry_scene` is set only in the `modules.is_empty()` branch of `start_boot` (bootstrap_core.gd:161-164), every `start_boot` call in client/godot/core/bootstrap_core/tests passes a module list, and no test in that folder refers to the entry scene (a search for `entry scene`, `entry_scene` and `queue_free` has no match). Removing the `queue_free` at line 450 would therefore fail no BootstrapCore test (read from the code, not run). This predates the range: the range changes only the type declarations of two test variables.",
       "foundBy": "BootstrapCore round 1"
     }
   ]
