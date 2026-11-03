@@ -38,6 +38,20 @@ import {
   type Hooks,
 } from './helpers.ts';
 
+/** The limits of the `randomInt` calls, and the values the next calls give instead of random ones. */
+const random = vi.hoisted(() => ({ limits: [] as number[], next: [] as number[] }));
+
+vi.mock('node:crypto', async (import_original) => {
+  const crypto = await import_original<typeof import('node:crypto')>();
+  return {
+    ...crypto,
+    randomInt: (limit: number) => {
+      random.limits.push(limit);
+      return random.next.shift() ?? crypto.randomInt(limit);
+    },
+  };
+});
+
 /** Room-only: room capacity is max_players. */
 const ROOM4 = mode(7301, { max_players: 4, min_players: 2, allow_queue: false, allow_room: true, max_party_size: 1 });
 /** Queue with parties: room capacity is max_party_size. */
@@ -54,6 +68,7 @@ const CORE_SETTINGS = JSON.parse(readFileSync(new URL('core-settings.json', SETT
 const SCHEMA = JSON.parse(readFileSync(new URL('core-settings.schema.json', SETTINGS_FOLDER), 'utf8')) as { properties: Record<string, { minimum?: number }> };
 
 afterEach(async () => {
+  random.next.length = 0;
   await stop_all();
 });
 
@@ -127,23 +142,28 @@ describe('rooms', () => {
     expect((await last_state(host))?.room_members).toEqual([host.user_id, guest.user_id]);
   });
 
-  it('gives up on a room code after matchmaker.roomCodeMaxPicks picks', async () => {
-    // Alphabet AB and length 4 make 16 codes. One pick per room gives 16 rooms different codes only about once in a million runs.
-    const code_space = { 'matchmaker.roomCodeAlphabet': 'AB', 'matchmaker.roomCodeLength': 4 };
-    const one = await harness({ modes: MODES, settings: { ...code_space, 'matchmaker.roomCodeMaxPicks': 1 } });
-    const refused: [number, number][] = [];
-    for (let room = 0; room < 16 && refused.length === 0; room += 1) {
-      const m = await member(one);
-      refused.push(...failures(await send_and_wait(m.conn, frame(K.MATCHMAKER_FRAME_KIND_ROOM_CREATE, (f) => {
-        f.mode_id = ROOM4.id;
-      }))));
-    }
-    expect(refused).toEqual([[CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_ROOM_CREATE]]);
-    const many = await harness({ modes: MODES, settings: { ...code_space, 'matchmaker.roomCodeMaxPicks': 1_000 } });
-    const codes = new Set<string>();
-    for (let room = 0; room < 16; room += 1) codes.add((await create(many, ROOM4.id)).code);
-    expect(codes.size).toBe(16);
-  }, 30_000);
+  it('gives up on a room code after exactly matchmaker.roomCodeMaxPicks picks', async () => {
+    const h = await harness({ modes: MODES, settings: { 'matchmaker.roomCodeAlphabet': 'A', 'matchmaker.roomCodeLength': 1, 'matchmaker.roomCodeMaxPicks': 3 } });
+    await create(h, ROOM4.id);
+    const second = await member(h);
+    random.limits.length = 0;
+    const out = await send_and_wait(second.conn, frame(K.MATCHMAKER_FRAME_KIND_ROOM_CREATE, (f) => {
+      f.mode_id = ROOM4.id;
+    }));
+    expect(failures(out)).toEqual([[CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_ROOM_CREATE]]);
+    expect(random.limits).toEqual([1, 1, 1]);
+  });
+
+  it('picks a colliding room code again and takes a free code on the last of matchmaker.roomCodeMaxPicks picks', async () => {
+    const h = await harness({ modes: MODES, settings: { 'matchmaker.roomCodeAlphabet': 'AB', 'matchmaker.roomCodeLength': 1, 'matchmaker.roomCodeMaxPicks': 3 } });
+    random.next.push(0);
+    expect((await create(h, ROOM4.id)).code).toBe('A');
+    const second = await member(h);
+    random.limits.length = 0;
+    random.next.push(0, 0, 1);
+    expect((await create(h, ROOM4.id, second)).code).toBe('B');
+    expect(random.limits).toEqual([2, 2, 2]);
+  });
 
   it('gives matchmaker.roomCodeMaxPicks the minimum 1 in core-settings.schema.json and the default 100', () => {
     expect(SCHEMA.properties['matchmaker.roomCodeMaxPicks']?.minimum).toBe(1);
