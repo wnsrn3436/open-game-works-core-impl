@@ -1,6 +1,6 @@
 {
   "target": "RealtimeCore",
-  "nextId": 4,
+  "nextId": 5,
   "items": [
     {
       "id": "D1",
@@ -19,6 +19,12 @@
       "location": "client/godot/core/realtime_core/realtime_core.gd:1143",
       "problem": "A host in a room that reaches `RealtimeCore.backgroundTimeoutMs` in `Matching` leaves its party in the queue. `_fail_match` calls only `close`, as `open-game-works-core/skills/client-core/modules/realtime-core.md:148` and `:240` say, and `client/godot/core/realtime_core/p2p_realtime_transport.gd:122` sends nothing in a room with no match. Measured in a temporary copy, on this range and on `a0bf92c`: state `None`, `cancel_matching` count 0, `close` count 1. By reading the code, not run: the server keeps the party entry, so the next `join_match` of that host is `ROOM_BUSY` (`server/core/matchmaker/realtime.ts:571`) and a match found for that party is dropped. This range did not change it",
       "foundBy": "RealtimeCore round 4"
+    },
+    {
+      "id": "D4",
+      "location": "client/godot/core/realtime_core/realtime_core.gd:930",
+      "problem": "A matchmaker lost of the earlier connection ends a `create_room` that already opened a new connection, and nothing closes that connection, so the server keeps a room the client does not know. Reproduced with `RealtimeCore`, `p2p_realtime_transport.gd` and the test matchmaker: a solo `join_match` receives `MATCH_FAILED` and `CLOSE`(`MAINTENANCE`) in one `poll`, and its continuation calls `create_room`. `ROOM_CREATE` goes out on a second connection (accepted 2, closed 1), and `create_room` ends with `ok` `false` and code 3. The next `ROOM_STATE` is discarded and `room_info` stays empty. `leave_room` sends no `ROOM_LEAVE`, and a second `create_room` reuses that connection (`p2p_realtime_transport.gd:183`) and ends `false` on the `ROOM_BUSY` the probe sent. The real server's `ROOM_BUSY` was read at `server/core/matchmaker/realtime.ts:630`, not run. The whole run gives the same values with `realtime_core.gd` of `61bfa19`, so this range did not cause it; `test_room.gd:546` now holds the part in `RealtimeCore`. It answers the question in `## unverified` of `records/1793747414075-update-core-mw1awapne9bcf2.md`. The server stuck state needs a close code that still admits the new connection, such as `RATE_LIMITED` at `realtime.ts:795`, because `MAINTENANCE` and `BANNED` are refused at `HELLO` (`realtime.ts:399`, `:403`). It also needs the `CLOSE` frame read in the same `poll` as the earlier notice and a `create_room` or `join_room` called inside that `poll`",
+      "foundBy": "RealtimeCore round 8"
     }
   ]
 }
