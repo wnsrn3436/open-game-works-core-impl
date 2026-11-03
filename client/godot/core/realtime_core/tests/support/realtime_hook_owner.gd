@@ -12,6 +12,13 @@ func on_message(participant: int, channel: RealtimeCore.RealtimeChannel, bytes: 
 	messages.append("%d:%d:%s" % [participant, channel, bytes.hex_encode()])
 
 
+## Like `on_message`, and leaves the room on the first message in a room.
+func on_message_leaving_room(participant: int, channel: RealtimeCore.RealtimeChannel, bytes: PackedByteArray) -> void:
+	on_message(participant, channel, bytes)
+	if RealtimeCore.room_info().room_code != "":
+		RealtimeCore.leave_room()
+
+
 ## Like `on_message`, but stops on a GDScript runtime error, an out-of-bounds read, after keeping a message whose
 ## first byte is `THROW`.
 func on_message_throwing(participant: int, channel: RealtimeCore.RealtimeChannel, bytes: PackedByteArray) -> void:
