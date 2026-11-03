@@ -1,0 +1,12 @@
+{
+  "target": "routing",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/routing/start_parts.ts:196",
+      "problem": "`test evidence`: reading a secret from the host secret store (files `/run/secrets/<secret name>`, content without one trailing newline, `server-core` `server-image.md`, field `read_secret` of `server-core` `## module`) has no test. `HOST_SECRET_DIR` and `secret_reader` appear only in `start_parts.ts` and `server.ts`, and no test holds `run/secrets`. A run without `--secret-file`, such as the `--env STG` runs of `server/core/routing/tests/server-image.test.ts`, mounts no secret, so that branch can only return `null` there, and neither a value read from a file nor the removal of its trailing newline is exercised. This code is not in the commit range",
+      "foundBy": "routing round 1"
+    }
+  ]
+}
