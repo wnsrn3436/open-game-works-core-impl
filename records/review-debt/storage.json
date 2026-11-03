@@ -1,0 +1,12 @@
+{
+  "target": "storage",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/storage/rows.ts:116",
+      "problem": "`efficiency` the `scan_users` query of a batch step grows with the number of users above `cursor_user_id` that have no lower version row. `WHERE u.user_id > $1 ... EXISTS (... s.contract_version < $3) ... LIMIT $2` stops early only after finding `migration.batchSize` matches, and `user_state` and `server_state` have only the key `(user_id, kind, item_id)` (server/core/storage/schema.ts:212), so each visited user costs two scans of that user's rows. The step that finds no user, which every batch must run to become `DONE`, visits every remaining `user` row. The query runs on `read_db` from job `migration_batch` (server/core/migration/index.ts:358), and storage.md `### DB adapter` says query functions are synchronous and that an answer later than `storage.dbAnswerWaitMs` closes the connection and is a DB connection failure. The duration was not measured",
+      "foundBy": "migration round 1"
+    }
+  ]
+}
