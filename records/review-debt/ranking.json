@@ -1,0 +1,12 @@
+{
+  "target": "ranking",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/ranking/reward.ts:311",
+      "problem": "At the end of reward retry, `reward_retry` calls `finish_pass` without checking `is_stopped`. The only stop checks are after a retry row is handled (reward.ts:293, reward.ts:308), so when no retry row is due, nothing stops the transition. open-game-works-core/skills/server-core/modules/ranking.md:174 says that after `stop()` has started, the `Closed` and `Retrying` transitions of the end of reward retry are not done. Reproduced on SQLite in a temporary copy: a season is `Retrying` with one retry row whose `next_attempt_at` is in the future, `ranking.seasonCheckIntervalMs` is 1000, `stop()` begins inside the `take_lease` transaction (the same wrap of `storage.db` as server/core/ranking/tests/reward.test.ts:362), and the job runs at `NEXT_DAY` + 5000. The row then has `lease_until_at` 0, written by `finish_pass` after the stop. By reading the code, the same path changes the season to `Closed` when no retry rows are left (e.g. `remove_user` deleted the last one). `close_pass` has this check at reward.ts:275, and its test is reward.test.ts:362; reward retry has no test for this path",
+      "foundBy": "ranking round 1"
+    }
+  ]
+}
