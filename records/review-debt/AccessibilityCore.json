@@ -1,6 +1,6 @@
 {
   "target": "AccessibilityCore",
-  "nextId": 4,
+  "nextId": 5,
   "items": [
     {
       "id": "D1",
@@ -18,6 +18,12 @@
       "id": "D3",
       "location": "client/godot/core/accessibility_core/accessibility_core.gd:111",
       "problem": "`spec`. The `## error` row \"engine does not support a full-screen shader: applies no filter, warn once per `init`\" (`open-game-works-core/skills/client-core/modules/accessibility-core.md:104`) has no test. `get_current_rendering_method` and the warn message appear only in `accessibility_core.gd` (lines 108 and 111). The tests assert `warns()` only as 0, and no test makes the rendering method one outside `_SCREEN_SHADER_METHODS`, so removing the warn or the branch fails no test.",
+      "foundBy": "AccessibilityCore round 1"
+    },
+    {
+      "id": "D4",
+      "location": "client/godot/core/accessibility_core/accessibility_core.gd:117",
+      "problem": "`spec`. `## DEV` of `accessibility-core.md` says of `set_test_text_scale` \"On `release` it returns to the saved value\", but `release` does not touch the text scale, and `client/godot/core/accessibility_core/dev/accessibility_core_dev.gd:17` keeps no value to return to. Reproduced with a test in a temporary copy: `set_text_scale`(1250), `set_test_text_scale`(1500), `AccessibilityCore.release()`, then `LocalizationCore.get_text_scale()` is 1500, not 1250. The value stays until `LocalizationCore.release` (back to 1000) or the next `apply_saved_settings`. No core test checks this DEV behavior. The code has not changed in the commit range",
       "foundBy": "AccessibilityCore round 1"
     }
   ]
