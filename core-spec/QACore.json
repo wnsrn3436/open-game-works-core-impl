@@ -133,38 +133,8 @@
       "owner": "content"
     },
     {
-      "key": "AccessibilityCore.textScales",
-      "type": "array<integer>",
-      "source": "core",
-      "owner": "human"
-    },
-    {
       "key": "baseResolution",
       "type": "array<integer>",
-      "source": "game",
-      "owner": "none"
-    },
-    {
-      "key": "uiCheckScreens",
-      "type": "array<object>",
-      "source": "game",
-      "owner": "none"
-    },
-    {
-      "key": "gamepadSupported",
-      "type": "boolean",
-      "source": "game",
-      "owner": "none"
-    },
-    {
-      "key": "uiQuality",
-      "type": "object",
-      "source": "game",
-      "owner": "none"
-    },
-    {
-      "key": "supportedLanguages",
-      "type": "array<string>",
       "source": "game",
       "owner": "none"
     }

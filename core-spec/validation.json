@@ -8,14 +8,7 @@
   ],
   "optionalDependencies": [],
   "devDependencies": [],
-  "settings": [
-    {
-      "key": "supportedLanguages",
-      "type": "array<string>",
-      "source": "game",
-      "owner": "none"
-    }
-  ],
+  "settings": [],
   "settingsConstraints": [],
   "tables": [
     {
@@ -42,7 +35,9 @@
       ]
     }
   ],
-  "usedTables": [],
+  "usedTables": [
+    "requirement"
+  ],
   "enums": [
     {
       "type": "BannedWordMatch",

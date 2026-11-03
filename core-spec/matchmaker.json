@@ -140,6 +140,12 @@
       "owner": "content"
     },
     {
+      "key": "matchmaker.roomCodeMaxPicks",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
       "key": "matchmaker.lockstepMaxDurationMs",
       "type": "integer",
       "source": "core",

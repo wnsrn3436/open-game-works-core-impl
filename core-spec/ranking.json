@@ -93,12 +93,6 @@
       "type": "integer",
       "source": "core",
       "owner": "content"
-    },
-    {
-      "key": "dailyResetOffsetMs",
-      "type": "integer",
-      "source": "game",
-      "owner": "none"
     }
   ],
   "settingsConstraints": [],

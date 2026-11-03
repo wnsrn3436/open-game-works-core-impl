@@ -37,6 +37,12 @@
       "owner": "content"
     },
     {
+      "key": "coupon.maxCodePicks",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
       "key": "coupon.maxCodeInputBytes",
       "type": "integer",
       "source": "core",

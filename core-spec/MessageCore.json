@@ -103,7 +103,6 @@
       "name": "show_black_box",
       "inputs": [
         "translationKey",
-        "other",
         "other"
       ]
     },

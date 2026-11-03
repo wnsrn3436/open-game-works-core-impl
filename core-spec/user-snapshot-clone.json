@@ -47,12 +47,6 @@
       "type": "integer",
       "source": "core",
       "owner": "content"
-    },
-    {
-      "key": "admin-api.maxBodyBytes",
-      "type": "integer",
-      "source": "core",
-      "owner": "content"
     }
   ],
   "settingsConstraints": [],

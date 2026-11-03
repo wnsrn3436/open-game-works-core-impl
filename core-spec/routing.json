@@ -106,12 +106,6 @@
       "type": "integer",
       "source": "core",
       "owner": "content"
-    },
-    {
-      "key": "idempotency.responseRetentionMs",
-      "type": "integer",
-      "source": "core",
-      "owner": "content"
     }
   ],
   "settingsConstraints": [],
