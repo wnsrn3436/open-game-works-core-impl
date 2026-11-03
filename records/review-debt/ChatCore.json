@@ -1,5 +1,24 @@
 {
   "target": "ChatCore",
-  "nextId": 2,
-  "items": []
+  "nextId": 5,
+  "items": [
+    {
+      "id": "D2",
+      "location": "client/godot/core/chat_core/chat_core.gd:669",
+      "problem": "When a `Guild` poll on the way succeeds after a `load_older` of that channel ended with `GUILD_NOT_MEMBER` (`_check_not_member` at line 773 raises `w.epoch`), lines 669-671 set the next poll to `_failure_retry_ms`. `open-game-works-core/skills/client-core/modules/chat-core.md:87` sets `poll_after_ms` when the previous request succeeded. Run path: `watch_channel(GUILD, 0)`, poll pending, `load_older` gets `GUILD_NOT_MEMBER`, the poll response arrives with `poll_after_ms` smaller than `ChatCore.failureRetryMs`. The effect is only a later next request. This code is not in the commit range",
+      "foundBy": "ChatCore round 1"
+    },
+    {
+      "id": "D3",
+      "location": "client/godot/core/chat_core/chat_core.gd:854",
+      "problem": "The `w.busy` branch of `_on_sent` (`w.kick`, and lines 682-685 of `_send_poll`) has no test. `chat-core.md:106` requires the poll to go right after a send, and without this branch a message sent during a poll waits for the next `poll_after_ms`. In `client/godot/core/chat_core/tests/`, `test_send.gd` holds no response pending, and the only pending `GET_MESSAGES` that coexists with a send (`test_channel_poll.gd:162`) belongs to `load_older` and ends with `release` before a send result. Removing the branch fails no test by reading the tests; this was not run. This code is not in the commit range",
+      "foundBy": "ChatCore round 1"
+    },
+    {
+      "id": "D4",
+      "location": "client/godot/core/chat_core/chat_core.gd:773",
+      "problem": "`load_older` ending with `GUILD_NOT_MEMBER` has no test, and neither has the `epoch` branches that drop results after that reset (lines 669 and 768). `chat-core.md:93` applies to any request of a `Guild` channel, and the only test with that error is the poll in `client/godot/core/chat_core/tests/test_watch.gd:93`. Removing `_check_not_member` at line 773 fails no test by reading the tests; this was not run. This code is not in the commit range",
+      "foundBy": "ChatCore round 1"
+    }
+  ]
 }
