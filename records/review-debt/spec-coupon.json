@@ -1,0 +1,30 @@
+{
+  "target": "spec coupon",
+  "nextId": 5,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/server-core/modules/coupon.md:98",
+      "problem": "Step 8 leaves the `RedeemCoupon` `audit` line with `storage.after_commit`, but `skills/server-core/modules/storage.md:152` sets `on_commit` as the operation for logs left only for committed changes, `skills/server-core/modules/routing.md:72` says `stop()` discards `after_commit` functions, and `skills/server-core/modules/item-ledger.md:115` uses `on_commit` for its `audit` line. Run path: `RedeemCoupon` commits, `stop()` runs before the function is called, the reward stays and no `audit` line exists, against \"One `audit` log line\". The commit did not change this line.",
+      "foundBy": "spec coupon"
+    },
+    {
+      "id": "D2",
+      "location": "skills/server-core/modules/coupon.md:72",
+      "problem": "Whether `after_code` is normalized is not set. `skills/server-core/modules/coupon.md:72` compares \"that code\" in byte order, while `skills/server-core/modules/coupon.md:78` says comparison and input all use the normalized value, and `skills/server-core/modules/coupon.md:79` makes a format violation in admin operations `bad_request`, which `skills/server-core/modules/coupon.md:59` does not list for `list_coupon_codes`. Input: `after_code` `ab-cd` returns the codes after `ABCD` when normalized, and an empty list when compared raw, because lowercase `a` sorts after every stored code; `after_code` `É` is `bad_request` when normalized and an empty list when raw. The scope of normalization is not what the diff changed: the sentence \"Saving, comparison and input all use the normalized value\" is unchanged.",
+      "foundBy": "spec coupon"
+    },
+    {
+      "id": "D3",
+      "location": "skills/server-core/modules/coupon.md:65",
+      "problem": "A negative `max_uses` is not set. `max_uses` is `int32` (`skills/server-core/modules/coupon.md:70`) and the rule states only that 0 means no limit and that it is 0 for `unique`, while `extra_id` on `skills/server-core/modules/coupon.md:68` and `count` on `skills/server-core/modules/coupon.md:64` have lower bounds. Input: `create_coupon` `shared` with `max_uses` -1 is `bad_request` in one implementation, and in another it creates a coupon for which step 4 (`used_count` ≥ `max_uses`) is always `COUPON_USED_UP`.",
+      "foundBy": "spec coupon"
+    },
+    {
+      "id": "D4",
+      "location": "skills/server-core/modules/coupon.md:59",
+      "problem": "The output value of `redeemed_by` and `redeemed_at` in `list_coupon_codes` is not set for a code nobody redeemed or for the row of a `shared` coupon, whose `redeemed_by` is \"not used\" (`skills/server-core/modules/coupon.md:111`). `skills/server-core/modules/coupon.md:94` only says \"when `redeemed_by` is set\". Input: `list_coupon_codes` on a new `unique` coupon can return null or 0 in those fields. `skills/server-core/modules/admin-api.md:106` shows that admin output specs set this value (`withdrawn_at` is `null`).",
+      "foundBy": "spec coupon"
+    }
+  ]
+}
