@@ -187,7 +187,49 @@ func test_heading_text_style_elements_draw_with_the_heading_font_and_release_put
 	var theme: Theme = ThemeDB.get_default_theme()
 	var types: Array[StringName] = [&"HeadingLabel", &"HeadingButton", &"HeadingRichTextLabel"]
 	for type: StringName in types:
-		assert_false(theme.get_type_list().has(type))
+		assert_eq(theme.get_type_variation_base(type), &"")
+		assert_true(theme.get_font_list(type).is_empty())
+
+
+func test_a_style_the_theme_bases_on_a_heading_type_draws_with_the_heading_font_after_a_restart() -> void:
+	assert_true(UnitTestCore.set_test_settings(_HEADING_WEIGHT, 800))
+	var theme: Theme = ThemeDB.get_default_theme()
+	# The theme declares the styles and not the heading types they are based on, like a theme of content code.
+	var bases: Dictionary[StringName, StringName] = {
+		&"ScoreLabel": &"HeadingLabel",
+		&"ScoreButton": &"HeadingButton",
+		&"ScoreRichTextLabel": &"HeadingRichTextLabel",
+	}
+	for style: StringName in bases:
+		theme.set_type_variation(style, bases[style])
+	theme.set_font_size(&"font_size", &"ScoreLabel", 76)
+	var label: Label = _label(&"ScoreLabel")
+	var button: Button = Button.new()
+	button.theme_type_variation = &"ScoreButton"
+	add_child_autofree(button)
+	var rich: RichTextLabel = RichTextLabel.new()
+	rich.theme_type_variation = &"ScoreRichTextLabel"
+	add_child_autofree(rich)
+	var resources: Dictionary[String, String] = _resources(_SUPPORT.WEIGHT_AXIS_FONT, _SUPPORT.NO_WEIGHT_AXIS_FONT)
+	assert_eq(await _SUPPORT.start_language("zh-TW", resources), _SUPPORT.language_id("[lang_zh_tw]"))
+	assert_true(await LocalizationCore.load_fonts())
+	LocalizationCore.release()
+	for style: StringName in bases:
+		assert_eq(theme.get_type_variation_base(style), bases[style])
+	assert_true(await _SUPPORT.restart(resources))
+	LocalizationCoreDev.set_test_device_language("zh-TW")
+	assert_eq(LocalizationCore.resolve_language(), _SUPPORT.language_id("[lang_zh_tw]"))
+	assert_true(await LocalizationCore.load_fonts())
+	var fonts: Array[Font] = [_loaded_font(_SUPPORT.FONT_CJK), _loaded_font(_SUPPORT.FONT_MAIN)]
+	var drawn: Array[Font] = [label.get_theme_font("font"), button.get_theme_font("font"),
+		rich.get_theme_font("normal_font")]
+	for font: Font in drawn:
+		_assert_chain(font, fonts, PackedInt32Array([800, _UNWEIGHTED]))
+		assert_almost_eq(_width(font, "A"), 92.0, 1.0)
+	assert_eq(label.get_theme_font_size("font_size"), 76)
+	LocalizationCore.release()
+	for style: StringName in bases:
+		theme.remove_type(style)
 
 
 func test_release_gives_a_heading_type_the_theme_had_its_base_and_font_back() -> void:
@@ -276,7 +318,7 @@ func test_second_load_fonts_applies_the_weights_again() -> void:
 	_assert_chain(body, fonts, PackedInt32Array([600]))
 	assert_almost_eq(_width(body, "A"), 76.0, 1.0)
 	LocalizationCore.release()
-	assert_false(ThemeDB.get_default_theme().get_type_list().has(&"HeadingLabel"))
+	assert_eq(ThemeDB.get_default_theme().get_type_variation_base(&"HeadingLabel"), &"")
 
 
 func test_a_system_font_without_a_system_font_in_the_browser_runtime_has_no_axis_and_no_engine_error() -> void:
