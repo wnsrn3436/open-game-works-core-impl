@@ -258,6 +258,61 @@ func test_host_join_match_cancels_on_an_open_room_after_a_member_left() -> void:
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.MATCHING)
 
 
+func test_host_join_match_fails_with_timeout_when_the_open_room_follows_match_failed() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([USER_ID, OTHER_ID]))
+	var op: RealtimeAsyncCall = await start_join()
+	push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames()
+	push_match_failed(CoreContract.MatchFailReason.MATCH_FAIL_REASON_TIMEOUT, 0)
+	push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN))
+	await frames()
+	await op.wait()
+	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.FAILED)
+	assert_eq(op.join_result.fail_reason, CoreContract.MatchFailReason.MATCH_FAIL_REASON_TIMEOUT)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	assert_eq(RealtimeCore.room_info().room_code, ROOM_CODE)
+
+
+func test_member_wait_match_fails_with_timeout_when_the_open_room_follows_match_failed() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([OTHER_ID, USER_ID]))
+	push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames()
+	var op: RealtimeAsyncCall = RealtimeAsyncCall.new()
+	op.wait_match()
+	push_match_failed(CoreContract.MatchFailReason.MATCH_FAIL_REASON_TIMEOUT, 0)
+	push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN))
+	await frames()
+	await op.wait()
+	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.FAILED)
+	assert_eq(op.join_result.fail_reason, CoreContract.MatchFailReason.MATCH_FAIL_REASON_TIMEOUT)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+
+
+func test_host_join_match_takes_match_found_when_a_member_left_while_the_match_is_created() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([USER_ID, OTHER_ID]))
+	var op: RealtimeAsyncCall = await start_join()
+	push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames()
+	# The server keeps the room `Matching` until after match found, with the member gone from the list.
+	push_room_updated(make_room(PackedInt64Array([USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames()
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.MATCHING)
+	push_match_found(make_info())
+	push_room_updated(make_room(PackedInt64Array([USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN))
+	await frames()
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.CONNECTING)
+	assert_false(op.done, "join_match waits for the peers")
+	push_peer_connected(1)
+	await frames()
+	await op.wait()
+	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.SUCCESS)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.PLAYING)
+	assert_eq(warn_logs(), 0)
+
+
 func test_host_start_room_stays_matching_on_an_open_room() -> void:
 	await start_realtime()
 	await reach_room(PackedInt64Array([USER_ID, OTHER_ID]))
