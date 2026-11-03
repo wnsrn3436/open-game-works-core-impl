@@ -226,7 +226,8 @@ func test_a_style_the_theme_bases_on_a_heading_type_draws_with_the_heading_font_
 	for font: Font in drawn:
 		_assert_chain(font, fonts, PackedInt32Array([800, _UNWEIGHTED]))
 		assert_almost_eq(_width(font, "A"), 92.0, 1.0)
-	assert_eq(label.get_theme_font_size("font_size"), 76)
+	# A label made now has no font size override of the first `init`, so it reads the size of the style in the theme.
+	assert_eq(_label(&"ScoreLabel").get_theme_font_size("font_size"), 76)
 	LocalizationCore.release()
 	for style: StringName in bases:
 		theme.remove_type(style)
