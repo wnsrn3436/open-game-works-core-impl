@@ -319,6 +319,40 @@ describe('store transactions of another user', () => {
     expect((await list_payments(server, c.user_id)).payments).toHaveLength(1);
   });
 
+  it('a store transaction without an account token and without a binding is INVALID from a receipt that is not a device receipt, without a binding, and the device receipt then binds and grants', async () => {
+    const server = await start();
+    const a = await testing.login(server, 'a');
+    const b = await testing.login(server, 'b');
+    for (const [store, sku] of [[APPLE, 'gems_apple'], [GOOGLE, 'gems_google']] as const) {
+      const id = `dr-${String(store)}`;
+      const data = receipt(sku, id, '');
+      fake_store(server, store).set_result('verify', { result: 'VALID', test: false, device_receipt: false });
+      expect(status_of(await verify(a, store, data))).toBe(Status.PURCHASE_STATUS_INVALID);
+      expect(await balance(server, a.user_id)).toBe(0n);
+      expect(await exported_rows(server, a.user_id, BINDING)).toEqual([]);
+      fake_store(server, store).set_result('verify', { result: 'VALID', test: false, device_receipt: true });
+      expect(status_of(await verify(b, store, data))).toBe(Status.PURCHASE_STATUS_GRANTED);
+      expect((await exported_rows(server, b.user_id, BINDING)).map((r) => r['original_transaction_id'])).toContain(id);
+      expect((await payment(server, b.user_id, id))?.result).toBe('GRANTED');
+    }
+    expect(await balance(server, a.user_id)).toBe(0n);
+    expect(await balance(server, b.user_id)).toBe(200n);
+  });
+
+  it('a store transaction without an account token whose binding belongs to the sender goes on from a receipt that is not a device receipt; for another user it is OTHER_USER', async () => {
+    const server = await start({ settings: SOCIAL });
+    const a = await testing.login(server, 'a');
+    const b = await testing.login(server, 'b');
+    await link_social(a, 'a-link');
+    fake_store(server).set_result('verify', { result: 'VALID', test: false, device_receipt: true });
+    expect(status_of(await verify(a, APPLE, receipt('gems_apple', 'db-1', '')))).toBe(Status.PURCHASE_STATUS_GRANTED);
+    fake_store(server).set_result('verify', { result: 'VALID', test: false, device_receipt: false });
+    expect(status_of(await verify(b, APPLE, receipt('gems_apple', 'db-2', '', 'db-1')))).toBe(Status.PURCHASE_STATUS_OTHER_USER);
+    expect(status_of(await verify(a, APPLE, receipt('gems_apple', 'db-2', '', 'db-1')))).toBe(Status.PURCHASE_STATUS_GRANTED);
+    expect(await balance(server, a.user_id)).toBe(200n);
+    expect(await balance(server, b.user_id)).toBe(0n);
+  });
+
   it('a pending GOOGLE subscription without an account token, for which the store gives no purchase time, takes the request time: PENDING, and its original transaction ID is bound to the sender', async () => {
     const server = await start();
     const c = await testing.login(server, 'c');
