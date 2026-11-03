@@ -1,13 +1,5 @@
 {
   "target": "PaymentCore",
   "nextId": 2,
-  "items": [
-    {
-      "id": "M1",
-      "severity": "high",
-      "location": "client/godot/core/payment_core/adapters/plugin_store_adapter.gd:135",
-      "problem": "The native plugins of the real store adapter do not exist, so no real store purchase can run. `open-game-works-core/skills/client-core/engines/godot.md:47` and `:48` name `ogw-iap-apple` and `ogw-iap-google`, and `:55` puts their source in `client/godot/plugins/<plugin>/`. `git ls-files client/godot/plugins` has only `ogw-native-ui` and `ogw-secure-storage`, `git log --all -- 'client/godot/plugins/ogw-iap-*'` is empty, `plugins` of `client/godot/engine.json` has neither, and the 0.6.0 `client-godot-plugins.zip` has neither. Run path: with an adapter value other than `fake`, an STG or PROD build for `ios`, `macos` or `android` fails check `native plugin` (`open-game-works-core/tools/src/commands/build/lib/native-plugins.ts:28`). A DEV build that chooses that value has no singleton, so `_plugin()` is null, `connect_store` is `false`, `prepare` is `false` and `purchase` is `StoreFailed`. `client/godot/core/payment_core/tests/test_adapter.gd:6` asserts this path, and `tests/support/silent_store_plugin.gd` stands in for the plugin in the other adapter tests. This existed before the range. No record under `records/` says the plugins were deferred.",
-      "foundBy": "PaymentCore round 1"
-    }
-  ]
+  "items": []
 }
