@@ -1,6 +1,6 @@
 {
   "target": "coupon",
-  "nextId": 4,
+  "nextId": 6,
   "items": [
     {
       "id": "D1",
@@ -19,6 +19,18 @@
       "location": "server/core/coupon/index.ts:372",
       "problem": "When `storage.lock_game_row` is `FAILED` in step 4 (also line 375), `RedeemCoupon` returns `INTERNAL` and nothing leaves an `error` log. Run path: another transaction holds the row past `storage.userLockWaitMs`, `lock_row` in `server/core/storage/tx.ts:380` returns `FAILED` without a log, `check_use_limit` returns the number, and `finish` in `server/core/routing/pipeline.ts` only calls `fail` for a handler `CoreError`, which writes the `request` log line with `error_code` and no `error` log. `skills/core/SKILL.md` `## error handling` says the module that detects a failure leaves an error log, and `server/core/mailbox/index.ts:381` throws on the same failure instead of returning a value. `coupon.md` `## error` has no row for this condition. Read from code, not run.",
       "foundBy": "coupon round 1"
+    },
+    {
+      "id": "D4",
+      "location": "server/core/coupon/index.ts:469",
+      "problem": "`test evidence`. No coupon test fails when `codes.has(code)` is removed from the pick loop, so the rule of `coupon.md:80` against a code picked earlier in the same `create_coupon` is checked only within one lookup round. Run path: `new_codes` keeps accepted codes in `codes` and retries codes found stored in a later round, and `picked` is new each round. Run on a temporary clone with `} while (picked.has(code));`: all coupon test files pass on SQLite and PostgreSQL (`ogw core test server coupon`). A temporary scripted test with alphabet `ABC`, length 1, `coupon.maxCodePicks` 3, stored code `A`, `count` 2 and secure random values 0, 1, 1, 2 passes on the code as it is and fails with that defect on both databases: `expected [ 'B' ] to deeply equal [ 'B', 'C' ]`, so `create_coupon` succeeds with fewer than `count` codes. The test at `server/core/coupon/tests/admin.test.ts:117` covers only the same-round `picked.has(code)` branch. `new_codes` did not change in the range.",
+      "foundBy": "coupon round 2"
+    },
+    {
+      "id": "D5",
+      "location": "server/core/coupon/tests/admin.test.ts:145",
+      "problem": "Explicit 10 s limit, lower than the 60 s run default, the same cause as R1-2. It timed out on PostgreSQL under load in round 1, when it was at line 99, and is listed there as D2 of `records/review-debt/coupon.json`. It was read here and did not time out in this round's runs. It existed before the range.",
+      "foundBy": "coupon round 2"
     }
   ]
 }
