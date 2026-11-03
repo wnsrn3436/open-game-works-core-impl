@@ -1,6 +1,11 @@
 extends RealtimeTestCase
 ## Rooms: create and join, room failed routing, the host and the non-host member matches, kick, leave and release.
 
+const OTHER_ROOM_CODE: String = "ROOM77"
+
+## The `create_room` that `_leave_and_create_room_once` started.
+var _room_event_create: RealtimeAsyncCall = null
+
 
 func test_create_room_opens_the_room_and_takes_the_first_room_updated() -> void:
 	await start_realtime()
@@ -296,7 +301,7 @@ func test_member_wait_match_fails_with_timeout_when_the_open_room_follows_match_
 	assert_eq(events.lines, PackedStringArray(["room:UPDATED"]))
 
 
-func test_match_failed_drops_the_rest_of_the_poll_except_room_updated() -> void:
+func test_match_failed_discards_the_rest_of_the_poll_except_room_notifications() -> void:
 	await start_realtime()
 	await reach_room(PackedInt64Array([OTHER_ID, USER_ID]))
 	push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
@@ -304,17 +309,19 @@ func test_match_failed_drops_the_rest_of_the_poll_except_room_updated() -> void:
 	events.lines.clear()
 	push_match_failed(CoreContract.MatchFailReason.MATCH_FAIL_REASON_TIMEOUT, 0)
 	push_match_found(make_info(2, 1))
+	push_room_failed(CoreContract.CoreError.CORE_ERROR_ROOM_NOT_HOST, RealtimeCore.RoomRequest.KICK)
 	push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID, THIRD_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN))
-	push_room_kicked()
 	await frames()
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
 	assert_eq(RealtimeCore.room_info().room_code, ROOM_CODE)
 	assert_eq(RealtimeCore.room_info().members, PackedInt64Array([OTHER_ID, USER_ID, THIRD_ID]))
 	assert_eq(RealtimeCore.room_info().status, CoreContract.RoomStatus.ROOM_STATUS_OPEN)
 	assert_eq(events.lines, PackedStringArray(["room:UPDATED"]))
+	# One warn log for the match failed; a handled match found or room failed would add another.
+	assert_eq(warn_logs(), 1)
 
 
-func test_member_starts_matching_on_a_matching_room_that_follows_match_failed_in_one_poll() -> void:
+func test_room_kicked_after_match_failed_and_an_open_room_in_one_poll_empties_the_room() -> void:
 	await start_realtime()
 	await reach_room(PackedInt64Array([OTHER_ID, USER_ID]))
 	push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
@@ -322,11 +329,159 @@ func test_member_starts_matching_on_a_matching_room_that_follows_match_failed_in
 	events.lines.clear()
 	push_match_failed(CoreContract.MatchFailReason.MATCH_FAIL_REASON_TIMEOUT, 0)
 	push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN))
+	push_room_kicked()
+	await frames()
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	assert_eq(RealtimeCore.room_info().room_code, "")
+	assert_eq(events.lines, PackedStringArray(["room:UPDATED", "room:KICKED"]))
+
+
+func test_matchmaker_lost_after_match_failed_and_an_open_room_in_one_poll_empties_the_room() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([OTHER_ID, USER_ID]))
 	push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
 	await frames()
-	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.MATCHING)
+	events.lines.clear()
+	push_match_failed(CoreContract.MatchFailReason.MATCH_FAIL_REASON_TIMEOUT, 0)
+	push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN))
+	push_matchmaker_lost(CoreContract.CoreError.CORE_ERROR_MAINTENANCE)
+	await frames()
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	assert_eq(RealtimeCore.room_info().room_code, "")
+	assert_eq(events.lines, PackedStringArray(["room:UPDATED", "room:LOST"]))
+
+
+func test_member_reaches_connecting_on_a_matching_room_and_match_found_that_follow_match_failed_in_one_poll() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([OTHER_ID, USER_ID]))
+	push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames()
+	events.lines.clear()
+	transport.clear_calls()
+	push_match_failed(CoreContract.MatchFailReason.MATCH_FAIL_REASON_TIMEOUT, 0)
+	push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN))
+	push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	push_match_found(make_info(2, 1))
+	await frames()
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.CONNECTING)
 	assert_eq(RealtimeCore.room_info().status, CoreContract.RoomStatus.ROOM_STATUS_MATCHING)
 	assert_eq(events.lines, PackedStringArray(["room:UPDATED", "room:UPDATED", "room_match_started"]))
+	assert_eq(transport.count("connect_peer"), 1)
+	assert_eq(transport.count("cancel_matching"), 0)
+
+
+func test_leave_room_and_join_room_in_the_continuation_of_a_failed_join_match_discard_the_rest_of_the_poll() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([USER_ID, OTHER_ID]))
+	var op: RealtimeAsyncCall = RealtimeAsyncCall.new()
+	op.join_match_then_join_other_room(MODE_ID, OTHER_ROOM_CODE)
+	await frames()
+	push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames()
+	events.lines.clear()
+	transport.clear_calls()
+	push_match_failed(CoreContract.MatchFailReason.MATCH_FAIL_REASON_TIMEOUT, 0)
+	push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN))
+	await frames()
+	assert_eq(op.first_join_result.status, RealtimeCore.MatchJoinStatus.FAILED)
+	assert_eq(transport.count("open_room"), 1)
+	assert_false(op.done, "join_room waits for its own room updated")
+	assert_eq(RealtimeCore.room_info().room_code, "")
+	assert_eq(events.lines, PackedStringArray(["room:LEFT"]))
+	var own_room: RoomInfo = make_room(PackedInt64Array([THIRD_ID, USER_ID]))
+	own_room.room_code = OTHER_ROOM_CODE
+	push_room_updated(own_room)
+	await frames()
+	await op.wait()
+	assert_true(op.room_result.ok)
+	assert_eq(RealtimeCore.room_info().room_code, OTHER_ROOM_CODE)
+	assert_eq(events.lines, PackedStringArray(["room:LEFT", "room:UPDATED"]))
+
+
+func test_join_room_in_the_continuation_of_a_failed_join_match_takes_its_own_room_failed() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([USER_ID, OTHER_ID]))
+	var op: RealtimeAsyncCall = RealtimeAsyncCall.new()
+	op.join_match_then_join_other_room(MODE_ID, OTHER_ROOM_CODE)
+	await frames()
+	push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames()
+	push_match_failed(CoreContract.MatchFailReason.MATCH_FAIL_REASON_TIMEOUT, 0)
+	push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN))
+	await frames()
+	assert_false(op.done, "join_room waits for its own answer")
+	push_room_failed(CoreContract.CoreError.CORE_ERROR_ROOM_FULL, RealtimeCore.RoomRequest.OPEN)
+	await frames()
+	await op.wait()
+	assert_false(op.room_result.ok)
+	assert_eq(op.room_result.error_code, CoreContract.CoreError.CORE_ERROR_ROOM_FULL)
+	assert_eq(RealtimeCore.room_info().room_code, "")
+
+
+func test_leave_room_and_create_room_in_the_continuation_of_a_failed_join_match_discard_the_rest_of_the_poll() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([USER_ID, OTHER_ID]))
+	var op: RealtimeAsyncCall = RealtimeAsyncCall.new()
+	op.join_match_then_create_other_room(MODE_ID)
+	await frames()
+	push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames()
+	transport.clear_calls()
+	push_match_failed(CoreContract.MatchFailReason.MATCH_FAIL_REASON_TIMEOUT, 0)
+	push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN))
+	await frames()
+	assert_eq(transport.count("open_room"), 1)
+	assert_false(op.done, "create_room waits for its own room updated")
+	assert_eq(RealtimeCore.room_info().room_code, "")
+
+
+func test_leave_room_that_ends_a_waiting_create_room_inside_a_poll_discards_the_rest_of_the_poll() -> void:
+	await start_realtime()
+	var op: RealtimeAsyncCall = RealtimeAsyncCall.new()
+	op.join_match_then_recreate_room(MODE_ID)
+	await frames()
+	push_match_failed(CoreContract.MatchFailReason.MATCH_FAIL_REASON_TIMEOUT, 0)
+	push_room_updated(make_room(PackedInt64Array([USER_ID])))
+	await frames()
+	assert_eq(transport.count("leave_room"), 1)
+	assert_eq(transport.count("open_room"), 2)
+	assert_false(op.done, "create_room waits for its own room updated")
+	assert_eq(RealtimeCore.room_info().room_code, "")
+
+
+func test_leave_room_from_a_room_event_inside_a_poll_discards_the_rest_of_the_poll() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([USER_ID, OTHER_ID]))
+	assert_true(EventCore.subscribe(RoomChangedEvent, _leave_and_create_room_once))
+	events.lines.clear()
+	push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID, THIRD_ID])))
+	push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID])))
+	await frames()
+	assert_not_null(_room_event_create, "the subscriber ran")
+	assert_false(_room_event_create.done, "create_room waits for its own room updated")
+	assert_eq(RealtimeCore.room_info().room_code, "")
+	assert_eq(events.lines, PackedStringArray(["room:UPDATED", "room:LEFT"]))
+
+
+func test_host_in_none_cancels_the_entry_of_a_matching_room() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([USER_ID, OTHER_ID]))
+	var first: RealtimeAsyncCall = await start_join()
+	RealtimeCore.leave()
+	await first.wait()
+	assert_eq(first.join_result.status, RealtimeCore.MatchJoinStatus.CANCELLED)
+	var second: RealtimeAsyncCall = await start_join()
+	transport.clear_calls()
+	# The server answers the three frames in order, and `ROOM_STATE` does not say which entry it belongs to.
+	push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN))
+	push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames()
+	await second.wait()
+	assert_eq(second.join_result.status, RealtimeCore.MatchJoinStatus.CANCELLED)
+	assert_eq(transport.calls, PackedStringArray(["cancel_matching()"]))
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	assert_eq(RealtimeCore.room_info().status, CoreContract.RoomStatus.ROOM_STATUS_MATCHING)
 
 
 func test_host_retry_inside_the_continuation_of_the_failed_join_match_keeps_matching() -> void:
@@ -641,3 +796,11 @@ func test_token_expired_drops_the_matchmaker_lost_when_create_room_restarts_whil
 		RealtimeCore.leave_room()
 		await frames()
 		events.lines.clear()
+
+
+func _leave_and_create_room_once(_event: RoomChangedEvent) -> void:
+	if _room_event_create != null:
+		return
+	_room_event_create = RealtimeAsyncCall.new()
+	RealtimeCore.leave_room()
+	_room_event_create.create_room(MODE_ID)

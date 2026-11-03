@@ -24,6 +24,33 @@ func join_match_and_retry(mode_id: int) -> void:
 	_finish()
 
 
+## Calls `leave_room` and `join_room` inside the continuation of the `join_match` result.
+func join_match_then_join_other_room(mode_id: int, room_code: String) -> void:
+	first_join_result = await RealtimeCore.join_match(mode_id)
+	RealtimeCore.leave_room()
+	room_result = await RealtimeCore.join_room(room_code)
+	_finish()
+
+
+## Calls `leave_room` and `create_room` inside the continuation of the `join_match` result.
+func join_match_then_create_other_room(mode_id: int) -> void:
+	first_join_result = await RealtimeCore.join_match(mode_id)
+	RealtimeCore.leave_room()
+	room_result = await RealtimeCore.create_room(mode_id)
+	_finish()
+
+
+## Inside the continuation of the `join_match` result, starts a `create_room`, ends its wait with `leave_room` and calls
+## `create_room` again.
+func join_match_then_recreate_room(mode_id: int) -> void:
+	first_join_result = await RealtimeCore.join_match(mode_id)
+	var waiting: RealtimeAsyncCall = RealtimeAsyncCall.new()
+	waiting.create_room(mode_id)
+	RealtimeCore.leave_room()
+	room_result = await RealtimeCore.create_room(mode_id)
+	_finish()
+
+
 func rejoin_match(match_id: String) -> void:
 	join_result = await RealtimeCore.rejoin_match(match_id)
 	_finish()
