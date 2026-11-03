@@ -1,0 +1,18 @@
+{
+  "target": "spec logging",
+  "nextId": 3,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/server-core/modules/logging.md:229",
+      "problem": "`logging.securityRepeatWindowMs` is the period of job `logging_security_flush` and writes no range. Value 0 passes the 0 or more schema range and fails server start in `schedule_job` (skills/server-core/modules/server-time.md:90)",
+      "foundBy": "spec routing"
+    },
+    {
+      "id": "D2",
+      "location": "skills/server-core/modules/logging.md:241",
+      "problem": "`logging.analyticsDeletionIntervalMs` is the period of job `logging_analytics_deletion` and writes no range. Value 0 passes the 0 or more schema range and fails server start in `schedule_job` (skills/server-core/modules/server-time.md:90)",
+      "foundBy": "spec routing"
+    }
+  ]
+}

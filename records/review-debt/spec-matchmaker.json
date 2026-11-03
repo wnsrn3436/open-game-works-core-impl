@@ -1,6 +1,6 @@
 {
   "target": "spec matchmaker",
-  "nextId": 3,
+  "nextId": 5,
   "items": [
     {
       "id": "D1",
@@ -13,6 +13,18 @@
       "location": "skills/server-core/modules/matchmaker.md:326",
       "problem": "The failure value of `create_test_match` does not cover the game transaction that saves the match record. The cell lists only the two input throws, and the failure handling of step 1 of `### match creation` sends `MATCH_FAILED` to participants, which this operation does not have because it has no connections. So when that transaction is `FAILED`, throwing and returning `FAILED` both fit the spec, and `dev` of `routing` (skills/server-core/modules/routing.md:74) passes either result to the test differently.",
       "foundBy": "spec matchmaker"
+    },
+    {
+      "id": "D3",
+      "location": "skills/server-core/modules/matchmaker.md:260",
+      "problem": "`matchmaker.tickMs` is the period of job `matchmaker_tick` and writes no range. Value 0 passes the 0 or more schema range and fails server start in `schedule_job` on the server instance that received `--matchmaker` (skills/server-core/modules/server-time.md:90)",
+      "foundBy": "spec routing"
+    },
+    {
+      "id": "D4",
+      "location": "skills/server-core/modules/matchmaker.md:263",
+      "problem": "`matchmaker.sweepIntervalMs` is the period of job `matchmaker_sweep` and writes no range. Value 0 passes the 0 or more schema range and fails server start in `schedule_job` on the server instance that received `--matchmaker` (skills/server-core/modules/server-time.md:90)",
+      "foundBy": "spec routing"
     }
   ]
 }

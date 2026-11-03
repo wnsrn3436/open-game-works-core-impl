@@ -1,6 +1,6 @@
 {
   "target": "spec auth",
-  "nextId": 6,
+  "nextId": 7,
   "items": [
     {
       "id": "D2",
@@ -25,6 +25,12 @@
       "location": "skills/server-core/modules/auth.md:146",
       "problem": "logging.md:153 defines `core_session_started` as emitted in \"the transaction in which `Login`, `AutoLogin` or `DevLogin` opened a new session\", and the ban login transaction (auth.md:145) opens a new session with `session.start_session`, but auth.md:146 emits it only in the transaction of step 6. Whether a ban login leaves `core_session_started` differs per document",
       "foundBy": "spec auth"
+    },
+    {
+      "id": "D6",
+      "location": "skills/server-core/modules/auth.md:396",
+      "problem": "`auth.guestSweepIntervalMs` is the period of job `auth_guest_sweep` and writes no range. Value 0 passes the 0 or more schema range and fails server start in `schedule_job` (skills/server-core/modules/server-time.md:90)",
+      "foundBy": "spec routing"
     }
   ]
 }

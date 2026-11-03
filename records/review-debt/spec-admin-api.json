@@ -1,0 +1,12 @@
+{
+  "target": "spec admin-api",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/server-core/modules/admin-api.md:286",
+      "problem": "`admin-api.switchCacheMs` is the period of job `admin_switch_cache` and writes no range, so `## core settings` of skills/core/SKILL.md gives 0 or more. `schedule_job` makes a period less than 1 a server start failure (skills/server-core/modules/server-time.md:90), so game settings `core` with value 0 passes the schema check of `ogw game check` and the server does not start. The row needs `1 or more`, as `routing.storageSweepIntervalMs` now has",
+      "foundBy": "spec routing"
+    }
+  ]
+}
