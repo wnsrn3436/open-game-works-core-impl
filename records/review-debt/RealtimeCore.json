@@ -1,6 +1,6 @@
 {
   "target": "RealtimeCore",
-  "nextId": 3,
+  "nextId": 4,
   "items": [
     {
       "id": "D1",
@@ -13,6 +13,12 @@
       "location": "client/godot/core/realtime_core/p2p_realtime_transport.gd:569",
       "problem": "No time limit covers a connection that replaces a connected connection. After `PEER_REJOINED`, the offering side drops the connected connection and starts a new one with `replaces_connected`, and the participant stays `Connected` as `open-game-works-core/skills/client-core/modules/realtime-core.md:126` and `:129` require. `_check_time_limits` (`client/godot/core/realtime_core/realtime_core.gd:524`) measures only `Connecting` and `Disconnected`, and server `PEER_LEFT` does not change participant state. Run path: index 1 rejoins and ends before it answers the new offer; index 0 then has `peer_state`(1) `Connected`, each `send` to it is `false`, and no `PeerDisconnectedEvent` or `PeerLeftEvent` comes unless WebRTC itself reports a failure. The duration is not set by the spec, so the fix needs a spec change",
       "foundBy": "RealtimeCore round 1"
+    },
+    {
+      "id": "D3",
+      "location": "client/godot/core/realtime_core/realtime_core.gd:1143",
+      "problem": "A host in a room that reaches `RealtimeCore.backgroundTimeoutMs` in `Matching` leaves its party in the queue. `_fail_match` calls only `close`, as `open-game-works-core/skills/client-core/modules/realtime-core.md:148` and `:240` say, and `client/godot/core/realtime_core/p2p_realtime_transport.gd:122` sends nothing in a room with no match. Measured in a temporary copy, on this range and on `a0bf92c`: state `None`, `cancel_matching` count 0, `close` count 1. By reading the code, not run: the server keeps the party entry, so the next `join_match` of that host is `ROOM_BUSY` (`server/core/matchmaker/realtime.ts:571`) and a match found for that party is dropped. This range did not change it",
+      "foundBy": "RealtimeCore round 4"
     }
   ]
 }
