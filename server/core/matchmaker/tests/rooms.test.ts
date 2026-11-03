@@ -549,6 +549,7 @@ describe('match creation failure', () => {
     const [a, b] = members;
     if (a === undefined || b === undefined) throw new Error('room');
     await send_and_wait(a.conn, match_request(PARTY2.id));
+    await barrier(b.conn);
     const solos = [await queued(h, PARTY2.id), await queued(h, PARTY2.id)];
     const release = await hold_writes(h, 'matchmaker_match');
     try {
@@ -565,7 +566,9 @@ describe('match creation failure', () => {
     }
     expect(read_logs(h.server, 'error').filter((l) => l['message'] === 'match record save failed')).toHaveLength(1);
     for (const m of [a, b]) {
-      expect(seen.get(m.conn)?.filter((f) => f.kind === K.MATCHMAKER_FRAME_KIND_ROOM_STATE).at(-1)?.room_status).toBe(RoomStatus.ROOM_STATUS_OPEN);
+      const out = seen.get(m.conn) ?? [];
+      expect(kinds(out)).toEqual([K.MATCHMAKER_FRAME_KIND_MATCH_FAILED, K.MATCHMAKER_FRAME_KIND_ROOM_STATE]);
+      expect(out[1]?.room_status).toBe(RoomStatus.ROOM_STATUS_OPEN);
     }
     // Open without a party entry: the host can ask again.
     const again = await send_and_wait(a.conn, match_request(PARTY2.id));
