@@ -1,0 +1,24 @@
+{
+  "target": "coupon",
+  "nextId": 4,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/coupon/tests/admin.test.ts:72",
+      "problem": "Explicit 10 s limit, lower than the 60 s run default. It timed out in the second PostgreSQL run under load, the same cause as R1-2. It existed before the range.",
+      "foundBy": "coupon round 1"
+    },
+    {
+      "id": "D2",
+      "location": "server/core/coupon/tests/admin.test.ts:99",
+      "problem": "Explicit 10 s limit, lower than the 60 s run default. It timed out in both PostgreSQL runs under load, the same cause as R1-2. It existed before the range.",
+      "foundBy": "coupon round 1"
+    },
+    {
+      "id": "D3",
+      "location": "server/core/coupon/index.ts:372",
+      "problem": "When `storage.lock_game_row` is `FAILED` in step 4 (also line 375), `RedeemCoupon` returns `INTERNAL` and nothing leaves an `error` log. Run path: another transaction holds the row past `storage.userLockWaitMs`, `lock_row` in `server/core/storage/tx.ts:380` returns `FAILED` without a log, `check_use_limit` returns the number, and `finish` in `server/core/routing/pipeline.ts` only calls `fail` for a handler `CoreError`, which writes the `request` log line with `error_code` and no `error` log. `skills/core/SKILL.md` `## error handling` says the module that detects a failure leaves an error log, and `server/core/mailbox/index.ts:381` throws on the same failure instead of returning a value. `coupon.md` `## error` has no row for this condition. Read from code, not run.",
+      "foundBy": "coupon round 1"
+    }
+  ]
+}
