@@ -1,6 +1,6 @@
 {
   "target": "PaymentCore",
-  "nextId": 7,
+  "nextId": 10,
   "items": [
     {
       "id": "D1",
@@ -36,6 +36,24 @@
       "id": "D6",
       "location": "open-game-works-core/skills/client-core/modules/payment-core.md:147",
       "problem": "Two defining documents set a different log level. This line says that the `RecoverPurchase` failure callback returns `true` for every failure with \"warn log, no screen\". `open-game-works-core/skills/client-core/modules/network-core.md:106` and `:264` make only a `ServerError` warn and give a communication failure one error log even when the callback returns `true`, and `client/godot/core/network_core/network_core.gd:1154` does that. Run path: on a foreground return with no network, each unfinished transaction writes an error log, not the warn this line states. The PaymentCore tests check only `IAP_VERIFY_UNAVAILABLE`, so they do not show the difference. This existed before the range.",
+      "foundBy": "PaymentCore round 1"
+    },
+    {
+      "id": "D7",
+      "location": "client/godot/core/payment_core/payment_core.gd:858",
+      "problem": "`claim_daily` has no login session check, so it returns `true` for a claim whose login session ended. This differs from `open-game-works-core/skills/client-core/modules/payment-core.md:160`, which ends an async operation of an ended session with the failure value (`false` in the API table at line 41). Reproduced with a test in a temporary copy: `add_pending(core/ClaimIapDaily)`, `claim_daily` of `[iap_vip]`, `log_in` of another user, then `release_pending` with a success response. `claim_daily` returned `true`. This existed before the range.",
+      "foundBy": "PaymentCore round 1"
+    },
+    {
+      "id": "D8",
+      "location": "client/godot/core/payment_core/payment_core.gd:434",
+      "problem": "`_run_purchase` does not check the login session after `buy` returns before it returns `Cancelled` (line 435), `Pending` (line 437) or `StoreFailed` (line 440); its first check after `buy` is at line 443, on the `Success` path. `open-game-works-core/skills/client-core/modules/payment-core.md:160` requires the failure value, `Rejected`. Reproduced with a test in a temporary copy using an adapter whose `buy` waits: `purchase` of `[iap_gems]`, `log_in` of another user during `buy`, then `buy` ends. With `Cancelled` the result was `Cancelled`, and with `Pending` it was `Pending`, not `Rejected`. The `StoreFailed` path was read in the code and not run. This existed before the range.",
+      "foundBy": "PaymentCore round 1"
+    },
+    {
+      "id": "D9",
+      "location": "client/godot/core/payment_core/payment_core.gd:601",
+      "problem": "For store `GOOGLE`, the restore of a new login session joins a `restore_purchases` still running from the previous session, and line 546 has already set `_google_restored` to `true`. The joined result is discarded and `list_owned` does not run again in that session, although `open-game-works-core/skills/client-core/modules/payment-core.md:146` has one restore per login session. Reproduced with a test in a temporary copy: first `recover_purchases` of session A, its restore held on `RecoverPurchase`, `log_in` of another user, `recover_purchases` in the new session, the held response released, then `recover_purchases` again. `list_owned` stayed at 1 call and `_google_restored` was `true`. The same join makes a `restore_purchases` that content code calls in the new session wait for the old session's run; that path was read in the code and not run. This existed before the range.",
       "foundBy": "PaymentCore round 1"
     }
   ]
