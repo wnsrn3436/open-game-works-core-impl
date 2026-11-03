@@ -671,7 +671,8 @@ static func _process_transaction(receipt: StoreAdapter.Receipt, summary: Recover
 	request.store = _store
 	request.receipt = receipt.data
 	var recovered: _REQUEST = _REQUEST.new()
-	# Every failure is a warn with no screen: the transaction is `Failed` and the next recovery processes it again.
+	# No failure has a screen and `NetworkCore` leaves the log: the transaction is `Failed` and the next recovery
+	# processes it again.
 	recovered.handles_all = true
 	await _await_send(request, recovered, true)
 	if life != _life:

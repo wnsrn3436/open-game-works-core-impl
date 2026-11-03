@@ -84,15 +84,15 @@ func test_second_resolve_language_is_an_error_and_keeps_the_language() -> void:
 
 func test_list_languages_fills_the_buffer_in_order_order() -> void:
 	assert_true(await _SUPPORT.start())
-	var buffer: Array[int] = [0, 0, 0, 0, 0]
+	var buffer: PackedInt32Array = [0, 0, 0, 0, 0]
 	assert_eq(LocalizationCore.list_languages(buffer), 4)
-	var expected: Array[int] = [
+	var expected: PackedInt32Array = [
 		_SUPPORT.language_id("[lang_en]"), _SUPPORT.language_id("[lang_zh_hans]"), _SUPPORT.language_id("[lang_zh_tw]"),
 		_SUPPORT.language_id("[lang_ca]"), 0,
 	]
 	assert_eq(buffer, expected)
-	var small: Array[int] = [0, 0]
+	var small: PackedInt32Array = [0, 0]
 	assert_eq(LocalizationCore.list_languages(small), 2)
 	assert_eq(_SUPPORT.errors(), 1)
-	var first_two: Array[int] = [_SUPPORT.language_id("[lang_en]"), _SUPPORT.language_id("[lang_zh_hans]")]
+	var first_two: PackedInt32Array = [_SUPPORT.language_id("[lang_en]"), _SUPPORT.language_id("[lang_zh_hans]")]
 	assert_eq(small, first_two)
