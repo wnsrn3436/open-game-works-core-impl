@@ -1,0 +1,24 @@
+{
+  "target": "UnitTestCore",
+  "nextId": 4,
+  "items": [
+    {
+      "id": "D1",
+      "location": "client/godot/core/unit_test_core/dev/unit_test_core.gd:1540",
+      "problem": "`require_platform` does not end the test, although `open-game-works-core/skills/client-core/modules/unit-test-core.md:228` says that it \"ends that test as skip\". It only sets `skip_reason` and returns, so the test function goes on. Run path: a core test calls `require_platform([\"no_such_platform\"])` and then awaits a signal that never fires. `_on_test_not_returned` then calls `_end_run_early`, which adds a run failure and gives exit code 1, instead of one skip and the next test. The test callers avoid this only with their own guard after the call (e.g. `client/godot/core/unit_test_core/tests/test_page_input.gd:45`, `client/godot/core/auth_core/tests/test_plugin_waits.gd:121`), and no defining document names that guard. `client/godot/core/unit_test_core/tests/resources/sample_platform.gd:7` has only `assert_true(true)` after the call, so no test checks that the rest of the body does not run. This existed before the range.",
+      "foundBy": "UnitTestCore round 1"
+    },
+    {
+      "id": "D2",
+      "location": "client/godot/core/unit_test_core/dev/unit_test_core.gd:130",
+      "problem": "`init` does not read `UnitTestCore.startTimeLimitMs`. `open-game-works-core/skills/client-core/engines/godot.md:116` says that in `init` a module reads the keys of `## settings` of its spec, and that a missing key or a key of another type gives an error log and a failed `init`. `open-game-works-core/skills/client-core/modules/unit-test-core.md:191` lists this key, but `_init_failure` checks only `UnitTestCore.testTimeLimitMs` and `UnitTestCore.runTimeLimitMs`. Under `client/godot/core` the key appears only in a comment at `client/godot/core/unit_test_core/dev/unit_test_core.gd:946`. Run path: with the key removed from `core_settings.json`, `init` returns `true`. Only the harness tool reads this key. This was found by reading and not run, and it existed before the range.",
+      "foundBy": "UnitTestCore round 1"
+    },
+    {
+      "id": "D3",
+      "location": "client/godot/core/unit_test_core/dev/unit_test_core.gd:1484",
+      "problem": "The `## error` rows `put_page_key` with an empty key (`open-game-works-core/skills/client-core/modules/unit-test-core.md:178`) and a failed test host request (`open-game-works-core/skills/client-core/modules/unit-test-core.md:176`) are not fully tested. `put_page_key` is called only with `\"q\"` in the tests under `client/godot/core` (`client/godot/core/unit_test_core/tests/test_page_input.gd:54`, `client/godot/core/unit_test_core/tests/test_page_input.gd:66`). The failure branches of `POST /input` with a status other than 204 and 404 (line 1091), `POST /servers` (line 1404), `PUT /responses` (line 1425), `GET /requests` (line 1441) and `POST /ws-servers` (line 1461) log an error under the tag `UnitTestCore`, but no test checks that log. Only `PUT /started` has such a test (`client/godot/core/unit_test_core/tests/test_run.gd:511`). This was found by `grep` and reading, no mutation was run, and it existed before the range.",
+      "foundBy": "UnitTestCore round 1"
+    }
+  ]
+}
