@@ -708,14 +708,12 @@ static func _heading_font_item(type: StringName) -> StringName:
 	return _RICH_FONT if _HEADING_TYPES[type] == &"RichTextLabel" else _FONT
 
 
-## Puts the `_HEADING_TYPES` of `_font_theme` back to before the first `load_fonts`: a type it did not have is
-## removed, and a type it had gets its base type and font item back, or loses the font item it did not have.
+## Puts the `_HEADING_TYPES` of `_font_theme` back to before the first `load_fonts`: a type gets its base type and
+## font item back, or loses the ones it did not have. `Theme.remove_type` is not used, because it also clears the type
+## variations of the theme based on that type.
 static func _restore_heading_types() -> void:
 	for type: StringName in _HEADING_TYPES:
-		if not _saved_heading_bases.has(type):
-			_font_theme.remove_type(type)
-			continue
-		var base: StringName = _saved_heading_bases[type]
+		var base: StringName = _saved_heading_bases.get(type, &"")
 		if base.is_empty():
 			_font_theme.clear_type_variation(type)
 		else:
