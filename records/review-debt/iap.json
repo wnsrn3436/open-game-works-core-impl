@@ -1,0 +1,24 @@
+{
+  "target": "iap",
+  "nextId": 4,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/iap/grant.ts:336",
+      "problem": "Subscription apply grants a new subscription period for a snapshot whose state is `REVOKED`, so a refunded period is paid out. It follows `open-game-works-core/skills/server-core/modules/iap.md:211`, which does not look at the snapshot state, so it needs a spec change. Reproduced in a temporary copy: `sub-1` granted (balance 30), `send_fake_refund` of `sub-2` with no payment record gave HTTP 200 without handling (`iap.md:247`), then `send_fake_subscription_notify` of `sub-1` with `state` `REVOKED` and `latest_transaction_id` `sub-2` gave HTTP 200, balance 60 and a `GRANTED` payment record of `sub-2`. The store does not resend the answered `REFUND`, so nothing revokes that grant, and the record counts in monthly spend. It needs a lost or out-of-order renewal notification",
+      "foundBy": "iap round 1"
+    },
+    {
+      "id": "D2",
+      "location": "server/core/iap/adapters/google.ts:135",
+      "problem": "A subscription without an order ID gets an empty transaction ID instead of the purchase token that `open-game-works-core/skills/server-core/modules/iap.md:341` sets for a store transaction without `orderId`. `latest_order_of` has no fallback, while `product_transaction` has one (`text_of(json.orderId) || r.token`). Reproduced in a temporary copy: a `subscriptionsv2` answer of `SUBSCRIPTION_STATE_ACTIVE` with no `latestOrderId` and no `latestSuccessfulOrderId` made `verify` return `VALID` with `transaction_id` `''` and `lookup_subscription` return `latest_transaction_id` `''`. Grant order step 4 judges an empty transaction ID `INVALID` with no payment record (grant.ts:563, read in the code), and the client ends that store transaction, so that paid subscription is not granted. `server/core/iap/tests/adapters.test.ts` has no such case. Whether Google returns an active subscription without an order ID in production was not checked",
+      "foundBy": "iap round 1"
+    },
+    {
+      "id": "D3",
+      "location": "server/core/iap/adapters/apple.ts:185",
+      "problem": "`verification_of` compares only `bundleId`, while `open-game-works-core/skills/server-core/modules/iap.md:324` and `iap.md:340` also require the receipt verification result `INVALID` when `appAppleId` of production store transaction info differs from `iapApple.appAppleId`. Reproduced in a temporary copy: signed transaction info with `environment` `Production` and `appAppleId` 9 on an adapter with `app_apple_id` 1234 gave `VALID`. Only the notification check has this comparison and a test (`server/core/iap/tests/adapters.test.ts:316`). `bundleId` is still checked, so this was not shown to let a transaction of another app through. Whether Apple's transaction info holds `appAppleId` at all was not checked; when it does not, the fix is to change those spec lines, not the code",
+      "foundBy": "iap round 1"
+    }
+  ]
+}

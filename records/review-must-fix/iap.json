@@ -1,0 +1,13 @@
+{
+  "target": "iap",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "M1",
+      "severity": "critical",
+      "location": "server/core/iap/grant.ts:634",
+      "problem": "A user can claim another person's store transaction that has no account token by sending only its transaction ID. `bind_tokenless` binds and grants to the first sender without looking at `device_receipt`, and `open-game-works-core/skills/server-core/modules/iap.md:132` sets no such condition, although `iap.md:176` requires a device receipt for ownership transfer for this reason, so this is solved by changing the spec together with the code. Run path for `iap-apple`, read in the code and not run against that adapter: receipt `<decimal transaction ID>` passes `apple_transaction_id` (`server/core/iap/adapters/apple.ts:72`), `is_device_receipt` returns `false`, a transaction without `appAccountToken` has an empty `account_token`, and `judge` reaches `bind_tokenless`. Run in a temporary copy with the fake adapter: `set_result('verify', {result: 'VALID', test: false, device_receipt: false})`, then `VerifyPurchase` of `fake:gems_apple:tl-1:` gave `GRANTED`, balance 100 and a `GRANTED` payment record with `test` false. The real buyer of a `Consumable` then gets `ALREADY_GRANTED` with nothing (read in the code, grant.ts:603). The attacker has to know the ID of such a transaction (e.g. an offer code redemption) within `iap.withdrawnRecordRetentionMs` of purchase, and how easily an ID can be learned was not measured. The fix direction is to require a device receipt in this exception",
+      "foundBy": "iap round 1"
+    }
+  ]
+}
