@@ -1,0 +1,18 @@
+{
+  "target": "play-session",
+  "nextId": 3,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/play-session/index.ts:297",
+      "problem": "`test evidence`. The continue row delete of `FinishPlaySession` step 8 (`play-session` `### finish`) has no test that goes through it. Removing that one `db.query(DELETE_CONTINUES, ...)` in a temporary copy leaves all 32 tests of `server/core/play-session/tests` passing (SQLite run). The API cannot show the leftover rows, because after a finish `ContinuePlaySession` is `PLAY_SESSION_NOT_FOUND` and the next `StartPlaySession` deletes them, so a test has to read the table. This exists since the initial commit and is unrelated to the range",
+      "foundBy": "play-session round 1"
+    },
+    {
+      "id": "D2",
+      "location": "server/core/play-session/tests/data-change.test.ts:8",
+      "problem": "`test evidence`. Only `FinishPlaySession` is tested for a play session whose `mode_id` left the data. `ContinuePlaySession` step 2 (`PLAY_SESSION_NOT_FOUND`) and the `play_session_mode` condition of the active play session definition (`get_active_play_session` returns none) have no test. In a temporary copy, `load` (server/core/play-session/index.ts:173) was changed to keep such a row whenever `finished_at` is 0, with a substitute mode row for the continue and active checks, and all 32 tests still pass (SQLite run). This exists since the initial commit and is unrelated to the range",
+      "foundBy": "play-session round 1"
+    }
+  ]
+}
