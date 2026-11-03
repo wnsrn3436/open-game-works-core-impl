@@ -280,8 +280,8 @@ export function create_realtime(env: Env, results: Results): Realtime {
     const slot = users.get(user_id);
     const room = slot?.room ?? null;
     if (slot === undefined || room === null) return;
+    // `Matching` without an entry is a match being created: `create_match` makes the room `Open` after `MATCH_FOUND`.
     if (room.status === 'Matching' && room.entry !== null) remove_entry(room.entry, false);
-    room.status = 'Open';
     const at = room.members.indexOf(user_id);
     if (at >= 0) room.members.splice(at, 1);
     slot.room = null;
@@ -981,8 +981,8 @@ export function create_realtime(env: Env, results: Results): Realtime {
       for (const step of run_queue(queue.entries, rule_of(mode), at)) {
         if (step.kind === 'timeout') {
           const entry = step.entry;
-          remove_entry(entry);
           for (const m of entry.members) match_failed(m.client, CoreContract.MatchFailReason.MATCH_FAIL_REASON_TIMEOUT);
+          remove_entry(entry);
           continue;
         }
         for (const entry of step.entries) {

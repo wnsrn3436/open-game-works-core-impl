@@ -1,12 +1,13 @@
 /** `### room` and party handling through `/realtime`. */
 import { readFileSync } from 'node:fs';
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
-import { read_logs, send, type TestSession } from '../../testing/dev/index.ts';
+import { advance_time, fake, read_logs, send, wait_background, type TestSession } from '../../testing/dev/index.ts';
 import {
   CoreError,
   GameError,
   K,
   Reason,
+  TICK_MS,
   ban,
   barrier,
   calls_of,
@@ -643,6 +644,61 @@ describe('party', () => {
     const solo = await queued(h, BOTH.id);
     await tick(h, BOTH.match_wait);
     expect((await next(solo.conn, K.MATCHMAKER_FRAME_KIND_MATCH_FAILED)).reason).toBe(Reason.MATCH_FAIL_REASON_TIMEOUT);
+  });
+
+  it('sends each member MATCH_FAILED TIMEOUT before the ROOM_STATE Open when the party entry times out', async () => {
+    const h = await harness({ modes: MODES });
+    const { members } = await room(h, PARTY2.id, 2);
+    const [a, b] = members;
+    if (a === undefined || b === undefined) throw new Error('room');
+    await send_and_wait(a.conn, match_request(PARTY2.id));
+    await barrier(b.conn);
+    await tick(h, PARTY2.match_wait);
+    for (const m of [a, b]) {
+      const out = await barrier(m.conn);
+      expect(kinds(out)).toEqual([K.MATCHMAKER_FRAME_KIND_MATCH_FAILED, K.MATCHMAKER_FRAME_KIND_ROOM_STATE]);
+      expect(out[0]?.reason).toBe(Reason.MATCH_FAIL_REASON_TIMEOUT);
+      expect(out[1]?.room_status).toBe(RoomStatus.ROOM_STATUS_OPEN);
+    }
+  });
+
+  it.each([
+    ['leaves', (_host: Member, target: Member): void => {
+      send_frame(target.conn, frame(K.MATCHMAKER_FRAME_KIND_ROOM_LEAVE));
+    }],
+    ['is kicked', (host: Member, target: Member): void => {
+      send_frame(host.conn, frame(K.MATCHMAKER_FRAME_KIND_ROOM_KICK, (f) => {
+        f.user_id = target.user_id;
+      }));
+    }],
+  ])('keeps the room Matching when a member %s while the match of its party entry is created, and sends ROOM_STATE Open after MATCH_FOUND', async (_name, remove) => {
+    const h = await harness({ modes: MODES, settings: { 'environments.<ENV>.adapters.turn': 'fake', 'p2p-signaling.turnTimeoutMs': 1000 } });
+    const { members, code } = await room(h, PARTY2.id, 2);
+    const [a, b] = members;
+    if (a === undefined || b === undefined) throw new Error('room');
+    await send_and_wait(a.conn, match_request(PARTY2.id));
+    await barrier(b.conn);
+    await queued(h, PARTY2.id);
+    await queued(h, PARTY2.id);
+    const newcomer = await member(h);
+    // The relays of the match do not come until p2p-signaling.turnTimeoutMs: the match is being created until then.
+    (fake(h.server, 'turn') as { set_failure(op: string, f: string): void }).set_failure('issue_relays', 'timeout');
+    advance_time(h.server, TICK_MS);
+    remove(a, b);
+    const during = await barrier(a.conn);
+    expect(kinds(during)).toEqual([K.MATCHMAKER_FRAME_KIND_ROOM_STATE]);
+    expect(during[0]?.room_members).toEqual([a.user_id]);
+    expect(during[0]?.room_status).toBe(RoomStatus.ROOM_STATUS_MATCHING);
+    expect(failures(await join(code, newcomer))).toEqual([[CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_ROOM_JOIN]]);
+    expect(failures(await send_and_wait(a.conn, match_request(PARTY2.id)))).toEqual([[CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_MATCH_REQUEST]]);
+    await wait_background(h.server);
+    const out = await barrier(a.conn);
+    expect(kinds(out)).toEqual([K.MATCHMAKER_FRAME_KIND_MATCH_FOUND, K.MATCHMAKER_FRAME_KIND_ROOM_STATE]);
+    expect(out[0]?.players.map((p) => p.user_id).slice(0, 2)).toEqual([a.user_id, b.user_id]);
+    expect(out[1]?.room_members).toEqual([a.user_id]);
+    expect(out[1]?.room_status).toBe(RoomStatus.ROOM_STATUS_OPEN);
+    // Open again: the room takes a new member.
+    expect(failures(await join(code, newcomer))).toEqual([]);
   });
 
   it('records source Room for a ROOM_START match and Queue for queue matches with a party entry', async () => {
