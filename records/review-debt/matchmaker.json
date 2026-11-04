@@ -1,6 +1,6 @@
 {
   "target": "matchmaker",
-  "nextId": 4,
+  "nextId": 6,
   "items": [
     {
       "id": "D1",
@@ -19,6 +19,18 @@
       "location": "server/core/matchmaker/realtime.ts:577",
       "problem": "`host_error` checks `p2p-signaling.is_bound` only when the host frame is handled, and nothing checks again before `open_match_session` (realtime.ts:937), so a member can bind to a match after the check and be taken out of it, which is what matchmaker.md:146 gives as the reason for `ROOM_BUSY`. Reproduced with frames in a temporary copy of the checkout (rooms test harness, SQLite). Room of a and b in mode `BOTH`, `ROOM_START` makes match M, a sends `MATCH_LEAVE`, b's connection closes, b reconnects and sends `ROOM_JOIN`, host `MATCH_REQUEST` passes, b sends `MATCH_REJOIN`(M) and gets `ok` `true`, then `tick` by `match_wait`. b then receives `MATCH_FOUND` of the new match, `left_at` of b in M goes from 0 to 1800000030000, and a second `MATCH_REJOIN`(M) is `ok` `false`. The specs set the check only at the host frame, so the code equals matchmaker.md, and the repair belongs to the `matchmaker` target. The reproduction sends raw frames; it does not show that client `RealtimeCore` produces this order.",
       "foundBy": "p2p-signaling round 1"
+    },
+    {
+      "id": "D4",
+      "location": "server/core/matchmaker/realtime.ts:579",
+      "problem": "A seat of a match still being made can be put into a second match through another room, because `making_match` covers only the room of that `ROOM_START` and `is_bound` of that seat is `false` until `open_match_session`. Reproduced in a temporary copy, on SQLite, with raw frames: `ROOM4` room R1 of A, B, C and room R2 of D, fake `turn` failure `timeout`, `p2p-signaling.turnTimeoutMs` 1500, A `ROOM_START`, wait for the `issue_relays` call, B `ROOM_LEAVE`, B `ROOM_JOIN` of R2, D `ROOM_START`. B got two `MATCH_FOUND` with different `match_id`, and in the first match B has `left_at` written while A and C have 0, which is the result matchmaker.md:146 gives as the reason for `ROOM_BUSY`. The window lasts as long as the record save and the `turn` call. The code before the range has the same path and the code equals the room-scoped wording of matchmaker.md:146. It has the same cause as D3 of `records/review-debt/matchmaker.json` (no check of a seat after `host_error`), and reaches it without `MATCH_REJOIN`. The reproduction does not show that client `RealtimeCore` produces this order.",
+      "foundBy": "matchmaker round 4"
+    },
+    {
+      "id": "D5",
+      "location": "server/core/matchmaker/realtime.ts:514",
+      "problem": "`room_unchanged` compares only the member list at each check, so a member who leaves and joins again while a transaction of member rating resolution waits is not seen as a change, which differs from matchmaker.md:137 (\"When the members of the room change while member rating resolution waits ... `ROOM_FAILED`(`ROOM_BUSY`)\"). `prepare_members` also keeps the `client` it read before the await (server/core/matchmaker/realtime.ts:524, :530). Reproduced in a temporary copy, on SQLite, with `run_rollback_transaction` of member B wrapped to wait on a gate, in a `ROOM4` room A, B after A `ROOM_START`. With B `ROOM_LEAVE` and `ROOM_JOIN` on the same connection, no `ROOM_FAILED` is sent and both get `MATCH_FOUND`. With B's socket closed, a new B connection authenticated and `ROOM_JOIN` sent on it, A gets `MATCH_FOUND`, the new connection of B gets no `MATCH_FOUND`, and index 1 of the match record has `disconnected_at` written, so B is a participant of a match it was never told about. The code before the range has the same path. The wait was made by the wrapper, not by a real lock wait.",
+      "foundBy": "matchmaker round 4"
     }
   ]
 }
