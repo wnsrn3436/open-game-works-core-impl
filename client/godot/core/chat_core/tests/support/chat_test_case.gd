@@ -297,10 +297,15 @@ func release_messages(response: CoreContract.GetChatMessagesResponse) -> bool:
 	return UnitTestCore.release_pending(GET_MESSAGES, NetworkCore.TransferResult.DONE, 200, ok_bytes(response))
 
 
-func add_sent(kind: CoreContract.ChatChannelKind, channel_id: int, seq: int) -> void:
+## A `SendChatMessage` response with the sent message `seq`.
+func sent_bytes(kind: CoreContract.ChatChannelKind, channel_id: int, seq: int) -> PackedByteArray:
 	var response: CoreContract.SendChatMessageResponse = CoreContract.SendChatMessageResponse.new()
 	response.message = message(kind, channel_id, seq)
-	UnitTestCore.add_result(SEND, NetworkCore.TransferResult.DONE, 200, ok_bytes(response))
+	return ok_bytes(response)
+
+
+func add_sent(kind: CoreContract.ChatChannelKind, channel_id: int, seq: int) -> void:
+	UnitTestCore.add_result(SEND, NetworkCore.TransferResult.DONE, 200, sent_bytes(kind, channel_id, seq))
 
 
 # --- async operations in the background ---

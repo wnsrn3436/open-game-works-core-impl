@@ -1,6 +1,8 @@
 extends "res://core/chat_core/tests/support/chat_test_case.gd"
 ## `send_message`.
 
+const POLL_MS: int = 2000
+
 
 func test_after_a_sent_message_the_watched_channel_polls_now_and_the_message_comes_once() -> void:
 	await start_chat([entry(DIRECT, FRIEND_ID, 1, 1)])
@@ -24,6 +26,30 @@ func test_after_a_sent_message_the_watched_channel_polls_now_and_the_message_com
 	assert_eq(ChatCore.get_message_count(DIRECT, FRIEND_ID), 1, "the sent message waits for the poll")
 	await settle()
 	assert_eq(message_requests().size(), 2, "the poll goes without waiting poll_after_ms")
+	assert_eq(last_message_request().after_seq, 1)
+	assert_eq(cached_seqs(DIRECT, FRIEND_ID), PackedInt64Array([1, 2]))
+	assert_eq(changes, PackedStringArray(["501 Reset 1", "501 Appended 1"]))
+
+
+func test_a_message_sent_while_a_poll_is_on_the_way_polls_again_right_after_that_poll() -> void:
+	await start_chat([])
+	add_messages(messages(DIRECT, FRIEND_ID, PackedInt64Array([1]), 1, 1, POLL_MS))
+	assert_true(ChatCore.watch_channel(DIRECT, FRIEND_ID))
+	await settle()
+	UnitTestCore.add_pending(SEND)
+	var sent: Run = send_in_background(DIRECT, FRIEND_ID, "hello")
+	await settle()
+	# NetworkCore sends one request at a time: the poll waits behind the held send, then is held itself.
+	UnitTestCore.add_pending(GET_MESSAGES)
+	await pass_time(POLL_MS)
+	assert_true(UnitTestCore.release_pending(SEND, NetworkCore.TransferResult.DONE, 200, sent_bytes(DIRECT, FRIEND_ID, 2)))
+	assert_true(await wait_run(sent))
+	await settle()
+	assert_eq(message_requests().size(), 2, "the poll is on the way")
+	add_messages(messages(DIRECT, FRIEND_ID, PackedInt64Array([2]), 2, 1))
+	assert_true(release_messages(messages(DIRECT, FRIEND_ID, PackedInt64Array(), 1, 1)))
+	await settle()
+	assert_eq(message_requests().size(), 3, "the next poll goes without waiting poll_after_ms")
 	assert_eq(last_message_request().after_seq, 1)
 	assert_eq(cached_seqs(DIRECT, FRIEND_ID), PackedInt64Array([1, 2]))
 	assert_eq(changes, PackedStringArray(["501 Reset 1", "501 Appended 1"]))
