@@ -124,6 +124,36 @@ func test_load_saved_with_equal_values_in_another_order_writes_nothing() -> void
 	assert_eq(after, expected, "a change after load_saved saves")
 
 
+func test_persist_item_set_before_load_saved_with_no_saved_key_is_saved() -> void:
+	assert_true(await start_modules())
+	assert_true(LocalDataCore.load_user_file(USER_ID))
+	assert_true(BadgeCore.set_item(saved_badge, 5, 1))
+	assert_true(BadgeCore.load_saved())
+	await frame_end()
+	assert_eq(warns(), 0)
+	assert_eq(saved_items(), PackedStringArray([element(saved_badge, 5, 1)]), "the memory item is not saved yet")
+
+
+func test_persist_item_set_before_load_saved_that_the_saved_values_lack_is_saved() -> void:
+	assert_true(await start_modules())
+	assert_true(LocalDataCore.load_user_file(USER_ID))
+	LocalDataCore.set_array_string(LocalDataCore.FileKind.USER, ITEMS_KEY,
+			PackedStringArray([element(saved_badge, 6, 3), element(saved_dot_badge, -3, 1)]))
+	assert_true(BadgeCore.set_item(saved_badge, 6, 3))
+	assert_true(BadgeCore.set_item(saved_dot_badge, -3, 1))
+	assert_true(BadgeCore.set_item(saved_badge, 5, 1))
+	assert_true(BadgeCore.load_saved())
+	await frame_end()
+	assert_eq(warns(), 0)
+	var after: PackedStringArray = saved_items()
+	after.sort()
+	var expected: PackedStringArray = PackedStringArray([
+		element(saved_badge, 5, 1), element(saved_badge, 6, 3), element(saved_dot_badge, -3, 1)
+	])
+	expected.sort()
+	assert_eq(after, expected, "every saved element equals memory; the memory item that is not saved is added")
+
+
 func test_duplicate_saved_element_is_saved_away() -> void:
 	assert_true(await start_modules())
 	assert_true(LocalDataCore.load_user_file(USER_ID))
