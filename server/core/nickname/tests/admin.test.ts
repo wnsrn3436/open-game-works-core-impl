@@ -1,5 +1,7 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
-import { send_admin, stop_test_server, type TestServer } from '../../testing/dev/index.ts';
+import { lock_key } from '../../storage/tx.ts';
+import { advance_time, hold_lock_key, read_logs, send_admin, set_time, stop_test_server, type TestServer } from '../../testing/dev/index.ts';
+import { normalizeText } from '../../validation/text.ts';
 import { gems, in_user_transaction, nickname_state, set_gems, set_nickname, start, users, withdraw } from './helpers.ts';
 
 async function rename(server: TestServer, operation_id: string, user_id: bigint, nickname: string): Promise<{ status: number; json: unknown }> {
@@ -22,10 +24,13 @@ describe('rename_user', () => {
   it('changes the nickname without the banned word check, the cooldown and the cost, and makes a pending delta with forced true', async () => {
     const h = await start(true, { 'nickname.changeCooldownMs': 1_000_000 });
     try {
+      const start_at = 1_800_000_000_000n;
+      set_time(h.server, start_at);
       const [a] = await users(h.server, ['a']);
       expect((await set_nickname(a, 'Before')).code).toBe(0);
+      advance_time(h.server, 5000n);
       expect(await rename(h.server, 'op-1', a.user_id, 'BadWord')).toEqual({ status: 200, json: {} });
-      expect(await nickname_state(h.server, a.user_id)).toMatchObject({ nickname: 'BadWord', change_count: 0, forced: true });
+      expect(await nickname_state(h.server, a.user_id)).toMatchObject({ nickname: 'BadWord', changed_at: start_at + 5000n, change_count: 0, forced: true });
       expect(await gems(h.server, a.user_id)).toBe(0n);
       const next = await set_nickname(a, 'BadWord');
       expect(next.code).toBe(0);
@@ -44,6 +49,31 @@ describe('rename_user', () => {
       expect((await rename(h.server, 'op-2', b.user_id, 'ab  c')).status).toBe(400);
       expect((await rename(h.server, 'op-3', b.user_id, 'OWNER')).status).toBe(409);
       expect(await nickname_state(h.server, b.user_id)).toBeNull();
+    } finally {
+      await stop_test_server(h.server);
+    }
+  });
+
+  it('is internal with an audit log line and changes nothing when the nickname_claim lock of the new nickname is held past storage.userLockWaitMs (PostgreSQL)', async () => {
+    const h = await start(true, { 'storage.userLockWaitMs': 300 }, undefined, 'postgresql');
+    try {
+      const [a] = await users(h.server, ['a']);
+      expect((await set_nickname(a, 'Before')).code).toBe(0);
+      const before = await nickname_state(h.server, a.user_id);
+      const name_rows = (): unknown[] => h.core().storage.read_db().query('SELECT user_id, normalized, nickname FROM nickname_name ORDER BY user_id, normalized', []);
+      const rows = name_rows();
+      const claim = await hold_lock_key(h.server, lock_key('nickname_claim', [normalizeText('Forced')]));
+      try {
+        expect(await rename(h.server, 'op-1', a.user_id, 'Forced')).toEqual({ status: 500, json: { error: 'internal' } });
+      } finally {
+        await claim.release();
+      }
+      const audit = read_logs(h.server, 'audit').filter((l) => l['request'] === 'rename_user');
+      expect(audit.map((l) => ({ user_id: String(l['user_id']), status: l['status'], error: l['error'] }))).toEqual([{ user_id: a.user_id.toString(), status: 500, error: 'internal' }]);
+      expect(await nickname_state(h.server, a.user_id)).toEqual(before);
+      expect(name_rows()).toEqual(rows);
+      expect(await rename(h.server, 'op-1', a.user_id, 'Forced')).toEqual({ status: 200, json: {} });
+      expect(await nickname_state(h.server, a.user_id)).toMatchObject({ nickname: 'Forced', forced: true });
     } finally {
       await stop_test_server(h.server);
     }
@@ -109,6 +139,20 @@ describe('find_user_by_nickname', () => {
       expect((await find(h.server, 'x'.repeat(13))).status).toBe(400);
       expect(await withdraw(a)).toBe(0);
       expect(await find(h.server, 'Echo One')).toEqual({ status: 200, json: { users: [] } });
+    } finally {
+      await stop_test_server(h.server);
+    }
+  });
+
+  it('counts the input length in code points: nickname.maxLength characters outside the BMP find the user, one more is bad_request', async () => {
+    const h = await start(true, { 'nickname.maxLength': 4, 'nickname.allowedScripts': ['Han'] });
+    try {
+      const [a] = await users(h.server, ['a']);
+      // Four Han characters outside the BMP: 4 code points, 8 UTF-16 code units.
+      const name = '\u{20000}\u{20001}\u{20002}\u{20003}';
+      expect((await set_nickname(a, name)).code).toBe(0);
+      expect(await find(h.server, name)).toEqual({ status: 200, json: { users: [{ user_id: a.user_id.toString(), nickname: name }] } });
+      expect((await find(h.server, `${name}\u{20004}`)).status).toBe(400);
     } finally {
       await stop_test_server(h.server);
     }

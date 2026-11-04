@@ -1,5 +1,5 @@
-import { read_logs, read_user_state, stop_test_server } from '../../testing/dev/index.ts';
-import { CoreError, id_value, set_nickname, start, users } from './helpers.ts';
+import { advance_time, read_logs, read_user_state, stop_test_server } from '../../testing/dev/index.ts';
+import { CoreError, gems, id_value, nickname_state, set_gems, set_nickname, start, users } from './helpers.ts';
 
 /** Rules settings these tests fix so they do not follow the core settings defaults. */
 const RULES = {
@@ -30,6 +30,46 @@ describe('character rules', () => {
       expect(await set_nickname(min, 'ab')).toMatchObject({ code: 0, nickname: 'ab' });
       expect(await set_nickname(max, 'abcdefgh')).toMatchObject({ code: 0, nickname: 'abcdefgh' });
       expect(await set_nickname(mixed, '가나_1 b')).toMatchObject({ code: 0, nickname: '가나_1 b' });
+    } finally {
+      await stop_test_server(h.server);
+    }
+  });
+
+  it('counts the lengths in code points: one character outside the BMP is NICKNAME_INVALID under nickname.minLength 2, and nickname.maxLength of them pass', async () => {
+    const h = await start(false, { ...RULES, 'nickname.maxLength': 4, 'nickname.allowedScripts': ['Han'] });
+    try {
+      const [bad, max] = await users(h.server, ['bad', 'max']);
+      // U+20000.. are Han characters of the CJK Unified Ideographs Extension B, two UTF-16 code units each.
+      expect((await set_nickname(bad, '\u{20000}')).code).toBe(CoreError.CORE_ERROR_NICKNAME_INVALID);
+      expect((await set_nickname(bad, '\u{20000}\u{20001}\u{20002}\u{20003}\u{20004}')).code).toBe(CoreError.CORE_ERROR_NICKNAME_INVALID);
+      expect(await read_user_state(h.server, bad.user_id)).not.toContainEqual(expect.objectContaining({ kind: 'NicknameUserState' }));
+      expect(await set_nickname(max, '\u{20000}\u{20001}\u{20002}\u{20003}')).toMatchObject({ code: 0, nickname: '\u{20000}\u{20001}\u{20002}\u{20003}' });
+    } finally {
+      await stop_test_server(h.server);
+    }
+  });
+});
+
+describe('SetNickname order', () => {
+  it('for a user in the cooldown with a short balance, a rule failure comes before the cooldown and the cooldown before the cost, and the balance stays', async () => {
+    const h = await start(true, { 'nickname.changeCooldownMs': 1000 });
+    try {
+      const [a, owner] = await users(h.server, ['a', 'owner']);
+      expect((await set_nickname(owner, 'Owner')).code).toBe(0);
+      expect((await set_nickname(a, 'First')).code).toBe(0);
+      // Change 1 costs 10 of the cost item; 5 is short.
+      await set_gems(h.server, a.user_id, 5n);
+      const failures: [string, number][] = [
+        ['a', CoreError.CORE_ERROR_NICKNAME_INVALID],
+        ['BadWord', CoreError.CORE_ERROR_NICKNAME_BANNED],
+        ['OWNER', CoreError.CORE_ERROR_NICKNAME_TAKEN],
+        ['Second', CoreError.CORE_ERROR_NICKNAME_COOLDOWN],
+      ];
+      for (const [nickname, code] of failures) expect({ nickname, code: (await set_nickname(a, nickname)).code }).toEqual({ nickname, code });
+      advance_time(h.server, 1000n);
+      expect((await set_nickname(a, 'Second')).code).toBe(CoreError.CORE_ERROR_ITEM_NOT_ENOUGH);
+      expect(await nickname_state(h.server, a.user_id)).toMatchObject({ nickname: 'First', change_count: 0 });
+      expect(await gems(h.server, a.user_id)).toBe(5n);
     } finally {
       await stop_test_server(h.server);
     }

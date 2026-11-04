@@ -55,4 +55,20 @@ describe('find_user_ids_by_nickname', () => {
       await stop_test_server(h.server);
     }
   });
+
+  it('counts the input length in code points: nickname.maxLength characters outside the BMP find the user, one more gives an empty list', async () => {
+    const h = await start(false, { 'nickname.maxLength': 4, 'nickname.allowedScripts': ['Han'] });
+    try {
+      const [caller, a] = await users(h.server, ['caller', 'a']);
+      // Four Han characters outside the BMP: 4 code points, 8 UTF-16 code units.
+      const name = '\u{20000}\u{20001}\u{20002}\u{20003}';
+      expect((await set_nickname(a, name)).code).toBe(0);
+      const nickname = h.nickname();
+      const find = (input: string): Promise<bigint[]> => in_user_transaction(h.core(), caller.user_id, (ctx) => nickname.find_user_ids_by_nickname(ctx, input, 10));
+      expect(await find(name)).toEqual([a.user_id]);
+      expect(await find(`${name}\u{20004}`)).toEqual([]);
+    } finally {
+      await stop_test_server(h.server);
+    }
+  });
 });
