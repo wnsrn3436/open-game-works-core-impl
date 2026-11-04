@@ -504,6 +504,7 @@ const ID_VALUES: ReadonlyMap<string, number> = new Map([
   ["[tutorial_popup]", 1514219016],
   ["[tutorial_prompt]", 1858478443],
   ["[tutorial_second]", 1990110196],
+  ["[tutorial_silent]", 952870155],
   ["[tutorial_skip]", 576546167],
   ["[tutorial_time_start]", 401058711],
   ["[tutorial_time_step]", 897167927],

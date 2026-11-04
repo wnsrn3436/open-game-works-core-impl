@@ -789,8 +789,12 @@ static func _on_scene_started() -> void:
 
 
 static func _on_user_state_changed() -> void:
-	if _is_initialized:
-		_start_check()
+	if not _is_initialized:
+		return
+	# A UserState delta can raise the progress step of a tutorial that is not active.
+	for requirement_id: int in _start_watches.keys():
+		_update_start_watch(requirement_id)
+	_start_check()
 
 
 # --- Internal: saving ---

@@ -121,10 +121,32 @@ func test_an_anchor_tap_anchor_without_a_ui_button_focuses_only_the_skip_button(
 func test_with_gamepad_supported_an_anchor_without_a_ui_button_logs_its_name() -> void:
 	set_value("gamepadSupported", true)
 	assert_true(await start())
-	add_anchor("tc_plain", Rect2(560, 300, 160, 60), 0, false)
-	assert_true(await start_tutorials(PackedStringArray(["[tutorial_plain]"])))
+	var gold: int = id_of("[gold]")
+	add_anchor("tc_keyed", Rect2(560, 300, 160, 60), gold, false)
+	assert_true(await start_tutorials(PackedStringArray(["[tutorial_keyed]"])))
 	assert_true(await wait_shown())
 	assert_eq(errors(), 1)
+	var messages: PackedStringArray = log_messages(ERROR)
+	assert_eq(messages.size(), 1)
+	if messages.size() == 1:
+		assert_string_contains(messages[0], "anchor tc_keyed key %d" % gold)
+
+
+func test_the_tutorial_view_focus_is_cleared_when_an_anchor_tap_step_ends_without_a_next_step() -> void:
+	assert_true(await start())
+	InputCoreDev.set_test_device(InputCore.InputDevice.GAMEPAD)
+	var anchor: Button = add_anchor("tc_plain", Rect2(560, 300, 160, 60))
+	assert_true(await start_tutorials(PackedStringArray(["[tutorial_plain]"])))
+	assert_true(await wait_shown())
+	# `set_test_focus` takes an element of the `Tutorial` view focus while it is the focus target.
+	assert_true(UICoreDev.set_test_focus(anchor))
+	respond_saved(id_of("[tutorial_plain]"), 1)
+	# The accept input ends the step and keeps the input device `Gamepad`, which `set_test_focus` needs.
+	await press_pad(JOY_BUTTON_A)
+	assert_eq(events, PackedStringArray(["started:[tutorial_plain]:1", "completed:[tutorial_plain]:false"]))
+	assert_eq(InputCore.get_device(), InputCore.InputDevice.GAMEPAD)
+	assert_true(anchor.is_visible_in_tree())
+	assert_false(UICoreDev.set_test_focus(anchor), "no Tutorial view focus is left")
 
 
 func test_direction_input_moves_the_focus_to_the_skip_button_and_accept_skips() -> void:
