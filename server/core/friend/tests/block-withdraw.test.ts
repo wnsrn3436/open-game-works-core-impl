@@ -1,8 +1,10 @@
 import { DbHandle } from '../../storage/core.ts';
 import type { TestSession } from '../../testing/dev/index.ts';
-import { LINK_TABLE } from '../index.ts';
+import { BLOCK_TABLE } from '../../block-report/index.ts';
+import { COUNT_TABLE, LINK_TABLE } from '../index.ts';
 import {
   CoreError,
+  START_AT,
   accept,
   befriend,
   block,
@@ -148,6 +150,46 @@ describe('withdrawal', () => {
     expect((await withdraw(b)).code).toBe(0);
     expect((await send_request(a, id(b))).code).toBe(CoreError.CORE_ERROR_USER_NOT_FOUND);
     expect(links(h)).toEqual([]);
+  });
+
+  it('a request to a withdrawn user whom the caller blocked is USER_NOT_FOUND, not BLOCKED', async () => {
+    const h = await start();
+    const [a, b] = await users(h, 2);
+    expect((await block(a, id(b))).code).toBe(0);
+    expect((await withdraw(b)).code).toBe(0);
+    // The block row of A stays after B withdrew, so both conditions hold.
+    const db = h.core().storage.read_db();
+    expect(db.query(`SELECT blocked_id FROM ${BLOCK_TABLE} WHERE user_id = $1`, [id(a)])).toEqual([{ blocked_id: id(b) }]);
+    expect((await send_request(a, id(b))).code).toBe(CoreError.CORE_ERROR_USER_NOT_FOUND);
+    expect(links(h)).toEqual([]);
+  });
+
+  it('Withdraw whose second read finds a link row with an other user it did not lock is INTERNAL and changes nothing', async () => {
+    const h = await start();
+    const [a, b, c] = await users(h, 3);
+    await befriend(a, b);
+    const storage = h.core().storage;
+    const before = snapshot(h);
+    const original = storage.lock_game_row.bind(storage);
+    let inserted = false;
+    // Between the first read (step 1) and the second read (step 3) of `remove_user`, a request of C to A commits.
+    const spy = vi.spyOn(storage, 'lock_game_row').mockImplementation((ctx, table, key) => {
+      if (table === COUNT_TABLE && 'user_id' in ctx && ctx.user_id === id(a) && !inserted) {
+        inserted = true;
+        const db = storage.db(ctx);
+        db.query(`INSERT INTO ${LINK_TABLE} (user_id, other_id, state, created_at, updated_at) VALUES ($1, $2, $3, $4, $4)`, [id(c), id(a), 'FRIEND_STATE_SENT', START_AT]);
+        db.query(`INSERT INTO ${LINK_TABLE} (user_id, other_id, state, created_at, updated_at) VALUES ($1, $2, $3, $4, $4)`, [id(a), id(c), 'FRIEND_STATE_RECEIVED', START_AT]);
+      }
+      return original(ctx, table, key);
+    });
+    try {
+      expect((await withdraw(a)).code).toBe(CoreError.CORE_ERROR_INTERNAL);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(inserted).toBe(true);
+    expect(withdrawn_at(h, a)).toBeNull();
+    expect(snapshot(h)).toEqual(before);
   });
 
   it('accept of a request from a user who withdrew is FRIEND_REQUEST_NOT_FOUND, since Withdraw deleted the rows', async () => {

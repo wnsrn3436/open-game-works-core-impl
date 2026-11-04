@@ -223,9 +223,7 @@ export function create_friend(input: FriendInput): FriendModule {
   const max_received = integer_setting(settings, 'friend.maxReceivedRequests');
   const max_search = integer_setting(settings, 'friend.maxSearchResults');
   const max_lookup = integer_setting(settings, 'nickname.maxLookupCount');
-  const max_profiles = integer_setting(settings, 'public-profile.maxRequestCount');
   const allow_child = boolean_setting(settings, 'chat.allowChild');
-  if (max_profiles < 1) throw new TypeError('friend: setting public-profile.maxRequestCount is below 1');
 
   const storage = required_module<FriendStorage>(input.modules, 'storage', ['register_table', 'lock_game_row', 'db', 'get_state']);
   const server_time = required_module<FriendServerTime>(input.modules, 'server-time', ['now']);
@@ -246,12 +244,15 @@ export function create_friend(input: FriendInput): FriendModule {
     if (output !== undefined && output !== null) throw new TypeError(`friend: hook on_friend_changed returned a value of type ${typeof output}, not its output form`);
   };
 
-  /** Locks the `friend_count` rows of the two users, the smaller user ID first. */
-  const lock_pair = (ctx: RequestCtx, a: bigint, b: bigint): Failed | null => {
+  /**
+   * Locks the `friend_count` rows of the two users, the smaller user ID first. A lock wait timeout throws, so that
+   * `routing` ends the request with `INTERNAL` and leaves an `error` log with the stack trace.
+   */
+  const lock_pair = (ctx: RequestCtx, a: bigint, b: bigint, where: string): void => {
     const [first, second] = a < b ? [a, b] : [b, a];
-    if (storage.lock_game_row(ctx, COUNT_TABLE, [first]) === 'FAILED') return 'FAILED';
-    if (storage.lock_game_row(ctx, COUNT_TABLE, [second]) === 'FAILED') return 'FAILED';
-    return null;
+    for (const user_id of [first, second]) {
+      if (storage.lock_game_row(ctx, COUNT_TABLE, [user_id]) === 'FAILED') throw new Error(`friend: ${COUNT_TABLE} lock wait timed out in ${where}`);
+    }
   };
 
   /** `AcceptFriendRequest` steps 2 to 5 on a `Received` row of (me, target). */
@@ -279,7 +280,7 @@ export function create_friend(input: FriendInput): FriendModule {
   const drop = (ctx: RequestCtx, target: bigint, state: LinkState, missing: CoreError, change: FriendChange): CoreError | null => {
     const me = ctx.user_id;
     if (target < 1n) return CoreError.CORE_ERROR_INVALID_REQUEST;
-    if (lock_pair(ctx, me, target) === 'FAILED') return CoreError.CORE_ERROR_INTERNAL;
+    lock_pair(ctx, me, target, `the ${change} change`);
     const db = storage.db(ctx);
     if (read_state(db, me, target) !== state) return missing;
     delete_relation(db, me, target, state);
@@ -287,18 +288,9 @@ export function create_friend(input: FriendInput): FriendModule {
     return null;
   };
 
-  /** Profiles of the user IDs, `public-profile.maxRequestCount` users per call, by user ID. */
-  const profiles_of = (ctx: RequestCtx, user_ids: readonly bigint[]): Map<bigint, CoreContract.PublicProfileEntry> => {
-    const found = new Map<bigint, CoreContract.PublicProfileEntry>();
-    for (let start = 0; start < user_ids.length; start += max_profiles) {
-      for (const entry of profile.get_public_profiles(ctx, user_ids.slice(start, start + max_profiles))) found.set(entry.user_id, entry);
-    }
-    return found;
-  };
-
   /** The block listener: deletes the relation of the two users and takes it out of their counts. */
   const on_block: BlockListener = (ctx, blocker_id, blocked_id) => {
-    if (lock_pair(ctx, blocker_id, blocked_id) === 'FAILED') throw new Error('friend: friend_count lock wait timed out in the block listener');
+    lock_pair(ctx, blocker_id, blocked_id, 'the block listener');
     const db = storage.db(ctx);
     const state = read_state(db, blocker_id, blocked_id);
     if (state !== null) delete_relation(db, blocker_id, blocked_id, state);
@@ -309,7 +301,7 @@ export function create_friend(input: FriendInput): FriendModule {
       const me = ctx.user_id;
       const target = request.user_id;
       if (target < 1n || target === me) return CoreError.CORE_ERROR_INVALID_REQUEST;
-      if (lock_pair(ctx, me, target) === 'FAILED') return CoreError.CORE_ERROR_INTERNAL;
+      lock_pair(ctx, me, target, 'SendFriendRequest');
       const db = storage.db(ctx);
       const state = read_state(db, me, target);
       if (!profile.is_active_user(ctx, target)) return CoreError.CORE_ERROR_USER_NOT_FOUND;
@@ -347,7 +339,7 @@ export function create_friend(input: FriendInput): FriendModule {
       const me = ctx.user_id;
       const target = request.user_id;
       if (target < 1n) return CoreError.CORE_ERROR_INVALID_REQUEST;
-      if (lock_pair(ctx, me, target) === 'FAILED') return CoreError.CORE_ERROR_INTERNAL;
+      lock_pair(ctx, me, target, 'AcceptFriendRequest');
       const db = storage.db(ctx);
       if (read_state(db, me, target) !== RECEIVED) return CoreError.CORE_ERROR_FRIEND_REQUEST_NOT_FOUND;
       const failure = accept(ctx, db, me, target);
@@ -364,7 +356,7 @@ export function create_friend(input: FriendInput): FriendModule {
       const links = read_links(storage.db(ctx), ctx.user_id).sort(
         (a, b) => LIST_ORDER[a.state] - LIST_ORDER[b.state] || compare_ids(b.updated_at, a.updated_at) || compare_ids(a.other_id, b.other_id),
       );
-      const found = profiles_of(ctx, links.map((link) => link.other_id));
+      const found = new Map(links.length === 0 ? [] : profile.get_public_profiles(ctx, links.map((link) => link.other_id)).map((entry) => [entry.user_id, entry] as const));
       const response = new CoreContract.GetFriendsResponse();
       for (const link of links) {
         const entry = found.get(link.other_id);
