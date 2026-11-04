@@ -308,6 +308,8 @@ async function reward_retry(core: RankingCore, season: SeasonRow, owner: string)
     if (done?.ok !== true || is_stopped(core)) return;
     if (give_up) core_log(core, 'error', result === 'REJECTED' ? 'season reward retry rejected' : 'season reward given up', outcome_fields(ref, retry.user_id, tried));
   }
+  // A stop() that began before the end of retry (e.g. under the lease transaction) leaves the season to the next holder.
+  if (is_stopped(core)) return;
   const done = await game_tx(core, (tx) => ({ row: finish_pass(core.modules.storage.db(tx), board.id, season.season, owner) }));
   log_closed(core, done?.row ?? null);
 }
