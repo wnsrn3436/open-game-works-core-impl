@@ -9,12 +9,6 @@
       "foundBy": "block-report round 1"
     },
     {
-      "id": "D2",
-      "location": "server/core/block-report/index.ts:347",
-      "problem": "`correctness`: `add_report` does not check whether the target has already run `remove_user`, so `evidence` can stay after the target withdraws, against `remove_user` in `## behavior` and the `## test` item on `evidence` after `Withdraw`. Run path across two server instances on PostgreSQL: A runs `report_chat_message` and reads the message (server/core/chat/index.ts:366), B runs `Withdraw` of the sender, `chat.remove_user` deletes the message and `remove_user` (server/core/block-report/index.ts:472) empties `evidence` of the existing rows and commits, then A inserts the report with the text it read. `report_chat_message` takes no lock that `remove_user` also takes. The report is `Open` with `expires_at` null, so expiry cleanup does not delete the text until an operator resolves it. Run on one server: after `Withdraw` of bob, `add_report` with evidence `text of bob` returned `OK` and `list_reports` returned `Open`, `text of bob`, null. The interleaving across two instances was not run (see `## unknown`). Existed before the range",
-      "foundBy": "block-report round 1"
-    },
-    {
       "id": "D3",
       "location": "server/core/block-report/index.ts:411",
       "problem": "`efficiency`: `BlockUser` of a new target calls `public-profile.is_active_user` once per existing block row, and each call is one `storage.get_user_record` query (server/core/public-profile/index.ts:181). Measured `is_active_user` calls for six successive `BlockUser` requests: 1, 2, 3, 4, 5, 6. The growing amount is the user's block row count, up to `block-report.maxBlocks` (default 100; the settings schema sets no maximum). Existed before the range",
