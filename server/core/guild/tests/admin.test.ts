@@ -135,6 +135,18 @@ describe('import_guild', () => {
     expect(kit.content.changed).toEqual([]);
   }, T);
 
+  it('deletes every join request row of the members it writes, and keeps those of other users', async () => {
+    const kit = await start({ environment: 'STG' });
+    const [h, l, m, other] = await users(kit, 4);
+    const approval = (await create_guild(h, 'Approval', JoinType.GUILD_JOIN_TYPE_APPROVAL)).guild_id;
+    for (const user of [l, m, other]) expect((await join_guild(user, approval)).joined).toBe(false);
+    const response = await admin(kit, 'import_guild', import_body('Copied', [[l.user_id, 'Leader'], [m.user_id, 'Member']]));
+    expect(response.status).toBe(200);
+    const guild_id = imported_id(response);
+    expect(member_ids(kit, guild_id)).toEqual([l.user_id, m.user_id].sort((x, y) => (x < y ? -1 : 1)));
+    expect(requests(kit)).toEqual([{ guild_id: approval, user_id: other.user_id }]);
+  }, T);
+
   it('fails without a change for a guild member, a Leader count other than one, and broken input', async () => {
     const kit = await start({ environment: 'STG' });
     const [l, a, b, c] = await users(kit, 4);

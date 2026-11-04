@@ -9,6 +9,7 @@ import {
   T,
   admin,
   create_guild,
+  get_guild,
   get_my_guild,
   gold,
   guild_row,
@@ -40,6 +41,21 @@ describe('CreateGuild', () => {
     expect(guild_row(kit, guild_id)).toMatchObject({ name: 'Alpha', description: 'hello', leader_id: a.user_id, member_count: 1, max_members: 7, created_at: START_AT });
     expect(member(kit, a.user_id)).toEqual({ guild_id, role: Role.GUILD_ROLE_LEADER, joined_at: START_AT, active_at: START_AT });
     expect(kit.content.changed).toEqual([{ ctx_user: a.user_id, guild_id, user_id: a.user_id, change: 'Joined' }]);
+  }, T);
+
+  it('deletes every join request row of the user who creates the guild', async () => {
+    const kit = await start();
+    const [h1, h2, a, b] = await users(kit, 4);
+    const first = (await create_guild(h1, 'First', JoinType.GUILD_JOIN_TYPE_APPROVAL)).guild_id;
+    const second = (await create_guild(h2, 'Second', JoinType.GUILD_JOIN_TYPE_APPROVAL)).guild_id;
+    expect((await join_guild(a, first)).joined).toBe(false);
+    expect((await join_guild(a, second)).joined).toBe(false);
+    expect((await join_guild(b, first)).joined).toBe(false);
+    const { code, guild_id } = await create_guild(a, 'Own');
+    expect(code).toBe(0);
+    expect(member(kit, a.user_id)?.guild_id).toBe(guild_id);
+    expect(requests(kit)).toEqual([{ guild_id: first, user_id: b.user_id }]);
+    expect((await get_my_guild(a)).response?.my_join_requests).toEqual([]);
   }, T);
 
   it('is GUILD_NAME_TAKEN for a name with the same normalized form, and one of two users creating one name at once succeeds', async () => {
@@ -190,9 +206,10 @@ describe('UpdateGuild', () => {
     expect(await update_guild(l, JoinType.GUILD_JOIN_TYPE_OPEN, 'bell\u0007')).toBe(E.CORE_ERROR_TEXT_INVALID);
     expect(await update_guild(l, JoinType.GUILD_JOIN_TYPE_OPEN, 'a badword here')).toBe(E.CORE_ERROR_TEXT_BANNED);
     expect(snapshot(kit)).toBe(before);
-    expect(guild_row(kit, guild_id)).toMatchObject({ description: 'before', join_type: JoinType.GUILD_JOIN_TYPE_APPROVAL });
+    expect(guild_row(kit, guild_id)).toMatchObject({ description: 'before', join_type: JoinType.GUILD_JOIN_TYPE_APPROVAL, join_value: 5n });
     expect(await update_guild(l, JoinType.GUILD_JOIN_TYPE_CLOSED, 'line one\nline two', 9n)).toBe(0);
-    expect(guild_row(kit, guild_id)).toMatchObject({ description: 'line one\nline two', join_type: JoinType.GUILD_JOIN_TYPE_CLOSED });
+    expect(guild_row(kit, guild_id)).toMatchObject({ description: 'line one\nline two', join_type: JoinType.GUILD_JOIN_TYPE_CLOSED, join_value: 9n });
+    expect((await get_guild(m, guild_id)).response?.guild?.join_value).toBe(9n);
   }, T);
 
   it('keeps the join request rows whatever the join_type, and the Leader\'s GetMyGuild still lists them', async () => {

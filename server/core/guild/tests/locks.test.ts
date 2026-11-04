@@ -236,6 +236,34 @@ describe('guild row lock', () => {
     expect(requests(kit)).toEqual([{ guild_id, user_id: a.user_id }]);
   }, T);
 
+  it('makes the KickGuildMember of an Officer whose row moves to another guild while it waits for the first guild row lock GUILD_NOT_MEMBER, without a change (PostgreSQL)', async () => {
+    const kit = await start({ db: 'postgresql', settings: { 'storage.userLockWaitMs': 20_000 } });
+    const [l, o, m, h] = await users(kit, 4);
+    const first = await guild_with(l, 'First', [o, m], [o]);
+    const other = (await create_guild(h, 'Other')).guild_id;
+    const joined_at = guild_row(kit, other)?.created_at ?? 0n;
+    // The move (a kick from the first guild, then an Officer row in the other guild as import_guild writes it) holds
+    // the first guild row and commits only after the request, which read the Officer's row in the first guild, waits
+    // for that lock. The re-read row is an Officer row of another guild.
+    const move = await commit_while_locked(kit, first, [
+      { sql: 'DELETE FROM guild_member WHERE user_id = $1', params: [o.user_id] },
+      { sql: 'UPDATE guild_guild SET member_count = member_count - 1 WHERE guild_id = $1', params: [first] },
+      {
+        sql: 'INSERT INTO guild_member (user_id, guild_id, role, joined_at, active_at) VALUES ($1, $2, $3, $4, $4)',
+        params: [o.user_id, other, Role.GUILD_ROLE_OFFICER, joined_at],
+      },
+      { sql: 'UPDATE guild_guild SET member_count = member_count + 1 WHERE guild_id = $1', params: [other] },
+    ]);
+    const committed = move();
+    expect(await on_user(o, 'KickGuildMember', m.user_id)).toBe(E.CORE_ERROR_GUILD_NOT_MEMBER);
+    expect(await committed).toBe('committed');
+    expect(member(kit, m.user_id)).toMatchObject({ guild_id: first, role: Role.GUILD_ROLE_MEMBER });
+    expect(member_ids(kit, first)).toEqual([l.user_id, m.user_id].sort((x, y) => (x < y ? -1 : 1)));
+    expect(guild_row(kit, first)?.member_count).toBe(2);
+    expect(member(kit, o.user_id)).toMatchObject({ guild_id: other, role: Role.GUILD_ROLE_OFFICER, joined_at, active_at: joined_at });
+    expect(kit.content.changed.filter((c) => c.change === 'Kicked')).toEqual([]);
+  }, T);
+
   it('makes the KickGuildMember of an Officer that waits for the guild row lock of the change of its role to Member GUILD_PERMISSION after the change commits (PostgreSQL)', async () => {
     const kit = await start({ db: 'postgresql', settings: { 'storage.userLockWaitMs': 20_000 } });
     const [l, o, m] = await users(kit, 3);

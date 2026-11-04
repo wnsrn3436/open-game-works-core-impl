@@ -451,6 +451,7 @@ export interface GuildState {
   readonly normalized_name: string;
   readonly description: string;
   readonly join_type: number;
+  readonly join_value: bigint;
   readonly leader_id: bigint;
   readonly member_count: number;
   readonly max_members: number;
@@ -467,6 +468,7 @@ export function guild_row(kit: HasStorage, guild_id: bigint): GuildState | null 
     normalized_name: String(row.normalized_name),
     description: String(row.description),
     join_type: Number(row.join_type),
+    join_value: int64(row.join_value),
     leader_id: int64(row.leader_id),
     member_count: Number(row.member_count),
     max_members: Number(row.max_members),
