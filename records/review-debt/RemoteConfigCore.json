@@ -1,12 +1,5 @@
 {
   "target": "RemoteConfigCore",
   "nextId": 2,
-  "items": [
-    {
-      "id": "D1",
-      "location": "client/godot/core/remote_config_core/tests/test_values.gd:83",
-      "problem": "`test_getters_do_not_allocate` does not check the behavior `Getters do not allocate memory` of the spec: it compares the current values of `Performance.OBJECT_COUNT` and `Performance.MEMORY_STATIC` before and after the read loop, so an allocation freed before the second read is not seen. Run on Godot 4.7.2 headless with the same measurement, in a temporary script: a getter that builds `\"x\".repeat(1000)` on each call and a getter that makes a `RefCounted` and a `Dictionary` on each call both pass (objects 1480 -> 1480, static memory 24124650 -> 24124650). The test file is unchanged in the range, so this problem existed before it and is unrelated to its changes",
-      "foundBy": "RemoteConfigCore round 1"
-    }
-  ]
+  "items": []
 }
