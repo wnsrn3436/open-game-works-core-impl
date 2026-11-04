@@ -650,7 +650,7 @@ describe('party', () => {
     expect((await next(solo.conn, K.MATCHMAKER_FRAME_KIND_MATCH_FAILED)).reason).toBe(Reason.MATCH_FAIL_REASON_TIMEOUT);
   });
 
-  it('answers ROOM_START and a host MATCH_REQUEST with ROOM_BUSY while a member connection is bound to a match session, leaving that match running, and they go on after that member MATCH_LEAVE', async () => {
+  it('answers ROOM_START and a host MATCH_REQUEST with ROOM_BUSY while a member connection is bound to a match session, also with the kill switch MATCH_REQUEST on, leaving that match running, and they go on after that member MATCH_LEAVE', async () => {
     const h = await harness({ modes: MODES });
     const { members } = await room(h, BOTH.id, 2);
     const [a, b] = members;
@@ -677,6 +677,10 @@ describe('party', () => {
 
     const first = await start_match();
     await expect_busy(first, [a, b]);
+    // The bound member comes before the kill switch.
+    await kill_switch(h, true);
+    await expect_busy(first, [a, b]);
+    await kill_switch(h, false);
     // Only the member that is not the host is still in the match.
     await send_and_wait(a.conn, leave(first));
     await barrier(b.conn);
