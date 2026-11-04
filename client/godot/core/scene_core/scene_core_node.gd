@@ -4,12 +4,7 @@ extends Node
 
 
 func _process(_delta: float) -> void:
-	SceneCore._check_stopped()
 	SceneCore._check_frame()
-
-
-func _physics_process(_delta: float) -> void:
-	SceneCore._check_stopped()
 
 
 func _exit_tree() -> void:
@@ -18,6 +13,10 @@ func _exit_tree() -> void:
 
 func on_node_added(node: Node) -> void:
 	SceneCore._on_node_added(node)
+
+
+func on_node_removed(node: Node) -> void:
+	SceneCore._on_node_removed(node)
 
 
 func _on_safe_area_changed(_event: SafeAreaChangedEvent) -> void:

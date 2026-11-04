@@ -92,6 +92,128 @@ func test_nodes_with_a_process_mode_of_their_own_run_frames_only_after_stage_7()
 	assert_eq(results, PackedInt32Array([1]))
 
 
+## A node that processes before the core nodes is disabled before its own callback when scene code gives it a mode of
+## its own: at the start of a frame and at the start of a physics frame.
+func test_nodes_that_process_first_and_get_a_mode_during_stage_6_run_frames_only_after_stage_7() -> void:
+	assert_true(await start_booted(SCENE_A))
+	var counters: Array[Counter] = []
+	TestScene.preload_hook = func(scene: SceneBase) -> void:
+		for priority: int in [-1, -2000000]:
+			for i: int in 2:
+				var counter: Counter = Counter.new()
+				counter.process_priority = priority
+				counter.process_physics_priority = priority
+				scene.add_child(counter)
+				counters.append(counter)
+	TestScene.prepare_gate = Gate.new()
+	var results: PackedInt32Array = PackedInt32Array()
+	change_later(SCENE_B, results)
+	await wait_trace("prepare:" + SCENE_B)
+	assert_eq(counters.size(), 4)
+	if counters.size() != 4:
+		return
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	# goes on at the start of a frame
+	counters[0].process_mode = Node.PROCESS_MODE_ALWAYS
+	counters[2].process_mode = Node.PROCESS_MODE_ALWAYS
+	await tree.physics_frame
+	# goes on at the start of a physics frame
+	counters[1].process_mode = Node.PROCESS_MODE_ALWAYS
+	counters[3].process_mode = Node.PROCESS_MODE_ALWAYS
+	await _wait_frames_and_physics(3)
+	for i: int in counters.size():
+		assert_eq(counters[i].process_count, 0, "process of counter %d before stage 7" % i)
+		assert_eq(counters[i].physics_count, 0, "physics process of counter %d before stage 7" % i)
+	TestScene.prepare_gate.open(true)
+	await wait_trace("started:" + SCENE_B)
+	await _wait_frames_and_physics(2)
+	for i: int in counters.size():
+		assert_eq(counters[i].process_mode, Node.PROCESS_MODE_ALWAYS, "mode of counter %d after stage 7" % i)
+		assert_gt(counters[i].process_count, 0, "process of counter %d after stage 7" % i)
+		assert_gt(counters[i].physics_count, 0, "physics process of counter %d after stage 7" % i)
+	assert_eq(results, PackedInt32Array([1]))
+
+
+## The stop check runs only while the new scene is hidden and reads the nodes under the scene holder from the set that
+## `node_added` and `node_removed` keep, without walking the tree.
+func test_stop_check_runs_only_from_stage_4_until_stage_7_on_the_nodes_under_the_holder() -> void:
+	assert_true(await start_booted(SCENE_A))
+	var stop_check: Node = SceneCore._stop_check_node
+	assert_false(stop_check.is_processing(), "after the boot transition")
+	assert_false(stop_check.is_physics_processing(), "after the boot transition")
+	TestScene.prepare_gate = Gate.new()
+	var results: PackedInt32Array = PackedInt32Array()
+	change_later(SCENE_B, results)
+	await wait_trace("prepare:" + SCENE_B)
+	var scene: TestScene = TestScene.last as TestScene
+	assert_not_null(scene)
+	if scene == null:
+		return
+	assert_true(stop_check.is_processing(), "during stage 6")
+	assert_true(stop_check.is_physics_processing(), "during stage 6")
+	assert_eq(SceneCore._watched.size(), _count_under(SceneCore._holder))
+	var added: Node2D = Node2D.new()
+	var child: Node = Node.new()
+	added.add_child(child)
+	scene.add_child(added)
+	assert_true(SceneCore._watched.has(added))
+	assert_true(SceneCore._watched.has(child))
+	# a node that leaves the scene holder leaves the set, and its mode is not checked any more
+	var taken: Counter = Counter.new()
+	scene.add_child(taken)
+	scene.remove_child(taken)
+	assert_false(SceneCore._watched.has(taken))
+	add_child_autofree(taken)
+	taken.process_mode = Node.PROCESS_MODE_ALWAYS
+	var watched_before_free: int = SceneCore._watched.size()
+	added.queue_free()
+	await _wait_frames_and_physics(2)
+	assert_false(is_instance_valid(added))
+	assert_eq(SceneCore._watched.size(), watched_before_free - 2, "a freed node and its child left the set")
+	assert_eq(SceneCore._watched.size(), _count_under(SceneCore._holder))
+	assert_eq(taken.process_mode, Node.PROCESS_MODE_ALWAYS)
+	assert_gt(taken.process_count, 0)
+	TestScene.prepare_gate.open(true)
+	await wait_trace("started:" + SCENE_B)
+	assert_false(stop_check.is_processing(), "after stage 7")
+	assert_false(stop_check.is_physics_processing(), "after stage 7")
+	assert_eq(SceneCore._watched.size(), 0)
+	assert_eq(results, PackedInt32Array([1]))
+
+
+## A transition that ends with `false` in stage 6 and stays in transition until `release` ends the stop check.
+func test_stop_check_ends_when_the_transition_ends_with_false() -> void:
+	assert_true(await start_booted(SCENE_A))
+	var stop_check: Node = SceneCore._stop_check_node
+	# restart through the retry popup
+	TestScene.prepare_results = [false]
+	var results: PackedInt32Array = PackedInt32Array()
+	change_later(SCENE_B, results)
+	await wait_trace("prepare:" + SCENE_B)
+	await wait_popup_layout()
+	assert_true(stop_check.is_processing(), "while the retry popup is open")
+	UICore.close_all_popups()
+	await wait_trace("restart")
+	await UnitTestCore.wait_frames(2)
+	assert_eq(results, PackedInt32Array([0]))
+	assert_true(SceneCore.is_transitioning())
+	assert_false(stop_check.is_processing(), "after the restart")
+	assert_false(stop_check.is_physics_processing(), "after the restart")
+	assert_eq(SceneCore._watched.size(), 0)
+	# unrecoverable failure of the boot transition
+	SceneCore.release()
+	assert_true(SceneCore.init())
+	stop_check = SceneCore._stop_check_node
+	TestScene.prepare_results = [false]
+	var failed: bool = await SceneCore.boot_change_scene(SCENE_B, null)
+	assert_false(failed)
+	assert_eq(errors(TAG), 1)
+	assert_true(SceneCore.is_transitioning())
+	assert_false(stop_check.is_processing(), "after the fatal failure")
+	assert_false(stop_check.is_physics_processing(), "after the fatal failure")
+	assert_eq(SceneCore._watched.size(), 0)
+
+
 func test_scene_ui_root_is_under_the_scene_ui_safe_area_root() -> void:
 	assert_true(await start_booted(SCENE_A))
 	assert_true(await SceneCore.change_scene(SCENE_UI, null))
@@ -196,3 +318,11 @@ func _wait_frames_and_physics(count: int) -> void:
 
 func _rect_of(control: Control) -> Rect2:
 	return Rect2(control.global_position, control.size)
+
+
+## Count of the nodes under `node`.
+func _count_under(node: Node) -> int:
+	var count: int = 0
+	for child: Node in node.get_children():
+		count += 1 + _count_under(child)
+	return count
