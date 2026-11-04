@@ -1,48 +1,5 @@
 {
   "target": "game-update",
   "nextId": 8,
-  "items": [
-    {
-      "id": "D1",
-      "location": "server/core/game-update/tests/publish.test.ts:77",
-      "problem": "`test evidence`. No game-update test fails when the `storage.lock_game_row` calls that `game-update.md` step 6 and `prune_update_files` require are removed. Both concurrency tests (`:77` and `:231`) send the two operations to one server instance in one process, and the handler functions contain no `await`, so their bodies do not interleave. Run on a temporary clone, SQLite: with both calls at `server/core/game-update/admin.ts:149` and `:168` removed, 74 of 74 pass. Reaching the race takes two server processes on PostgreSQL.",
-      "foundBy": "game-update round 1"
-    },
-    {
-      "id": "D2",
-      "location": "server/core/game-update/index.ts:101",
-      "problem": "`test evidence`. No test covers reading a secret by the name in game settings, the path that `read_secret` of `server-core` `## module` sets when `db` is `null`, which is how a DEV, STG or PROD server reads `updateSigningKey` and `cdn`. `tests/helpers.ts` always gives a test server with a `db`, so lines 102 and 103 do not run. Run on a temporary clone, SQLite: with those lines replaced by `return server.read_secret(key)`, together with the other restored defects listed in `## unknown`, the only game-update failure is the one the control defect causes, and the 91 tests of the 6 other module test files listed there pass.",
-      "foundBy": "game-update round 1"
-    },
-    {
-      "id": "D3",
-      "location": "server/core/game-update/index.ts:120",
-      "problem": "`test evidence`. No test covers server start with an unreadable `cdn` secret, which `server-core` `## adapter` says must stop the server. `tests/start.test.ts` covers only `updateSigningKey`, and no test uses `start_failure` with `adapters.cdn` `cdn-r2`. Run on a temporary clone, SQLite: with line 120 removed and the secret defaulting to an empty string, in the same combined run, no test fails on it.",
-      "foundBy": "game-update round 1"
-    },
-    {
-      "id": "D4",
-      "location": "server/core/game-update/routes.ts:54",
-      "problem": "`test evidence`. No test checks `Content-Type: application/json` of `GET /update/deploy_list.json` and `GET /update/deploy_list.json.sig`, which `### serving` of `game-update.md` sets. `tests/serving.test.ts:34` checks only the content type of a file response. Run on a temporary clone, SQLite: with the value changed to `text/plain`, in the same combined run, no test fails on it.",
-      "foundBy": "game-update round 1"
-    },
-    {
-      "id": "D5",
-      "location": "server/core/game-update/index.ts:185",
-      "problem": "`test evidence`. No test goes through the failure value `false` of `is_data_update_ready` that `## API` of `game-update.md` sets: no test makes the deploy list read throw. Run on a temporary clone, SQLite: with the `try`/`catch` removed so the read failure propagates to `routing` step 7 and `matchmaker`, in the same combined run, no test fails on it.",
-      "foundBy": "game-update round 1"
-    },
-    {
-      "id": "D6",
-      "location": "server/core/game-update/store.ts:62",
-      "problem": "`efficiency`. `file_sizes` runs one `SELECT` per distinct `sha256` of the deploy list input, and `uploaded_sha256s` at `:114` does the same. `files_match` calls `file_sizes` twice per publish (`server/core/game-update/admin.ts:132` and `:151`), the second time inside the game transaction while holding the `sequence` 0 lock. The growing amount is the number of files in the input, limited only by `admin-api.maxBodyBytes` (1048576 bytes, which fits on the order of 10000 file entries by estimate; not measured). One `WHERE sha256 = ANY` style query would not grow with it.",
-      "foundBy": "game-update round 1"
-    },
-    {
-      "id": "D7",
-      "location": "server/core/game-update/admin.ts:175",
-      "problem": "`efficiency`. `prune_update_files` reads every `sha256` of `game_update_file` (`store.file_sha256s`) and runs one `DELETE` per unreferenced file (`store.delete_file`) inside one game transaction while holding the `sequence` 0 lock, so publishes wait for it. The growing amount is the number of stored files and of files to delete. The time was not measured.",
-      "foundBy": "game-update round 1"
-    }
-  ]
+  "items": []
 }
