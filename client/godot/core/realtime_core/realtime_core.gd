@@ -613,7 +613,14 @@ static func _on_match_found(info: MatchInfo) -> void:
 	if member_start:
 		_begin_match(MatchOrigin.ROOM_MEMBER)
 	if _origin == MatchOrigin.ROOM_MEMBER and not _room_started_published:
+		var change_count: int = _change_count
 		_publish_room_match_started()
+		# A subscriber that left the room or released the module ended this match. In `None`, what `_begin_match` set stays
+		# unless it is cleared here.
+		if change_count != _change_count:
+			if _is_initialized and _state == MatchState.NONE:
+				_set_none()
+			return
 	if not _is_valid_info(info):
 		_fail_match(CoreContract.MatchFailReason.MATCH_FAIL_REASON_UNSPECIFIED, 0, "match found failed the MatchInfo check", true)
 		return

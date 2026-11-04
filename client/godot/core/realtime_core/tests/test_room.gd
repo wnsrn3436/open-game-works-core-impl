@@ -5,6 +5,8 @@ const OTHER_ROOM_CODE: String = "ROOM77"
 
 ## The `create_room` that `_leave_and_create_room_once` started.
 var _room_event_create: RealtimeAsyncCall = null
+## Whether `_leave_room_on_match_started_once` already left a room.
+var _left_on_match_started: bool = false
 
 
 func test_create_room_opens_the_room_and_takes_the_first_room_updated() -> void:
@@ -886,6 +888,62 @@ func test_member_in_none_takes_match_found_without_a_warning_and_room_less_match
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.PLAYING)
 
 
+func test_leave_room_from_room_match_started_of_a_match_found_in_none_ends_that_match_and_the_rest_of_the_poll() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([OTHER_ID, USER_ID]))
+	assert_true(EventCore.subscribe(RoomMatchStartedEvent, _leave_room_on_match_started_once))
+	events.lines.clear()
+	transport.clear_calls()
+	push_match_found(make_info(2, 1))
+	push_peer_connected(0)
+	await frames()
+	assert_eq(transport.calls, PackedStringArray(["leave_room()", "close()"]))
+	assert_eq(events.lines, PackedStringArray(["room_match_started", "room:LEFT"]))
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	assert_eq(RealtimeCore.room_info().room_code, "")
+	assert_eq(RealtimeCore.saved_match_id(), "")
+	assert_eq(warn_logs(), 0)
+	# The next room takes its match found from the start, with its own event.
+	await reach_room(PackedInt64Array([OTHER_ID, USER_ID]))
+	events.lines.clear()
+	push_match_found(make_info(2, 1))
+	await frames()
+	assert_eq(events.lines, PackedStringArray(["room_match_started"]))
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.CONNECTING)
+	assert_eq(transport.count("connect_peer"), 1)
+
+
+func test_leave_room_and_create_room_from_room_match_started_keep_the_new_room_operation() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([OTHER_ID, USER_ID]))
+	assert_true(EventCore.subscribe(RoomMatchStartedEvent, _leave_room_and_create_room_on_match_started))
+	transport.clear_calls()
+	push_match_found(make_info(2, 1))
+	await frames(5)
+	assert_eq(transport.count("connect_peer"), 0)
+	assert_eq(transport.count("close"), 1)
+	assert_eq(transport.count("open_room"), 1)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	assert_false(_room_event_create.done, "create_room waits for its room")
+	push_room_updated(make_room(PackedInt64Array([USER_ID])))
+	await frames()
+	await _room_event_create.wait()
+	assert_true(_room_event_create.room_result.ok)
+	assert_eq(RealtimeCore.room_info().members, PackedInt64Array([USER_ID]))
+
+
+func test_release_from_room_match_started_of_a_match_found_in_none_ends_the_handling() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([OTHER_ID, USER_ID]))
+	assert_true(EventCore.subscribe(RoomMatchStartedEvent, _release_on_match_started))
+	transport.clear_calls()
+	push_match_found(make_info(2, 1))
+	await frames()
+	assert_false(RealtimeCore.is_initialized())
+	assert_eq(transport.count("connect_peer"), 0)
+	assert_eq(transport.count("disconnect"), 1)
+
+
 func test_room_kicked_and_matchmaker_lost_empty_the_room() -> void:
 	await start_realtime()
 	await reach_room(PackedInt64Array([OTHER_ID, USER_ID]))
@@ -1076,6 +1134,22 @@ func test_token_expired_drops_the_matchmaker_lost_when_create_room_restarts_whil
 		RealtimeCore.leave_room()
 		await frames()
 		events.lines.clear()
+
+
+func _leave_room_on_match_started_once(_event: RoomMatchStartedEvent) -> void:
+	if not _left_on_match_started:
+		_left_on_match_started = true
+		RealtimeCore.leave_room()
+
+
+func _leave_room_and_create_room_on_match_started(_event: RoomMatchStartedEvent) -> void:
+	RealtimeCore.leave_room()
+	_room_event_create = RealtimeAsyncCall.new()
+	_room_event_create.create_room(MODE_ID)
+
+
+func _release_on_match_started(_event: RoomMatchStartedEvent) -> void:
+	RealtimeCore.release()
 
 
 func _leave_room_on_update(event: RoomChangedEvent) -> void:
