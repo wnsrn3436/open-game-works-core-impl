@@ -1,4 +1,5 @@
-import { put, server, shown_ids, get_notices, stop_all } from './helpers.ts';
+import * as CoreContract from '../../../generated/contract/core_contract.ts';
+import { put, server, shown_ids, get_notices, get_notices_envelope, stop_all } from './helpers.ts';
 
 afterEach(stop_all);
 
@@ -77,6 +78,18 @@ describe('language', () => {
     for (const language of ['fr', 'ko-KR', '']) {
       const [notice] = (await get_notices(s, { language })).notices;
       expect([notice?.title, notice?.body]).toEqual(['Title', 'Body']);
+    }
+  });
+
+  it('is INVALID_REQUEST for a language over 35 UTF-8 bytes and gives the sourceLanguage text at 35 bytes', async () => {
+    const s = await server();
+    await put(s);
+    const [at_limit] = (await get_notices(s, { language: 'a'.repeat(35) })).notices;
+    expect([at_limit?.title, at_limit?.body]).toEqual(['Title', 'Body']);
+    for (const language of ['a'.repeat(36), '가'.repeat(12)]) {
+      const { envelope, response } = await get_notices_envelope(s, { language });
+      expect(envelope?.error?.code).toBe(CoreContract.CoreError.CORE_ERROR_INVALID_REQUEST);
+      expect(response).toBeNull();
     }
   });
 });
