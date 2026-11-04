@@ -428,6 +428,28 @@ export function fail_statements(server: TestServer, sql: RegExp, times: number, 
   return () => failed;
 }
 
+/**
+ * Runs `before` before the next `times` statements matching `sql` in a transaction of the test server's running
+ * instance; the statements then run. The parameters of a statement are read before `before` runs.
+ */
+export function before_statements(server: TestServer, sql: RegExp, times: number, before: () => void): void {
+  const storage = storage_module(server);
+  const db = storage.db.bind(storage);
+  let ran = 0;
+  storage.db = (ctx_or_tx) => {
+    const handle = db(ctx_or_tx);
+    const wrapped = Object.create(handle) as DbHandle;
+    wrapped.query = (statement, params) => {
+      if (sql.test(statement) && ran < times) {
+        ran += 1;
+        before();
+      }
+      return handle.query(statement, params);
+    };
+    return wrapped;
+  };
+}
+
 /** Polls (real time) until `done` is true. */
 export async function until(done: () => boolean | Promise<boolean>, what: string, limit_ms = 5000): Promise<void> {
   for (let waited = 0; !(await done()); waited += 10) {

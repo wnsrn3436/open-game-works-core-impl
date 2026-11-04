@@ -518,8 +518,12 @@ async function send_held_batch(core: PushCore): Promise<boolean> {
       }
       continue;
     }
+    // The row can expire after the select: clock_now is read again in the take, and an expired row is not taken.
     const result = await core.storage.run_game_transaction((tx) => ({
-      taken: core.storage.db(tx).query(`DELETE FROM ${T_HELD} WHERE push_id = $1 AND user_id = $2 RETURNING push_id`, [push_id, user_id]).length > 0,
+      taken: core.storage.db(tx).query(
+        `DELETE FROM ${T_HELD} WHERE push_id = $1 AND user_id = $2 AND expires_at > $3 RETURNING push_id`,
+        [push_id, user_id, core.time.clock_now()],
+      ).length > 0,
     }));
     if (result === 'FAILED') failed = true;
     else if (result.taken) taken.push([push_id, user_id]);
