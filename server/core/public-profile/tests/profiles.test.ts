@@ -4,6 +4,7 @@ import type { BuildPublicProfileHook } from '../index.ts';
 import { DB_KIND, START, get_profiles, hold_user_lock, new_user, request, set_nickname, start, stop_all, withdraw, type Instance } from './helpers.ts';
 
 const INVALID_REQUEST = CoreContract.CoreError.CORE_ERROR_INVALID_REQUEST;
+const MINUTE = 60_000n;
 
 afterEach(() => {
   stop_all();
@@ -274,5 +275,55 @@ describe('count_find_attempt', () => {
 
     expect(counter()).toEqual(before);
     expect(error_lines(instance)).toEqual([expect.objectContaining({ level: 'error', user_id: user.toString() })]);
+  });
+});
+
+describe('find counter expiry', () => {
+  /** The `public_profile_find_counter` row of `user`, or undefined when it has none. */
+  function counter_row(instance: Instance, user: bigint): Record<string, unknown> | undefined {
+    return instance.storage.read_db().query('SELECT window_start, count, expires_at FROM public_profile_find_counter WHERE user_id = $1', [user])[0];
+  }
+
+  it('has expires_at at the window end, and storage.sweep_expired inside the window leaves the count, so the next find is RATE_LIMITED', async () => {
+    const instance = await start({ 'public-profile.findPerMinute': 1 });
+    const user = await new_user(instance);
+    const window_start = START - (START % MINUTE);
+    expect(await instance.profile.count_find_attempt(user)).toBe('pass');
+    expect(counter_row(instance, user)).toEqual({ window_start, count: 1n, expires_at: window_start + MINUTE });
+
+    instance.clock.advance(window_start + MINUTE - 1n - START);
+    expect((await instance.storage.sweep_expired()).failed).toEqual([]);
+    expect(counter_row(instance, user)).toEqual({ window_start, count: 1n, expires_at: window_start + MINUTE });
+    expect(await instance.profile.count_find_attempt(user)).toBe(CoreContract.CoreError.CORE_ERROR_RATE_LIMITED);
+  });
+
+  it('has no row of a finished window after storage.sweep_expired', async () => {
+    const instance = await start({ 'public-profile.findPerMinute': 1 });
+    const [user, other] = [await new_user(instance), await new_user(instance)];
+    const window_start = START - (START % MINUTE);
+    expect(await instance.profile.count_find_attempt(user)).toBe('pass');
+    instance.clock.advance(window_start + MINUTE - START);
+    expect(await instance.profile.count_find_attempt(other)).toBe('pass');
+
+    expect((await instance.storage.sweep_expired()).failed).toEqual([]);
+    expect(counter_row(instance, user)).toBeUndefined();
+    expect(counter_row(instance, other)).toEqual({ window_start: window_start + MINUTE, count: 1n, expires_at: window_start + 2n * MINUTE });
+  });
+});
+
+describe('user snapshot', () => {
+  it('has no public_profile_activity and public_profile_find_counter rows of a user that has both', async () => {
+    const instance = await start({ 'public-profile.lastActiveGranularityMs': 60_000 });
+    const user = await new_user(instance);
+    await put_profile(instance, user, 3n);
+    await instance.profile.on_request_start(user);
+    expect(await instance.profile.count_find_attempt(user)).toBe('pass');
+    const db = instance.storage.read_db();
+    expect(db.query('SELECT user_id FROM public_profile_activity WHERE user_id = $1', [user])).toHaveLength(1);
+    expect(db.query('SELECT user_id FROM public_profile_find_counter WHERE user_id = $1', [user])).toHaveLength(1);
+
+    const rows = await request(instance, user, 'Test', (ctx) => instance.storage.read_user_rows(ctx));
+    expect(rows.map((row) => row.table)).toContain('user_state');
+    expect(rows.filter((row) => row.table === 'public_profile_activity' || row.table === 'public_profile_find_counter')).toEqual([]);
   });
 });
