@@ -22,6 +22,7 @@ import {
   requests,
   run_core_test,
   set_role,
+  snapshot,
   start,
   stop_servers,
   test_state,
@@ -95,6 +96,21 @@ describe('SetGuildMemberRole', () => {
     expect(await set_role(b, a.user_id, Role.GUILD_ROLE_UNSPECIFIED)).toBe(E.CORE_ERROR_INVALID_REQUEST);
   }, T);
 
+  it('is GUILD_NOT_MEMBER for a target with no guild and for a member of another guild, and changes nothing', async () => {
+    const kit = await start();
+    const [l, a, outsider, h, other] = await users(kit, 5);
+    await guild_with(l, 'Home', [a]);
+    await guild_with(h, 'Other', [other]);
+    const before = snapshot(kit);
+    kit.content.changed.length = 0;
+    for (const role of [Role.GUILD_ROLE_OFFICER, Role.GUILD_ROLE_LEADER]) {
+      expect(await set_role(l, outsider.user_id, role)).toBe(E.CORE_ERROR_GUILD_NOT_MEMBER);
+      expect(await set_role(l, other.user_id, role)).toBe(E.CORE_ERROR_GUILD_NOT_MEMBER);
+    }
+    expect(snapshot(kit)).toBe(before);
+    expect(kit.content.changed).toEqual([]);
+  }, T);
+
   it('calls RoleChanged once for the target of Member to Officer, for the target then the previous Leader on a Leader change, and not when the role is already set', async () => {
     const kit = await start();
     const [l, a, b] = await users(kit, 3);
@@ -164,6 +180,31 @@ describe('active_at', () => {
     expect(member(kit, a.user_id)?.active_at).toBe(START_AT + 5000n);
     expect(await update_guild(a, CoreContract.GuildJoinType.GUILD_JOIN_TYPE_OPEN)).toBe(E.CORE_ERROR_GUILD_PERMISSION);
     expect(member(kit, a.user_id)?.active_at).toBe(START_AT + 5000n);
+  }, T);
+
+  it('is set to the request time of the acting member by AcceptGuildJoinRequest, RejectGuildJoinRequest, KickGuildMember and SetGuildMemberRole, and not for the target', async () => {
+    const kit = await start();
+    const [l, o, m, a, b] = await users(kit, 5);
+    const guild_id = await guild_with(l, 'Home', [o, m], [o]);
+    expect(await update_guild(l, JoinType.GUILD_JOIN_TYPE_APPROVAL)).toBe(0);
+    expect((await join_guild(a, guild_id)).joined).toBe(false);
+    expect((await join_guild(b, guild_id)).joined).toBe(false);
+    advance_time(kit.server, 1000n);
+    expect(await on_user(o, 'AcceptGuildJoinRequest', a.user_id)).toBe(0);
+    expect(member(kit, o.user_id)?.active_at).toBe(START_AT + 1000n);
+    expect(member(kit, a.user_id)?.active_at).toBe(START_AT + 1000n);
+    advance_time(kit.server, 1000n);
+    expect(await on_user(o, 'RejectGuildJoinRequest', b.user_id)).toBe(0);
+    expect(member(kit, o.user_id)?.active_at).toBe(START_AT + 2000n);
+    advance_time(kit.server, 1000n);
+    expect(await on_user(o, 'KickGuildMember', m.user_id)).toBe(0);
+    expect(member(kit, o.user_id)?.active_at).toBe(START_AT + 3000n);
+    expect(member(kit, l.user_id)?.active_at).toBe(START_AT);
+    advance_time(kit.server, 1000n);
+    expect(await set_role(l, a.user_id, Role.GUILD_ROLE_OFFICER)).toBe(0);
+    expect(member(kit, l.user_id)?.active_at).toBe(START_AT + 4000n);
+    expect(member(kit, a.user_id)?.active_at).toBe(START_AT + 1000n);
+    expect(member(kit, o.user_id)?.active_at).toBe(START_AT + 3000n);
   }, T);
 });
 
