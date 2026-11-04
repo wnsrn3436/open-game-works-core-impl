@@ -14,6 +14,8 @@ var token: String = ""
 var token_frames: int = 2
 ## Launch push the first `take_launch_push` gives.
 var launch_push: int = 0
+## `start_token_request` returns 0, the operation ID of a request that cannot start, and `token_state(0)` stays 0.
+var cannot_start: bool = false
 var token_requests: int = 0
 ## `token_state` calls.
 var token_polls: int = 0
@@ -49,6 +51,8 @@ func open(message_id: int) -> void:
 
 func start_token_request() -> int:
 	token_requests += 1
+	if cannot_start:
+		return 0
 	_next_id += 1
 	_running[_next_id] = token_frames
 	return _next_id
@@ -56,6 +60,8 @@ func start_token_request() -> int:
 
 func token_state(id: int) -> int:
 	token_polls += 1
+	if id <= 0:
+		return 0
 	if not _running.has(id):
 		return 1
 	var left: int = _running[id] - 1

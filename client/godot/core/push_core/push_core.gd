@@ -25,7 +25,8 @@ static var _notification: NotificationAdapter = null
 static var _active_notification: NotificationAdapter = null
 ## Permission cache.
 static var _permission: PermissionStatus = PermissionStatus.UNDETERMINED
-## Number of the latest permission read. An older read that ends later leaves the cache alone.
+## Number of the latest permission read or permission request screen result. An older read that ends later leaves the
+## cache alone.
 static var _read_serial: int = 0
 static var _token_waits: Array[_TOKEN_WAIT] = []
 static var _token_timeout_ms: int = 0
@@ -170,8 +171,7 @@ static func request_permission() -> PermissionStatus:
 	if adapter == null:
 		return PermissionStatus.UNSUPPORTED
 	var life: RefCounted = _life
-	_read_serial += 1
-	var serial: int = _read_serial
+	var serial: int = _next_serial()
 	var status: PermissionStatus = _status_of(await adapter.read_permission(), "read_permission")
 	if life != _life:
 		return PermissionStatus.UNDETERMINED
@@ -179,6 +179,8 @@ static func request_permission() -> PermissionStatus:
 		status = _status_of(await adapter.request_permission(), "request_permission")
 		if life != _life:
 			return PermissionStatus.UNDETERMINED
+		# The screen result is newer than every read that started before it ended: only a later read replaces it.
+		serial = _next_serial()
 	if serial == _read_serial:
 		_permission = status
 	return status
@@ -190,12 +192,18 @@ static func _read_permission() -> void:
 	if not _is_initialized or adapter == null:
 		return
 	var life: RefCounted = _life
-	_read_serial += 1
-	var serial: int = _read_serial
+	var serial: int = _next_serial()
 	var status: PermissionStatus = _status_of(await adapter.read_permission(), "read_permission")
 	if life != _life or serial != _read_serial:
 		return
 	_permission = status
+
+
+## A new permission read number. Written in a function of its own: on Godot 4.7.2, writing `_read_serial` in
+## `request_permission` after the permission request screen resumes it leaks that call's `GDScriptFunctionState` at exit.
+static func _next_serial() -> int:
+	_read_serial += 1
+	return _read_serial
 
 
 ## A `PermissionStatus` from an adapter. A value outside the enum is `UNDETERMINED` with an error log.

@@ -8,13 +8,16 @@ extends UnitTestCase
 const Env := preload("res://core/push_core/tests/support/push_test_env.gd")
 const Plugin := preload("res://core/push_core/tests/support/scripted_push_plugin.gd")
 const Recorder := preload("res://core/push_core/tests/support/push_event_recorder.gd")
+const NotificationPlugin := preload("res://core/push_core/tests/support/scripted_notification_plugin.gd")
 
 const _APNS_SINGLETON: String = "OgwPushApns"
 const _FCM_SINGLETON: String = "OgwPushFcm"
+const _NOTIFICATION_SINGLETON: String = "OgwNotification"
 
 var _singleton: String = ""
 var _plugin: Plugin = null
 var _recorder: Recorder = null
+var _notification_plugin: NotificationPlugin = null
 
 
 func after_each() -> void:
@@ -24,6 +27,7 @@ func after_each() -> void:
 		_recorder = null
 	Env.stop()
 	_drop_plugin()
+	_drop_notification_plugin()
 
 
 func _register_plugin(singleton: String) -> Plugin:
@@ -42,6 +46,23 @@ func _drop_plugin() -> void:
 	if _plugin != null:
 		_plugin.free()
 		_plugin = null
+
+
+## Registers a scripted `ogw-notification` plugin whose permission reads end with `read_state`.
+func _register_notification_plugin(read_state: int) -> NotificationPlugin:
+	_drop_notification_plugin()
+	_notification_plugin = NotificationPlugin.new()
+	_notification_plugin.read_state = read_state
+	Engine.register_singleton(_NOTIFICATION_SINGLETON, _notification_plugin)
+	return _notification_plugin
+
+
+func _drop_notification_plugin() -> void:
+	if Engine.has_singleton(_NOTIFICATION_SINGLETON):
+		Engine.unregister_singleton(_NOTIFICATION_SINGLETON)
+	if _notification_plugin != null:
+		_notification_plugin.free()
+		_notification_plugin = null
 
 
 func _record() -> void:
@@ -134,3 +155,77 @@ func test_android_fcm_adapter_without_its_plugin_gives_no_token_and_no_launch_pu
 	assert_eq(Env.request_count(Env.REGISTER), 0, "no plugin, no device token")
 	assert_eq(PushCore.take_launch_push(), 0)
 	assert_eq(Env.errors(), 0)
+
+
+func test_native_notification_adapter_gives_the_permission_the_plugin_read() -> void:
+	var states: PackedInt32Array = [1, 2, 1, 2]
+	var expected: Array[PushCore.PermissionStatus] = [
+		PushCore.PermissionStatus.GRANTED,
+		PushCore.PermissionStatus.DENIED,
+		PushCore.PermissionStatus.GRANTED,
+		PushCore.PermissionStatus.DENIED,
+	]
+	var platforms: PackedStringArray = ["android", "android", "ios", "ios"]
+	for i: int in states.size():
+		var plugin: NotificationPlugin = _register_notification_plugin(states[i])
+		assert_true(await Env.start(null, NativeNotificationAdapter.new(), platforms[i]))
+		await UnitTestCore.wait_frames(2)
+		assert_eq(PushCore.get_permission(), expected[i], "the read of init, plugin state %d" % states[i])
+		assert_eq(await PushCore.request_permission(), expected[i], "plugin state %d" % states[i])
+		assert_eq(plugin.requests.size(), 0, "a read that is not undetermined opens no screen")
+		assert_eq(plugin.cancelled.size(), 0)
+		assert_eq(Env.errors(), 0)
+		Env.stop()
+
+
+func test_native_notification_adapter_gives_the_result_of_the_plugin_request_screen() -> void:
+	var plugin: NotificationPlugin = _register_notification_plugin(0)
+	assert_true(await Env.start(null, NativeNotificationAdapter.new(), "android"))
+	await UnitTestCore.wait_frames(2)
+	assert_eq(PushCore.get_permission(), PushCore.PermissionStatus.UNDETERMINED, "plugin state 0")
+	var states: PackedInt32Array = [1, 2, 0]
+	var expected: Array[PushCore.PermissionStatus] = [
+		PushCore.PermissionStatus.GRANTED,
+		PushCore.PermissionStatus.DENIED,
+		PushCore.PermissionStatus.UNDETERMINED,
+	]
+	for i: int in states.size():
+		plugin.request_state = states[i]
+		var requests: int = plugin.requests.size()
+		assert_eq(await PushCore.request_permission(), expected[i], "screen state %d" % states[i])
+		assert_eq(plugin.requests.size(), requests + 1, "the undetermined read opens the screen")
+		assert_eq(PushCore.get_permission(), expected[i], "the screen result is cached")
+	assert_eq(plugin.cancelled.size(), 0)
+	assert_eq(Env.errors(), 0)
+
+
+func test_native_notification_adapter_schedules_and_cancels_local_pushes_through_the_plugin() -> void:
+	var plugin: NotificationPlugin = _register_notification_plugin(1)
+	assert_true(await Env.start(null, NativeNotificationAdapter.new(), "ios"))
+	await UnitTestCore.wait_frames(2)
+	var return_id: int = Env.id_of(Env.RETURN_ROW)
+	var event_id: int = Env.id_of(Env.EVENT_ROW)
+	assert_true(PushCore.schedule_local(return_id))
+	assert_true(PushCore.schedule_local_after(event_id, 5000))
+	assert_eq(plugin.scheduled.size(), 2)
+	if plugin.scheduled.size() == 2:
+		_assert_scheduled(plugin.scheduled[0], return_id, "Come back", "Your rewards are waiting", Env.RETURN_DELAY_MS)
+		_assert_scheduled(plugin.scheduled[1], event_id, "Event starts", "The event is open", 5000)
+	PushCore.cancel_local(return_id)
+	assert_eq(plugin.cancelled_local, PackedInt64Array([return_id]))
+	PushCore.cancel_all_local()
+	assert_eq(plugin.cancel_all_calls, 1)
+	assert_eq(Env.errors(), 0)
+	plugin.schedule_result = false
+	assert_false(PushCore.schedule_local(return_id), "the plugin could not schedule")
+	assert_eq(plugin.scheduled.size(), 3)
+	assert_eq(Env.errors(), 1)
+
+
+func _assert_scheduled(
+	call: NotificationPlugin.Scheduled, id: int, title: String, body: String, delay_ms: int
+) -> void:
+	assert_eq(call.id, id)
+	assert_eq(call.title, title)
+	assert_eq(call.body, body)
+	assert_eq(call.delay_ms, delay_ms)
