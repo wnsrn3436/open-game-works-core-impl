@@ -33,12 +33,6 @@
       "foundBy": "PaymentCore round 1"
     },
     {
-      "id": "D6",
-      "location": "open-game-works-core/skills/client-core/modules/payment-core.md:147",
-      "problem": "Two defining documents set a different log level. This line says that the `RecoverPurchase` failure callback returns `true` for every failure with \"warn log, no screen\". `open-game-works-core/skills/client-core/modules/network-core.md:106` and `:264` make only a `ServerError` warn and give a communication failure one error log even when the callback returns `true`, and `client/godot/core/network_core/network_core.gd:1154` does that. Run path: on a foreground return with no network, each unfinished transaction writes an error log, not the warn this line states. The PaymentCore tests check only `IAP_VERIFY_UNAVAILABLE`, so they do not show the difference. This existed before the range.",
-      "foundBy": "PaymentCore round 1"
-    },
-    {
       "id": "D7",
       "location": "client/godot/core/payment_core/payment_core.gd:858",
       "problem": "`claim_daily` has no login session check, so it returns `true` for a claim whose login session ended. This differs from `open-game-works-core/skills/client-core/modules/payment-core.md:160`, which ends an async operation of an ended session with the failure value (`false` in the API table at line 41). Reproduced with a test in a temporary copy: `add_pending(core/ClaimIapDaily)`, `claim_daily` of `[iap_vip]`, `log_in` of another user, then `release_pending` with a success response. `claim_daily` returned `true`. This existed before the range.",
