@@ -3,12 +3,6 @@
   "nextId": 12,
   "items": [
     {
-      "id": "D3",
-      "location": "client/godot/core/payment_core/payment_core_node.gd:18",
-      "problem": "`SessionEndedEvent` as a login session change (`open-game-works-core/skills/client-core/modules/payment-core.md:146` and `:159`) has no test. No PaymentCore test ends a session: every session change in `tests/` is `log_in`. Making `_on_login_session_changed` return when `AuthCore.is_logged_in` is `false`, which ignores this event, leaves all 74 tests passing, so the `finish` success list and the store `GOOGLE` restore flag could survive the end of a session. This existed before the range.",
-      "foundBy": "PaymentCore round 1"
-    },
-    {
       "id": "D9",
       "location": "client/godot/core/payment_core/payment_core.gd:601",
       "problem": "For store `GOOGLE`, the restore of a new login session joins a `restore_purchases` still running from the previous session, and line 546 has already set `_google_restored` to `true`. The joined result is discarded and `list_owned` does not run again in that session, although `open-game-works-core/skills/client-core/modules/payment-core.md:146` has one restore per login session. Reproduced with a test in a temporary copy: first `recover_purchases` of session A, its restore held on `RecoverPurchase`, `log_in` of another user, `recover_purchases` in the new session, the held response released, then `recover_purchases` again. `list_owned` stayed at 1 call and `_google_restored` was `true`. The same join makes a `restore_purchases` that content code calls in the new session wait for the old session's run; that path was read in the code and not run. This existed before the range.",
