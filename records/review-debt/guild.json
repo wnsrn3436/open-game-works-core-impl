@@ -7,36 +7,6 @@
       "location": "server/core/guild/core.ts:179",
       "problem": "The cooldown check uses the request time (`is_reached_strict(ctx, ends_at)`), but `sweep_expired` deletes `guild_cooldown` rows with `ends_at` ≤ `clock_now` (server/core/storage/rows.ts sweep_sql). storage `### expiry` says such a row \"counts as a row that does not exist, also before it is deleted\", while guild `### tables` cooldown says `GUILD_COOLDOWN` while `is_reached_strict(ends_at)` is `false`. Run path (DEV, cheat offset allowed down to −clock): user sets `SetTimeOffset` −25h, gets kicked or leaves (`remove_member` writes `ends_at` = request time + `guild.rejoinCooldownMs` 86400000, which is about 1h before `clock_now`). Until the next `storage_sweep` run, `JoinGuild`/`CreateGuild` return `GUILD_COOLDOWN`. After the sweep deletes the row, the same requests succeed even though the request time is still before `ends_at`. Without an offset, the same split happens in the window between the transaction's request time and the sweep's `clock_now`. This code was here before the range (guild source unchanged since 301b3dd). The two defining documents disagree, so the fix needs a spec decision: judge the cooldown with `clock_now`, or exclude this table from the storage rule",
       "foundBy": "guild round 1"
-    },
-    {
-      "id": "D2",
-      "location": "server/core/guild/rpc.ts:247",
-      "problem": "The write of `active_at` as request time has no test in `AcceptGuildJoinRequest` (rpc.ts:247), `RejectGuildJoinRequest` (rpc.ts:255), `KickGuildMember` (rpc.ts:284) and `SetGuildMemberRole` (rpc.ts:298), although `### leader succession` of the spec requires it for every handling that finds the guild by my `guild_member` row. `describe('active_at')` at tests/roles.test.ts:152 checks only `GetMyGuild` and `UpdateGuild`. Removing each of the four `touch` calls in a temporary copy, one at a time, left all 84 guild tests passing on SQLite and PostgreSQL. The code does the write; the test is what is missing",
-      "foundBy": "guild round 1"
-    },
-    {
-      "id": "D3",
-      "location": "server/core/guild/members.ts:61",
-      "problem": "Deleting the join request rows of the members in `insert_new_guild` (`CreateGuild` step 8, `import_guild` step 7) has no test. Removing that line in a temporary copy left all 84 guild tests passing on SQLite and PostgreSQL. With the line removed, a user who has a join request and runs `CreateGuild` would be a member with a remaining join request row, which breaks the rule of `### join` that the applicant of a remaining join request row is not a guild member",
-      "foundBy": "guild round 1"
-    },
-    {
-      "id": "D4",
-      "location": "server/core/guild/rpc.ts:294",
-      "problem": "`SetGuildMemberRole` with a target that is not a member of the same guild has no test of its `GUILD_NOT_MEMBER` result, which `### leave, kick, role` sets. Changing the return value on that line to `GUILD_PERMISSION` in a temporary copy left all 84 guild tests passing on SQLite and PostgreSQL. The same change on the `KickGuildMember` line (rpc.ts:279) makes a test fail",
-      "foundBy": "guild round 1"
-    },
-    {
-      "id": "D5",
-      "location": "server/core/guild/rpc.ts:85",
-      "problem": "The failure path of `### tables` in which my re-read `guild_member` row has a guild ID that differs from the locked guild has no test. Only the path in which the row no longer exists is tested (tests/locks.test.ts:195, tests/locks.test.ts:218). Changing the check to `me === null || guild === null` in a temporary copy left all 84 guild tests passing on SQLite and PostgreSQL. The path is reachable outside PROD: this handling reads `first`, a Leader kicks me, admin operation `import_guild` puts me in a new guild and commits, then this handling gets the lock of the first guild. With that change the handling would continue on the first guild with my row of the other guild. An accept by another guild does not reach it, because a member has no join request row and my own requests wait for this user transaction",
-      "foundBy": "guild round 1"
-    },
-    {
-      "id": "D6",
-      "location": "server/core/guild/tables.ts:229",
-      "problem": "`UpdateGuild` writing `join_value` has no test, although `### create and update` says it changes the three values. Removing `join_value` from that `UPDATE` in a temporary copy left all 84 guild tests passing on SQLite and PostgreSQL. The test helper `update_guild` (tests/kit.ts:554) has a `join_value` parameter, but no test reads the value back after an update",
-      "foundBy": "guild round 1"
     }
   ]
 }
