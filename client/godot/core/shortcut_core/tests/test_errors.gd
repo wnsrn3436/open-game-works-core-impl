@@ -147,6 +147,31 @@ func test_a_transition_after_closing_popups_stops_with_a_warning() -> void:
 	assert_eq(probe.navigated_ids.size(), 0)
 
 
+## A popup's hidden callback starts a scene change and no panel transition: only `SceneCore.is_transitioning` stops
+## the navigation at stage 5.
+func test_a_scene_transition_after_closing_popups_stops_with_a_warning() -> void:
+	assert_true(await start_at(SCENE_ROOT, PackedStringArray([PANEL_A])))
+	TestScene.prepare_gate = Gate.new()
+	var result: UICore.PopupOpenResult = await UICore.open_popup(POPUP, null, _start_scene_transition)
+	assert_eq(result, UICore.PopupOpenResult.OPENED)
+	Trace.clear()
+	assert_false(await ShortcutCore.navigate(shortcut("root_c")))
+	assert_true(Trace.has("scene_change_started"))
+	assert_false(UICore.is_panel_transitioning())
+	assert_eq(warns(TAG), 1)
+	assert_eq(errors(TAG), 0)
+	assert_false(ShortcutCore.is_navigating())
+	await wait_trace("scene_gated:root_other")
+	TestScene.prepare_gate.open(true)
+	await wait_trace("scene_start:root_other")
+	await UnitTestCore.wait_frames(3)
+	assert_eq(Trace.with_prefix("flow:close:").size(), 0)
+	assert_eq(Trace.count("flow:open:c:true"), 0)
+	assert_eq(Trace.with_prefix("builder:").size(), 0)
+	assert_eq(stack(), "r")
+	assert_eq(probe.navigated_ids.size(), 0)
+
+
 func test_a_failed_scene_change_stops_without_a_shortcut_log() -> void:
 	assert_true(await start_at(SCENE_ROOT))
 	assert_false(await ShortcutCore.navigate(shortcut("missing_scene")))
@@ -209,6 +234,12 @@ func _instance_builder(_row: GameData.ShortcutRow, _is_target: bool) -> UIParam:
 ## Hidden callback of a popup: starts a panel transition that the test does not wait for.
 func _start_panel_transition() -> void:
 	open_panel_later(PANEL_X)
+
+
+## Hidden callback of a popup: starts a scene change to `SCENE_ROOT_OTHER` that the test does not wait for.
+func _start_scene_transition() -> void:
+	Trace.add("scene_change_started")
+	_change_scene_later(SCENE_ROOT_OTHER)
 
 
 ## Hidden callback of a popup: a `navigate` to `top_b` while the running navigation closes the popups.

@@ -29,6 +29,10 @@ prefab/shortcut_test_c",Top,,
 [shortcut_test_plain_bc],scene/shortcut_test_plain,"prefab/shortcut_test_b
 prefab/shortcut_test_c",Root,,
 [shortcut_test_plain_empty],scene/shortcut_test_plain,,Root,,
+[shortcut_test_plain_top_b],scene/shortcut_test_plain,prefab/shortcut_test_b,Top,,
+[shortcut_test_plain_top_bc],scene/shortcut_test_plain,"prefab/shortcut_test_b
+prefab/shortcut_test_c",Top,,
+[shortcut_test_plain_top_empty],scene/shortcut_test_plain,,Top,,
 [shortcut_test_locked],scene/shortcut_test_root_other,prefab/shortcut_test_b,Root,,FlagB()
 [shortcut_test_locked_silent],scene/shortcut_test_root_other,prefab/shortcut_test_b,Root,,FlagC()
 [shortcut_test_missing_scene],scene/shortcut_test_missing,prefab/shortcut_test_b,Root,,
