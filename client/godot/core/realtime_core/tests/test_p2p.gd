@@ -791,7 +791,7 @@ func test_connect_peer_that_fails_ends_at_the_connect_time_limit_in_realtime_cor
 	assert_eq(warn_logs(), 1)
 
 
-func test_match_found_while_holding_a_match_leaves_the_new_match_and_raises_nothing() -> void:
+func test_match_found_while_holding_a_match_leaves_the_new_match_once_and_close_leaves_the_first() -> void:
 	if not await _start_p2p(false):
 		return
 	var remote: RealtimeRemotePeer = _remote(1)
@@ -814,6 +814,12 @@ func test_match_found_while_holding_a_match_leaves_the_new_match_and_raises_noth
 	assert_eq(p2p._peers[1], peer)
 	assert_eq(peer.status, _PEER.Status.CONNECTED)
 	assert_true(p2p.send_packet(1, RealtimeCore.RealtimeChannel.RELIABLE, PackedByteArray([1])))
+	p2p.close()
+	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, 2)
+	leaves = server.frames_of(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE)
+	assert_eq(leaves[1].match_id, "match-p2p", "the second match is left once, and then close leaves the first")
+	await frames(10)
+	assert_eq(server.count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE), 2)
 
 
 func test_signals_with_no_match_start_nothing_and_the_next_match_connects_with_its_first_offer() -> void:
@@ -901,6 +907,21 @@ func test_leave_room_in_none_leaves_a_match_the_transport_read_in_the_same_poll(
 	assert_eq(server.count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_ROOM_LEAVE), 1)
 	assert_eq(RealtimeCore.room_info().room_code, "")
 	assert_eq(p2p._match_id, "")
+	assert_null(p2p._socket, "leaving the room closes the matchmaker connection")
+
+
+## A `leave_room` in the event of a member's match found leaves that match, which the transport already holds.
+func test_leave_room_from_room_match_started_leaves_the_match_of_that_match_found() -> void:
+	await _start_room_on_p2p(PackedInt64Array([OTHER_ID, USER_ID]))
+	assert_true(EventCore.subscribe(RoomMatchStartedEvent, _leave_room_on_match_started))
+	await _deliver_to_core([server.match_found(PackedInt64Array([OTHER_ID, USER_ID]), 1, false)])
+	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, 1)
+	assert_eq(server.count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_ROOM_LEAVE), 1)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	assert_eq(RealtimeCore.room_info().room_code, "")
+	assert_eq(RealtimeCore.saved_match_id(), "")
+	assert_eq(p2p._match_id, "")
+	assert_eq(p2p._peers.size(), 0)
 	assert_null(p2p._socket, "leaving the room closes the matchmaker connection")
 
 
@@ -1233,6 +1254,10 @@ func _assert_one_match_leave_in_none() -> void:
 	assert_eq(p2p._peers.size(), 0)
 	assert_eq(RealtimeCore.room_info().room_code, ROOM_CODE)
 	assert_not_null(p2p._socket, "the room keeps the matchmaker connection")
+
+
+func _leave_room_on_match_started(_event: RoomMatchStartedEvent) -> void:
+	RealtimeCore.leave_room()
 
 
 func _leave_room_on_room_event(_event: RoomChangedEvent) -> void:
