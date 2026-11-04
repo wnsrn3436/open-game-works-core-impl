@@ -171,13 +171,7 @@ export function create_admin_operations(a: AdminInput): AdminOperations {
     for (const list of store.all_deploy_lists(db)) {
       for (const patch of stored_patches(list).values()) for (const sha256 of patch.sha256s) kept.add(sha256);
     }
-    let deleted = 0;
-    for (const sha256 of store.file_sha256s(db)) {
-      if (kept.has(sha256)) continue;
-      store.delete_file(db, sha256);
-      deleted += 1;
-    }
-    return { deleted };
+    return { deleted: store.delete_files(db, store.file_sha256s(db).filter((sha256) => !kept.has(sha256))) };
   };
 
   const put_file = (input: AdminInputFields, tx: GameTx, body: Uint8Array | null): AdminOutput | AdminFailure => {

@@ -1,4 +1,8 @@
 import { createHash } from 'node:crypto';
+import { DB_KIND, lock_holder, PG_LOCK_SQL, type LockHolder } from '../../storage/tests/helpers.ts';
+import { lock_key } from '../../storage/tx.ts';
+import { deploy_list_bytes, parse_deploy_list_input } from '../deploy_list.ts';
+import { DEPLOY_LIST_TABLE, FILE_TABLE, LOCK_KEY } from '../store.ts';
 import {
   admin,
   client_data_version,
@@ -17,6 +21,7 @@ import {
   START_AT,
   upload,
   type TestServer,
+  type UpdateFile,
 } from './helpers.ts';
 
 let server: TestServer;
@@ -26,6 +31,25 @@ beforeEach(async () => {
   data_version = client_data_version();
   server = await start();
 });
+
+const INSERT_DEPLOY_LIST = `INSERT INTO ${DEPLOY_LIST_TABLE} (sequence, deploy_list, signature, published_at) VALUES ($1, $2, $3, $4)`;
+
+/**
+ * A game tx of another server instance on its own connection, holding what `lock_game_row(game_update_deploy_list,
+ * [0])` locks: the lock of publish and prune. On SQLite a write transaction, which holds the whole database.
+ */
+async function hold_publish_lock(): Promise<LockHolder> {
+  const holder = await lock_holder(server.shared.db);
+  await holder.ok(DB_KIND === 'postgresql' ? 'BEGIN' : 'BEGIN IMMEDIATE');
+  if (DB_KIND === 'postgresql') await holder.ok(PG_LOCK_SQL, [lock_key(DEPLOY_LIST_TABLE, LOCK_KEY)]);
+  return holder;
+}
+
+/** The `game_update_deploy_list` row values of a deploy list of `files` with `sequence` and `published_at` `sequence`. */
+function deploy_list_row(files: readonly UpdateFile[], sequence: bigint): [bigint, Uint8Array, string, bigint] {
+  const bytes = deploy_list_bytes(parse_deploy_list_input(publish_body(data_version, files)), { environment: 'LOCAL', sequence, published_at: sequence, file_base_url: 'files/' });
+  return [sequence, bytes, '{}', sequence];
+}
 
 describe('signature', () => {
   it('serves the published deploy list and a signature the get_update_signing_key public key verifies', async () => {
@@ -74,15 +98,17 @@ describe('sequence', () => {
     expect(third.body.sequence).toBe(String(START_AT + 60_000n));
   });
 
-  it('gives two concurrent publishes different sequences', async () => {
+  it('gives two concurrent publishes different sequences: one that runs while another server instance publishes takes the sequence after that one', async () => {
     const files = [new_file('item.bin')];
     await upload(server, files);
-    const answers = await Promise.all([
-      admin(server, 'publish_deploy_list', publish_body(data_version, files)),
-      admin(server, 'publish_deploy_list', publish_body(data_version, files)),
-    ]);
-    expect(answers.map((a) => a.status)).toEqual([200, 200]);
-    expect(answers[0].body.sequence).not.toBe(answers[1].body.sequence);
+    const holder = await hold_publish_lock();
+    const other = START_AT + 1000n;
+    await holder.ok(INSERT_DEPLOY_LIST, deploy_list_row(files, other));
+    // The other publish commits while this one waits for the lock.
+    const committed = holder.run('COMMIT', [], 200);
+    const answer = await admin(server, 'publish_deploy_list', publish_body(data_version, files));
+    expect(await committed).toEqual({ ok: true, rows: [] });
+    expect(answer).toEqual({ status: 200, body: { sequence: String(other + 1n) } });
   });
 });
 
@@ -228,18 +254,35 @@ describe('prune_update_files', () => {
     }
   });
 
-  it('with a concurrent publish: a successful publish keeps all its files, a publish after the prune took them is conflict', async () => {
+  it('with a concurrent publish that gets its turn first: the prune waits for it and keeps all files of its deploy list', async () => {
     const files = [new_file('item.bin')];
     await upload(server, files);
-    const [published] = await Promise.all([admin(server, 'publish_deploy_list', publish_body(data_version, files)), admin(server, 'prune_update_files')]);
-    const list = served(server);
-    if (published.status === 200) {
-      expect(Buffer.from(get(server, `/update/files/${files[0]?.sha256 ?? ''}`).body).equals(Buffer.from(files[0]?.bytes ?? []))).toBe(true);
-      expect(list).not.toBeNull();
-    } else {
-      expect(published).toEqual({ status: 409, body: { error: 'conflict' } });
-      expect(list).toBeNull();
-    }
+    const holder = await hold_publish_lock();
+    await holder.ok(INSERT_DEPLOY_LIST, deploy_list_row(files, START_AT));
+    // The publish of another server instance commits while the prune waits for the lock.
+    const committed = holder.run('COMMIT', [], 200);
+    const pruned = await admin(server, 'prune_update_files');
+    expect(await committed).toEqual({ ok: true, rows: [] });
+    expect(pruned).toEqual({ status: 200, body: { deleted: 0 } });
+    const file = get(server, `/update/files/${files[0]?.sha256 ?? ''}`);
+    expect(file.status).toBe(200);
+    expect(Buffer.from(file.body).equals(Buffer.from(files[0]?.bytes ?? []))).toBe(true);
+  });
+
+  it('with a concurrent prune that gets its turn first and deletes a referenced file: the publish is conflict and the current deploy list stays', async () => {
+    const [current, pruned] = [new_file('current.bin'), new_file('pruned.bin')];
+    await upload(server, [current, pruned]);
+    await admin(server, 'publish_deploy_list', publish_body(data_version, [current]));
+    const before = served(server);
+    const holder = await hold_publish_lock();
+    await holder.ok(`DELETE FROM ${FILE_TABLE} WHERE sha256 = $1`, [pruned.sha256]);
+    // The prune of another server instance commits while the publish waits for the lock; the prepare function ran before it.
+    const committed = holder.run('COMMIT', [], 200);
+    const answer = await admin(server, 'publish_deploy_list', publish_body(data_version, [pruned]));
+    expect(await committed).toEqual({ ok: true, rows: [] });
+    expect(answer).toEqual({ status: 409, body: { error: 'conflict' } });
+    expect(Buffer.from(served(server)?.bytes ?? []).equals(Buffer.from(before?.bytes ?? []))).toBe(true);
+    expect((await admin(server, 'get_deploy_list')).body.deploy_list).toEqual(before?.list);
   });
 
   it('makes a later publish of a pruned file conflict and keeps the current deploy list', async () => {
