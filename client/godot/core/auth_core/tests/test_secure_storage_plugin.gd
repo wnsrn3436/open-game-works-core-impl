@@ -3,7 +3,8 @@ extends UnitTestCase
 ## protection keychain needs a keychain access group, so the plugin singleton exists only in an app signed with one.
 ## The Godot editor that runs the core tests has none: the plugin build is loaded, there is no singleton, and AuthCore
 ## keeps the DEV token storage. On every platform a run that has the singleton can use the OS secure storage: on Linux
-## the singleton needs a Secret Service with a default collection, not only libsecret.
+## the singleton needs a Secret Service with a default collection, not only libsecret, and on Windows a logon session
+## with a credential set (not e.g. a network or service logon).
 
 const Env := preload("res://core/auth_core/tests/support/auth_test_env.gd")
 const SecureStorage := preload("res://core/auth_core/adapters/secure_storage_adapter.gd")
@@ -42,6 +43,20 @@ func test_a_run_without_a_keychain_access_group_has_no_plugin_singleton_and_keep
 	AuthCoreDev.use_dev_token_storage()
 	assert_true(AuthCore.init())
 	assert_true(AuthCore._storage is DevStorage)
+
+
+func test_a_dev_run_keeps_the_dev_token_storage_exactly_when_it_has_no_plugin_singleton() -> void:
+	if _in_browser():
+		return
+	assert_true(await env.boot())
+	AuthCore.release()
+	AuthCore.set_storage_scope(Env.SCOPE)
+	AuthCoreDev.use_dev_token_storage()
+	assert_true(AuthCore.init())
+	if SecureStorage.is_available():
+		assert_true(AuthCore._storage is SecureStorage, "a run with the singleton uses the OS secure storage")
+	else:
+		assert_true(AuthCore._storage is DevStorage, "a run without the singleton keeps the DEV token storage")
 
 
 func test_a_run_with_the_plugin_singleton_can_use_the_os_secure_storage() -> void:
