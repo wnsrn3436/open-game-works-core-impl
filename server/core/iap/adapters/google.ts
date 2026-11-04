@@ -195,6 +195,14 @@ function subscription_transaction(r: Receipt, json: Record<string, unknown>, lin
   };
 }
 
+/** The verification result of a subscription receipt. A line item with no `latestSuccessfulOrderId` has no paid order, so it is not `VALID`. */
+function subscription_status(state: unknown, line: Record<string, unknown>): Verification['status'] {
+  if (state === 'SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED') return 'INVALID';
+  if (state === 'SUBSCRIPTION_STATE_PENDING') return 'PENDING';
+  if (text_of(line.latestSuccessfulOrderId) !== '') return 'VALID';
+  return state === 'SUBSCRIPTION_STATE_EXPIRED' ? 'INVALID' : 'PENDING';
+}
+
 /**
  * The store transaction of a one-time product purchase: the order ID of the `purchases.products` response, or the
  * purchase token when there is none (promo code). The receipt's order ID and purchase time are not read. `bad_response`
@@ -301,10 +309,8 @@ export function create_google_adapter(options: GoogleAdapterOptions): StoreAdapt
     const lines = Array.isArray(got.json.lineItems) ? (got.json.lineItems as unknown[]).filter(is_object) : [];
     const line = lines.find((item) => item.productId === r.product_id);
     if (line === undefined) return { status: 'INVALID', transaction: null };
-    const state = got.json.subscriptionState;
-    const status = state === 'SUBSCRIPTION_STATE_PENDING' ? 'PENDING' : state === 'SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED' ? 'INVALID' : 'VALID';
     const transaction = subscription_transaction(r, got.json, line);
-    return transaction === 'bad_response' ? transaction : { status, transaction };
+    return transaction === 'bad_response' ? transaction : { status: subscription_status(got.json.subscriptionState, line), transaction };
   };
 
   const verify_product = async (r: Receipt, call: AdapterCall): Promise<Verification | AdapterFailure> => {

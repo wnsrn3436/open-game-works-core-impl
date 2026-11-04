@@ -48,6 +48,7 @@ describe('p2p_session_sweep', () => {
     expect(after.take()[0]?.ok).toBe(false);
 
     // the connections of the removed expired session are bound nowhere
+    expect(server.p2p.is_bound(l0)).toBe(false);
     expect(server.p2p.connection_closed(l0)).toBeNull();
     const next = await open_match(server, 'm-after', [l1, new TestConnection(new_user_id())] as const);
     expect(next.changes).toEqual([]);

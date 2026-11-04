@@ -23,6 +23,7 @@ import {
   mode,
   next,
   online,
+  participants,
   player,
   queued,
   report,
@@ -647,6 +648,54 @@ describe('party', () => {
     const solo = await queued(h, BOTH.id);
     await tick(h, BOTH.match_wait);
     expect((await next(solo.conn, K.MATCHMAKER_FRAME_KIND_MATCH_FAILED)).reason).toBe(Reason.MATCH_FAIL_REASON_TIMEOUT);
+  });
+
+  it('answers ROOM_START and a host MATCH_REQUEST with ROOM_BUSY while a member connection is bound to a match session, leaving that match running, and they go on after that member MATCH_LEAVE', async () => {
+    const h = await harness({ modes: MODES });
+    const { members } = await room(h, BOTH.id, 2);
+    const [a, b] = members;
+    if (a === undefined || b === undefined) throw new Error('room');
+    const leave = (match_id: string): Frame =>
+      frame(K.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, (f) => {
+        f.match_id = match_id;
+      });
+    const expect_busy = async (match_id: string, still_in: readonly Member[]): Promise<void> => {
+      for (const [sent, kind] of [[start_frame(), K.MATCHMAKER_FRAME_KIND_ROOM_START], [match_request(BOTH.id), K.MATCHMAKER_FRAME_KIND_MATCH_REQUEST]] as const) {
+        const out = await send_and_wait(a.conn, sent);
+        expect(failures(out)).toEqual([[CoreError.CORE_ERROR_ROOM_BUSY, kind]]);
+        expect(kinds(out)).not.toContain(K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+        for (const m of still_in) expect(kinds(await barrier(m.conn))).not.toContain(K.MATCHMAKER_FRAME_KIND_PEER_LEFT);
+      }
+      expect(participants(h, match_id).filter((p) => p.left_at === 0n)).toHaveLength(still_in.length);
+    };
+    const start_match = async (): Promise<string> => {
+      const found = (await send_and_wait(a.conn, start_frame())).find((f) => f.kind === K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+      await barrier(b.conn);
+      if (found === undefined) throw new Error('no MATCH_FOUND');
+      return found.match_id;
+    };
+
+    const first = await start_match();
+    await expect_busy(first, [a, b]);
+    // Only the member that is not the host is still in the match.
+    await send_and_wait(a.conn, leave(first));
+    await barrier(b.conn);
+    await expect_busy(first, [b]);
+    await send_and_wait(b.conn, leave(first));
+    await barrier(a.conn);
+
+    const second = await start_match();
+    expect(second).not.toBe(first);
+    // Only the host is still in the match.
+    await send_and_wait(b.conn, leave(second));
+    await barrier(a.conn);
+    await expect_busy(second, [a]);
+    await send_and_wait(a.conn, leave(second));
+    await barrier(b.conn);
+
+    const out = await send_and_wait(a.conn, match_request(BOTH.id));
+    expect(failures(out)).toEqual([]);
+    expect(out.filter((f) => f.kind === K.MATCHMAKER_FRAME_KIND_ROOM_STATE).at(-1)?.room_status).toBe(RoomStatus.ROOM_STATUS_MATCHING);
   });
 
   it('sends each member MATCH_FAILED TIMEOUT before the ROOM_STATE Open when the party entry times out', async () => {

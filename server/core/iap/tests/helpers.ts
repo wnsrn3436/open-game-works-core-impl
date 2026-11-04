@@ -2,6 +2,7 @@
  * iap core test helpers on `testing` test servers: products and items of the core test data, fake receipts, requests,
  * and reads of UserState, payment records and logs.
  */
+import { generateKeyPairSync } from 'node:crypto';
 import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -11,6 +12,7 @@ import * as GameContract from '../../../generated/contract/game_contract.ts';
 import * as GameData from '../../../generated/data/game_data.ts';
 import * as testing from '../../testing/dev/index.ts';
 import { is_failure, type StoreAdapter } from '../adapter.ts';
+import { create_google_adapter } from '../adapters/google.ts';
 import type { FakeIapController } from '../dev/adapters/fake.ts';
 
 export const APPLE = CoreContract.IapStore.IAP_STORE_APPLE;
@@ -22,6 +24,8 @@ export const State = CoreContract.SubscriptionState;
 /** 2026-03-02T00:00:00Z, a Monday and the first day of a game month window in March. */
 export const START = 1_772_409_600_000n;
 export const DAY = 86_400_000n;
+/** Game settings `appId` of the core test data. */
+export const GOOGLE_APP_ID = 'com.example.coretest';
 /** `iap.withdrawnRecordRetentionMs`. */
 export const RETENTION_MS = 157_680_000_000n;
 
@@ -216,6 +220,32 @@ export function without_purchase_time(server: TestServer, store: CoreContract.Ia
     const got = await store_lookup(original, latest, call);
     return is_failure(got) ? got : { ...got, purchased_at: null };
   };
+}
+
+/**
+ * Makes the fake `iap-google` adapter of the server answer `verify` and `lookup_subscription` as the real adapter does,
+ * from the `subscriptionsv2` responses the test gives per purchase token.
+ */
+export function answer_as_google(server: TestServer, responses: Readonly<Record<string, Record<string, unknown>>>): void {
+  const real = create_google_adapter({
+    private_key_pem: generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey.export({ type: 'pkcs8', format: 'pem' }),
+    service_account_email: 'svc@example.iam.gserviceaccount.com',
+    notification_service_account_email: 'push@example.iam.gserviceaccount.com',
+    notification_audience: 'https://dev.example.com/iap/notify/google',
+    package_name: GOOGLE_APP_ID,
+    is_subscription_sku: (sku) => sku.startsWith('vip'),
+    fetch: (url) => {
+      if (url.endsWith('/token')) return Promise.resolve(new Response(JSON.stringify({ access_token: 'at' }), { status: 200 }));
+      const token = decodeURIComponent(url.slice(url.lastIndexOf('/') + 1));
+      return Promise.resolve(new Response(JSON.stringify(responses[token] ?? {}), { status: responses[token] === undefined ? 404 : 200 }));
+    },
+    key_source: () => Promise.resolve({ keys: [] }),
+    max_response_bytes: 1_048_576,
+    clock_now: () => START,
+  });
+  const adapter = server.shared.fakes.get('iap-google')?.adapter as StoreAdapter;
+  adapter.verify = real.verify.bind(real);
+  adapter.lookup_subscription = real.lookup_subscription.bind(real);
 }
 
 /** The `purchased_at` of the user's payment record of a transaction ID, as stored (`export_personal_data`). */

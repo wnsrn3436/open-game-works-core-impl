@@ -113,6 +113,10 @@ export class SessionStore {
     return { match_id: bound.session.match_id, index: bound.index, kind: 'DISCONNECTED' };
   }
 
+  is_bound(connection: Connection): boolean {
+    return this.#binding.has(connection);
+  }
+
   /** Removes the sessions with no bound connection and the sessions whose `expires_at` ≤ `clock_now`. */
   sweep(): void {
     const now = this.#env.clock_now();

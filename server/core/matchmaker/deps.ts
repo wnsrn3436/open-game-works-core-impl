@@ -68,6 +68,7 @@ export interface MatchmakerP2pSignaling {
   ): readonly ParticipantChange[];
   handle_frame(connection: Connection, frame: CoreContract.MatchmakerFrame): ParticipantChange | null;
   connection_closed(connection: Connection): ParticipantChange | null;
+  is_bound(connection: Connection): boolean;
 }
 
 /** `block-report.list_blocked_ids`: the user IDs the user blocked, ascending. */
