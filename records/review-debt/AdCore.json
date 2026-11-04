@@ -1,24 +1,5 @@
 {
   "target": "AdCore",
   "nextId": 4,
-  "items": [
-    {
-      "id": "D1",
-      "location": "client/godot/core/ad_core/ad_core.gd:416",
-      "problem": "A replaced banner whose late `open_banner` succeeds is left open when the new banner then fails, and nothing can close it. `_run_banner` closes a late success only when `_banner_target == 0`, so while B is the target the success of A is dropped; when B's `open_banner` then fails, line 423 sets `_banner_target` to 0, and `hide_banner` returns at line 310 without `close_banner`. Reproduced with a temporary test on the recording adapter in a copy: hold two `open_banner`, `show_banner(A)`, `show_banner(B)`, finish A with `true`, finish B with `false`, `hide_banner`: 2 `open_banner`, 0 `close_banner`, `_banner_target` 0, `_banner_shown` 0. This differs from \"One banner is shown at a time\" of the `AdCore` spec `### banner`. The cause predates the commit range, which does not change `client/godot/core/ad_core/`",
-      "foundBy": "AdCore round 1"
-    },
-    {
-      "id": "D2",
-      "location": "client/godot/core/ad_core/ad_core.gd:257",
-      "problem": "The row \"`run_blocked` could not set a block\" of `## error` in the `AdCore` spec has no test (aspect `test evidence`). No file in `client/godot/core/ad_core/tests/` makes `run_blocked` fail. In a copy with the `if not step.ran` branch at lines 257-259 removed, all 69 existing AdCore tests still pass",
-      "foundBy": "AdCore round 1"
-    },
-    {
-      "id": "D3",
-      "location": "client/godot/core/ad_core/ad_core.gd:70",
-      "problem": "Fake adapter state that only DEV code uses is kept outside `dev/` (aspect `structure`). `_fake_next_present`, `_fake_fails`, `_fake_skip_callback`, `_fake_delay_callback`, `_fake_delayed_notify_id`, `_fake_consent_required`, `_fake_consent_personalized` and `_fake_privacy_required` (lines 70-81, reset at lines 129-136) are read and written only by `client/godot/core/ad_core/dev/ad_core_dev.gd`, `client/godot/core/ad_core/dev/adapters/fake_ads_adapter.gd` and the AdCore tests, apart from that reset. They ship in STG and PROD builds, which differs from the term DEV code of the harness document and from `## DEV code` of `open-game-works-core/skills/core/SKILL.md`, which keep such code in `dev/` folders",
-      "foundBy": "AdCore round 1"
-    }
-  ]
+  "items": []
 }
