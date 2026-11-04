@@ -27,3 +27,4 @@ id,day,reward,extra_grant
 [attendance_gem_daily],1,[attendance_gem] 4,false
 [attendance_extra],1,[attendance_gold] 10,false
 [attendance_extra],2,[attendance_gold] 10,true
+[attendance_extra],3,,true

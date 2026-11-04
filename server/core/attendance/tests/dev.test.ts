@@ -1,6 +1,6 @@
 import * as GameData from '../../../generated/data/game_data.ts';
 import * as Testing from '../../testing/dev/index.ts';
-import { DAY0, DAY_MS, START_AT, claim, day_number, id_of, ok, progress, progress_of, start, stop, user, type Env } from './helpers.ts';
+import { DAY0, DAY_MS, START_AT, balance, claim, day_number, id_of, mailbox_module, mails, ok, progress, progress_of, start, stop, user, type Env } from './helpers.ts';
 
 function set_attendance(env: Env, user_id: bigint, calendar: string | number, day: number, claimed_day_number: bigint): Promise<unknown> {
   const calendar_id = typeof calendar === 'number' ? calendar : id_of(calendar);
@@ -48,6 +48,29 @@ describe('set_attendance', () => {
     // The calendar starts again at day 1 the next game day.
     Testing.set_time(env.server, DAY0 + DAY_MS);
     expect(ok(await claim(session, '[attendance_cycle]')).day).toBe(1);
+  });
+
+  it('lets a claim on the same game day after day 0 succeed through AlreadyApplied of grant_or_mail without a second grant', async () => {
+    env = await start();
+    const session = await user(env);
+    const today = day_number(env, START_AT);
+    expect(ok(await claim(session, '[attendance_cycle]')).day).toBe(1);
+    expect(await balance(env, session, '[attendance_gold]')).toBe(10n);
+    await set_attendance(env, session.user_id, '[attendance_cycle]', 0, 0n);
+
+    // The claim reuses once_key `attendance:<calendar>:0:<today>` of the first claim.
+    const grant_or_mail = vi.spyOn(mailbox_module(env), 'grant_or_mail');
+    const again = await claim(session, '[attendance_cycle]');
+    expect(grant_or_mail.mock.results.map((result) => result.value as unknown)).toEqual([{ result: 'AlreadyApplied' }]);
+    grant_or_mail.mockRestore();
+    expect(again.code).toBe(0);
+    expect(ok(again).day).toBe(1);
+    expect(ok(again).items).toEqual([]);
+    expect(ok(again).mailed).toBe(false);
+    expect(again.envelope.item_changes).toEqual([]);
+    expect(await balance(env, session, '[attendance_gold]')).toBe(10n);
+    expect(await mails(env, session)).toEqual([]);
+    expect(await progress_of(env, session, '[attendance_cycle]')).toMatchObject({ day: 1, claimed_day_number: today });
   });
 
   it('throws for an unknown calendar, a day below 0 or over N and a claimed_day_number below 0, and changes nothing', async () => {

@@ -1,6 +1,30 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import * as Testing from '../../testing/dev/index.ts';
-import { DAY0, DAY_MS, E, HOUR_MS, REFUSED, START_AT, amount, at, balance, claim, day_number, id_of, mails, ok, pairs, progress, progress_of, start, stop, user, type Env } from './helpers.ts';
+import type { GrantOrMailOutcome } from '../../mailbox/index.ts';
+import {
+  DAY0,
+  DAY_MS,
+  E,
+  HOUR_MS,
+  REFUSED,
+  START_AT,
+  amount,
+  at,
+  balance,
+  claim,
+  day_number,
+  id_of,
+  mailbox_module,
+  mails,
+  ok,
+  pairs,
+  progress,
+  progress_of,
+  start,
+  stop,
+  user,
+  type Env,
+} from './helpers.ts';
 
 const GOLD = '[attendance_gold]';
 const GEM = '[attendance_gem]';
@@ -47,6 +71,36 @@ describe('ClaimAttendance failures', () => {
     expect(result.envelope.item_changes).toEqual([]);
     expect(await progress(env, session)).toEqual([]);
     expect(await balance(env, session, GOLD)).toBe(0n);
+  });
+
+  it('answers INTERNAL and keeps progress and balance when grant_or_mail returns a failure value', async () => {
+    env = await start();
+    const session = await user(env);
+    const mailbox = mailbox_module(env);
+    const grant_or_mail = mailbox.grant_or_mail.bind(mailbox);
+    const failures: GrantOrMailOutcome['result'][] = ['UNKNOWN_ITEM', 'INVALID_AMOUNT', 'UNSUPPORTED_ITEM', 'INVALID_INPUT'];
+    for (const failure of failures) {
+      // The real grant runs first, so the unchanged balance shows the failure rolls the grant back.
+      let real: GrantOrMailOutcome | null = null;
+      const spy = vi.spyOn(mailbox, 'grant_or_mail').mockImplementationOnce((...args) => {
+        real = grant_or_mail(...args);
+        return { result: failure } as GrantOrMailOutcome;
+      });
+      const failed = await claim(session, '[attendance_cycle]');
+      expect(spy).toHaveBeenCalledTimes(1);
+      spy.mockRestore();
+      expect(real).toEqual({ result: 'Granted' });
+      expect(failed.code).toBe(E.CORE_ERROR_INTERNAL);
+      expect(failed.response).toBeNull();
+      expect(failed.envelope.item_changes).toEqual([]);
+      expect(await progress(env, session)).toEqual([]);
+      expect(await balance(env, session, GOLD)).toBe(0n);
+      expect(await mails(env, session)).toEqual([]);
+    }
+
+    const passed = await claim(session, '[attendance_cycle]');
+    expect(ok(passed).day).toBe(1);
+    expect(await balance(env, session, GOLD)).toBe(10n);
   });
 
   it('mails a reward over max_amount as [attendance_reward_mail] and saves the progress', async () => {

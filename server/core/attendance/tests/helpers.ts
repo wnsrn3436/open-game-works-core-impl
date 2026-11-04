@@ -9,7 +9,7 @@ import * as Testing from '../../testing/dev/index.ts';
 import type { ServerTimeApi } from '../../server-time/index.ts';
 import type { RequestCtx, StorageContent } from '../../storage/index.ts';
 import { storage_module } from '../../storage/tests/helpers.ts';
-import type { AttendanceClaimedHook, AttendanceClaimHook, AttendanceModule } from '../index.ts';
+import type { AttendanceClaimedHook, AttendanceClaimHook, AttendanceMailbox, AttendanceModule } from '../index.ts';
 
 /** 2027-03-01T00:00:00Z: the start of game day 20878 with `dailyResetOffsetMs` 0, and of round 1 of both test events. */
 export const DAY0 = 1_803_859_200_000n;
@@ -170,6 +170,13 @@ export async function claim(session: TestSession, calendar: string | number, req
 export function ok(result: Claimed): CoreContract.ClaimAttendanceResponse {
   if (result.response === null) throw new Error(`ClaimAttendance failed with code ${String(result.code)}`);
   return result.response;
+}
+
+/** The `mailbox` module object that `attendance` calls `grant_or_mail` on. */
+export function mailbox_module(env: Env): AttendanceMailbox {
+  const mailbox = env.server.running().instance.modules().get('mailbox');
+  if (mailbox === undefined) throw new Error('the server instance has no mailbox module');
+  return mailbox as AttendanceMailbox;
 }
 
 /** Moves the test clock to the time. */
