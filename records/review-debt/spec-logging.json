@@ -1,19 +1,7 @@
 {
   "target": "spec logging",
-  "nextId": 7,
+  "nextId": 14,
   "items": [
-    {
-      "id": "D1",
-      "location": "skills/server-core/modules/logging.md:229",
-      "problem": "`logging.securityRepeatWindowMs` is the period of job `logging_security_flush` and writes no range. Value 0 passes the 0 or more schema range and fails server start in `schedule_job` (skills/server-core/modules/server-time.md:90)",
-      "foundBy": "spec routing"
-    },
-    {
-      "id": "D2",
-      "location": "skills/server-core/modules/logging.md:241",
-      "problem": "`logging.analyticsDeletionIntervalMs` is the period of job `logging_analytics_deletion` and writes no range. Value 0 passes the 0 or more schema range and fails server start in `schedule_job` (skills/server-core/modules/server-time.md:90)",
-      "foundBy": "spec routing"
-    },
     {
       "id": "D3",
       "location": "skills/server-core/modules/logging.md:98",
@@ -36,6 +24,48 @@
       "id": "D6",
       "location": "skills/server-core/modules/logging.md:243",
       "problem": "`logging.analyticsDeletionMaxAttempts` has no written range, so the default rule at skills/core/SKILL.md:134 allows 0, and its result is not settled. The meaning is the max number of times one deletion request is sent, while lines 177 and 178 send the request before comparing, and the incremented `attempts` of 1 never equals 0. Input: value 0 with a failing `delete_user_data`. One implementation sends once and deletes the row, another sends without end because `attempts` never reaches the value, and the meaning says it is never sent. `storage.userChangeRetryMaxAttempts` (skills/server-core/modules/storage.md:365) writes `1 or more` for the same kind of key",
+      "foundBy": "spec logging"
+    },
+    {
+      "id": "D7",
+      "location": "skills/server-core/modules/logging.md:106",
+      "problem": "The order of the analytics consent check and the name check of line 109 in `ReportAnalyticsEvents` is not set. Line 106 places the consent check only \"after the limit check\", and the limits of line 108 are entry count, event count, param count and string length, not the name rule. Input: a user with `analytics_allowed` `false` or no row sends an event named `core_x`. One implementation returns `INVALID_REQUEST`, another succeeds with an empty response and `consent_dropped_count` 1. The tests at skills/server-core/modules/logging.md:284 and logging.md:287 each cover only one of the two conditions.",
+      "foundBy": "spec logging"
+    },
+    {
+      "id": "D8",
+      "location": "skills/server-core/modules/logging.md:133",
+      "problem": "A settings value that passes every check makes core requests fail. Lines 132 to 134 apply `logging.maxStringLength` and `logging.maxEventParams` to `track_core_event`, and a violation throws and ends the request with `INTERNAL`. Neither key has a range that keeps the core analytics event table valid: skills/core/SKILL.md:134 and SKILL.md:135 allow any value of 1 or more for the first and 0 or more for the second, and skills/client-core/modules/log-core.md:157 and log-core.md:158 only bound the `LogCore` keys by them. Input: game settings `core` with `logging.maxStringLength` 16: `core_session_started` (20 characters) throws in step 6 of `auth` (skills/server-core/modules/auth.md:146), so every login of a user with `analytics_allowed` `true` is `INTERNAL`. With `logging.maxEventParams` 4, `core_iap_granted` (5 params) throws in the grant.",
+      "foundBy": "spec logging"
+    },
+    {
+      "id": "D9",
+      "location": "skills/server-core/modules/logging.md:169",
+      "problem": "The input of the adapter operation `send(events)` is not set. No line defines the fields of an element, and the two saved forms differ: `logging_client_event` has `received_at` and `logging_server_event` has `request_id`, and both hold `params` as bytes. Line 165 needs the user ID, `name`, `params` and `time_at` from it. skills/server-core/modules/testing.md:144 returns this value from `calls()`, and the test at logging.md:281 says the fake adapter receives \"the saved events as they are\", so its assert differs per implementation. It is also not set whether two `track` calls in one transaction make one `send` with two events or two `send` calls with one event each.",
+      "foundBy": "spec logging"
+    },
+    {
+      "id": "D10",
+      "location": "skills/server-core/modules/logging.md:165",
+      "problem": "The behavior of a split `send` is not set. Line 165 splits more than 25 events over several calls, and lines 169 and 170 define one time limit and one failure for `send`. Input: 60 events (when `logging.maxEvents` allows them) where the first call fails. One implementation stops and loses 35 events, another sends the rest, and the failure kind of a mix of results is not set. `logging.analyticsSendTimeoutMs` (line 240) says \"an analytics adapter call\", so it can be read as the limit of each HTTP call or of the whole `send`, while skills/server-core/SKILL.md:206 requires a total time limit of an external service call.",
+      "foundBy": "spec logging"
+    },
+    {
+      "id": "D11",
+      "location": "skills/server-core/SKILL.md:216",
+      "problem": "`truncate_ip` (skills/server-core/modules/logging.md:30) does not set the handling of an IPv4-mapped IPv6 address or the text form of its output. skills/server-core/SKILL.md:243 makes the server listen on all addresses, and skills/server-core/modules/routing.md:171 takes the client IP from the peer address of the TCP connection, which a dual-stack listener can report as `::ffff:a.b.c.d`. Keeping the first 48 bits of that value gives `::` for every IPv4 client, so all unauthenticated IPv4 clients share one group key at logging.md:98, and the `security` line of a second client with the same `reason` is not written. Another implementation treats it as IPv4 and keeps 24 bits. The text form (`2001:db8:1::` or the full form) decides the duplicate check of `ips` at logging.md:99 and is not set either.",
+      "foundBy": "spec logging"
+    },
+    {
+      "id": "D12",
+      "location": "skills/server-core/modules/logging.md:126",
+      "problem": "The rule for `after_seq` 0 differs from skills/server-core/modules/admin-api.md:176. Line 126 and the row at logging.md:221 make an `after_seq` less than 1 `bad_request`. The body rules, which collected operations follow (admin-api.md:111), say `after_seq` is 0 or more and that 0 means from the start of the range. Input: `list_client_events` with `after_seq` 0, with or without `after_time_at` and `after_user_id`. One implementation returns the range from its start, another returns `bad_request`.",
+      "foundBy": "spec logging"
+    },
+    {
+      "id": "D13",
+      "location": "skills/server-core/modules/logging.md:47",
+      "problem": "The result of `log` with a level that is not one of the four is not set. Line 47 lists the levels, the API row at line 28 has failure value `none`, and the `## error` table has no row for it. Input: a content handler calls `log` with level `trace`. One implementation writes a line with that level, another drops it, and another throws and ends the request with `INTERNAL`.",
       "foundBy": "spec logging"
     }
   ]
