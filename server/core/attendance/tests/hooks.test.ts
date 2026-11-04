@@ -13,6 +13,8 @@ import {
   claim,
   delta_values,
   id_of,
+  mailbox_module,
+  mails,
   ok,
   pairs,
   progress,
@@ -102,6 +104,49 @@ describe('attendance hooks', () => {
     ]);
     expect(await balance(env, session, GOLD)).toBe(20n);
     expect(await progress_of(env, session, '[attendance_extra]')).toMatchObject({ day: 2 });
+  });
+
+  it('skips grant_or_mail for a day whose reward is empty, and grant_attendance_extra still runs', async () => {
+    // Day 3 of `[attendance_extra]` has an empty reward and extra_grant true.
+    const calls: [number, number][] = [];
+    const holder: { env: Env | null } = { env: null };
+    env = await start({
+      hooks: {
+        grant_attendance_extra: (ctx, calendar_id, day) => {
+          calls.push([calendar_id, day]);
+          holder.env?.core['item-ledger'].add_items(ctx, [amount(GEM, 1n)], { source: 0, ref: '', once_key: '' });
+          return 'pass';
+        },
+      },
+    });
+    holder.env = env;
+    const session = await user(env);
+    const calendar = id_of('[attendance_extra]');
+    expect((await claim(session, '[attendance_extra]')).code).toBe(0);
+    at(env, START_AT + DAY_MS);
+    expect((await claim(session, '[attendance_extra]')).code).toBe(0);
+    expect(await balance(env, session, GOLD)).toBe(20n);
+    expect(await balance(env, session, GEM)).toBe(1n);
+
+    const third = START_AT + 2n * DAY_MS;
+    at(env, third);
+    const grant_or_mail = vi.spyOn(mailbox_module(env), 'grant_or_mail');
+    const result = await claim(session, '[attendance_extra]');
+    expect(grant_or_mail).not.toHaveBeenCalled();
+    grant_or_mail.mockRestore();
+    expect(result.code).toBe(0);
+    expect(ok(result).day).toBe(3);
+    expect(ok(result).items).toEqual([]);
+    expect(ok(result).mailed).toBe(false);
+    expect(result.envelope.item_mails).toEqual([]);
+    expect(calls).toEqual([
+      [calendar, 2],
+      [calendar, 3],
+    ]);
+    expect(await balance(env, session, GOLD)).toBe(20n);
+    expect(await balance(env, session, GEM)).toBe(2n);
+    expect(await mails(env, session)).toEqual([]);
+    expect(await progress_of(env, session, '[attendance_extra]')).toMatchObject({ day: 3, claimed_day_number: env.core['server-time'].get_day_number(third) });
   });
 
   it('answers INTERNAL and keeps progress and items when validate_attendance_claim returns a wrong output form', async () => {
