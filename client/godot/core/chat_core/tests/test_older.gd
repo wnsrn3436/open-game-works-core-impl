@@ -1,6 +1,10 @@
 extends "res://core/chat_core/tests/support/chat_test_case.gd"
 ## `has_older` and `load_older`.
 
+const POLL_MS: int = 2000
+## Poll wait of a response that is shorter than `ChatCore.failureRetryMs`.
+const NEXT_MS: int = 1000
+
 ## The `load_older` an event subscriber started.
 var chained: Run = null
 
@@ -98,3 +102,69 @@ func test_a_load_older_of_an_event_subscriber_waits_for_its_own_request() -> voi
 	assert_false(await wait_run(chained), "the result of its own request")
 	assert_eq(network_errors(), 1)
 	assert_eq(cached_seqs(DIRECT, FRIEND_ID), PackedInt64Array([3, 4, 5, 6]))
+
+
+func test_guild_not_member_of_load_older_empties_the_cache_and_drops_the_poll_on_the_way() -> void:
+	await start_chat([])
+	add_messages(messages(GUILD, GUILD_ID, PackedInt64Array([4, 5]), 5, 4, POLL_MS))
+	assert_true(ChatCore.watch_channel(GUILD, 0))
+	await settle()
+	UnitTestCore.add_pending(GET_MESSAGES)
+	var older: Run = older_in_background(GUILD, 0)
+	await settle()
+	# NetworkCore sends one request at a time: the poll waits behind the held load_older.
+	add_messages(messages(GUILD, GUILD_ID, PackedInt64Array([6]), 6, 4, NEXT_MS))
+	await pass_time(POLL_MS)
+	assert_eq(message_requests().size(), 2)
+	assert_true(UnitTestCore.release_pending(GET_MESSAGES, NetworkCore.TransferResult.DONE, 200, error_bytes(CoreContract.CoreError.CORE_ERROR_GUILD_NOT_MEMBER)))
+	assert_false(await wait_run(older))
+	await settle()
+	assert_eq(message_requests().size(), 3, "the poll went after the load_older")
+	assert_eq(network_errors(), 1)
+	assert_eq(ChatCore.get_message_count(GUILD, 0), 0, "the poll result is dropped")
+	assert_false(ChatCore.has_older(GUILD, 0))
+	assert_eq(changes, PackedStringArray(["0 Reset 2", "0 Reset 0"]))
+	add_messages(messages(GUILD, GUILD_ID, PackedInt64Array([6]), 6, 6, LONG_MS))
+	await pass_time(NEXT_MS - 1)
+	assert_eq(message_requests().size(), 3, "nothing before poll_after_ms of the dropped poll")
+	await pass_time(1)
+	assert_eq(message_requests().size(), 4, "the successful poll waits its poll_after_ms, not ChatCore.failureRetryMs")
+	assert_eq(last_message_request().after_seq, 0, "the first request again")
+	assert_eq(cached_seqs(GUILD, 0), PackedInt64Array([6]))
+
+
+func test_a_load_older_on_the_way_when_the_poll_ends_with_guild_not_member_is_dropped_and_false() -> void:
+	await start_chat([])
+	add_messages(messages(GUILD, GUILD_ID, PackedInt64Array([4, 5]), 5, 4, POLL_MS))
+	assert_true(ChatCore.watch_channel(GUILD, 0))
+	await settle()
+	UnitTestCore.add_pending(GET_MESSAGES)
+	await pass_time(POLL_MS)
+	# NetworkCore sends one request at a time: the load_older waits behind the held poll.
+	add_messages(messages(GUILD, GUILD_ID, PackedInt64Array([2, 3]), 5, 2))
+	var older: Run = older_in_background(GUILD, 0)
+	await settle()
+	assert_true(UnitTestCore.release_pending(GET_MESSAGES, NetworkCore.TransferResult.DONE, 200, error_bytes(CoreContract.CoreError.CORE_ERROR_GUILD_NOT_MEMBER)))
+	assert_false(await wait_run(older))
+	await settle()
+	assert_eq(message_requests().size(), 3, "the load_older went after the poll")
+	assert_eq(last_message_request().before_seq, 4)
+	assert_eq(ChatCore.get_message_count(GUILD, 0), 0, "the load_older result is dropped")
+	assert_eq(network_errors(), 1)
+	assert_eq(changes, PackedStringArray(["0 Reset 2", "0 Reset 0"]))
+
+
+func test_messages_of_load_older_raise_the_read_seq() -> void:
+	var saved: PackedStringArray = PackedStringArray(["CHAT_CHANNEL_KIND_DIRECT:501=2"])
+	await start_chat([entry(DIRECT, FRIEND_ID, 60, 5)], true, true, saved)
+	assert_eq(ChatCore.get_unread_count(DIRECT, FRIEND_ID), 3)
+	assert_eq(badge_item(FRIEND_ID), 3)
+	# The newest messages are all deleted or of blocked senders: the first request has none.
+	await watch_with(PackedInt64Array(), 60, 11)
+	assert_eq(ChatCore.get_unread_count(DIRECT, FRIEND_ID), 3)
+	add_messages(messages(DIRECT, FRIEND_ID, PackedInt64Array([4, 5]), 60, 4))
+	assert_true(await ChatCore.load_older(DIRECT, FRIEND_ID))
+	await settle()
+	assert_eq(cached_seqs(DIRECT, FRIEND_ID), PackedInt64Array([4, 5]))
+	assert_eq(ChatCore.get_unread_count(DIRECT, FRIEND_ID), 0)
+	assert_eq(badge_item(FRIEND_ID), 0)

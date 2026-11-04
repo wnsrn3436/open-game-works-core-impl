@@ -666,19 +666,20 @@ static func _send_poll(w: _WATCH) -> void:
 		return
 	w.busy = false
 	var now: int = TimeCore.get_real_time()
-	if epoch != w.epoch:
-		# The cache went back to the start while the request was on the way.
-		w.due_at = now + _failure_retry_ms
-	elif sent and call.response is CoreContract.GetChatMessagesResponse:
+	# When the cache went back to the start while the request was on the way, its result is dropped; the wait still
+	# follows whether the request succeeded.
+	var current: bool = epoch == w.epoch
+	if sent and call.response is CoreContract.GetChatMessagesResponse:
 		var response: CoreContract.GetChatMessagesResponse = call.response as CoreContract.GetChatMessagesResponse
 		w.due_at = now + maxi(0, response.poll_after_ms)
-		if first:
+		if current and first:
 			_apply_first(w, response)
-		else:
+		elif current:
 			_apply_poll(w, response)
 	else:
 		w.due_at = now + _failure_retry_ms
-		_check_not_member(w, call.error_code)
+		if current:
+			_check_not_member(w, call.error_code)
 	if _is_watched(w) and not w.busy and w.kick:
 		w.kick = false
 		w.due_at = now
@@ -785,6 +786,7 @@ static func _apply_older(w: _WATCH, response: CoreContract.GetChatMessagesRespon
 	w.messages = older
 	w.old_cursor = response.first_seq
 	if added > 0:
+		_raise_from_cache(w)
 		_publish_messages(w, ChatMessagesChange.PREPENDED, added)
 	return true
 

@@ -154,6 +154,40 @@ func test_child_restricted_stops_every_request_until_release_init_and_start() ->
 	assert_eq(UnitTestCore.check_logs("error", "RequirementCore"), 1)
 
 
+func test_child_restricted_on_an_empty_list_publishes_no_channel_event() -> void:
+	await start_chat([], false)
+	await start_with([], POLL_MS)
+	assert_eq(channel_events, 0)
+	add_error(GET_CHANNELS, CoreContract.CoreError.CORE_ERROR_CHILD_RESTRICTED)
+	await pass_time(POLL_MS)
+	assert_eq(network_errors(), 1)
+	assert_eq(ChatCore.get_channel_count(), 0)
+	assert_eq(channel_events, 0, "the list did not change")
+
+
+func test_a_guild_poll_on_the_way_at_child_restricted_sends_no_first_request_on_a_guild_change() -> void:
+	await start_chat([], false)
+	await start_with([entry(GUILD, GUILD_ID, 5, 5)], LONG_MS)
+	add_messages(messages(GUILD, GUILD_ID, PackedInt64Array([4, 5]), 5, 4, POLL_MS))
+	assert_true(ChatCore.watch_channel(GUILD, 0))
+	await settle()
+	UnitTestCore.add_pending(GET_CHANNELS)
+	var refreshed: Run = refresh_in_background()
+	await settle()
+	# NetworkCore sends one request at a time: the poll waits behind the held GetChatChannels.
+	add_messages(messages(GUILD, OTHER_GUILD_ID, PackedInt64Array([9]), 9, 9, POLL_MS))
+	await pass_time(POLL_MS)
+	assert_true(UnitTestCore.release_pending(GET_CHANNELS, NetworkCore.TransferResult.DONE, 200, error_bytes(CoreContract.CoreError.CORE_ERROR_CHILD_RESTRICTED)))
+	assert_false(await wait_run(refreshed))
+	await settle()
+	assert_eq(message_requests().size(), 2, "the poll went after GetChatChannels")
+	assert_eq(changes, PackedStringArray(["0 Reset 2", "0 Reset 0"]), "the guild changed")
+	var received: int = UnitTestCore.received_requests().size()
+	await pass_time(FAILURE_RETRY_MS)
+	assert_eq(UnitTestCore.received_requests().size(), received, "no first request after CHILD_RESTRICTED")
+	assert_eq(network_errors(), 1)
+
+
 func test_release_ends_the_operations_on_the_way_and_no_request_follows() -> void:
 	await start_chat([])
 	add_messages(messages(DIRECT, FRIEND_ID, PackedInt64Array([8, 9]), 9, 8, POLL_MS))

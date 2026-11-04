@@ -59,6 +59,13 @@ func test_deleted_seqs_leave_the_cache_with_a_removed_event_of_that_count() -> v
 	await pass_time(POLL_MS)
 	assert_eq(cached_seqs(DIRECT, FRIEND_ID), PackedInt64Array([1]))
 	assert_eq(changes, PackedStringArray(["501 Reset 3", "501 Removed 2"]))
+	poll = messages(DIRECT, FRIEND_ID, PackedInt64Array([4]), 4, 1, POLL_MS)
+	poll.deleted_seqs = PackedInt64Array([1])
+	poll.last_delete_seq = 5
+	add_messages(poll)
+	await pass_time(POLL_MS)
+	assert_eq(cached_seqs(DIRECT, FRIEND_ID), PackedInt64Array([4]))
+	assert_eq(changes, PackedStringArray(["501 Reset 3", "501 Removed 2", "501 Removed 1", "501 Appended 1"]), "Removed before Appended")
 	add_messages(messages(DIRECT, FRIEND_ID, PackedInt64Array(), 3, 1, LONG_MS))
 	await pass_time(POLL_MS)
 	assert_eq(last_message_request().after_delete_seq, 5)
@@ -69,10 +76,20 @@ func test_a_watched_channel_that_receives_messages_has_no_unread() -> void:
 	await start_chat([entry(DIRECT, FRIEND_ID, 5, 5)], true, true, saved)
 	assert_eq(ChatCore.get_unread_count(DIRECT, FRIEND_ID), 3)
 	assert_eq(badge_item(FRIEND_ID), 3)
-	add_messages(messages(DIRECT, FRIEND_ID, PackedInt64Array([4, 5]), 5, 4))
+	add_messages(messages(DIRECT, FRIEND_ID, PackedInt64Array([4, 5]), 5, 4, POLL_MS))
 	assert_true(ChatCore.watch_channel(DIRECT, FRIEND_ID))
 	await settle()
 	assert_eq(ChatCore.get_unread_count(DIRECT, FRIEND_ID), 0)
+	assert_eq(badge_item(FRIEND_ID), 0)
+	add_channels([entry(DIRECT, FRIEND_ID, 7, 7)])
+	assert_true(await ChatCore.refresh_channels())
+	await settle()
+	assert_eq(ChatCore.get_unread_count(DIRECT, FRIEND_ID), 2, "the list is ahead of the cache")
+	assert_eq(badge_item(FRIEND_ID), 2)
+	add_messages(messages(DIRECT, FRIEND_ID, PackedInt64Array([6, 7]), 7, 4))
+	await pass_time(POLL_MS)
+	assert_eq(cached_seqs(DIRECT, FRIEND_ID), PackedInt64Array([4, 5, 6, 7]))
+	assert_eq(ChatCore.get_unread_count(DIRECT, FRIEND_ID), 0, "the poll raised the read seq")
 	assert_eq(badge_item(FRIEND_ID), 0)
 
 
@@ -99,6 +116,60 @@ func test_a_guild_change_resets_and_sends_the_first_request_and_guild_not_member
 	add_messages(messages(GUILD, GUILD_ID, PackedInt64Array([2]), 2, 2, LONG_MS))
 	await pass_time(FAILURE_RETRY_MS)
 	assert_eq(last_message_request().after_seq, 0, "the first request again after the failure retry")
+
+
+func test_a_guild_failure_other_than_guild_not_member_keeps_the_cache_and_cursors() -> void:
+	await start_chat([])
+	var first: CoreContract.GetChatMessagesResponse = messages(GUILD, GUILD_ID, PackedInt64Array([4, 5]), 5, 4, POLL_MS)
+	first.last_delete_seq = 3
+	add_messages(first)
+	assert_true(ChatCore.watch_channel(GUILD, 0))
+	await settle()
+	add_error(GET_MESSAGES, CoreContract.CoreError.CORE_ERROR_INTERNAL)
+	await pass_time(POLL_MS)
+	assert_eq(network_errors(), 1)
+	assert_eq(cached_seqs(GUILD, 0), PackedInt64Array([4, 5]))
+	assert_true(ChatCore.has_older(GUILD, 0), "the old message cursor stays 4")
+	assert_eq(changes, PackedStringArray(["0 Reset 2"]))
+	add_messages(messages(GUILD, GUILD_ID, PackedInt64Array(), 5, 4, LONG_MS))
+	await pass_time(FAILURE_RETRY_MS)
+	var request: CoreContract.GetChatMessagesRequest = last_message_request()
+	assert_eq(PackedInt64Array([request.after_seq, request.after_delete_seq]), PackedInt64Array([5, 3]), "the cursors stay")
+
+
+func test_guild_not_member_on_an_empty_cache_resets_the_cursors_without_an_event() -> void:
+	await start_chat([])
+	# Every message up to seq 9 was deleted: the cache is empty and the new message cursor is 9.
+	add_messages(messages(GUILD, GUILD_ID, PackedInt64Array(), 9, 10, POLL_MS))
+	assert_true(ChatCore.watch_channel(GUILD, 0))
+	await settle()
+	assert_eq(changes, PackedStringArray(["0 Reset 0"]))
+	add_error(GET_MESSAGES, CoreContract.CoreError.CORE_ERROR_GUILD_NOT_MEMBER)
+	await pass_time(POLL_MS)
+	assert_eq(network_errors(), 1)
+	assert_eq(changes, PackedStringArray(["0 Reset 0"]), "no event for an empty cache")
+	add_messages(messages(GUILD, GUILD_ID, PackedInt64Array(), 9, 10, LONG_MS))
+	await pass_time(FAILURE_RETRY_MS)
+	assert_eq(last_message_request().after_seq, 0, "the cursors went back to the start: the first request again")
+
+
+func test_unwatch_during_load_older_ends_it_false_without_an_event() -> void:
+	await start_chat([])
+	add_messages(messages(DIRECT, FRIEND_ID, PackedInt64Array([5, 6]), 6, 5))
+	assert_true(ChatCore.watch_channel(DIRECT, FRIEND_ID))
+	await settle()
+	UnitTestCore.add_pending(GET_MESSAGES)
+	var older: Run = older_in_background(DIRECT, FRIEND_ID)
+	await settle()
+	assert_false(older.done)
+	ChatCore.unwatch_channel(DIRECT, FRIEND_ID)
+	await settle()
+	assert_true(older.done, "unwatch_channel ends the load_older on the way")
+	assert_false(older.ok)
+	assert_true(release_messages(messages(DIRECT, FRIEND_ID, PackedInt64Array([3, 4]), 6, 3)))
+	await settle()
+	assert_eq(changes, PackedStringArray(["501 Reset 2"]), "no event")
+	assert_eq(ChatCore.get_message_count(DIRECT, FRIEND_ID), 0)
 
 
 func test_after_unwatch_no_request_goes_and_the_response_on_the_way_makes_no_event() -> void:
