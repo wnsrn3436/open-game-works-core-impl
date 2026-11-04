@@ -1,6 +1,6 @@
 extends "res://core/native_ui_core/tests/support/native_ui_test_case.gd"
-## Screen capture of a drawn frame: the window resolution, without the `Debug` layer. A render test: the headless pass
-## draws nothing.
+## Screen capture of a drawn frame: the window resolution, without the `Debug` layer. A capture that fails is empty
+## bytes with an error log. A render test: the headless pass draws nothing.
 
 
 func test_capture_has_the_window_size_and_no_debug_layer() -> void:
@@ -34,6 +34,17 @@ func test_capture_has_the_window_size_and_no_debug_layer() -> void:
 	assert_true(debug_layer.visible, "the Debug layer is shown again")
 	red.free()
 	assert_eq(errors(), 0)
+
+
+func test_capture_without_the_debug_layer_is_empty_with_an_error_log() -> void:
+	assert_true(await start_modules(null))
+	UICore.release()
+	assert_eq(await NativeUiCore.capture_screen(), PackedByteArray(), "UICore gave no Debug layer")
+	assert_eq(errors(), 1)
+	assert_eq(UnitTestCore.check_logs(ERROR, "UICore"), 1, "get_layer of a released UICore")
+	await UnitTestCore.wait_frames(2)
+	assert_true(NativeUiCore._capture_waits.is_empty(), "no capture waits for a frame")
+	assert_null(NativeUiCore._hidden_layer, "no layer is hidden")
 
 
 ## Hides every visible canvas layer of the tree that is not a UI layer or `kept`, such as the test runner window, and

@@ -3,6 +3,10 @@ extends RefCounted
 ## DEV operations of `NativeUiCore`.
 
 const _TAG: String = "NativeUiCore"
+## The fake adapter, read through this constant and not the global class name (Godot 4.7.2 keeps the generated
+## contract and data scripts alive at exit when a file that names a base adapter type reads a derived adapter class's
+## members through its global name).
+const _FAKE := preload("res://core/native_ui_core/dev/adapters/fake_native_ui_adapter.gd")
 
 
 ## Record of the fake adapter `NativeUiCore` holds. All zero and an empty text when it holds no fake adapter.
@@ -10,7 +14,7 @@ static func get_fake_record() -> GetFakeRecordResult:
 	var record: GetFakeRecordResult = GetFakeRecordResult.new()
 	if not _check_initialized("get_fake_record"):
 		return record
-	var fake: FakeNativeUiAdapter = NativeUiCore._adapter as FakeNativeUiAdapter
+	var fake: _FAKE = NativeUiCore._adapter as _FAKE
 	if fake == null:
 		LogCore.log_error(_TAG, "get_fake_record: the adapter is not the fake adapter")
 		return record

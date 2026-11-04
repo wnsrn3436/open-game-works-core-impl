@@ -5,7 +5,8 @@ extends "res://core/native_ui_core/tests/support/native_ui_test_case.gd"
 ## `navigator.userActivation`; a click the test host puts into the page (`UnitTestCore.put_page_click`) activates it.
 ## The tests replace `navigator.userActivation`, `navigator.clipboard` and `window.isSecureContext` only for what that
 ## page cannot be: a browser without `navigator.userActivation`, a Clipboard API without `writeText`, a page that is not
-## a secure context. Replaced members are put back after a test.
+## a secure context. The share tests replace `navigator.share` and `navigator.canShare`: the browser run cannot end a
+## share window. Replaced members are put back after a test.
 
 ## Counts the `writeText` calls and how each ended, and keeps the replaced members, so `_PUT_BACK` restores them.
 ## `isSecureContext` is an own property of `window`, so its descriptor is kept.
@@ -34,6 +35,12 @@ const _NOT_SECURE: String = """(function(){Object.defineProperty(window,"isSecur
 ## A Web Share API whose window stays open until `window.__ogwTestShareEnd()`.
 const _OPEN_SHARE: String = """(function(){navigator.canShare=function(){return true;};
 navigator.share=function(){return new Promise(function(r){window.__ogwTestShareEnd=r;});};return "0";})()"""
+## A Web Share API whose shares end at once, in order: resolved, rejected with `AbortError` (the user cancelled),
+## rejected with `NotAllowedError`. The text of each share goes to `window.__ogwTestWatch.shares`. Needs `_WATCH` first.
+const _ENDING_SHARE: String = """(function(){var w=window.__ogwTestWatch;w.shares=[];var ends=["resolve","abort","error"];
+navigator.canShare=function(){return true;};navigator.share=function(d){w.shares.push(d.text);var e=ends.shift();
+if(e==="resolve"){return Promise.resolve();}
+return Promise.reject(new DOMException("",e==="abort"?"AbortError":"NotAllowedError"));};return "0";})()"""
 ## Where the test clicks the page: a corner of the canvas.
 const _PAGE_CLICK: Vector2 = Vector2(2, 2)
 ## Longest wait for the transient user activation of an earlier test's input to end: Chromium keeps it 5 s.
@@ -191,3 +198,23 @@ func test_release_ends_a_web_share_whose_window_stays_open() -> void:
 		"the late result is dropped"
 	)
 	assert_eq(errors(), 0)
+
+
+func test_a_web_share_that_ends_gives_its_share_result() -> void:
+	if not _web_run():
+		return
+	assert_eq(_js(_WATCH), "0")
+	assert_eq(_js(_ENDING_SHARE), "0")
+	assert_true(await start_modules(NativeUiWebAdapter.new()))
+	assert_eq(await NativeUiCore.share(content("a")), CLOSED, "a share that resolves")
+	assert_eq(errors(), 0)
+	assert_eq(await NativeUiCore.share(content("b")), CLOSED, "a share the user cancelled (AbortError)")
+	assert_eq(errors(), 0)
+	assert_eq(await NativeUiCore.share(content("c")), SHARE_FAILED, "a share rejected with another error")
+	assert_eq(errors(), 1, "the adapter reported a failure")
+	assert_eq(_js("window.__ogwTestWatch.shares.join(',')"), "a,b,c", "each share went to navigator.share")
+	assert_eq(
+		_js("JSON.stringify(window.ogwNativeUiShare.results)+JSON.stringify(window.ogwNativeUiShare.dropped)"),
+		"{}{}",
+		"the adapter took every result"
+	)
