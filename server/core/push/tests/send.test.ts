@@ -1,7 +1,7 @@
 /** `push` `### send`: job `push_send`, push text, adapter results, the target filter, ad pushes and the night window. */
 import {
-  HOUR, MINUTE, POLL_MS, RETRY_MS, START_AT, advance, device, devices, fake, fake_adapter, held, logs, message, peer, queue, record, schedule, sends_to,
-  set_push_consent, start, stop_all, translations, type Sent, type TestServer,
+  HOUR, MINUTE, POLL_MS, RETRY_MS, START_AT, advance, before_statements, device, devices, devices_in_id_order, fake, fake_adapter, held, logs, message, now,
+  peer, queue, record, schedule, sends_to, set_push_consent, start, stop_all, testing, translations, type Device, type Sent, type TestServer,
 } from './helpers.ts';
 import { push_cases } from './text_format.ts';
 
@@ -197,6 +197,32 @@ describe('ad push', () => {
     await advance(a, 8n * HOUR, b);
     expect(sends_to(a, 'fake:held-twice')).toHaveLength(1);
     expect((await record(a, push_id))?.sent_count).toBe(1n);
+  });
+
+  it('a push_held row that expires after the held batch selected it, while the batch takes the rows before it, is not sent', async () => {
+    const server = await start();
+    const [first, second] = await devices_in_id_order(server, [
+      { device_token: 'fake:held-first', timezone_offset_ms: NIGHT_OFFSET }, { device_token: 'fake:held-expired', timezone_offset_ms: NIGHT_OFFSET },
+    ]) as [Device, Device];
+    for (const d of [first, second]) await set_push_consent(d.session, true, false);
+    const push_id = await schedule(server, {
+      message_id: message('[push_ad]'), args: [{ name: 'percent', value: { int_value: 5n } }], send_at: START_AT, target: { user_ids: [first.user_id, second.user_id] },
+    });
+    await advance(server, POLL_MS);
+    expect(await held(server)).toHaveLength(2);
+    await advance(server, 8n * HOUR - 2n * POLL_MS);
+    expect(await held(server)).toHaveLength(2);
+    // The batch selects both rows before expires_at; the take of the first row (user ID order) moves the clock to it.
+    const expires_at = START_AT + 9n * HOUR;
+    before_statements(server, /^DELETE FROM push_held WHERE push_id = \$1 AND user_id = \$2/, 1, () => {
+      testing.advance_time(server, expires_at - now(server));
+    });
+    await advance(server, POLL_MS);
+    await advance(server, POLL_MS);
+    expect(now(server)).toBeGreaterThanOrEqual(expires_at);
+    expect(sends_to(server, 'fake:held-first')).toHaveLength(1);
+    expect(sends_to(server, 'fake:held-expired')).toEqual([]);
+    expect((await record(server, push_id))?.sent_count).toBe(1n);
   });
 
   it('held pushes go push.sendBatchSize at a time between rounds of due records: a record due at the night window end goes after the first held batch', async () => {
