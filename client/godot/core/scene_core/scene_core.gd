@@ -657,13 +657,35 @@ static func _scene_kind() -> int:
 
 
 # Hides every top visual node under `node`, disables every node under it with a `process_mode` of its own and puts
-# every node under it into `_watched`.
+# every node under it into `_watched`. Hiding and disabling notify scene code, which may remove or free a child that the
+# walk has not reached yet: the walk keeps the ids of the children, and a child that is freed or not under the scene
+# holder any more is skipped.
 static func _hide_tree(node: Node) -> void:
+	var ids: PackedInt64Array = PackedInt64Array()
 	for child: Node in node.get_children():
+		ids.append(child.get_instance_id())
+	for id: int in ids:
+		var child: Node = _under_holder(id)
+		if child == null:
+			continue
 		_hide_if_top(child)
+		child = _under_holder(id)
+		if child == null:
+			continue
 		_stop_if_own_mode(child)
+		child = _under_holder(id)
+		if child == null:
+			continue
 		_watched[child] = true
 		_hide_tree(child)
+
+
+# The node of `id` when it is not freed and is under the scene holder, else null.
+static func _under_holder(id: int) -> Node:
+	var node: Node = instance_from_id(id) as Node
+	if node == null or not is_instance_valid(_holder) or not _holder.is_ancestor_of(node):
+		return null
+	return node
 
 
 # Starts or ends the stop check. Ending it empties `_watched`.
