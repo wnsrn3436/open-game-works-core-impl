@@ -89,7 +89,6 @@ static var _step_index: Dictionary[int, int] = {}
 static var _textures: Dictionary[String, Texture2D] = {}
 static var _scenes: Dictionary[String, PackedScene] = {}
 static var _streams: Dictionary[String, Resource] = {}
-static var _presets: Dictionary[String, TweenDefinition] = {}
 static var _view_root: Control = null
 static var _view: CutsceneView = null
 static var _choice_buttons: Array[Button] = []
@@ -143,7 +142,7 @@ static var _full_at_ms: int = -1
 static var _voice_handle: int = SoundCore.INVALID_HANDLE
 ## When the line reached voice end. -1: not yet.
 static var _voice_end_ms: int = -1
-## The auto advance wait starts no earlier than this: the last turn on or line history close.
+## The auto advance wait starts no earlier than this: `Line` start or the last line history close.
 static var _auto_from_ms: int = 0
 ## Start of the fast forward wait.
 static var _fast_forward_from_ms: int = 0
@@ -287,9 +286,11 @@ static func play(cutscene_id: int, scope: Scope, args: FormatArgs = null, skippa
 	var textures: Dictionary[String, Texture2D] = {}
 	var scenes: Dictionary[String, PackedScene] = {}
 	var streams: Dictionary[String, Resource] = {}
-	var presets: Dictionary[String, TweenDefinition] = {}
 	var tween_kind: int = TweenCore.get_preset_kind()
 	for item: PreloadRequest.Item in request.items:
+		# A command gets its tween preset with `ResourceCore.get_loaded` at command start.
+		if item.kind == tween_kind:
+			continue
 		var resource: Resource = await ResourceCore.load(item.key, item.kind, scope)
 		if session != _session or serial != _play_serial or not _playing:
 			return wait.result if wait.finished else _failed_result()
@@ -299,12 +300,9 @@ static func play(cutscene_id: int, scope: Scope, args: FormatArgs = null, skippa
 			scenes[item.key] = resource as PackedScene
 		elif item.kind == _AUDIO_KIND:
 			streams[item.key] = resource
-		elif item.kind == tween_kind:
-			presets[item.key] = resource as TweenDefinition
 	_textures = textures
 	_scenes = scenes
 	_streams = streams
-	_presets = presets
 	# 4. The cutscene view.
 	if not _attach_view():
 		_fail_start()
@@ -414,7 +412,6 @@ static func _reset_playback() -> void:
 	_textures = {}
 	_scenes = {}
 	_streams = {}
-	_presets = {}
 	_view_root = null
 	_view = null
 	_choice_buttons = []
@@ -1026,8 +1023,9 @@ static func _start_command(row: GameData.CutsceneStepRow) -> _COMMAND:
 	return null
 
 
+## The tween preset `key` that playback step 3 preloaded, or the fallback definition when it did not load.
 static func _preset(key: String) -> TweenDefinition:
-	return _presets[key] if _presets.has(key) else null
+	return ResourceCore.get_loaded(key, TweenCore.get_preset_kind(), _scope) as TweenDefinition
 
 
 ## The first change of the first step of `definition`, or `null`. The fallback definition has none.
@@ -1040,9 +1038,9 @@ static func _first_change(definition: TweenDefinition) -> TweenChange:
 	return first.changes[0]
 
 
-## Start check of the tween preset of `row`: logs an error and gives `null` when it has no first change.
-static func _first_change_or_log(row: GameData.CutsceneStepRow) -> TweenChange:
-	var change: TweenChange = _first_change(_preset(row.resource))
+## Start check of `preset`, the tween preset of `row`: logs an error and gives `null` when it has no first change.
+static func _first_change_or_log(row: GameData.CutsceneStepRow, preset: TweenDefinition) -> TweenChange:
+	var change: TweenChange = _first_change(preset)
 	if change == null:
 		LogCore.log_error(_TAG, "cutscene %d step %d: tween preset %s did not load or has no first change" % [
 				_cutscene_id, row.step, row.resource])
@@ -1075,10 +1073,11 @@ static func _start_move(row: GameData.CutsceneStepRow) -> _COMMAND:
 		LogCore.log_error(_TAG, "cutscene %d step %d: actor %s and target %s are not both 2D or both 3D" % [
 				_cutscene_id, row.step, row.actor, row.target])
 		return null
-	if _first_change_or_log(row) == null:
+	var preset: TweenDefinition = _preset(row.resource)
+	if _first_change_or_log(row, preset) == null:
 		return null
 	var definition: TweenDefinition = TweenDefinition.new()
-	TweenCore.copy_definition(_preset(row.resource), definition)
+	TweenCore.copy_definition(preset, definition)
 	var position_change: TweenChange = null
 	for step: TweenStep in definition.steps:
 		if step == null:
@@ -1137,7 +1136,7 @@ static func _start_camera(row: GameData.CutsceneStepRow) -> _COMMAND:
 		LogCore.log_error(_TAG, "cutscene %d step %d: the camera and target %s are not both 2D or both 3D" % [
 				_cutscene_id, row.step, row.target])
 		return null
-	var change: TweenChange = _first_change_or_log(row)
+	var change: TweenChange = _first_change_or_log(row, _preset(row.resource))
 	if change == null:
 		return null
 	if change.duration < 0 or change.duration > _max_duration_ms:
@@ -1162,11 +1161,12 @@ static func _run_camera(session: RefCounted, record: _COMMAND, key: String) -> v
 
 
 static func _start_effect(row: GameData.CutsceneStepRow) -> _COMMAND:
-	if _first_change_or_log(row) == null:
+	var preset: TweenDefinition = _preset(row.resource)
+	if _first_change_or_log(row, preset) == null:
 		return null
 	_finalize_same(GameData.CutsceneCommand.SCREEN_EFFECT, 0)
 	var handle: ScreenEffectHandle = ScreenEffectCore.play_preset(
-			ScreenEffectCore.ScreenEffectChannel.CUTSCENE, _view_root, _preset(row.resource))
+			ScreenEffectCore.ScreenEffectChannel.CUTSCENE, _view_root, preset)
 	var record: _COMMAND = _new_command(GameData.CutsceneCommand.SCREEN_EFFECT)
 	record.effect = handle
 	_commands.append(record)
@@ -1677,8 +1677,6 @@ static func _on_auto_click(serial: int) -> void:
 		return
 	_auto_on = not _auto_on
 	_view.auto_advance_button.set_pressed_no_signal(_auto_on)
-	if _auto_on:
-		_auto_from_ms = _clock()
 
 
 static func _on_fast_forward_click(serial: int) -> void:

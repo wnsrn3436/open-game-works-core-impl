@@ -297,6 +297,31 @@ func test_a_move_whose_preset_step_0_is_empty_leaves_the_move_of_the_same_actor_
 	assert_eq(errors(), 0)
 
 
+func test_a_move_gets_its_tween_preset_with_get_loaded_at_command_start() -> void:
+	var cutscene: int = _rows.new_id()
+	_rows.step(cutscene, 1, GameData.CutsceneCommand.MOVE, true, "hero", "spot", MOVE)
+	_rows.step(cutscene, 2, GameData.CutsceneCommand.MOVE, true, "hero", "spot_b", MISSING_TWEEN)
+	_rows.step(cutscene, 3, GameData.CutsceneCommand.END)
+	assert_true(await start_rows())
+	var call: PLAY = await play_id(cutscene)
+	assert_not_null(in_progress(GameData.CutsceneCommand.MOVE), "the first Move runs")
+	assert_gt(UnitTestCore.check_logs(ERROR, "ResourceCore"), 0, "the second preset did not load in step 3")
+	# After step 3, the tween fallback becomes a copy of the Move preset: get_loaded at the start of the second Move
+	# gives it, so that Move passes the start check.
+	var kind: int = TweenCore.get_preset_kind()
+	var fallback: TweenDefinition = TweenDefinition.new()
+	TweenCore.copy_definition(ResourceCore.get_loaded(MOVE, kind, scope) as TweenDefinition, fallback)
+	var previous: TweenDefinition = ResourceCore.get_loaded(MISSING_TWEEN, kind, scope) as TweenDefinition
+	UnitTestCore.check_logs(ERROR, "ResourceCore")
+	assert_eq(ResourceCore.register_kind(TweenDefinition, fallback), kind)
+	await run_to_end(call)
+	ResourceCore.register_kind(TweenDefinition, previous)
+	UnitTestCore.check_logs(ERROR, "ResourceCore")
+	assert_eq(call.status(), CutsceneCore.CutsceneStatus.COMPLETED)
+	assert_eq(errors(), 0, "the second Move passed the start check")
+	assert_almost_eq(hero.global_position, spot_b.global_position, Vector2(0.01, 0.01), "the second Move moved")
+
+
 func test_a_3d_camera_with_a_2d_target_moves_no_camera_when_played_or_skipped() -> void:
 	var played: int = _rows.new_id()
 	_rows.step(played, 1, GameData.CutsceneCommand.CAMERA, true, "", "spot", MOVE)

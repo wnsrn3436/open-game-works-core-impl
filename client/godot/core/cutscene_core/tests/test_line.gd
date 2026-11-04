@@ -212,6 +212,41 @@ func test_auto_advance_ends_a_line_without_voice_after_its_delay() -> void:
 	assert_eq(errors(), 0)
 
 
+func test_auto_advance_turned_on_after_its_delay_ends_the_line_in_the_next_frame() -> void:
+	assert_true(await start())
+	var call: PLAY = await play("[cut_plain]")
+	await advance(AUTO_MS * 3)
+	assert_true(line_running(), "auto advance is off")
+	await tap(view().auto_advance_button)
+	await UnitTestCore.wait_frames(1)
+	assert_false(line_running(), "the wait is measured from the whole text and voice end, not from turning it on")
+	if line_running():
+		await press_advance()
+	await finish(call)
+	assert_eq(call.status(), CutsceneCore.CutsceneStatus.COMPLETED)
+	assert_eq(errors(), 0)
+
+
+func test_auto_advance_turned_on_during_its_delay_ends_the_line_at_the_delay_from_voice_end() -> void:
+	assert_true(await start())
+	var call: PLAY = await play("[cut_line]")
+	await advance(VOICE_MS)
+	assert_false(SoundCore.is_playing(CutsceneCore._voice_handle), "the voice ends at its length")
+	@warning_ignore("integer_division")
+	var half: int = AUTO_MS / 2
+	await advance(half)
+	await tap(view().auto_advance_button)
+	await advance(AUTO_MS - half - 1)
+	assert_true(line_running())
+	await advance(1)
+	assert_false(line_running(), "the delay from voice end has passed")
+	if line_running():
+		await press_advance()
+	await finish(call)
+	assert_eq(call.status(), CutsceneCore.CutsceneStatus.COMPLETED)
+	assert_eq(errors(), 0)
+
+
 func test_fast_forward_shows_the_whole_text_at_once_and_ends_the_line_after_its_delay() -> void:
 	set_setting("CutsceneCore.typingIntervalMs", TYPING_MS)
 	assert_true(await start())

@@ -38,7 +38,6 @@ func assert_initial_state() -> void:
 	assert_eq(CutsceneCore._textures.size(), 0)
 	assert_eq(CutsceneCore._scenes.size(), 0)
 	assert_eq(CutsceneCore._streams.size(), 0)
-	assert_eq(CutsceneCore._presets.size(), 0)
 	assert_null(CutsceneCore._view_root)
 	assert_null(CutsceneCore._view)
 	assert_eq(CutsceneCore._choice_buttons.size(), 0)
