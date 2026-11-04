@@ -1,6 +1,7 @@
 /** `### room` and party handling through `/realtime`. */
 import { readFileSync } from 'node:fs';
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
+import { storage_module } from '../../storage/tests/helpers.ts';
 import { advance_time, fake, read_logs, send, wait_background, type TestSession } from '../../testing/dev/index.ts';
 import {
   CoreError,
@@ -767,5 +768,109 @@ describe('party', () => {
     await report(b.session, found?.match_id ?? '', new Uint8Array([2]));
     await settled(h);
     expect(calls_of(h, 'apply_match_mismatch').map((c) => c.record?.source)).toEqual(['Room', 'Room']);
+  });
+});
+
+describe('a match being made', () => {
+  const found_count = (frames: readonly Frame[]): number => frames.filter((f) => f.kind === K.MATCHMAKER_FRAME_KIND_MATCH_FOUND).length;
+
+  /** A room of three whose host's `ROOM_START` waits for the relays of its match, and whose host then closed. */
+  const host_left_while_making = async (mode_id: number): Promise<{ b: Member; c: Member; a_id: bigint; h: Harness }> => {
+    const h = await harness({ modes: MODES, settings: { 'environments.<ENV>.adapters.turn': 'fake', 'p2p-signaling.turnTimeoutMs': 1500 } });
+    const { members } = await room(h, mode_id, 3);
+    const [a, b, c] = members;
+    if (a === undefined || b === undefined || c === undefined) throw new Error('room');
+    const turn = fake(h.server, 'turn') as { set_failure(op: string, f: string): void; calls(): readonly unknown[] };
+    turn.set_failure('issue_relays', 'timeout');
+    send_frame(a.conn, start_frame());
+    await vi.waitFor(() => {
+      expect(turn.calls()).toHaveLength(1);
+    });
+    await close_and_wait(a.conn);
+    return { b, c, a_id: a.user_id, h };
+  };
+
+  /** The frames up to and after the `MATCH_FOUND` of a member, once the connection handled everything sent before. */
+  const until_found = async (m: Member): Promise<Frame[]> => {
+    const found = await next(m.conn, K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+    return [found, ...(await barrier(m.conn))];
+  };
+
+  it('answers a new host ROOM_START with ROOM_BUSY while the ROOM_START of the host that left still makes its match, and no member gets two MATCH_FOUND', async () => {
+    const { b, c, a_id } = await host_left_while_making(ROOM4.id);
+    const out = await send_and_wait(b.conn, start_frame());
+    const c_frames = await until_found(c);
+    expect(found_count(c_frames)).toBe(1);
+    expect(failures(c_frames)).toEqual([]);
+    expect(failures(out)).toEqual([[CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_ROOM_START]]);
+    expect(found_count(out)).toBe(0);
+    const b_frames = await until_found(b);
+    expect(found_count(b_frames)).toBe(1);
+    expect(b_frames[0]?.players.map((p) => p.user_id)).toEqual([a_id, b.user_id, c.user_id]);
+  });
+
+  it('answers a new host MATCH_REQUEST with ROOM_BUSY while the ROOM_START of the host that left still makes its match, and leaves no party entry', async () => {
+    const { b, c } = await host_left_while_making(BOTH.id);
+    const out = await send_and_wait(b.conn, match_request(BOTH.id));
+    expect(failures(out)).toEqual([[CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_MATCH_REQUEST]]);
+    const b_frames = await until_found(b);
+    expect(found_count(b_frames)).toBe(1);
+    expect(found_count(await until_found(c))).toBe(1);
+    expect([...out, ...b_frames].filter((f) => f.kind === K.MATCHMAKER_FRAME_KIND_ROOM_STATE).map((f) => f.room_status)).not.toContain(RoomStatus.ROOM_STATUS_MATCHING);
+  });
+
+  it('takes a ROOM_START again after the match was made and its members left it', async () => {
+    const { b, c, h } = await host_left_while_making(ROOM4.id);
+    const first = await next(b.conn, K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+    await next(c.conn, K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+    (fake(h.server, 'turn') as { set_failure(op: string, f: string | null): void }).set_failure('issue_relays', null);
+    for (const m of [b, c]) {
+      await send_and_wait(m.conn, frame(K.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, (f) => {
+        f.match_id = first.match_id;
+      }));
+    }
+    const out = await send_and_wait(b.conn, start_frame());
+    expect(failures(out)).toEqual([]);
+    expect(found_count(out)).toBe(1);
+  });
+
+  it('takes a ROOM_START again after member rating resolution failed', async () => {
+    let refuse = true;
+    const h = await harness({ modes: MODES, hooks: { validate_party: () => (refuse ? GameError.GAME_ERROR_CORE_TEST : 'pass') } });
+    const { members } = await room(h, ROOM4.id, 2);
+    const [a] = members;
+    if (a === undefined) throw new Error('room');
+    expect(failures(await send_and_wait(a.conn, start_frame()))).toEqual([[GameError.GAME_ERROR_CORE_TEST, K.MATCHMAKER_FRAME_KIND_ROOM_START]]);
+    refuse = false;
+    expect(found_count(await send_and_wait(a.conn, start_frame()))).toBe(1);
+  });
+
+  it('takes a ROOM_START again after the match record save failed', async () => {
+    const h = await harness({ modes: MODES });
+    const { members } = await room(h, ROOM4.id, 2);
+    const [a] = members;
+    if (a === undefined) throw new Error('room');
+    vi.spyOn(storage_module(h.server), 'run_game_transaction').mockResolvedValueOnce('FAILED');
+    const out = await send_and_wait(a.conn, start_frame());
+    expect(out.filter((f) => f.kind === K.MATCHMAKER_FRAME_KIND_MATCH_FAILED).map((f) => f.reason)).toEqual([Reason.MATCH_FAIL_REASON_CREATE_FAILED]);
+    const again = await send_and_wait(a.conn, start_frame());
+    expect(failures(again)).toEqual([]);
+    expect(found_count(again)).toBe(1);
+  });
+
+  it('takes a ROOM_START again after making the match threw', async () => {
+    const h = await harness({ modes: MODES });
+    const { members } = await room(h, ROOM4.id, 2);
+    const [a] = members;
+    if (a === undefined) throw new Error('room');
+    const open = vi.spyOn(h.core()['p2p-signaling'] as { open_match_session(): unknown }, 'open_match_session').mockImplementationOnce(() => {
+      throw new Error('open fails');
+    });
+    expect(found_count(await send_and_wait(a.conn, start_frame()))).toBe(0);
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(read_logs(h.server, 'error').filter((l) => String(l['message']).startsWith('realtime frame handling threw'))).toHaveLength(1);
+    const again = await send_and_wait(a.conn, start_frame());
+    expect(failures(again)).toEqual([]);
+    expect(found_count(again)).toBe(1);
   });
 });

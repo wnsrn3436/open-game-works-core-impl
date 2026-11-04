@@ -97,6 +97,8 @@ interface Room {
   readonly data_version: string;
   readonly client_version: string;
   entry: Entry | null;
+  /** A `ROOM_START` of this room is making its match: from member rating resolution until `create_match` ends, also through a host change. */
+  making_match: boolean;
 }
 
 interface UserSlot {
@@ -574,7 +576,7 @@ export function create_realtime(env: Env, results: Results): Realtime {
   /** A room frame or party request of the host that failed before member rating resolution, or null to go on. */
   const host_error = (slot: UserSlot, room: Room | null): number | null => {
     if (room === null || room.members[0] !== slot.client.user_id) return CoreError.CORE_ERROR_ROOM_NOT_HOST;
-    if (room.status === 'Matching' || room.members.some(member_in_match)) return CoreError.CORE_ERROR_ROOM_BUSY;
+    if (room.status === 'Matching' || room.making_match || room.members.some(member_in_match)) return CoreError.CORE_ERROR_ROOM_BUSY;
     if (env.admin.is_kill_switched('MATCH_REQUEST')) return CoreError.CORE_ERROR_FEATURE_DISABLED;
     return null;
   };
@@ -661,6 +663,7 @@ export function create_realtime(env: Env, results: Results): Realtime {
       data_version: client.data_version,
       client_version: client.client_version,
       entry: null,
+      making_match: false,
     };
     rooms.set(room.code, room);
     slot.room = room;
@@ -732,16 +735,21 @@ export function create_realtime(env: Env, results: Results): Realtime {
       room_failed(client, error ?? CoreError.CORE_ERROR_INVALID_REQUEST, request);
       return;
     }
-    const members = await resolve_members(room, mode, request);
-    if (members === null || live(client) === null) return;
-    const seats: Seat[] = members.map((m, i) => ({
-      user_id: m.user_id,
-      rating: m.rating,
-      team: mode.team_size > 0 ? Math.floor(i / mode.team_size) : 0,
-      party: 1,
-      client: m.client,
-    }));
-    await create_match(mode, room.lockstep, room.data_version, room.client_version, 'Room', seats, []);
+    room.making_match = true;
+    try {
+      const members = await resolve_members(room, mode, request);
+      if (members === null || live(client) === null) return;
+      const seats: Seat[] = members.map((m, i) => ({
+        user_id: m.user_id,
+        rating: m.rating,
+        team: mode.team_size > 0 ? Math.floor(i / mode.team_size) : 0,
+        party: 1,
+        client: m.client,
+      }));
+      await create_match(mode, room.lockstep, room.data_version, room.client_version, 'Room', seats, []);
+    } finally {
+      room.making_match = false;
+    }
   };
 
   const p2p_frame = async (client: Client, frame: CoreContract.MatchmakerFrame): Promise<void> => {
