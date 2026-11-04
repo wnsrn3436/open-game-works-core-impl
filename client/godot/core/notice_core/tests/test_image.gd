@@ -4,6 +4,12 @@ extends "res://core/notice_core/tests/support/notice_test_case.gd"
 const _HTTP_DOWNLOADER = preload("res://core/notice_core/http_image_downloader.gd")
 const _WEB_DOWNLOADER = preload("res://core/notice_core/web_image_downloader.gd")
 
+## A `download` running in the background: `done` and its result after it ends.
+class Downloading:
+	extends RefCounted
+	var done: bool = false
+	var result: ImageDownloader.DownloadResult = null
+
 
 static func png_bytes() -> PackedByteArray:
 	var image: Image = Image.create_empty(2, 2, false, Image.FORMAT_RGBA8)
@@ -101,6 +107,32 @@ func test_redirect_and_size_limit_over_real_http() -> void:
 	assert_true(await fetch_with([image_notice(1, base + "/moved.png")]))
 	assert_null(await NoticeCore.load_image(1), "a redirect")
 	assert_eq(errors(), 1)
+
+
+func test_cancel_ends_a_download_of_the_default_downloader() -> void:
+	if not await start():
+		fail_test("setup failed")
+		return
+	var downloader: ImageDownloader = NoticeCore._downloader
+	var base: String = await UnitTestCore.start_http_server()
+	assert_false(base.is_empty())
+	if base.is_empty():
+		return
+	var no_headers: Array[PackedStringArray] = []
+	assert_true(await UnitTestCore.add_http_response(base, "/a.png", 200, no_headers, png_bytes()))
+	# `cancel()` runs before the response can arrive: the download waits for a later frame.
+	var cancelled: Downloading = _start_download(downloader, base + "/a.png")
+	assert_false(cancelled.done, "the download waits for the response")
+	downloader.cancel()
+	await pump()
+	assert_true(cancelled.done, "cancel() ends the download")
+	if cancelled.done:
+		assert_eq(cancelled.result.status, NoticeCore.DownloadStatus.CANCELLED)
+		assert_true(cancelled.result.body.is_empty())
+	assert_eq(NoticeCore._node.find_children("*", "HTTPRequest", true, false).size(), 0, "the request is freed")
+	var after: ImageDownloader.DownloadResult = await downloader.download(base + "/a.png", IMAGE_MAX_BYTES)
+	assert_eq(after.status, NoticeCore.DownloadStatus.DONE, "a download after the cancel")
+	assert_eq(after.body, png_bytes())
 
 
 func test_load_image_time_limit_cancels_once() -> void:
@@ -220,6 +252,18 @@ func test_loopback_http_url_with_user_info_is_refused() -> void:
 	assert_true(loading.done)
 	assert_null(loading.texture)
 	assert_eq(errors(), 1, "the cancelled download")
+
+
+## Starts `download` of `downloader` without waiting.
+func _start_download(downloader: ImageDownloader, url: String) -> Downloading:
+	var downloading: Downloading = Downloading.new()
+	_download_into(downloading, downloader, url)
+	return downloading
+
+
+func _download_into(downloading: Downloading, downloader: ImageDownloader, url: String) -> void:
+	downloading.result = await downloader.download(url, IMAGE_MAX_BYTES)
+	downloading.done = true
 
 
 ## Number of requests the loopback HTTP server at `base` got for `path`.
