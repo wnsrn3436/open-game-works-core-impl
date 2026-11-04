@@ -13,6 +13,7 @@ import {
   new_db,
   new_user,
   next_step,
+  request,
   row,
   seed,
   server,
@@ -216,6 +217,78 @@ describe('migration batch', () => {
     await run_to_end(b);
     expect(batch_row(b)?.['status']).toBe('DONE');
     expect(users.every((u) => at_target(b, u))).toBe(true);
+  });
+
+  it('failed_users keeps up to migration.maxRecordedFailures users, the smallest user IDs first, and failed_count counts every failed user', async () => {
+    const s = await server({ settings: { 'migration.batchSize': 3, 'migration.maxRecordedFailures': 2 }, converters: converters() });
+    const users = await old_users(s, 5, [1, 2, 3, 4]);
+    await start_batch(s);
+    await run_to_end(s);
+    expect(batch_row(s)).toMatchObject({ status: 'DONE', converted_users: 1n, failed_count: 4n });
+    expect(failed_users(s)).toEqual([String(users[0]), String(users[1])]);
+    expect(user_failure_logs(s)).toHaveLength(4);
+  });
+
+  it('a user the step picked who is withdrawn before its user transaction is counted neither in converted_users nor in failed_count and failed_users', async () => {
+    const s = await server({ settings: { 'migration.batchSize': 3 }, converters: converters() });
+    const users = await old_users(s, 3);
+    const withdrawn = users[1] as bigint;
+    const results: [bigint, unknown][] = [];
+    const run = s.storage.run_user_transaction.bind(s.storage);
+    // The user is withdrawn after the step's scan picked them, right before the step's user transaction.
+    s.storage.run_user_transaction = async (user_id, fn) => {
+      if (user_id === withdrawn) {
+        const deleted = await request(s, user_id, (ctx) => {
+          s.storage.delete_user(ctx);
+          return 'deleted';
+        });
+        expect(deleted).toBe('deleted');
+      }
+      const result = await run(user_id, fn);
+      results.push([user_id, result]);
+      return result;
+    };
+    await start_batch(s);
+    await next_step(s);
+    expect(results).toEqual([
+      [users[0], 'COMMITTED'],
+      [withdrawn, 'WITHDRAWN'],
+      [users[2], 'COMMITTED'],
+    ]);
+    expect(batch_row(s)).toMatchObject({ cursor_user_id: users[2], converted_users: 2n, failed_count: 0n });
+    expect(failed_users(s)).toEqual([]);
+    expect(user_failure_logs(s)).toEqual([]);
+    await run_to_end(s);
+    expect(batch_row(s)).toMatchObject({ status: 'DONE', converted_users: 2n, failed_count: 0n, failed_users: '[]' });
+  });
+
+  it('a step with no user to pick that loses its lease to another server instance before its DONE write leaves status RUNNING', async () => {
+    const s = await server();
+    const batch_id = await start_batch(s);
+    const other = { lease_owner: 'another-instance', lease_until_at: 0n };
+    let picked = false;
+    const scan = s.storage.scan_users.bind(s.storage);
+    s.storage.scan_users = (db, after, max, version) => {
+      const users = scan(db, after, max, version);
+      picked = true;
+      return users;
+    };
+    const run_game = s.storage.run_game_transaction.bind(s.storage);
+    // The game transaction after the scan is the DONE write. Before it, another server instance takes the lease,
+    // as its lease write does once the lease has ended on its clock.
+    s.storage.run_game_transaction = async <T>(fn: (tx: GameTx) => T): Promise<T | 'FAILED'> => {
+      if (picked) {
+        picked = false;
+        other.lease_until_at = s.clock.now() + BigInt(SETTINGS['migration.batchLeaseMs'] as number);
+        await run_game((tx) =>
+          s.storage.db(tx).query('UPDATE migration_batch SET lease_owner = $1, lease_until_at = $2, updated_at = $3 WHERE batch_id = $4', [other.lease_owner, other.lease_until_at, s.clock.now(), batch_id]),
+        );
+      }
+      return run_game(fn);
+    };
+    await next_step(s);
+    expect(batch_row(s)).toMatchObject({ batch_id, status: 'RUNNING', cursor_user_id: 0n, ...other });
+    expect(s.logs.filter((l) => l['message'] === 'migration batch lease lost; the step is dropped').map((l) => [l['level'], log_field(l, 'batch_id')])).toEqual([['warn', batch_id]]);
   });
 
   it('a user whose user lock another transaction holds longer than storage.userLockWaitMs is counted in failed_count and failed_users with an error log, and the batch goes on', async () => {

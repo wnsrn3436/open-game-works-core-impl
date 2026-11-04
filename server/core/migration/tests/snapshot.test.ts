@@ -84,6 +84,20 @@ describe.skipIf(!CLONE_AVAILABLE)('migrate_snapshot', () => {
     ]);
   });
 
+  it('a record whose converter result cannot be encoded is FAILED, and the other records still get their results', async () => {
+    const fallback = default_converters()['QuestUserState:2'];
+    // progress is an int64 field; a number in it cannot be encoded.
+    const unencodable = (item: QuestUserState): QuestUserState => Object.assign(item, { progress: 1 as unknown as bigint });
+    const s = await server({ clone: true, converters: { 'QuestUserState:2': (item, data) => ((item as QuestUserState).id === 7n ? unencodable(item as QuestUserState) : (fallback?.(item, data) ?? item)) } });
+    const output = s.dev.migrate_snapshot(snapshot([row('user_state', Q, 7n, 2n, quest(7n, 1n)), row('user_state', Q, 8n, 2n, quest(8n, 1n))], USER));
+    if (!Array.isArray(output)) throw new Error(String(output));
+    expect(output.map((r) => [r.key, r.result])).toEqual([
+      [`${Q}/7`, 'FAILED'],
+      [`${Q}/8`, 'OK'],
+    ]);
+    expect(output[0]?.error).toMatch(/^from version 2: the converter result cannot be encoded as a QuestUserState message: /);
+  });
+
   it('is bad_request for a snapshot that breaks the snapshot format', async () => {
     const s = await server({ clone: true });
     const good = snapshot([row('user_state', Q, 1n, 1n, quest(1n, 1n))], USER);

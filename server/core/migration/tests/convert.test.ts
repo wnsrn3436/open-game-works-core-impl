@@ -109,6 +109,45 @@ describe('converters', () => {
     expect(conversion_errors(s).map((l) => log_field(l, 'from_version'))).toEqual(['2', '1']);
   });
 
+  it('a converter result that cannot be encoded is FAILED: the request is INTERNAL, the item is unchanged and the error log has the from version of that converter', async () => {
+    // progress is an int64 field; a number in it cannot be encoded.
+    const s = await server({ converters: quest_2_with(41n, (item) => Object.assign(item, { progress: 1 as unknown as bigint })) });
+    const user = await new_user(s);
+    const from_1 = row('user_state', Q, 41n, 1n, quest(41n, 1n));
+    const from_2 = row('user_state', Q, 41n, 2n, quest(41n, 1n));
+    for (const [before, stored_version] of [
+      [from_1, '1'],
+      [from_2, '2'],
+    ] as const) {
+      await seed(s, user, [before]);
+      await expect(request(s, user, (ctx) => s.storage.get_state(ctx, QuestUserState, 41n))).rejects.toThrow();
+      expect(stored(s, 'user_state', user, Q, 41n)).toEqual({ value: before.value, contract_version: before.contract_version });
+      const line = conversion_errors(s).at(-1) ?? {};
+      expect([log_field(line, 'item_id'), log_field(line, 'stored_version'), log_field(line, 'from_version')]).toEqual(['41', stored_version, '2']);
+      expect(String(log_field(line, 'error'))).toMatch(/^the converter result cannot be encoded as a QuestUserState message: /);
+    }
+    expect(conversion_errors(s)).toHaveLength(2);
+  });
+
+  it('stored bytes that are not a message of the kind are FAILED: the request is INTERNAL, the item is unchanged and the error log has its fields', async () => {
+    const s = await server();
+    const user = await new_user(s);
+    const before = { table: 'user_state', key: `${Q}/51`, contract_version: 1n, value: Uint8Array.from([0xff, 0xff, 0xff]) };
+    await seed(s, user, [before]);
+    await expect(request(s, user, (ctx) => s.storage.get_state(ctx, QuestUserState, 51n))).rejects.toThrow();
+    expect(stored(s, 'user_state', user, Q, 51n)).toEqual({ value: before.value, contract_version: 1n });
+    const lines = conversion_errors(s);
+    expect(lines).toHaveLength(1);
+    const line = lines[0] ?? {};
+    expect(['item_kind', 'item_id', 'stored_version', 'from_version', 'error'].map((name) => log_field(line, name))).toEqual([
+      Q,
+      '51',
+      '1',
+      '1',
+      'the stored bytes are not a QuestUserState message',
+    ]);
+  });
+
   it('the error log of a FAILED convert_item has the kind, the item ID, the stored contract version and the failed from version', async () => {
     const s = await server({
       converters: quest_2_with(31n, () => {
