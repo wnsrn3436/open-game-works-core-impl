@@ -226,17 +226,34 @@ static func load_saved() -> bool:
 		return false
 	_make_tree()
 	var saved: PackedStringArray = LocalDataCore.get_array_string(LocalDataCore.FileKind.USER, _ITEMS_KEY)
+	# Whether the save targets in memory differ from the saved values: a dropped or duplicate element, a memory count
+	# that differs from the saved one, or a memory item that is not saved. Element order does not count.
+	var differ: bool = false
+	var read_items: Dictionary[String, bool] = {}
 	for element: String in saved:
 		var parts: PackedInt64Array = _parse_element(element)
 		if parts.is_empty():
 			LogCore.log_warn(_TAG, "load_saved dropped a malformed %s element: %s" % [_ITEMS_KEY, element])
+			differ = true
 			continue
 		var badge: _BADGE_STATE = _find_badge(parts[0])
-		if badge == null or not badge.persist or badge.items.has(parts[1]):
+		var read_key: String = "%d:%d" % [parts[0], parts[1]]
+		if badge == null or not badge.persist or read_items.has(read_key):
+			differ = true
+			continue
+		read_items[read_key] = true
+		if badge.items.has(parts[1]):
+			if badge.items[parts[1]] != parts[2]:
+				differ = true
 			continue
 		_put_item(badge, parts[1], parts[2])
+	var memory_items: int = 0
+	for badge: _BADGE_STATE in _order:
+		if badge.persist:
+			memory_items += badge.items.size()
 	_saving = true
-	_save_pending = true
+	if differ or memory_items != read_items.size():
+		_save_pending = true
 	return true
 
 
@@ -735,7 +752,8 @@ static func _parse_element(element: String) -> PackedInt64Array:
 	return values
 
 
-## Whether `text` is a decimal integer: an optional `-` and ASCII digits that fit in 64 bits.
+## Whether `text` is a decimal integer: an optional `-` and ASCII digits that fit in 64 bits, from
+## -9223372036854775808 to 9223372036854775807.
 static func _is_decimal(text: String) -> bool:
 	var digits: String = text.trim_prefix("-")
 	if digits == "" or digits.length() > 19:
@@ -744,7 +762,8 @@ static func _is_decimal(text: String) -> bool:
 		var code: int = digits.unicode_at(i)
 		if code < 48 or code > 57:
 			return false
-	return digits.length() < 19 or digits <= "9223372036854775807"
+	var limit: String = "9223372036854775808" if digits.length() < text.length() else "9223372036854775807"
+	return digits.length() < 19 or digits <= limit
 
 
 # --- lifecycle ---
