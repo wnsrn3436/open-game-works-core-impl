@@ -1,6 +1,6 @@
 {
   "target": "spec matchmaker",
-  "nextId": 10,
+  "nextId": 11,
   "items": [
     {
       "id": "D1",
@@ -55,6 +55,12 @@
       "location": "skills/server-core/modules/matchmaker.md:152",
       "problem": "Host `MATCH_CANCEL` changes the room to `Open` with no exception, while line 89 defines `Matching` as including a party entry that is becoming a match, line 144 keeps such a room `Matching` for `ROOM_LEAVE`, and line 153 changes it to `Open` only after `MATCH_FOUND` or `MATCH_FAILED`(`CREATE_FAILED`). Run path: the host sends `MATCH_CANCEL` after matching collected the party entry and before `MATCH_FOUND`. By line 152 the room is `Open` and the host can send `MATCH_REQUEST` or `ROOM_START` while the first match is being created; by lines 89 and 153 it stays `Matching`. Direction: state for `MATCH_CANCEL` the same exception that `ROOM_LEAVE` has.",
       "foundBy": "spec matchmaker"
+    },
+    {
+      "id": "D10",
+      "location": "skills/server-core/modules/matchmaker.md:273",
+      "problem": "`matchmaker.frameReadTimeoutMs` has no written range, so value 0 is allowed and a frame read reaches the throw of `network_time_limit` (skills/core/SKILL.md:134, skills/server-core/modules/matchmaker.md:209, skills/server-core/modules/server-time.md:39)",
+      "foundBy": "spec auth"
     }
   ]
 }

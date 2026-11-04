@@ -3,18 +3,6 @@
   "nextId": 8,
   "items": [
     {
-      "id": "D2",
-      "location": "skills/server-core/modules/auth.md:294",
-      "problem": "`POST /account/deletion` sets that `FAILED` of `run_game_transaction` (step 1) and of `run_user_transaction` (step 4) is 500 and `[auth_deletion_retry]`, but the `## error` table (auth.md:328-359) has no row for these conditions, so whether an `error` log is left is not set. `storage` leaves no logs (storage.md `## error`), and routing.md:101 leaves the handling of an exported route to the exporting module, so no other document sets it; one implementation can leave an `error` log and another none, while the neighbouring 500 rows of the same route (auth.md:349, auth.md:359) do set an `error` log",
-      "foundBy": "spec auth"
-    },
-    {
-      "id": "D3",
-      "location": "skills/server-core/modules/auth.md:337",
-      "problem": "the `## error` table sets `WITHDRAWN` of `run_request_transaction`/`run_user_transaction` of `Login`, `AutoLogin`, `RefreshToken`, `DevLogin`, but not `FAILED` (user lock wait exceeded, DB connection failure, storage.md `## error`). These requests do not go through steps 12 to 16 of `routing` (routing.md:149, \"that handler does the handling that `auth` defines\"), so the step 13 row `FAILED` → `INTERNAL` with an `error` log (routing.md:212) does not apply, and `FAILED` is a failure value, not an unhandled exception (routing.md:147). The response error code and log of `FAILED` in `Login` step 3 and step 6 (auth.md:139, auth.md:142), the ban login transaction (auth.md:145), `AutoLogin` and `RefreshToken` (auth.md:167) can differ per implementation",
-      "foundBy": "spec auth"
-    },
-    {
       "id": "D4",
       "location": "skills/server-core/modules/auth.md:258",
       "problem": "\"The received refresh token is written to that user's `auth_apple_token` row in the transaction of that request\" does not set which transaction for `Login` of provider `APPLE`, which can run the step 3 user transaction of the new user (auth.md:139), the step 6 `run_request_transaction` (auth.md:142) or the ban login transaction (auth.md:145). Implementations differ in whether the token is kept after step 6 is `FAILED` following a committed step 3, and whether a banned existing user's new refresh token replaces the saved one; the token that `revoke` receives at withdrawal (auth.md:259) differs accordingly",
@@ -25,12 +13,6 @@
       "location": "skills/server-core/modules/auth.md:146",
       "problem": "logging.md:153 defines `core_session_started` as emitted in \"the transaction in which `Login`, `AutoLogin` or `DevLogin` opened a new session\", and the ban login transaction (auth.md:145) opens a new session with `session.start_session`, but auth.md:146 emits it only in the transaction of step 6. Whether a ban login leaves `core_session_started` differs per document",
       "foundBy": "spec auth"
-    },
-    {
-      "id": "D6",
-      "location": "skills/server-core/modules/auth.md:396",
-      "problem": "`auth.guestSweepIntervalMs` is the period of job `auth_guest_sweep` and writes no range. Value 0 passes the 0 or more schema range and fails server start in `schedule_job` (skills/server-core/modules/server-time.md:90)",
-      "foundBy": "spec routing"
     },
     {
       "id": "D7",
