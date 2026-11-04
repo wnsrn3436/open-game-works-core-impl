@@ -158,6 +158,20 @@ func test_update_reboot_releases_modules_without_content_release() -> void:
 	assert_eq(entry.init_count, 1)
 
 
+func test_restart_in_update_releases_modules_without_content_release() -> void:
+	_SUPPORT.prepare()
+	var entry := _ENTRY.new()
+	var list := _SUPPORT.hold_update(_SUPPORT.modules())
+	_SUPPORT.start(entry, list)
+	assert_true(await _SUPPORT.wait_stage(BootstrapCore.BootStage.UPDATE), "boot stage Update")
+	BootstrapCore.request_restart()
+	assert_true(await _SUPPORT.wait_stage(BootstrapCore.BootStage.UPDATE), "boot stage Update of the new boot")
+	assert_eq(_SUPPORT.count("stage:InitModules"), 2)
+	assert_eq(entry.release_count, 0)
+	assert_eq(entry.init_count, 0)
+	assert_eq(_SUPPORT.releases(), _SUPPORT.reverse_releases(list))
+
+
 func test_restart_in_title_scene_releases_modules_without_content_release() -> void:
 	_SUPPORT.prepare()
 	var entry := _ENTRY.new()

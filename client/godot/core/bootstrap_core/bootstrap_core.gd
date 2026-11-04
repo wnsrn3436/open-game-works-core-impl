@@ -60,6 +60,7 @@ const _NATIVE_UI_PLUGIN_PLATFORMS: PackedStringArray = ["android", "ios", "macos
 const _SETTING_TITLE_SCENE: String = "titleScene"
 const _SETTING_FIRST_SCENE: String = "firstScene"
 const _SETTING_RELAY_ONLY: String = "BootstrapCore.realtimeRelayOnly"
+const _SETTING_MAIN_SCENE: String = "application/run/main_scene"
 const _UNIT_TEST_CORE: String = "UnitTestCore"
 
 const _FAILURE_POPUP_NONE: int = 0
@@ -88,6 +89,7 @@ static var _update_set: _UPDATE_SET = _UPDATE_SET.new()
 static var _is_update_reboot: bool = false
 static var _title_scene: String = ""
 static var _relay_only: bool = false
+## The scene the engine opened first, when it called `start_boot`. `TitleScene` frees it.
 static var _boot_entry_scene: Node = null
 static var _boot_started_ms: int = 0
 static var _stage_started_ms: int = 0
@@ -134,6 +136,9 @@ static var _test_downloads: _UPDATE_SET = null
 ## Core test state. When not empty, `InitModules` 1 reads the build info file at this path instead of the build info
 ## file of the build.
 static var _test_build_info_path: String = ""
+## Core test state. When not empty, `start_boot` takes the current scene of this scene file as the boot entry scene
+## instead of the current scene of the project main scene.
+static var _test_main_scene_path: String = ""
 
 
 ## Starts the boot. `modules` empty means the generated module list. `replacements` holds the test replacements
@@ -160,8 +165,6 @@ static func start_boot(
 	_pending_log_messages.clear()
 	if modules.is_empty():
 		_modules = _generated_modules()
-		var tree := Engine.get_main_loop() as SceneTree
-		_boot_entry_scene = tree.current_scene
 	else:
 		_modules = modules.duplicate()
 	if replacements != null:
@@ -172,10 +175,27 @@ static func start_boot(
 			_replacements = replacements
 	elif _dev != null:
 		_add_dev_modules()
+	_boot_entry_scene = _find_boot_entry_scene()
 	_entries.clear()
 	for entry: CoreModuleEntry in _modules:
 		_entries[entry.name] = entry
 	_run_boot(false)
+
+
+## The boot entry scene: the current scene when it is the scene of the project main scene. A boot with test
+## replacements was started by a test, not by the boot entry scene, so it has none.
+static func _find_boot_entry_scene() -> Node:
+	if _replacements != null:
+		return null
+	var scene := (Engine.get_main_loop() as SceneTree).current_scene
+	if scene == null:
+		return null
+	var main_scene := _test_main_scene_path
+	if main_scene.is_empty():
+		main_scene = str(ProjectSettings.get_setting(_SETTING_MAIN_SCENE, ""))
+	if main_scene.is_empty() or scene.scene_file_path != main_scene:
+		return null
+	return scene
 
 
 ## Adds the DEV modules the module list does not hold at its end.
@@ -1300,6 +1320,7 @@ static func _release_entry(entry: CoreModuleEntry, released: Dictionary[String, 
 		return
 	released[entry.name] = true
 	if _to_bool(entry.is_initialized.call()):
+		_trace_call("%s.release" % entry.name)
 		entry.release.call()
 
 

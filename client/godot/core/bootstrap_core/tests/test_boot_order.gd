@@ -6,9 +6,14 @@ const _NETWORK := preload("res://core/bootstrap_core/tests/support/boot_test_net
 const _ENTRY := preload("res://core/bootstrap_core/tests/support/boot_test_entry.gd")
 const _SCENE := preload("res://core/bootstrap_core/tests/resources/boot_test_scene.gd")
 
+## The node of `_SUPPORT.open_entry_scene`, closed after each test.
+var _entry_scene: Node = null
+
 
 func after_each() -> void:
 	_SCENE.start_hook = Callable()
+	_SUPPORT.close_entry_scene(_entry_scene if is_instance_valid(_entry_scene) else null)
+	_entry_scene = null
 	super()
 
 
@@ -237,6 +242,43 @@ func test_throwing_content_release_logs_error_and_the_release_goes_on() -> void:
 func test_get_first_scene_returns_game_settings_first_scene() -> void:
 	UnitTestCore.set_test_settings("firstScene", _SUPPORT.OTHER_KEY)
 	assert_eq(BootstrapCore.get_first_scene(), _SUPPORT.OTHER_KEY)
+
+
+func test_title_scene_frees_the_boot_entry_scene_of_a_boot_given_a_module_list() -> void:
+	_SUPPORT.prepare({"OGW_SERVER_URL": "http://127.0.0.1"})
+	_entry_scene = _SUPPORT.open_entry_scene()
+	var at_title: Array[bool] = []
+	_SCENE.start_hook = func(key: String) -> void:
+		if key == _SUPPORT.TITLE_KEY:
+			at_title.append(is_instance_valid(_entry_scene) and not _entry_scene.is_queued_for_deletion())
+	var latch := UnitTestCore.latch_event(BootCompletedEvent)
+	BootstrapCore.start_boot(_ENTRY.new(), _SUPPORT.modules())
+	await UnitTestCore.wait_latch(latch)
+	await UnitTestCore.wait_frames(1)
+	assert_eq(at_title, [true] as Array[bool], "the boot entry scene is there while the title scene starts")
+	assert_false(is_instance_valid(_entry_scene))
+
+
+func test_failed_title_scene_keeps_the_boot_entry_scene() -> void:
+	_SUPPORT.prepare({"OGW_SERVER_URL": "http://127.0.0.1"}, "scene/boot_test_missing")
+	_entry_scene = _SUPPORT.open_entry_scene()
+	BootstrapCore.start_boot(_ENTRY.new(), _SUPPORT.modules())
+	assert_true(await _SUPPORT.wait_stage(BootstrapCore.BootStage.HALTED), "boot stage HALTED")
+	await UnitTestCore.wait_frames(1)
+	assert_true(is_instance_valid(_entry_scene))
+	assert_false(_entry_scene.is_queued_for_deletion())
+	assert_eq(UnitTestCore.check_logs("error", "BootstrapCore"), 1)
+	assert_eq(UnitTestCore.check_logs("error", "SceneCore"), 1, "the title scene key is missing")
+	assert_eq(UnitTestCore.check_logs("error", "ResourceCore"), 1, "load of the missing title scene key")
+
+
+func test_boot_with_test_replacements_keeps_the_current_scene_of_the_main_scene() -> void:
+	_SUPPORT.prepare()
+	_entry_scene = _SUPPORT.open_entry_scene()
+	await _boot(_ENTRY.new())
+	await UnitTestCore.wait_frames(1)
+	assert_true(is_instance_valid(_entry_scene))
+	assert_false(_entry_scene.is_queued_for_deletion())
 
 
 func test_start_boot_again_without_shutdown_is_ignored() -> void:
