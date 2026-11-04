@@ -102,6 +102,7 @@ func test_background_at_the_limit_fails_matching_and_connecting() -> void:
 	_background(BACKGROUND_TIMEOUT_MS)
 	await op.wait()
 	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.FAILED)
+	assert_eq(transport.count("cancel_matching"), 0, "a match outside a room has no entry of a room")
 	op = await start_join()
 	push_match_found(make_info())
 	await frames()
@@ -113,6 +114,42 @@ func test_background_at_the_limit_fails_matching_and_connecting() -> void:
 	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.FAILED)
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
 	assert_eq(warn_logs(), 2)
+
+
+func test_background_at_the_limit_cancels_the_entry_of_a_host_in_matching_before_close() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([USER_ID, OTHER_ID]))
+	var op: RealtimeAsyncCall = RealtimeAsyncCall.new()
+	op.join_match(MODE_ID)
+	await frames()
+	transport.clear_calls()
+	_background(BACKGROUND_TIMEOUT_MS)
+	await op.wait()
+	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.FAILED)
+	assert_eq(transport.calls, PackedStringArray(["cancel_matching()", "close()"]))
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	op = RealtimeAsyncCall.new()
+	op.start_room()
+	await frames()
+	transport.clear_calls()
+	_background(BACKGROUND_TIMEOUT_MS)
+	await op.wait()
+	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.FAILED)
+	assert_eq(transport.calls, PackedStringArray(["cancel_matching()", "close()"]))
+	assert_eq(warn_logs(), 2)
+
+
+func test_background_at_the_limit_does_not_cancel_for_a_member_in_matching() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([OTHER_ID, USER_ID]))
+	push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames()
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.MATCHING)
+	transport.clear_calls()
+	_background(BACKGROUND_TIMEOUT_MS)
+	assert_eq(transport.calls, PackedStringArray(["close()"]))
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	assert_eq(warn_logs(), 1)
 
 
 func test_match_time_is_server_time_minus_the_start_time() -> void:

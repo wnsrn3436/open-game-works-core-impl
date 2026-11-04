@@ -266,7 +266,7 @@ func test_match_found_outside_matching_is_dropped_with_a_warning() -> void:
 	await frames()
 	assert_eq(warn_logs(), 1)
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
-	assert_eq(transport.calls.size(), 0)
+	assert_eq(transport.calls, PackedStringArray(["close()"]))
 
 
 func _assert_failed(op: RealtimeAsyncCall, is_error: bool) -> void:

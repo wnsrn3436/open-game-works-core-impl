@@ -384,22 +384,21 @@ func test_the_answering_side_drops_offers_up_to_its_number_and_takes_any_offer_a
 	remote.release_held()
 	await _wait_arrived(1 + held)
 	driver.paused = false
-	while _running() and driver.count(RealtimeNotice.Kind.PEER_LOST) == 0:
-		var now: _PEER = p2p._peers[0]
-		if now != null and now != peer and now.status == _PEER.Status.CONNECTED:
-			break
-		await frames(1)
+	await driver.wait_count(RealtimeNotice.Kind.PEER_LOST, 1)
+	assert_null(p2p._peers[0], "the offer after PEER_REJOINED dropped the connected connection")
+	assert_eq(_answer_attempts(), [2] as Array[int], "connect_peer handles the collected offer")
+	p2p.connect_peer(0)
+	await driver.wait_count(RealtimeNotice.Kind.PEER_CONNECTED, 2)
 	var replaced: _PEER = p2p._peers[0]
-	assert_ne(replaced, peer, "the offer after PEER_REJOINED replaced the connection")
 	assert_not_null(replaced)
 	if replaced == null:
 		return
+	assert_ne(replaced, peer, "the offer after PEER_REJOINED replaced the connection")
 	assert_eq(replaced.status, _PEER.Status.CONNECTED)
 	assert_eq(replaced.attempt, 1)
 	assert_eq(_answer_attempts(), [2, 1] as Array[int], "the answer carries the number of the offer it answers")
 	assert_eq(warn_logs(), 0)
-	assert_eq(driver.count_for(RealtimeNotice.Kind.PEER_LOST, 0), 0)
-	assert_eq(driver.count_for(RealtimeNotice.Kind.PEER_CONNECTED, 0), 1, "the participant stayed connected")
+	assert_eq(driver.count_for(RealtimeNotice.Kind.PEER_LOST, 0), 1, "one peer lost")
 	assert_true(p2p.send_packet(0, RealtimeCore.RealtimeChannel.RELIABLE, PackedByteArray([1])))
 	assert_eq(server.malformed_signals, 0)
 	# Only the first offer after `PEER_REJOINED` is taken whatever its number.
@@ -477,20 +476,25 @@ func test_peer_rejoined_before_the_answer_restarts_the_offer_without_peer_lost()
 	assert_eq(driver.count(RealtimeNotice.Kind.PEER_LOST), 0)
 	assert_eq(server.malformed_signals, 0)
 	assert_eq(remote.other_attempt_signals, 0)
-	# `PEER_REJOINED` of the participant connected with number 2: the client drops that connection and offers number 3.
+	# `PEER_REJOINED` of the participant connected with number 2: the client drops that connection and raises peer lost,
+	# and the `connect_peer` that RealtimeCore calls on it offers number 3.
 	var peer: _PEER = p2p._peers[1]
 	assert_eq(peer.attempt, 2)
 	await _deliver([rejoined])
-	assert_ne(p2p._peers[1], peer, "PEER_REJOINED of the connected participant dropped its connection")
-	var replaced: _PEER = await _wait_replaced(1, peer)
+	await driver.wait_count(RealtimeNotice.Kind.PEER_LOST, 1)
+	assert_null(p2p._peers[1], "PEER_REJOINED of the connected participant dropped its connection")
+	assert_eq(_offer_attempts(), [1, 2] as Array[int], "no offer before connect_peer")
+	p2p.connect_peer(1)
+	await driver.wait_count(RealtimeNotice.Kind.PEER_CONNECTED, 2)
+	var replaced: _PEER = p2p._peers[1]
 	assert_not_null(replaced)
 	if replaced == null:
 		return
+	assert_ne(replaced, peer)
 	assert_eq(replaced.status, _PEER.Status.CONNECTED)
 	assert_eq(replaced.attempt, 3)
 	assert_eq(remote.attempt, 3)
-	assert_eq(driver.count(RealtimeNotice.Kind.PEER_CONNECTED), 1, "no second peer connected")
-	assert_eq(driver.count(RealtimeNotice.Kind.PEER_LOST), 0)
+	assert_eq(driver.count(RealtimeNotice.Kind.PEER_LOST), 1, "one peer lost")
 	assert_eq(remote.other_attempt_signals, 0)
 	assert_eq(server.malformed_signals, 0)
 	await frames(10)
@@ -500,9 +504,9 @@ func test_peer_rejoined_before_the_answer_restarts_the_offer_without_peer_lost()
 
 
 ## The participant at index 1 restarts its app while its old connection still looks connected to the client at index 0:
-## a new P2P transport rejoins on its own matchmaker connection, and the client's offer 3 after `PEER_REJOINED`
-## connects the two transports.
-func test_an_answering_side_app_restart_gets_the_next_offer_and_connects_without_peer_lost() -> void:
+## a new P2P transport rejoins on its own matchmaker connection. `PEER_REJOINED` raises peer lost on the client, and the
+## offer 3 of the `connect_peer` on it connects the two transports.
+func test_an_answering_side_app_restart_is_a_peer_lost_and_the_next_offer_connects() -> void:
 	if not await _start_p2p(false):
 		return
 	var other_server: RealtimeFakeMatchmaker = add_node(RealtimeFakeMatchmaker.new()) as RealtimeFakeMatchmaker
@@ -567,8 +571,12 @@ func test_an_answering_side_app_restart_gets_the_next_offer_and_connects_without
 	assert_eq(p2p._peers[1], peer)
 	assert_eq(peer.status, _PEER.Status.CONNECTED, "the earlier connection still looks connected")
 	await _deliver([peer_rejoined])
-	var replaced: _PEER = await _wait_replaced(1, peer)
+	await driver.wait_count(RealtimeNotice.Kind.PEER_LOST, 1)
+	assert_null(p2p._peers[1])
+	p2p.connect_peer(1)
+	await driver.wait_count(RealtimeNotice.Kind.PEER_CONNECTED, 2)
 	await other_driver.wait_count(RealtimeNotice.Kind.PEER_CONNECTED, 2)
+	var replaced: _PEER = p2p._peers[1]
 	assert_not_null(replaced)
 	if replaced == null:
 		return
@@ -576,8 +584,7 @@ func test_an_answering_side_app_restart_gets_the_next_offer_and_connects_without
 	assert_eq(replaced.attempt, 3)
 	assert_eq(_offer_attempts(), [1, 2, 3] as Array[int], "the client offers number 3 to the restarted app")
 	assert_eq(other._peers[0].attempt, 3)
-	assert_eq(driver.count(RealtimeNotice.Kind.PEER_CONNECTED), 1, "no second peer connected")
-	assert_eq(driver.count(RealtimeNotice.Kind.PEER_LOST), 0)
+	assert_eq(driver.count(RealtimeNotice.Kind.PEER_LOST), 1, "one peer lost")
 	assert_eq(other_driver.count(RealtimeNotice.Kind.PEER_LOST), 0)
 	assert_eq(server.malformed_signals, 0)
 	assert_eq(other_server.malformed_signals, 0)
@@ -643,6 +650,262 @@ func test_peer_rejoined_on_the_larger_index_answers_without_an_offer() -> void:
 	await driver.wait_count(RealtimeNotice.Kind.PEER_CONNECTED, 1)
 	assert_eq(_signals_of(_SIGNAL.Type.OFFER), 0)
 	assert_eq(_signals_of(_SIGNAL.Type.ANSWER), 1)
+
+
+## An offer with a larger number replaces a connected connection only through a peer lost and `connect_peer`, also
+## without `PEER_REJOINED`. The participant's candidates that come before `connect_peer` stay in order behind the offer.
+func test_a_larger_offer_on_a_connected_connection_is_a_peer_lost_and_connect_peer_answers_it() -> void:
+	if not await _start_p2p(false):
+		return
+	var remote: RealtimeRemotePeer = _remote(0)
+	remote.hold = true
+	assert_true(remote.start(true))
+	while _held(remote, 1, _SIGNAL.Type.OFFER) == null and _running():
+		await frames(1)
+	await _found(PackedInt64Array([OTHER_ID, USER_ID]), 1)
+	p2p.connect_peer(0)
+	remote.release_held()
+	await driver.wait_count(RealtimeNotice.Kind.PEER_CONNECTED, 1)
+	await _settle_signals(0)
+	# The offer reaches the client before it reads the closed earlier connection.
+	driver.paused = true
+	remote.hold = true
+	assert_true(remote.start(true))
+	while _held(remote, 2, _SIGNAL.Type.OFFER) == null and _running():
+		await frames(1)
+	var held: int = remote.held.size()
+	remote.release_held()
+	await _wait_arrived(held)
+	driver.paused = false
+	await driver.wait_count(RealtimeNotice.Kind.PEER_LOST, 1)
+	assert_null(p2p._peers[0])
+	assert_eq(_answer_attempts(), [1] as Array[int], "no answer before connect_peer")
+	assert_true(p2p._queued.size() >= 1, "the offer is collected")
+	p2p.connect_peer(0)
+	assert_eq(p2p._queued.size(), 0)
+	await driver.wait_count(RealtimeNotice.Kind.PEER_CONNECTED, 2)
+	assert_eq(p2p._peers[0].attempt, 2)
+	assert_eq(_answer_attempts(), [1, 2] as Array[int])
+	assert_eq(driver.count_for(RealtimeNotice.Kind.PEER_LOST, 0), 1)
+	assert_eq(warn_logs(), 0)
+
+
+## RealtimeCore with the P2P transport: `PEER_REJOINED` of a connected participant makes it `Disconnected` until the next
+## offer connects.
+func test_peer_rejoined_of_a_connected_participant_reconnects_on_the_next_offer_in_realtime_core() -> void:
+	var remote: RealtimeRemotePeer = await _play_on_p2p()
+	var rejoined: CoreContract.MatchmakerFrame = server.new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_PEER_REJOINED)
+	rejoined.index = 1
+	server.send(rejoined)
+	while events.count("reconnected:1") == 0 and _running():
+		await frames(1)
+	assert_eq(events.lines, PackedStringArray(["disconnected:1", "reconnected:1"]))
+	assert_eq(RealtimeCore.peer_state(1), RealtimeCore.PeerState.CONNECTED)
+	assert_eq(remote.attempt, 2)
+
+
+## The same `PEER_REJOINED` when the next offer never connects: the reconnect time limit of RealtimeCore ends it.
+func test_peer_rejoined_of_a_connected_participant_ends_at_the_reconnect_time_limit_in_realtime_core() -> void:
+	var remote: RealtimeRemotePeer = await _play_on_p2p()
+	remote.drop_offers = 1
+	var rejoined: CoreContract.MatchmakerFrame = server.new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_PEER_REJOINED)
+	rejoined.index = 1
+	server.send(rejoined)
+	while events.count("disconnected:1") == 0 and _running():
+		await frames(1)
+	assert_eq(RealtimeCore.peer_state(1), RealtimeCore.PeerState.DISCONNECTED)
+	await advance(RECONNECT_TIMEOUT_MS)
+	await frames()
+	assert_eq(RealtimeCore.peer_state(1), RealtimeCore.PeerState.LEFT)
+	assert_eq(events.count("left:1:TIMEOUT"), 1)
+
+
+## The connection refuses the SDP before `_poll_peer` reads the connection: its status is the same before and after
+## that read.
+func test_an_offer_whose_sdp_the_connection_refuses_raises_peer_lost_once() -> void:
+	if not await _start_p2p(false):
+		return
+	var refusing: _FailingTransport = _FailingTransport.new(server.base_url(), APP_VERSION, false)
+	refusing.refuses_sdp = true
+	p2p = refusing
+	driver.transport = p2p
+	await _found(PackedInt64Array([OTHER_ID, USER_ID]), 1)
+	p2p.connect_peer(0)
+	await _deliver([server.peer_signal(0, _offer_payload())])
+	await driver.wait_count(RealtimeNotice.Kind.PEER_LOST, 1)
+	assert_null(p2p._peers[0])
+	await frames(10)
+	assert_eq(driver.count_for(RealtimeNotice.Kind.PEER_LOST, 0), 1, "once")
+	assert_eq(warn_logs(), 1)
+
+
+## Each `connect_peer` that fails raises peer lost at the next `poll`, once. RealtimeCore calls `connect_peer` again on
+## it every frame, and the warn log comes once per match.
+func test_a_connection_that_does_not_start_raises_peer_lost_at_the_next_poll() -> void:
+	if not await _start_p2p(false):
+		return
+	var failing: _FailingTransport = _FailingTransport.new(server.base_url(), APP_VERSION, false)
+	failing.fails_start = true
+	p2p = failing
+	driver.transport = p2p
+	await _found(PackedInt64Array([USER_ID, OTHER_ID]), 0)
+	p2p.connect_peer(1)
+	await driver.wait_count(RealtimeNotice.Kind.PEER_LOST, 1)
+	assert_null(p2p._peers[1])
+	await frames(10)
+	assert_eq(driver.count_for(RealtimeNotice.Kind.PEER_LOST, 1), 1, "once")
+	p2p.connect_peer(1)
+	await driver.wait_count(RealtimeNotice.Kind.PEER_LOST, 2)
+	assert_eq(driver.count_for(RealtimeNotice.Kind.PEER_LOST, 1), 2)
+	assert_eq(warn_logs(), 1, "one warn log of the same cause in a match")
+	p2p.close()
+	await _found(PackedInt64Array([USER_ID, OTHER_ID]), 0)
+	p2p.connect_peer(1)
+	await driver.wait_count(RealtimeNotice.Kind.PEER_LOST, 3)
+	assert_eq(warn_logs(), 1, "the warn log of the next match")
+
+
+## RealtimeCore with the P2P transport: `connect_peer` that fails goes on in `Connecting` until the connect time limit.
+func test_connect_peer_that_fails_ends_at_the_connect_time_limit_in_realtime_core() -> void:
+	await start_realtime(false, false)
+	server = add_node(RealtimeFakeMatchmaker.new()) as RealtimeFakeMatchmaker
+	add_child(server)
+	assert_true(await server.start())
+	server.match_reply = server.match_found(PackedInt64Array([USER_ID, OTHER_ID]), 0, false)
+	var failing: _FailingTransport = _FailingTransport.new(server.base_url(), APP_VERSION, false)
+	failing.fails_start = true
+	RealtimeCore.set_transport(failing)
+	assert_true(RealtimeCore.init())
+	var op: RealtimeAsyncCall = RealtimeAsyncCall.new()
+	op.join_match(MODE_ID)
+	while RealtimeCore.match_state() != RealtimeCore.MatchState.CONNECTING and _running():
+		await frames(1)
+	var started: int = failing.started
+	await frames(5)
+	assert_true(failing.started > started, "peer lost makes RealtimeCore call connect_peer again")
+	assert_eq(RealtimeCore.peer_state(1), RealtimeCore.PeerState.WAITING)
+	assert_eq(warn_logs(), 1)
+	await advance(CONNECT_TIMEOUT_MS)
+	await op.wait()
+	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.FAILED)
+	assert_eq(warn_logs(), 1)
+
+
+func test_match_found_while_holding_a_match_leaves_the_new_match_and_raises_nothing() -> void:
+	if not await _start_p2p(false):
+		return
+	var remote: RealtimeRemotePeer = _remote(1)
+	assert_true(remote.start(false))
+	await _found(PackedInt64Array([USER_ID, OTHER_ID]), 0)
+	p2p.connect_peer(1)
+	await driver.wait_count(RealtimeNotice.Kind.PEER_CONNECTED, 1)
+	var peer: _PEER = p2p._peers[1]
+	var second: CoreContract.MatchmakerFrame = server.match_found(PackedInt64Array([USER_ID, THIRD_ID, OTHER_ID]), 2, false)
+	second.match_id = "match-second"
+	await _deliver([second])
+	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, 1)
+	var leaves: Array[CoreContract.MatchmakerFrame] = server.frames_of(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE)
+	assert_eq(leaves[0].match_id, "match-second")
+	assert_eq(driver.count(RealtimeNotice.Kind.MATCH_FOUND), 1, "nothing raised")
+	assert_eq(warn_logs(), 1)
+	assert_eq(p2p._match_id, "match-p2p")
+	assert_eq(p2p._my_index, 0)
+	assert_eq(p2p._peers.size(), 2)
+	assert_eq(p2p._peers[1], peer)
+	assert_eq(peer.status, _PEER.Status.CONNECTED)
+	assert_true(p2p.send_packet(1, RealtimeCore.RealtimeChannel.RELIABLE, PackedByteArray([1])))
+
+
+func test_signals_with_no_match_start_nothing_and_the_next_match_connects_with_its_first_offer() -> void:
+	if not await _start_p2p(false):
+		return
+	p2p.open_room(MODE_ID, "", ACCESS_TOKEN, false)
+	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_ROOM_CREATE, 1)
+	await _found(PackedInt64Array([OTHER_ID, USER_ID]), 1)
+	p2p.connect_peer(0)
+	p2p.close()
+	assert_not_null(p2p._socket, "the room keeps the matchmaker connection")
+	var rejoined: CoreContract.MatchmakerFrame = server.new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_PEER_REJOINED)
+	rejoined.index = 0
+	await _deliver([server.peer_signal(0, _offer_payload()), rejoined])
+	await _sync_sent()
+	assert_eq(p2p._peers.size(), 0)
+	assert_eq(p2p._queued.size(), 0)
+	assert_eq(_signals_of(_SIGNAL.Type.ANSWER), 0)
+	assert_eq(driver.count(RealtimeNotice.Kind.PEER_LOST), 0)
+	assert_eq(warn_logs(), 0)
+	var remote: RealtimeRemotePeer = _remote(0)
+	remote.hold = true
+	assert_true(remote.start(true))
+	while _held(remote, 1, _SIGNAL.Type.OFFER) == null and _running():
+		await frames(1)
+	await _found(PackedInt64Array([OTHER_ID, USER_ID]), 1)
+	p2p.connect_peer(0)
+	remote.release_held()
+	await driver.wait_count(RealtimeNotice.Kind.PEER_CONNECTED, 1)
+	assert_eq(_answer_attempts(), [1] as Array[int])
+	assert_eq(p2p._peers[0].attempt, 1)
+
+
+## The matchmaker lost of the first connection ends the `create_room` that a continuation started on the second one,
+## which would keep a room on the server that the client does not know. The second connection has no `HELLO_ACK` yet,
+## so its frames never go out.
+func test_a_lost_of_an_earlier_connection_ends_a_create_room_and_closes_its_connection() -> void:
+	set_settings()
+	await start_dependencies()
+	server = add_node(RealtimeFakeMatchmaker.new()) as RealtimeFakeMatchmaker
+	add_child(server)
+	assert_true(await server.start())
+	p2p = P2pRealtimeTransport.new(server.base_url(), APP_VERSION, false)
+	RealtimeCore.set_transport(p2p)
+	assert_true(RealtimeCore.init())
+	var op: RealtimeAsyncCall = RealtimeAsyncCall.new()
+	op.join_match_then_create_room(MODE_ID)
+	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_REQUEST, 1)
+	var failed: CoreContract.MatchmakerFrame = server.new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_FAILED)
+	failed.reason = CoreContract.MatchFailReason.MATCH_FAIL_REASON_TIMEOUT
+	var close_frame: CoreContract.MatchmakerFrame = server.new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_CLOSE)
+	close_frame.code = CoreContract.CoreError.CORE_ERROR_MAINTENANCE
+	await _deliver_to_core([failed, close_frame])
+	await op.wait()
+	assert_eq(op.first_join_result.status, RealtimeCore.MatchJoinStatus.FAILED)
+	assert_false(op.room_result.ok)
+	assert_eq(op.room_result.error_code, CoreContract.CoreError.CORE_ERROR_MAINTENANCE)
+	assert_null(p2p._socket, "the connection of create_room is closed")
+	while not p2p._closing.is_empty() and _running():
+		await frames(1)
+	await frames(10)
+	var creates: int = server.count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_ROOM_CREATE)
+	assert_eq(server.count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_ROOM_LEAVE), creates, "ROOM_LEAVE follows a ROOM_CREATE that went out")
+
+
+func test_a_host_in_none_that_receives_match_found_leaves_it_and_keeps_the_room_connection() -> void:
+	await _start_room_on_p2p(PackedInt64Array([USER_ID, OTHER_ID]))
+	server.send(server.match_found(PackedInt64Array([USER_ID, OTHER_ID]), 0, false))
+	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, 1)
+	assert_eq(server.frames_of(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE)[0].match_id, "match-p2p")
+	assert_eq(warn_logs(), 1)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	assert_eq(RealtimeCore.room_info().room_code, ROOM_CODE)
+	assert_eq(p2p._match_id, "")
+	assert_not_null(p2p._socket, "the room keeps the matchmaker connection")
+
+
+## A `leave_room` in a room event discards the `MATCH_FOUND` the transport read in the same `poll`, whose match it holds.
+func test_leave_room_in_none_leaves_a_match_the_transport_read_in_the_same_poll() -> void:
+	await _start_room_on_p2p(PackedInt64Array([USER_ID, OTHER_ID]))
+	assert_true(EventCore.subscribe(RoomChangedEvent, _leave_room_on_room_event))
+	var state: CoreContract.MatchmakerFrame = server.new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_ROOM_STATE)
+	state.room_code = ROOM_CODE
+	state.mode_id = MODE_ID
+	state.room_members = PackedInt64Array([USER_ID, OTHER_ID, THIRD_ID])
+	state.room_status = CoreContract.RoomStatus.ROOM_STATUS_OPEN
+	await _deliver_to_core([state, server.match_found(PackedInt64Array([USER_ID, OTHER_ID]), 0, false)])
+	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, 1)
+	assert_eq(server.count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_ROOM_LEAVE), 1)
+	assert_eq(RealtimeCore.room_info().room_code, "")
+	assert_eq(p2p._match_id, "")
+	assert_null(p2p._socket, "leaving the room closes the matchmaker connection")
 
 
 func test_disconnect_closes_without_match_leave_and_close_sends_it_first() -> void:
@@ -832,6 +1095,18 @@ func _deliver(sent: Array[CoreContract.MatchmakerFrame]) -> void:
 	await frames(2)
 
 
+## `_deliver` for the transport that RealtimeCore polls: its node does not run until all of `sent` are on the matchmaker
+## connection.
+func _deliver_to_core(sent: Array[CoreContract.MatchmakerFrame]) -> void:
+	var node: Node = RealtimeCore._node
+	node.set_process(false)
+	for frame: CoreContract.MatchmakerFrame in sent:
+		server.send(frame)
+	await _wait_arrived(sent.size())
+	node.set_process(true)
+	await frames(2)
+
+
 ## While the driver is paused, waits until `n` frames the transport has not read are on its matchmaker connection. Ends
 ## like the other condition waits.
 func _wait_arrived(n: int) -> void:
@@ -839,6 +1114,50 @@ func _wait_arrived(n: int) -> void:
 	while socket != null and socket.get_available_packet_count() < n and _running():
 		await frames(1)
 		socket.poll()
+
+
+## RealtimeCore on a P2P transport in `Playing` with a test participant at index 1. Returns the participant.
+func _play_on_p2p() -> RealtimeRemotePeer:
+	await start_realtime(false, false)
+	server = add_node(RealtimeFakeMatchmaker.new()) as RealtimeFakeMatchmaker
+	add_child(server)
+	assert_true(await server.start())
+	var remote: RealtimeRemotePeer = _remote(1)
+	assert_true(remote.start(false))
+	server.match_reply = server.match_found(PackedInt64Array([USER_ID, OTHER_ID]), 0, false)
+	RealtimeCore.set_transport(P2pRealtimeTransport.new(server.base_url(), APP_VERSION, false))
+	assert_true(RealtimeCore.init())
+	var result: MatchJoinResult = await RealtimeCore.join_match(MODE_ID)
+	assert_eq(result.status, RealtimeCore.MatchJoinStatus.SUCCESS)
+	return remote
+
+
+## RealtimeCore on a P2P transport in a room with `members`, in `None`.
+func _start_room_on_p2p(members: PackedInt64Array) -> void:
+	set_settings()
+	await start_dependencies()
+	server = add_node(RealtimeFakeMatchmaker.new()) as RealtimeFakeMatchmaker
+	add_child(server)
+	assert_true(await server.start())
+	p2p = P2pRealtimeTransport.new(server.base_url(), APP_VERSION, false)
+	RealtimeCore.set_transport(p2p)
+	assert_true(RealtimeCore.init())
+	var op: RealtimeAsyncCall = RealtimeAsyncCall.new()
+	op.create_room(MODE_ID)
+	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_ROOM_CREATE, 1)
+	var state: CoreContract.MatchmakerFrame = server.new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_ROOM_STATE)
+	state.room_code = ROOM_CODE
+	state.mode_id = MODE_ID
+	state.room_members = members
+	state.room_status = CoreContract.RoomStatus.ROOM_STATUS_OPEN
+	server.send(state)
+	await op.wait()
+	assert_true(op.room_result.ok)
+
+
+func _leave_room_on_room_event(_event: RoomChangedEvent) -> void:
+	if RealtimeCore.room_info().room_code != "":
+		RealtimeCore.leave_room()
 
 
 func _remote(index: int) -> RealtimeRemotePeer:
@@ -924,19 +1243,6 @@ func _restart_holding_attempt_1() -> RealtimeRemotePeer:
 	return remote
 
 
-## Waits until the connection of participant `index` is a connection other than `peer` that connected, or none is left.
-## Returns that connection; `null` when none is left or the test ended.
-func _wait_replaced(index: int, peer: _PEER) -> _PEER:
-	while _running():
-		var now: _PEER = p2p._peers[index]
-		if now == null:
-			return null
-		if now != peer and now.status == _PEER.Status.CONNECTED:
-			return now
-		await frames(1)
-	return null
-
-
 ## Waits until the client's connection with participant `index` gathered all its ICE candidates and every signal the
 ## transport sent reached the test matchmaker. A count of the client's `PEER_SIGNAL`s taken after it holds every signal
 ## the client sent: the client sends its candidates while and after it connects, and the relay passes them on after a
@@ -1009,3 +1315,38 @@ class _Bridge:
 		if received.type == _SIGNAL.Type.CANDIDATE:
 			received.data = RealtimeRemotePeer._loopback(received.data)
 		target.send(target.peer_signal(index, received.to_payload()))
+
+
+## A connection whose engine calls fail, without the engine errors of a real failure.
+class _FailingPeer:
+	extends "res://core/realtime_core/p2p_peer.gd"
+
+	var fails_start: bool = false
+	var refuses_sdp: bool = false
+
+	func start(other_index: int, my_index: int, ice_servers: Array[_ICE_SERVER], relay_only: bool) -> bool:
+		if fails_start:
+			return false
+		return super(other_index, my_index, ice_servers, relay_only)
+
+	func _set_remote_description(type_text: String, sdp: String) -> Error:
+		if refuses_sdp:
+			return FAILED
+		return super(type_text, sdp)
+
+
+## A P2P transport that makes `_FailingPeer`s.
+class _FailingTransport:
+	extends P2pRealtimeTransport
+
+	var fails_start: bool = false
+	var refuses_sdp: bool = false
+	## Connections made.
+	var started: int = 0
+
+	func _new_peer() -> _PEER:
+		started += 1
+		var peer: _FailingPeer = _FailingPeer.new()
+		peer.fails_start = fails_start
+		peer.refuses_sdp = refuses_sdp
+		return peer

@@ -51,6 +51,9 @@ var _attempts: PackedInt64Array = PackedInt64Array()
 var _rejoined: PackedByteArray = PackedByteArray()
 ## `PEER_SIGNAL`s received before `connect_peer` of their index, in receive order.
 var _queued: Array[_QUEUED_SIGNAL] = []
+## Whether this match logged a failed `connect_peer`: RealtimeCore calls `connect_peer` again on each peer lost, so a
+## connection that cannot start fails every frame.
+var _connect_failed_logged: bool = false
 var _frame: CoreContract.MatchmakerFrame = CoreContract.MatchmakerFrame.new()
 
 
@@ -121,9 +124,7 @@ func close_peer(index: int) -> void:
 
 func close() -> void:
 	if not _match_id.is_empty():
-		var frame: CoreContract.MatchmakerFrame = _new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE)
-		frame.match_id = _match_id
-		_send_frame(frame)
+		_send_match_leave(_match_id)
 	_reset_match()
 	if not _in_room:
 		_close_socket()
@@ -318,10 +319,13 @@ func _on_frame(bytes: PackedByteArray) -> void:
 
 
 func _on_match_found(frame: CoreContract.MatchmakerFrame) -> void:
+	# RealtimeCore keeps the first `MatchInfo`, so a second match cannot start here.
+	if not _match_id.is_empty():
+		LogCore.log_warn(_TAG, "MATCH_FOUND while holding a match: left the new match")
+		_send_match_leave(frame.match_id)
+		return
 	if not _read_ice_servers(frame.transport):
-		var leave: CoreContract.MatchmakerFrame = _new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE)
-		leave.match_id = frame.match_id
-		_send_frame(leave)
+		_send_match_leave(frame.match_id)
 		var failed: RealtimeNotice = add_notice(RealtimeNotice.Kind.MATCH_FAILED)
 		failed.fail_reason = CoreContract.MatchFailReason.MATCH_FAIL_REASON_CREATE_FAILED
 		failed.error_code = 0
@@ -420,25 +424,26 @@ func _reset_match() -> void:
 	_attempts.resize(0)
 	_rejoined.resize(0)
 	_queued.clear()
+	_connect_failed_logged = false
 
 
 # --- P2P connections ---
 
 
 func _start_peer(index: int) -> void:
-	var replaced: _PEER = _peers[index]
-	var replaces_connected: bool = (
-		replaced != null and (replaced.status == _PEER.Status.CONNECTED or replaced.replaces_connected)
-	)
 	_drop_peer(index)
-	var peer: _PEER = _PEER.new()
-	peer.replaces_connected = replaces_connected
+	var peer: _PEER = _new_peer()
 	_peers[index] = peer
 	if _my_index < index:
 		_attempts[index] += 1
 		peer.attempt = _attempts[index]
 	if not peer.start(index, _my_index, _ice_servers, _relay_only):
-		peer.status = _PEER.Status.LOST
+		peer.fail()
+
+
+## A core test overrides it with a connection whose engine calls fail: a real failure is an engine error.
+func _new_peer() -> _PEER:
+	return _PEER.new()
 
 
 ## After a rejoin into the same match, starts a new connection with each participant this side offers to whose
@@ -482,16 +487,18 @@ func _poll_peer(index: int) -> void:
 	_send_signals(peer)
 	if _closed[index] == 1:
 		return
-	if peer.status != before:
-		if peer.status == _PEER.Status.CONNECTED:
-			if not peer.replaces_connected:
-				add_notice(RealtimeNotice.Kind.PEER_CONNECTED).participant = index
-		elif peer.status == _PEER.Status.LOST:
-			peer.close()
-			_peers[index] = null
-			add_notice(RealtimeNotice.Kind.PEER_LOST).participant = index
-			return
+	# A connection that failed before this read has the status `LOST` before and after it.
+	if peer.status == _PEER.Status.LOST:
+		if peer.failed and not _connect_failed_logged:
+			_connect_failed_logged = true
+			LogCore.log_warn(_TAG, "connect_peer failed")
+		peer.close()
+		_peers[index] = null
+		add_notice(RealtimeNotice.Kind.PEER_LOST).participant = index
+		return
 	if peer.status == _PEER.Status.CONNECTED:
+		if before != _PEER.Status.CONNECTED:
+			add_notice(RealtimeNotice.Kind.PEER_CONNECTED).participant = index
 		_read_packets(index, peer.reliable, RealtimeCore.RealtimeChannel.RELIABLE)
 		_read_packets(index, peer.unreliable, RealtimeCore.RealtimeChannel.UNRELIABLE)
 
@@ -526,12 +533,16 @@ func _on_peer_signal(index: int, payload: PackedByteArray) -> void:
 		return
 	var peer: _PEER = _peers[index]
 	if peer == null:
-		var queued: _QUEUED_SIGNAL = _QUEUED_SIGNAL.new()
-		queued.participant = index
-		queued.received = received
-		_queued.append(queued)
+		_queue_signal(index, received)
 		return
 	_apply_signal(peer, received)
+
+
+func _queue_signal(index: int, received: _SIGNAL) -> void:
+	var queued: _QUEUED_SIGNAL = _QUEUED_SIGNAL.new()
+	queued.participant = index
+	queued.received = received
+	_queued.append(queued)
 
 
 func _apply_signal(peer: _PEER, received: _SIGNAL) -> void:
@@ -543,6 +554,13 @@ func _apply_signal(peer: _PEER, received: _SIGNAL) -> void:
 		# of the earlier connection after it.
 		if _rejoined[index] == 0 and received.attempt <= peer.attempt:
 			LogCore.log_warn(_TAG, "PEER_SIGNAL offer of the current or an earlier connection attempt dropped")
+			return
+		# RealtimeCore judges the time limit of a participant whose connected connection is gone: the `connect_peer` it calls
+		# on the peer lost handles the offer.
+		if peer.status == _PEER.Status.CONNECTED:
+			_drop_peer(index)
+			_queue_signal(index, received)
+			add_notice(RealtimeNotice.Kind.PEER_LOST).participant = index
 			return
 		_rejoined[index] = 0
 		if peer.attempt != 0:
@@ -562,9 +580,13 @@ func _on_peer_rejoined(index: int) -> void:
 		return
 	_rejoined[index] = 1
 	var peer: _PEER = _peers[index]
-	# A restarted app does not continue its earlier connection: the offering side replaces a connected one with the next
-	# number, and the answering side only takes the next offer whatever its number.
-	if peer != null and peer.status == _PEER.Status.CONNECTED and _my_index > index:
+	# A restarted app does not continue its earlier connection: the offering side drops a connected one, and the
+	# `connect_peer` that RealtimeCore calls on the peer lost offers the next number. The answering side only takes the
+	# next offer whatever its number.
+	if peer != null and peer.status == _PEER.Status.CONNECTED:
+		if _my_index < index:
+			_drop_peer(index)
+			add_notice(RealtimeNotice.Kind.PEER_LOST).participant = index
 		return
 	_start_peer(index)
 	_send_signals(_peers[index])
@@ -577,6 +599,12 @@ func _new_frame(kind: CoreContract.MatchmakerFrameKind) -> CoreContract.Matchmak
 	var frame: CoreContract.MatchmakerFrame = CoreContract.MatchmakerFrame.new()
 	frame.kind = kind
 	return frame
+
+
+func _send_match_leave(match_id: String) -> void:
+	var frame: CoreContract.MatchmakerFrame = _new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE)
+	frame.match_id = match_id
+	_send_frame(frame)
 
 
 ## Sends a frame now after `HELLO_ACK`, or keeps it until `HELLO_ACK`.
