@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import * as testing from '../../testing/dev/index.ts';
-import { E, MAX_SAFE, amount_in, balance, buy, delta_of, id, purchase_row, set_balance, shop_change, snapshot, start, stop_all, user } from './helpers.ts';
+import { E, MAX_SAFE, amount_in, balance, buy, delta_of, history, id, purchase_row, set_balance, shop_change, snapshot, start, stop_all, user } from './helpers.ts';
 
 const SHOP = CoreContract.ItemChangeSource.ITEM_CHANGE_SOURCE_SHOP;
 
@@ -32,6 +32,21 @@ describe('purchase', () => {
     const gold = shop_change(envelope, '[shop_gold]');
     expect(gold?.delta).toBe(-100n);
     expect(gold?.source).toBe(SHOP);
+    expect(gold?.ref).toBe(String(id('[shop_basic]')));
+  });
+
+  it('grants the reward with once_key shop:<request ID> and takes the cost without a once_key, both with the product ID value as ref', async () => {
+    const server = await start();
+    const session = await user(server);
+    await set_balance(server, session, '[shop_gold]', 1000n);
+    const request_id = randomUUID();
+    expect((await buy(session, '[shop_basic]', 1, false, request_id)).code).toBe(0);
+    const ref = String(id('[shop_basic]'));
+    const rows = (await history(server, session)).filter((row) => row.request_id === request_id);
+    expect(rows.map((row) => [row.item_id, row.source, row.ref, row.once_key])).toEqual([
+      [id('[shop_gold]'), 'ITEM_CHANGE_SOURCE_SHOP', ref, ''],
+      [id('[shop_gem]'), 'ITEM_CHANGE_SOURCE_SHOP', ref, `shop:${request_id}`],
+    ]);
   });
 
   it('answers ITEM_NOT_ENOUGH when the cost is short and keeps the purchase count', async () => {
