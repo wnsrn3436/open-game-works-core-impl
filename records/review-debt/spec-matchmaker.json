@@ -1,6 +1,6 @@
 {
   "target": "spec matchmaker",
-  "nextId": 5,
+  "nextId": 10,
   "items": [
     {
       "id": "D1",
@@ -25,6 +25,36 @@
       "location": "skills/server-core/modules/matchmaker.md:263",
       "problem": "`matchmaker.sweepIntervalMs` is the period of job `matchmaker_sweep` and writes no range. Value 0 passes the 0 or more schema range and fails server start in `schedule_job` on the server instance that received `--matchmaker` (skills/server-core/modules/server-time.md:90)",
       "foundBy": "spec routing"
+    },
+    {
+      "id": "D5",
+      "location": "skills/server-core/modules/matchmaker.md:278",
+      "problem": "`matchmaker.helloTimeoutMs` and `matchmaker.frameReadTimeoutMs` (line 273) write no range, so skills/core/SKILL.md:133-134 allows 0. Line 209 measures both with `server-time.network_time_limit`, which throws when ms is less than 1 (skills/server-core/modules/server-time.md:39). Run path: a value of 0 passes the schema, then the call throws at connection accept or at a frame read, and no document sets what happens to that connection. `p2p-signaling.turnTimeoutMs` (skills/server-core/modules/p2p-signaling.md:124) and `push.sendTimeoutMs` (skills/server-core/modules/push.md:195) write `1 or more`. Direction: write `1 or more` on both keys.",
+      "foundBy": "spec matchmaker"
+    },
+    {
+      "id": "D6",
+      "location": "skills/server-core/modules/matchmaker.md:271",
+      "problem": "`matchmaker.applyRetryMaxAttempts` writes no range, so 0 is allowed. Line 198 gives up when `attempts` reaches this value, and `attempts` is 1 after the first `FAILED`. Run path: with 0, an equality comparison never gives up, so the index is never marked and `expires_at` is never set (line 203), while a comparison with `≥` gives up at the first failure. Both implementations follow the text. `push.retryMaxAttempts` (skills/server-core/modules/push.md:197) and `storage.userChangeRetryMaxAttempts` (skills/server-core/modules/storage.md:365) write `1 or more`. Direction: write `1 or more` on this key.",
+      "foundBy": "spec matchmaker"
+    },
+    {
+      "id": "D7",
+      "location": "skills/server-core/modules/matchmaker.md:119",
+      "problem": "Step 3 of the `MATCH_REQUEST` processing order waits for `run_rollback_transaction` (an async operation, skills/server-core/modules/storage.md:43), and step 4 puts the entry in the queue with no further condition. Lines 105 and 121 only remove a user who is already in the queue, and the user is not in it during step 3. No document sets the result of a connection close, `MATCH_CANCEL`, a second `MATCH_REQUEST` or `ROOM_CREATE` that arrives during step 3; line 137 sets this wait only for room members. Run path: the connection closes during step 3 and the entry of the closed connection still enters the queue and can become a match; or a second `MATCH_REQUEST` during step 3 gives two entries, which contradicts line 115. Direction: set the frame handling order per connection, and recheck the connection and the cancel state before step 4.",
+      "foundBy": "spec matchmaker"
+    },
+    {
+      "id": "D8",
+      "location": "skills/server-core/modules/matchmaker.md:146",
+      "problem": "`ROOM_START` is `ROOM_BUSY` only when the room is `Matching`, and neither `ROOM_START` nor member rating resolution changes the status of an `Open` room; host `MATCH_REQUEST` (line 151) changes it to `Matching` only after resolution. Line 137 sets the result only when the members change during that wait. Run path: the host sends `ROOM_START` twice, and the second frame arrives while the first waits for `prepare_match_request`. Nothing in the text refuses it, so one implementation creates two matches with the same members and another drops the second frame. The same holds for `ROOM_START` followed by host `MATCH_REQUEST`, and for a second `ROOM_START` during match creation. Direction: set the result of a host frame that arrives during member rating resolution and match creation of that room.",
+      "foundBy": "spec matchmaker"
+    },
+    {
+      "id": "D9",
+      "location": "skills/server-core/modules/matchmaker.md:152",
+      "problem": "Host `MATCH_CANCEL` changes the room to `Open` with no exception, while line 89 defines `Matching` as including a party entry that is becoming a match, line 144 keeps such a room `Matching` for `ROOM_LEAVE`, and line 153 changes it to `Open` only after `MATCH_FOUND` or `MATCH_FAILED`(`CREATE_FAILED`). Run path: the host sends `MATCH_CANCEL` after matching collected the party entry and before `MATCH_FOUND`. By line 152 the room is `Open` and the host can send `MATCH_REQUEST` or `ROOM_START` while the first match is being created; by lines 89 and 153 it stays `Matching`. Direction: state for `MATCH_CANCEL` the same exception that `ROOM_LEAVE` has.",
+      "foundBy": "spec matchmaker"
     }
   ]
 }
