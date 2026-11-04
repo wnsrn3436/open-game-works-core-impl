@@ -84,7 +84,7 @@
     },
     "admin-api.switchCacheMs": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "ads-reward.callbackRateLimitPerMinute": {
       "type": "integer",
@@ -152,7 +152,7 @@
     },
     "auth.guestSweepIntervalMs": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "auth.inactiveGuestDeleteAfterMs": {
       "type": [
@@ -306,7 +306,7 @@
     },
     "logging.analyticsDeletionIntervalMs": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "logging.analyticsDeletionMaxAttempts": {
       "type": "integer",
@@ -354,7 +354,7 @@
     },
     "logging.securityRepeatWindowMs": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "logging.serverEventRetentionMs": {
       "type": "integer",
@@ -744,11 +744,11 @@
     },
     "matchmaker.sweepIntervalMs": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "matchmaker.tickMs": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "block-report.maxBlocks": {
       "type": "integer",

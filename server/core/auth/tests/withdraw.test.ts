@@ -130,7 +130,11 @@ describe('Withdraw', () => {
       await testing.stop_test_server(own);
     }
   });
-  it.skipIf(missing('guild'))('a guild.remove_user FAILED by a lock wait makes Withdraw and ConfirmAge INTERNAL, withdraw_user 500, POST /account/deletion 500 and keeps the guest of auth_guest_sweep, with no change and no revoke', async () => {
+  /**
+   * While `locked_row` of the server holds a row lock past the lock wait, `Withdraw` and `ConfirmAge` are INTERNAL, `withdraw_user` 500,
+   * `POST /account/deletion` 500 and `auth_guest_sweep` keeps the guest, with no change and no revoke. `locked_row` also prepares what makes `remove_user` take that lock.
+   */
+  async function withdrawals_roll_back(locked_row: (locked: TestServer, member: Awaited<ReturnType<typeof social>>, idle: Awaited<ReturnType<typeof guest>>) => Promise<readonly [string, readonly unknown[]]>): Promise<void> {
     const sweep_after = 1_000_000n;
     const locked = await start({
       settings: {
@@ -143,19 +147,9 @@ describe('Withdraw', () => {
       },
     });
     try {
-      const leader = await social(locked, P.LOGIN_PROVIDER_GOOGLE, 'lock_leader');
       const member = await social(locked, P.LOGIN_PROVIDER_APPLE, 'lock_member');
       const idle = await guest(locked);
-      const created = await call<CoreContract.CreateGuildResponse>(
-        leader.session,
-        'core/CreateGuild',
-        Object.assign(new CoreContract.CreateGuildRequest(), { name: 'Locked Guild', description: '', join_type: CoreContract.GuildJoinType.GUILD_JOIN_TYPE_OPEN }),
-      );
-      expect(created.code).toBe(0);
-      const guild_id = created.response.guild_id;
-      for (const joiner of [member, idle]) {
-        expect((await call(joiner.session, 'core/JoinGuild', Object.assign(new CoreContract.JoinGuildRequest(), { guild_id }))).code).toBe(0);
-      }
+      const [table, key] = await locked_row(locked, member, idle);
       const issued = await call<CoreContract.IssueDeletionCodeResponse>(member.session, 'core/IssueDeletionCode', new CoreContract.IssueDeletionCodeRequest());
       expect(issued.code).toBe(0);
       const member_id = member.result.user_id;
@@ -163,7 +157,7 @@ describe('Withdraw', () => {
       const birth_below_minimum = Object.assign(new CoreContract.ConfirmAgeRequest(), { birth_year_month: 202601 });
       const form = new URLSearchParams({ method: 'code', confirm: 'yes', public_code: member.result.public_code, code: issued.response.code }).toString();
 
-      const release = await testing.hold_game_row_lock(locked, 'guild_guild', [guild_id]);
+      const release = await testing.hold_game_row_lock(locked, table, key);
       try {
         expect(await withdraw(member.session)).toBe(E.CORE_ERROR_INTERNAL);
         expect((await call(member.session, 'core/ConfirmAge', birth_below_minimum)).code).toBe(E.CORE_ERROR_INTERNAL);
@@ -184,6 +178,27 @@ describe('Withdraw', () => {
     } finally {
       await testing.stop_test_server(locked);
     }
+  }
+
+  it.skipIf(missing('guild'))('a guild.remove_user FAILED by a lock wait makes every withdrawal fail and roll back', async () => {
+    await withdrawals_roll_back(async (locked, member, idle) => {
+      const leader = await social(locked, P.LOGIN_PROVIDER_GOOGLE, 'lock_leader');
+      const created = await call<CoreContract.CreateGuildResponse>(
+        leader.session,
+        'core/CreateGuild',
+        Object.assign(new CoreContract.CreateGuildRequest(), { name: 'Locked Guild', description: '', join_type: CoreContract.GuildJoinType.GUILD_JOIN_TYPE_OPEN }),
+      );
+      expect(created.code).toBe(0);
+      const guild_id = created.response.guild_id;
+      for (const joiner of [member, idle]) {
+        expect((await call(joiner.session, 'core/JoinGuild', Object.assign(new CoreContract.JoinGuildRequest(), { guild_id }))).code).toBe(0);
+      }
+      return ['guild_guild', [guild_id]];
+    });
+  });
+
+  it.skipIf(missing('block-report'))('a block-report.remove_user FAILED by a lock wait makes every withdrawal fail and roll back', async () => {
+    await withdrawals_roll_back(() => Promise.resolve(['block_report_sequence', [0n]]));
   });
 });
 

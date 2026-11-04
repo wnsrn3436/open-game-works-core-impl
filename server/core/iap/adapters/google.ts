@@ -119,20 +119,25 @@ function is_test_purchase(json: Record<string, unknown>): boolean {
   return json.testPurchase !== undefined && json.testPurchase !== null;
 }
 
-/** The line item that ends last, with its end. */
-function last_line(json: Record<string, unknown>): { line: Record<string, unknown>; ends_at: bigint } | null {
-  const items = Array.isArray(json.lineItems) ? (json.lineItems as unknown[]).filter(is_object) : [];
-  let last: { line: Record<string, unknown>; ends_at: bigint } | null = null;
-  for (const line of items) {
-    const ends_at = ms_of(line.expiryTime) ?? 0n;
-    if (last === null || ends_at >= last.ends_at) last = { line, ends_at };
-  }
-  return last;
+/** Byte order of two `productId` values. */
+function product_order(a: Record<string, unknown>, b: Record<string, unknown>): number {
+  return Buffer.compare(Buffer.from(text_of(a.productId), 'utf8'), Buffer.from(text_of(b.productId), 'utf8'));
 }
 
-/** The order ID of a `subscriptionsv2` line item: its latest successful order, else the response's latest order. */
-function latest_order_of(json: Record<string, unknown>, line: Record<string, unknown>): string {
-  return text_of(line.latestSuccessfulOrderId) || text_of(json.latestOrderId);
+/**
+ * The line item a subscription snapshot reads, with its end: the one that ends last among those with
+ * `latestSuccessfulOrderId`, or among all when none has it (a line item deferred to has no order yet). Of two that end
+ * together, the first in byte order of `productId`.
+ */
+function last_line(json: Record<string, unknown>): { line: Record<string, unknown>; ends_at: bigint } | null {
+  const items = Array.isArray(json.lineItems) ? (json.lineItems as unknown[]).filter(is_object) : [];
+  const paid = items.filter((line) => text_of(line.latestSuccessfulOrderId) !== '');
+  let last: { line: Record<string, unknown>; ends_at: bigint } | null = null;
+  for (const line of paid.length > 0 ? paid : items) {
+    const ends_at = ms_of(line.expiryTime) ?? 0n;
+    if (last === null || ends_at > last.ends_at || (ends_at === last.ends_at && product_order(line, last.line) < 0)) last = { line, ends_at };
+  }
+  return last;
 }
 
 /** Subscription states of a purchase that waits for payment: Google sets no `startTime` for them. */
@@ -161,7 +166,7 @@ function snapshot_of(json: Record<string, unknown>, now: bigint): SubscriptionSn
     state: canceled && now >= last.ends_at ? CoreContract.SubscriptionState.SUBSCRIPTION_STATE_EXPIRED : state,
     ends_at: last.ends_at,
     auto_renew: !canceled && plan !== null && plan.autoRenewEnabled === true,
-    latest_transaction_id: latest_order_of(json, last.line),
+    latest_transaction_id: text_of(last.line.latestSuccessfulOrderId),
     sku: text_of(last.line.productId),
     purchased_at,
     test: is_test_purchase(json),
@@ -169,15 +174,16 @@ function snapshot_of(json: Record<string, unknown>, now: bigint): SubscriptionSn
 }
 
 /**
- * The store transaction of a subscription purchase: transaction ID the order ID of the receipt product's line item in
- * the `subscriptionsv2` response, original transaction ID the purchase token. The receipt's order ID and purchase time
- * are not read: the client wrote them.
+ * The store transaction of a subscription purchase: transaction ID the latest successful order ID of the receipt
+ * product's line item in the `subscriptionsv2` response, else the purchase token; original transaction ID the purchase
+ * token. The receipt's order ID and purchase time are not read: the client wrote them. `latestOrderId` is not read: it
+ * is deprecated and can name an order that was not paid.
  */
 function subscription_transaction(r: Receipt, json: Record<string, unknown>, line: Record<string, unknown>): StoreTransaction | 'bad_response' {
   const purchased_at = start_of(json);
   if (purchased_at === 'bad_response') return purchased_at;
   return {
-    transaction_id: latest_order_of(json, line),
+    transaction_id: text_of(line.latestSuccessfulOrderId) || r.token,
     original_transaction_id: r.token,
     sku: r.product_id,
     app_id: r.package_name,

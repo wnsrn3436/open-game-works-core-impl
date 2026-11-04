@@ -333,7 +333,7 @@ function apply_subscription(c: IapContext, ctx: RequestCtx, store: Store, origin
     return 'pass';
   }
   const db = db_of(c, ctx);
-  if (snapshot.latest_transaction_id !== '' && select_payment(db, store_name(store), snapshot.latest_transaction_id, c.m.time.clock_now()) === null) {
+  if (snapshot.latest_transaction_id !== '' && is_entitled_state(snapshot.state) && select_payment(db, store_name(store), snapshot.latest_transaction_id, c.m.time.clock_now()) === null) {
     const granted = grant_and_record(c, ctx, {
       store,
       transaction_id: snapshot.latest_transaction_id,
@@ -556,6 +556,11 @@ function lock_rows(c: IapContext, ctx: RequestCtx, v: Verified): boolean {
   return lock_grant_rows(c, ctx, v.store, v.tx.transaction_id, v.snapshot?.latest_transaction_id ?? '', () => v.tx.original_transaction_id);
 }
 
+/** The snapshot states of a store transaction grant order 4 does not grant: Google answers `EXPIRED` for a revoked subscription. */
+function is_ended_state(state: CoreContract.SubscriptionState): boolean {
+  return state === CoreContract.SubscriptionState.SUBSCRIPTION_STATE_REVOKED || state === CoreContract.SubscriptionState.SUBSCRIPTION_STATE_EXPIRED;
+}
+
 /** True when grant order 4 judges the store transaction `INVALID`; writes the log of the rules that log. */
 function is_invalid(c: IapContext, ctx: RequestCtx, v: Verified, product: GameData.IapProductRow | null, rec: PaymentRow | null): boolean {
   const store = store_name(v.store);
@@ -565,6 +570,7 @@ function is_invalid(c: IapContext, ctx: RequestCtx, v: Verified, product: GameDa
     log(c, ctx, 'error', 'error', 'iap store transaction SKU is not an iap_product row of the store', { store, sku: tx.sku, transaction_id: tx.transaction_id });
     return true;
   }
+  if (product.type === ProductType.Subscription && v.snapshot !== null && v.snapshot.latest_transaction_id === tx.transaction_id && is_ended_state(v.snapshot.state)) return true;
   if (rec !== null && rec.result === 'REFUNDED' && rec.user_id !== ctx.user_id) {
     log(c, ctx, 'security', 'warn', 'iap refunded store transaction of another user', { reason: 'invalid', cause: 'refunded_other_user', store, transaction_id: tx.transaction_id });
     return true;

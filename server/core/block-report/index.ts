@@ -96,7 +96,8 @@ export interface BlockReportApi {
   ): ReportResult;
   /** Throws after `complete_start`; a second registration of the same function fails server start. */
   register_block_listener(listener: BlockListener): null;
-  remove_user(ctx: RequestCtx): null;
+  /** `auth` calls it at withdrawal. null, or `FAILED` on a lock wait timeout. */
+  remove_user(ctx: RequestCtx): null | 'FAILED';
   readonly list_reports: AdminOperation;
   readonly resolve_report: AdminOperation;
 }
@@ -338,6 +339,8 @@ export function create_block_report(input: BlockReportInput): BlockReport {
     if (storage.lock_game_row(ctx, SEQUENCE_TABLE, [SEQUENCE_ID]) === 'FAILED') {
       throw new Error(`${MODULE}: the ${SEQUENCE_TABLE} row lock wait went over its limit`);
     }
+    // Read after the lock and on this transaction's connection: it sees a withdrawal committed during the lock wait.
+    const kept_evidence = profiles.is_active_user(ctx, target_id) ? evidence : '';
     const sequence = db.query(
       `INSERT INTO ${SEQUENCE_TABLE} (id, last_report_id) VALUES ($1, 1) ON CONFLICT (id) DO UPDATE SET last_report_id = ${SEQUENCE_TABLE}.last_report_id + 1 RETURNING last_report_id`,
       [SEQUENCE_ID],
@@ -345,7 +348,7 @@ export function create_block_report(input: BlockReportInput): BlockReport {
     const report_id = int64_of(sequence[0]?.last_report_id, SEQUENCE_TABLE, 'last_report_id');
     db.query(
       `INSERT INTO ${REPORT_TABLE} (${REPORT_FIELDS}) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-      [report_id, ctx.user_id, target_id, reason_id, context_name, ref, comment, evidence, OPEN, request_time, 0n, '', null],
+      [report_id, ctx.user_id, target_id, reason_id, context_name, ref, comment, kept_evidence, OPEN, request_time, 0n, '', null],
     );
     db.query(
       `INSERT INTO ${COUNT_TABLE} (user_id, window_start, count, expires_at) VALUES ($1, $2, 1, $3) ON CONFLICT (user_id) DO UPDATE SET ` +
@@ -470,6 +473,8 @@ export function create_block_report(input: BlockReportInput): BlockReport {
       return null;
     },
     remove_user: (ctx) => {
+      // The lock of `add_report`: its report of this user commits before the change below, or reads the user as withdrawn.
+      if (storage.lock_game_row(ctx, SEQUENCE_TABLE, [SEQUENCE_ID]) === 'FAILED') return 'FAILED';
       storage.db(ctx).query(`UPDATE ${REPORT_TABLE} SET evidence = $1 WHERE target_id = $2`, ['', ctx.user_id]);
       return null;
     },
