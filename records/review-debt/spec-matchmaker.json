@@ -1,6 +1,6 @@
 {
   "target": "spec matchmaker",
-  "nextId": 10,
+  "nextId": 15,
   "items": [
     {
       "id": "D1",
@@ -13,18 +13,6 @@
       "location": "skills/server-core/modules/matchmaker.md:326",
       "problem": "The failure value of `create_test_match` does not cover the game transaction that saves the match record. The cell lists only the two input throws, and the failure handling of step 1 of `### match creation` sends `MATCH_FAILED` to participants, which this operation does not have because it has no connections. So when that transaction is `FAILED`, throwing and returning `FAILED` both fit the spec, and `dev` of `routing` (skills/server-core/modules/routing.md:74) passes either result to the test differently.",
       "foundBy": "spec matchmaker"
-    },
-    {
-      "id": "D3",
-      "location": "skills/server-core/modules/matchmaker.md:260",
-      "problem": "`matchmaker.tickMs` is the period of job `matchmaker_tick` and writes no range. Value 0 passes the 0 or more schema range and fails server start in `schedule_job` on the server instance that received `--matchmaker` (skills/server-core/modules/server-time.md:90)",
-      "foundBy": "spec routing"
-    },
-    {
-      "id": "D4",
-      "location": "skills/server-core/modules/matchmaker.md:263",
-      "problem": "`matchmaker.sweepIntervalMs` is the period of job `matchmaker_sweep` and writes no range. Value 0 passes the 0 or more schema range and fails server start in `schedule_job` on the server instance that received `--matchmaker` (skills/server-core/modules/server-time.md:90)",
-      "foundBy": "spec routing"
     },
     {
       "id": "D5",
@@ -54,6 +42,36 @@
       "id": "D9",
       "location": "skills/server-core/modules/matchmaker.md:152",
       "problem": "Host `MATCH_CANCEL` changes the room to `Open` with no exception, while line 89 defines `Matching` as including a party entry that is becoming a match, line 144 keeps such a room `Matching` for `ROOM_LEAVE`, and line 153 changes it to `Open` only after `MATCH_FOUND` or `MATCH_FAILED`(`CREATE_FAILED`). Run path: the host sends `MATCH_CANCEL` after matching collected the party entry and before `MATCH_FOUND`. By line 152 the room is `Open` and the host can send `MATCH_REQUEST` or `ROOM_START` while the first match is being created; by lines 89 and 153 it stays `Matching`. Direction: state for `MATCH_CANCEL` the same exception that `ROOM_LEAVE` has.",
+      "foundBy": "spec matchmaker"
+    },
+    {
+      "id": "D10",
+      "location": "skills/server-core/modules/matchmaker.md:273",
+      "problem": "`matchmaker.frameReadTimeoutMs` has no written range, so value 0 is allowed and a frame read reaches the throw of `network_time_limit` (skills/core/SKILL.md:134, skills/server-core/modules/matchmaker.md:209, skills/server-core/modules/server-time.md:39)",
+      "foundBy": "spec auth"
+    },
+    {
+      "id": "D11",
+      "location": "skills/server-core/modules/matchmaker.md:162",
+      "problem": "A connection that closes during match creation is not handled in the match session. Line 161 passes the connections of the participants to `open_match_session`, whose connection list must match `players` in count (skills/server-core/modules/p2p-signaling.md:29), so the closed connection is bound (p2p-signaling.md:62). `connection_closed` already ran while that connection was unbound and returned none (p2p-signaling.md:157), and line 162 only writes `DISCONNECTED` to the record. Run path: a participant closes between step 1 and step 2. The other participants get no `PEER_LEFT`, a `PEER_SIGNAL` to that index passes the bound check and goes to a closed connection, and the session is not deleted as one without a bound connection until `expires_at` (p2p-signaling.md:64). When the user reconnected during creation, no document sets whether the new connection replaces the old one in the list, so `MATCH_FOUND` goes to the closed connection and the new connection does not learn the `match_id`. Direction: set the connection used for a participant whose connection closed or was replaced during creation, and the `PEER_LEFT` the others get.",
+      "foundBy": "spec matchmaker"
+    },
+    {
+      "id": "D12",
+      "location": "skills/server-core/modules/matchmaker.md:105",
+      "problem": "The close handling removes \"that user\" from the queue and the room, and a queue entry member and a room member are user IDs (lines 114, 133), not connections. Line 104 closes the previous connection when a new connection is authenticated, and no document sets whether the close handling of the previous connection finishes before frames of the new connection are handled. Run path: connection B of the user is authenticated, B sends `MATCH_REQUEST` or `ROOM_CREATE`, and then the close of previous connection A is handled. An implementation that handles the close on the socket close event removes the entry or room membership that B just made, and one that handles it during the authentication of B keeps it. Direction: run the close handling of the previous connection synchronously at the authentication of the new connection, or key the removal by connection.",
+      "foundBy": "spec matchmaker"
+    },
+    {
+      "id": "D13",
+      "location": "skills/server-core/modules/matchmaker.md:106",
+      "problem": "Each participant change is written by its own async game transaction, and no document sets their order for one match. The error row on line 244 refuses a retry because \"a retried `DISCONNECTED` could be written after a later `REJOINED`\", but a first attempt has the same order problem on PostgreSQL, where transactions run on several connections and each waits for its own connection and row lock (skills/server-core/modules/storage.md:297). Run path: a `DISCONNECTED` write waits while the `REJOINED` write of the same index commits, then writes `disconnected_at` as non-zero for a participant who is connected. Line 186 then does not wait for that participant's report in a `ServerReplay` judgement, so the result can differ from the one with the writes in event order. Direction: set that the participant changes of one match are written one at a time in the order they happened.",
+      "foundBy": "spec matchmaker"
+    },
+    {
+      "id": "D14",
+      "location": "skills/server-core/modules/matchmaker.md:211",
+      "problem": "The counting window of the per-IP limits `matchmaker.preAuthAcceptsPerSecond` and `matchmaker.preAuthFramesPerSecond` is not set. Line 209 says only \"per-second counts\" for them while it uses \"the last 1000 ms\" for the user frame count on line 210, and line 213 takes only the IP judgement from `routing`, whose counters use the minute window (skills/server-core/modules/routing.md:168). Run path: with a limit of 10, 10 accepts at `clock_now` 999 and 10 accepts at `clock_now` 1001 all pass with a fixed window of `server-time.get_window_start`, and the second 10 get HTTP 429 with the last 1000 ms. Direction: name one window for both limits, and add a test at its boundary.",
       "foundBy": "spec matchmaker"
     }
   ]
