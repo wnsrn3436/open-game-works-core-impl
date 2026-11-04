@@ -90,7 +90,7 @@ describe.skipIf(!CLONE_AVAILABLE)('migrate_snapshot', () => {
     const unencodable = (item: QuestUserState): QuestUserState => Object.assign(item, { progress: 1 as unknown as bigint });
     const s = await server({ clone: true, converters: { 'QuestUserState:2': (item, data) => ((item as QuestUserState).id === 7n ? unencodable(item as QuestUserState) : (fallback?.(item, data) ?? item)) } });
     const output = s.dev.migrate_snapshot(snapshot([row('user_state', Q, 7n, 2n, quest(7n, 1n)), row('user_state', Q, 8n, 2n, quest(8n, 1n))], USER));
-    if (!Array.isArray(output)) throw new Error(String(output));
+    if (!Array.isArray(output)) throw new Error(output);
     expect(output.map((r) => [r.key, r.result])).toEqual([
       [`${Q}/7`, 'FAILED'],
       [`${Q}/8`, 'OK'],
