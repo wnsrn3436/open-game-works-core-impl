@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://core/scene_core/tests/support/scene_stub.gd" id="1_scene"]
+[ext_resource type="Script" path="res://core/scene_core/tests/support/process_counter.gd" id="2_counter"]
 
 [node name="SceneB" type="Node" node_paths=PackedStringArray("probe")]
 script = ExtResource("1_scene")
@@ -14,3 +15,6 @@ probe = NodePath("Probe")
 
 [node name="Spatial" type="Node3D" parent="."]
 
+[node name="Counter" type="Node" parent="."]
+process_mode = 3
+script = ExtResource("2_counter")

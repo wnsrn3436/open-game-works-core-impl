@@ -1,10 +1,15 @@
 extends Node
-## Core node of `SceneCore`: runs the frame check of the transition, hides the nodes that enter the scene holder
+## Core node of `SceneCore`: runs the frame check of the transition, hides and stops the nodes under the scene holder
 ## while the new scene is not shown yet and keeps the scene UI root of that scene on the safe area.
 
 
 func _process(_delta: float) -> void:
+	SceneCore._check_stopped()
 	SceneCore._check_frame()
+
+
+func _physics_process(_delta: float) -> void:
+	SceneCore._check_stopped()
 
 
 func _exit_tree() -> void:

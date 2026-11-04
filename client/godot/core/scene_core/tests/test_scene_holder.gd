@@ -1,6 +1,8 @@
 extends "res://core/scene_core/tests/support/scene_case.gd"
 ## The scene holder from stage 4 to stage 7 and the scene UI root.
 
+const Counter := preload("res://core/scene_core/tests/support/process_counter.gd")
+
 
 func test_new_scene_is_not_on_screen_from_stage_4_until_stage_7() -> void:
 	assert_true(await start_booted(SCENE_A))
@@ -48,6 +50,46 @@ func test_new_scene_reads_its_children_in_on_preload_and_runs_frames_only_after_
 	await wait_trace("started:" + SCENE_B)
 	await UnitTestCore.wait_frames(2)
 	assert_gt(scene.process_count, 0)
+
+
+## A node with a `process_mode` of its own does not inherit the disabled scene holder: the one in the scene resource,
+## one `on_preload` adds, one `on_preload` gives a mode after adding it and one the test gives a mode during stage 6.
+func test_nodes_with_a_process_mode_of_their_own_run_frames_only_after_stage_7() -> void:
+	assert_true(await start_booted(SCENE_A))
+	var counters: Array[Counter] = []
+	TestScene.preload_hook = func(scene: SceneBase) -> void:
+		var added: Counter = Counter.new()
+		added.process_mode = Node.PROCESS_MODE_ALWAYS
+		scene.add_child(added)
+		var given: Counter = Counter.new()
+		scene.add_child(given)
+		given.process_mode = Node.PROCESS_MODE_PAUSABLE
+		var later: Counter = Counter.new()
+		scene.add_child(later)
+		counters.append_array([scene.get_node("Counter") as Counter, added, given, later])
+	TestScene.prepare_gate = Gate.new()
+	var results: PackedInt32Array = PackedInt32Array()
+	change_later(SCENE_B, results)
+	await wait_trace("prepare:" + SCENE_B)
+	assert_eq(counters.size(), 4)
+	if counters.size() != 4:
+		return
+	counters[3].process_mode = Node.PROCESS_MODE_ALWAYS
+	await _wait_frames_and_physics(3)
+	for i: int in counters.size():
+		assert_eq(counters[i].process_count, 0, "process of counter %d before stage 7" % i)
+		assert_eq(counters[i].physics_count, 0, "physics process of counter %d before stage 7" % i)
+	TestScene.prepare_gate.open(true)
+	await wait_trace("started:" + SCENE_B)
+	await _wait_frames_and_physics(2)
+	var modes: PackedInt32Array = [
+		Node.PROCESS_MODE_ALWAYS, Node.PROCESS_MODE_ALWAYS, Node.PROCESS_MODE_PAUSABLE, Node.PROCESS_MODE_ALWAYS,
+	]
+	for i: int in counters.size():
+		assert_eq(counters[i].process_mode as int, modes[i], "mode of counter %d after stage 7" % i)
+		assert_gt(counters[i].process_count, 0, "process of counter %d after stage 7" % i)
+		assert_gt(counters[i].physics_count, 0, "physics process of counter %d after stage 7" % i)
+	assert_eq(results, PackedInt32Array([1]))
 
 
 func test_scene_ui_root_is_under_the_scene_ui_safe_area_root() -> void:
@@ -142,6 +184,14 @@ func test_scene_without_ui_root_adds_nothing_to_the_scene_ui_layer() -> void:
 	assert_true(await start_booted(SCENE_A))
 	assert_true(await SceneCore.change_scene(SCENE_B, null))
 	assert_eq(SceneCore._scene_ui_area.get_child_count(), 0)
+
+
+## Waits `count` frames and `count` physics frames.
+func _wait_frames_and_physics(count: int) -> void:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	await UnitTestCore.wait_frames(count)
+	for i: int in count:
+		await tree.physics_frame
 
 
 func _rect_of(control: Control) -> Rect2:
