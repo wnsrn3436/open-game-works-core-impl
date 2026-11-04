@@ -24,6 +24,8 @@ const _SEQUENCE_KEY_PREFIX: String = "GameUpdateCore.sequence_"
 const _DOWNLOAD_FOLDER: String = "game_update"
 const _SIGNATURE_SUFFIX: String = ".sig"
 const _HTTP_OK: int = 200
+## Page script of the browser runtime store redirect. `ok`, or the error `window.location.assign` threw.
+const _ASSIGN_PAGE_SCRIPT: String = """(function(){try{window.location.assign(%s);return "ok";}catch(e){return String(e);}})()"""
 
 ## Popup outcomes other than a pressed button's index.
 const _CHOICE_CLOSED: int = -1
@@ -43,8 +45,11 @@ static var _node: _CORE_NODE = null
 static var _downloader: UpdateDownloader = null
 ## Set by `GameUpdateCoreDev.set_downloader` before `init`.
 static var _downloader_override: UpdateDownloader = null
-## Core test replacement of the store redirect: receives the store URL instead of the OS.
-static var _store_opener: Callable = Callable()
+## Core test replacements of the store redirect calls below the platform branch: `_url_opener` is called with the
+## store URL instead of `OS.shell_open` and returns an `Error`; `_page_script_runner` is called with the page script
+## instead of `JavaScriptBridge.eval` and returns its string reply.
+static var _url_opener: Callable = Callable()
+static var _page_script_runner: Callable = Callable()
 ## Core test replacements of `LocalDataCore.hash_file` and `LocalDataCore.write_file`: called with the same input
 ## instead of `LocalDataCore`.
 static var _file_hasher: Callable = Callable()
@@ -242,7 +247,8 @@ static func _drop_state(node: _CORE_NODE) -> void:
 	_node = null
 	_downloader = null
 	_downloader_override = null
-	_store_opener = Callable()
+	_url_opener = Callable()
+	_page_script_runner = Callable()
 	_file_hasher = Callable()
 	_file_writer = Callable()
 	_stall_timeout_ms = 0
@@ -426,14 +432,25 @@ static func _redirect_to_store() -> void:
 	if _store_url.is_empty():
 		LogCore.log_error(_TAG, "store redirect has no store_url")
 		return
-	if _store_opener.is_valid():
-		_store_opener.call(_store_url)
-		return
 	if OS.get_name() == "Web":
-		JavaScriptBridge.eval("window.location.assign(" + JSON.stringify(_store_url) + ")")
+		var reply: String = _run_page_script(_ASSIGN_PAGE_SCRIPT % JSON.stringify(_store_url))
+		if reply != "ok":
+			LogCore.log_error(_TAG, "could not open the store URL: " + reply)
 		return
-	if OS.shell_open(_store_url) != OK:
+	var opened: int = _url_opener.call(_store_url) if _url_opener.is_valid() else OS.shell_open(_store_url)
+	if opened != OK:
 		LogCore.log_error(_TAG, "could not open the store URL")
+
+
+## Runs `script` in the page and returns its string reply. Empty for a reply that is not a string.
+# ogw:input_boundary
+static func _run_page_script(script: String) -> String:
+	var reply: Variant = _page_script_runner.call(script) if _page_script_runner.is_valid() \
+			else JavaScriptBridge.eval(script, true)
+	if reply is String:
+		var text: String = reply
+		return text
+	return ""
 
 
 static func _on_update_required(error_code: int) -> void:
@@ -607,8 +624,11 @@ static func _watch_stall() -> void:
 		_downloader.cancel()
 
 
-## The fetch failure of a download result. 0 when it is a 200 response.
+## The fetch failure of a download result. 0 when it is a 200 response. A response other than 200 is a download
+## failure even when its body went over the max bytes.
 static func _download_failure(result: UpdateDownloader.DownloadResult) -> int:
+	if result.http_status != 0 and result.http_status != _HTTP_OK:
+		return _FAILURE_DOWNLOAD
 	if result.status == DownloadStatus.TOO_LARGE:
 		return _FAILURE_INVALID
 	if result.status != DownloadStatus.DONE or result.http_status != _HTTP_OK:

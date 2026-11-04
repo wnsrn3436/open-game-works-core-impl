@@ -28,12 +28,20 @@ const OTHER_SEED_HEX: String = "4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624
 const LONG_STALL_MS: int = 3600000
 const PUMP_MS: int = 1000
 const PUMP_FRAMES: int = 10
+## Runs the store redirect page script with a `window` whose `location.assign` records the URL instead of leaving
+## the test page, and throws when the first argument is `true`. The reply is the script reply and the recorded URL.
+const _STUB_PAGE_SCRIPT: String = """(function(window){var r=%s;return JSON.stringify({reply:String(r),url:window.location.url});})({location:{url:null,assign:function(u){if(%s){throw new TypeError("blocked");}this.url=String(u);}}})"""
 
 static var _public_keys: Dictionary[String, PackedByteArray] = {}
 
 var downloader: _DOWNLOADER = null
 var restarts: _RESTART_COUNTER = null
+## Store URLs the store redirect handed to `OS.shell_open` or `window.location.assign`.
 var store_urls: PackedStringArray = PackedStringArray()
+## Whether opening the store URL fails: `OS.shell_open` gives an error and `window.location.assign` throws.
+var store_open_fails: bool = false
+## Number of store redirects that ran the page script of the browser runtime.
+var page_redirects: int = 0
 var check_finished: bool = false
 var check_result: bool = false
 
@@ -49,6 +57,8 @@ func after_each() -> void:
 	_release_modules()
 	# GUT runs every test of a file on one instance: the next test starts with no store redirects.
 	store_urls = PackedStringArray()
+	store_open_fails = false
+	page_redirects = 0
 	check_finished = false
 	check_result = false
 
@@ -63,7 +73,7 @@ func start(stall_ms: int = LONG_STALL_MS) -> bool:
 	GameUpdateCoreDev.set_downloader(downloader)
 	if not GameUpdateCore.init():
 		return false
-	GameUpdateCore._store_opener = _on_store_redirect
+	_replace_store_redirect()
 	restarts = _RESTART_COUNTER.new()
 	(Engine.get_main_loop() as SceneTree).root.add_child(restarts)
 	return EventCore.subscribe(RestartRequestedEvent, restarts.on_restart_requested)
@@ -85,7 +95,7 @@ func restart_module() -> bool:
 	GameUpdateCoreDev.set_downloader(downloader)
 	if not GameUpdateCore.init():
 		return false
-	GameUpdateCore._store_opener = _on_store_redirect
+	_replace_store_redirect()
 	return true
 
 
@@ -253,8 +263,30 @@ func _run_check(source: UpdateSource) -> void:
 	check_finished = true
 
 
-func _on_store_redirect(url: String) -> void:
+func _replace_store_redirect() -> void:
+	GameUpdateCore._url_opener = _open_url
+	GameUpdateCore._page_script_runner = _run_page_script
+
+
+func _open_url(url: String) -> int:
 	store_urls.append(url)
+	return ERR_CANT_OPEN if store_open_fails else OK
+
+
+## Runs the store redirect page script in the page with the stub `window`. Called only in the browser runtime.
+# ogw:input_boundary
+func _run_page_script(script: String) -> String:
+	page_redirects += 1
+	var code: String = _STUB_PAGE_SCRIPT % [script, "true" if store_open_fails else "false"]
+	var parsed: Variant = JSON.parse_string(str(JavaScriptBridge.eval(code, true)))
+	if not parsed is Dictionary:
+		return ""
+	var reply: Dictionary = parsed
+	var url: Variant = reply.get("url")
+	if url is String:
+		var text: String = url
+		store_urls.append(text)
+	return str(reply.get("reply"))
 
 
 ## Initializes the modules `GameUpdateCore` depends on, in module list order, and does the boot steps they need.

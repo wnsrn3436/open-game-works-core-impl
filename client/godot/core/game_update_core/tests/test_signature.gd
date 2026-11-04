@@ -39,6 +39,28 @@ func test_signature_file_over_its_max_bytes_is_invalid_file() -> void:
 	assert_true(await GameUpdateCore.check_update(make_source()), "a signature file of its max bytes passes")
 
 
+func test_response_other_than_200_over_max_bytes_is_download_failed() -> void:
+	var list: _BUILDER = make_list()
+	var bytes: PackedByteArray = list.to_bytes()
+	if not UnitTestCore.set_test_settings("GameUpdateCore.deployListMaxBytes", bytes.size()):
+		fail_test("setup failed")
+		return
+	if not await start():
+		fail_test("setup failed")
+		return
+	var error_page: PackedByteArray = PackedByteArray()
+	error_page.resize(bytes.size() + 1)
+	downloader.add_body(LIST_URL, error_page, 503)
+	start_check(make_source())
+	await expect_fetch_failure(ReservedString.game_update_download_failed())
+	assert_eq(downloader.count_calls(SIGNATURE_URL), 0, "the signature file is not downloaded")
+	downloader.clear(LIST_URL)
+	serve(list)
+	assert_true(await press(ReservedString.game_update_retry()))
+	assert_true(check_finished)
+	assert_true(check_result, "the retry downloads the deploy list")
+
+
 func test_signature_file_without_signature_is_invalid_file() -> void:
 	if not await start():
 		fail_test("setup failed")
