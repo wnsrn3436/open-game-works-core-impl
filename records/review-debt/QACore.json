@@ -1,5 +1,12 @@
 {
   "target": "QACore",
-  "nextId": 2,
-  "items": []
+  "nextId": 3,
+  "items": [
+    {
+      "id": "D2",
+      "location": "client/godot/core/qa_core/dev/qa_builtins.gd:292",
+      "problem": "`test evidence`. `## test` of the QACore spec requires that the `ok` of `drop_matchmaker` equals the result of the target operation, but no test runs `drop_matchmaker` with a `false` result. With `RealtimeCore` in the module list the only call is in `Playing`, where the result is `true` (client/godot/core/qa_core/tests/test_realtime.gd:40), and the other test call is without `RealtimeCore`, which stops before the target operation (client/godot/core/qa_core/tests/test_setup.gd:141). Run path: replacing `_result(command, RealtimeCoreDev.force_matchmaker_lost(), ...)` with a call that ignores the result and then `_ok(command)` fails no test, by reading of every `drop_matchmaker` use in client/godot/core/qa_core/tests/; this replacement was not run. Unrelated to the range: neither that line nor `force_matchmaker_lost` changed in it",
+      "foundBy": "QACore round 1"
+    }
+  ]
 }
