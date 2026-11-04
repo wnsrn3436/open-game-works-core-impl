@@ -185,7 +185,7 @@ func test_layout_prefab_elements() -> void:
 	var pad: VirtualPadLayout = VirtualPadCore._pad
 	assert_eq(pad.get_parent(), safe_root(), "under the safe area root of the VirtualPad layer")
 	assert_eq(pad.mouse_filter, Control.MOUSE_FILTER_IGNORE)
-	assert_eq(element(STICK).mouse_filter, Control.MOUSE_FILTER_STOP, "an active element stops pointers")
+	assert_eq(element(STICK).mouse_filter, Control.MOUSE_FILTER_PASS, "an active element takes pointers")
 	assert_eq(stick_base().mouse_filter, Control.MOUSE_FILTER_IGNORE, "the pictures do not take pointers")
 	assert_eq((element(FIRE).get_child(0) as Control).mouse_filter, Control.MOUSE_FILTER_IGNORE)
 	assert_almost_eq(area_of(element(FIRE)).end, safe_root().get_global_rect().end - Vector2(200.0, 200.0),

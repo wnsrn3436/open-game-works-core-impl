@@ -67,6 +67,55 @@ func test_pointer_in_an_area_is_consumed_and_outside_is_not() -> void:
 	assert_eq(recorder.taps, 1, "a pointer outside the areas reaches the world")
 
 
+func test_pointer_pressed_outside_moves_over_the_areas_unconsumed() -> void:
+	await open(LAYOUT_FIXED)
+	touch(0, true, OUTSIDE)
+	drag(0, OUTSIDE + Vector2(0.0, 100.0))
+	var drags: int = recorder.drags
+	assert_gt(drags, 0, "the move outside the areas starts a drag")
+	drag(0, center_of(FIRE))
+	assert_eq(recorder.drags, drags + 1, "a move over the button area is a drag move")
+	drag(0, stick_point(Vector2(RADIUS * 0.5, 0.0)))
+	assert_eq(recorder.drags, drags + 2, "a move over the joystick area is a drag move")
+	assert_false(InputCore.is_pressed(FIRE_ACTION), "the button does not take the pointer")
+	assert_true(no_direction(), "the joystick does not take the pointer")
+	touch(0, false, stick_point(Vector2(RADIUS * 0.5, 0.0)))
+	assert_eq(recorder.drags, drags + 3, "the release over an area ends the drag")
+	assert_false(InputCore.is_pressed(FIRE_ACTION))
+	assert_true(no_direction())
+
+
+func test_outside_pointer_after_an_input_cancel_is_unconsumed() -> void:
+	await open(LAYOUT_FIXED)
+	touch(0, true, center_of(FIRE))
+	InputCore.cancel_input()
+	touch(0, false, center_of(FIRE))
+	touch(0, true, OUTSIDE)
+	drag(0, OUTSIDE + Vector2(0.0, 100.0))
+	var drags: int = recorder.drags
+	drag(0, center_of(FIRE))
+	assert_eq(recorder.drags, drags + 1, "the pointer ID pressed in the area before the cancel is not consumed")
+	assert_false(InputCore.is_pressed(FIRE_ACTION))
+	touch(0, false, center_of(FIRE))
+
+
+func test_outside_pointer_after_a_popup_is_unconsumed() -> void:
+	await open(LAYOUT_FIXED)
+	touch(0, true, center_of(FIRE))
+	await open_popup()
+	touch(0, false, center_of(FIRE))
+	UICore.close_all_popups()
+	await run_frames()
+	assert_eq(VirtualPadCore.get_state(), VirtualPadCore.VirtualPadState.ACTIVE)
+	touch(0, true, OUTSIDE)
+	drag(0, OUTSIDE + Vector2(0.0, 100.0))
+	var drags: int = recorder.drags
+	drag(0, center_of(FIRE))
+	assert_eq(recorder.drags, drags + 1, "the pointer ID released while inactive is not consumed")
+	assert_false(InputCore.is_pressed(FIRE_ACTION))
+	touch(0, false, center_of(FIRE))
+
+
 func test_block_with_the_joystick_in_its_pass_list() -> void:
 	await open(LAYOUT_FIXED)
 	var token: int = _block_with_stick()
