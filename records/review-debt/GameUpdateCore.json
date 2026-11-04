@@ -1,18 +1,5 @@
 {
   "target": "GameUpdateCore",
   "nextId": 4,
-  "items": [
-    {
-      "id": "D1",
-      "location": "client/godot/core/game_update_core/game_update_core.gd:612",
-      "problem": "`_download_failure` checks `TOO_LARGE` before the HTTP status, so a non-200 response whose body is over max bytes is `[game_update_invalid_file]`, while `### fetch failure` of the spec sets `[game_update_download_failed]` for an HTTP status other than 200. The spec table also lists max bytes exceeded and does not set which row wins, so the fix is to check the status first or to set the order in the spec. Reproduced on Godot 4.7.2: `HTTPRequest` with `body_size_limit` 1024 against a loopback server answering 503 with a 4096-byte body ends with `RESULT_BODY_SIZE_LIMIT_EXCEEDED` and code 503, and `game_update_core_node.gd:86` turns that into `TOO_LARGE` with `http_status` 503. So a proxy or CDN error page over `GameUpdateCore.signatureMaxBytes` (1024) on the `.sig` URL tells the user the file is invalid. The web downloader does the same: its `Content-Length` check gives `L<status>` for any status (`web_update_downloader.gd:19`). No test sends `TOO_LARGE` with a status other than 200. This existed before the range and is unrelated to its changes",
-      "foundBy": "GameUpdateCore round 1"
-    },
-    {
-      "id": "D2",
-      "location": "client/godot/core/game_update_core/game_update_core.gd:429",
-      "problem": "The real store redirect has no test, which is a `spec` problem. Every test sets `_store_opener` (`tests/support/game_update_test_case.gd:66`, `:88`), so `_redirect_to_store` returns before `window.location.assign` (line 433) and `OS.shell_open` (line 435) in all core tests. Two behaviors of the spec therefore have no test: on `web` the current page moves to `store_url`, and when the URL cannot be opened an error log is left. A grep of `tests/` finds no reference to `location.assign`, `shell_open` or the log text. This existed before the range and is unrelated to its changes",
-      "foundBy": "GameUpdateCore round 1"
-    }
-  ]
+  "items": []
 }
