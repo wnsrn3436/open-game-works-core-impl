@@ -3,21 +3,9 @@
   "nextId": 4,
   "items": [
     {
-      "id": "D1",
-      "location": "client/godot/core/cutscene_core/cutscene_core.gd:1411",
-      "problem": "Auto advance measures its wait from the turn-on click as well (`_auto_from_ms`, set at `cutscene_core.gd:1681`), while `open-game-works-core/skills/client-core/modules/cutscene-core.md:122` measures it from the later of the whole text being shown and voice end, and only a line history close restarts it (`cutscene-core.md:165`). Run path: typing interval 0, a `Line` without voice, the auto advance button clicked 5000 ms after `Line` start, `CutsceneCore.autoAdvanceDelayMs` 1500. By the spec the wait has already passed and the `Line` ends on the next frame; the code computes `from` as 5000 and ends it at 6500 ms. `tests/test_line.gd:201` clicks right after `Line` start, so it cannot tell the two apart",
-      "foundBy": "CutsceneCore round 1"
-    },
-    {
       "id": "D2",
       "location": "client/godot/core/cutscene_core/cutscene_core.gd:1652",
       "problem": "`_is_advance_binding` reads `InputCore.maxKeysPerAction` and `InputCore.maxPadButtonsPerAction` (`cutscene_core.gd:32`, `cutscene_core.gd:33`, `cutscene_core.gd:1650`) with `CoreSettings.get_int` during an advance button click. Neither key is in `## settings` of `open-game-works-core/skills/client-core/modules/cutscene-core.md:197` or in `core-spec/CutsceneCore.json`, although `## settings` lists the keys a module reads (`open-game-works-core/skills/core/SKILL.md:47`) and a module reads them in `init` (`open-game-works-core/skills/client-core/engines/godot.md:115`). No wrong result was found: both keys are in `client/godot/generated/core_settings.json`, and `InputCore` is a dependency of `CutsceneCore`",
-      "foundBy": "CutsceneCore round 1"
-    },
-    {
-      "id": "D3",
-      "location": "client/godot/core/cutscene_core/cutscene_core.gd:293",
-      "problem": "Tween presets are kept in `_presets` from `await ResourceCore.load` in playback step 3 and read from that dictionary at command start (`cutscene_core.gd:1030`, `cutscene_core.gd:1045`, `cutscene_core.gd:1081`, `cutscene_core.gd:1169`). `open-game-works-core/skills/client-core/modules/cutscene-core.md:76` says the command gets the preloaded preset with `ResourceCore.get_loaded`(playback scope) at command start, and the module has no `get_loaded` call. No wrong result was found: the definition is not changed after step 3, because `Move` plays a copy",
       "foundBy": "CutsceneCore round 1"
     }
   ]
