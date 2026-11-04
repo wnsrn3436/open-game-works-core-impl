@@ -1,6 +1,6 @@
 {
   "target": "friend",
-  "nextId": 6,
+  "nextId": 7,
   "items": [
     {
       "id": "D1",
@@ -30,6 +30,12 @@
       "id": "D5",
       "location": "server/core/friend/index.ts:315",
       "problem": "processing order of the spec without a test: no test has two failure conditions at once, so swapping steps passes. Cases not run: a target that is both withdrawn and blocked (`USER_NOT_FOUND` before `BLOCKED`, lines 315-316), `FRIEND_LIMIT` with `FRIEND_REQUEST_LIMIT` and with `FRIEND_TARGET_LIMIT` in step 7 of `SendFriendRequest` (lines 331-334), and both users at `friend.maxFriends` in `AcceptFriendRequest` (lines 260-262). server/core/friend/tests/request.test.ts:163 and the limit tests after it reach one limit at a time",
+      "foundBy": "friend round 1"
+    },
+    {
+      "id": "D6",
+      "location": "server/core/friend/index.ts:282",
+      "problem": "On PostgreSQL, exceeding the lock wait on a `friend_count` row in a core rpc leaves no line of `kind` `error`, while `open-game-works-core/skills/server-core/modules/friend.md:163` says `routing` leaves an `error` log. The same return is at `server/core/friend/index.ts:312` (`SendFriendRequest`) and `:350` (`AcceptFriendRequest`); line 282 is `drop`, used by decline, cancel and remove. The handler returns `CORE_ERROR_INTERNAL` as a value, and `finish` in `server/core/routing/pipeline.ts` calls only `fail` for it, without `error_log`. Reproduced with a scratch test on PostgreSQL with `storage.userLockWaitMs` 300: holding the target's `friend_count` row with `hold_game_row_lock` and sending `SendFriendRequest` or `RemoveFriend` gave `INTERNAL` and exactly one log line, `kind` `request` at level `error`. `BlockUser` under the same hold throws at `server/core/friend/index.ts:301` and leaves a line of `kind` `error` with a stack trace plus the `request` line, and the two rows of the spec use the same words. So an operator sees that the request failed but not that a lock wait caused it. No friend test reads a log. The code is older than the range and the range does not touch it",
       "foundBy": "friend round 1"
     }
   ]
