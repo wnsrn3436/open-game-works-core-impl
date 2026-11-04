@@ -1,12 +1,18 @@
 {
   "target": "spec routing",
-  "nextId": 2,
+  "nextId": 3,
   "items": [
     {
       "id": "D1",
       "location": "skills/server-core/modules/routing.md:230",
       "problem": "`routing.bodyReadTimeoutMs` has no written range, so 0 is allowed (skills/core/SKILL.md:134), while body reads are measured with `network_time_limit`, which throws below 1 (skills/server-core/modules/server-time.md:39, skills/server-core/modules/server-time.md:89). With value 0, step 2 of the request processing order (routing.md:109) and the body step of `POST /account/deletion` (skills/server-core/modules/auth.md:298, read through auth.md:410) reach a throw, not the `INVALID_REQUEST` or 400 that those steps set",
       "foundBy": "spec auth"
+    },
+    {
+      "id": "D2",
+      "location": "skills/server-core/modules/routing.md:171",
+      "problem": "The spec says \"the n-th value from the right of `X-Forwarded-For`\" but does not set how that value is taken from the header. It does not say whether whitespace around `,` is trimmed (the usual form is `a, b`), or what the client IP is when the value is not a bare IP address (e.g. `unknown`, `203.0.113.5:4711`, `[2001:db8::1]`). Implementations can differ in the IP counter `target`, the `ip_in_cidrs` result of admin-api and cheat, and the truncated IP. This was there before the diff, which only adds the IPv4-mapped rule",
+      "foundBy": "spec routing"
     }
   ]
 }
