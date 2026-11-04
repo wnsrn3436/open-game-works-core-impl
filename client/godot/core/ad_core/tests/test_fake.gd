@@ -3,14 +3,17 @@ extends UnitTestCase
 
 const Env := preload("res://core/ad_core/tests/support/ad_test_env.gd")
 const Flow := preload("res://core/ad_core/tests/support/ad_flow.gd")
+const Fake := preload("res://core/ad_core/dev/adapters/fake_ads_adapter.gd")
 
 var env: Env = null
+var fake: Fake = null
 
 
 func before_each() -> void:
 	super()
 	env = Env.new()
-	env.ads_adapter = FakeAdsAdapter.new()
+	fake = Fake.new()
+	env.ads_adapter = fake
 
 
 func _basic() -> int:
@@ -89,3 +92,63 @@ func test_fake_present_results_and_failures() -> void:
 	assert_eq(UnitTestCore.check_logs("warn", "AdCore"), 1)
 	AdCoreDev.fake_set_next_present_result(AdCore.AdShowResult.REWARD_PENDING)
 	assert_eq(UnitTestCore.check_logs("error", "AdCore"), 1)
+
+
+func test_dev_values_are_on_the_fake_adapter_and_release_clears_them() -> void:
+	assert_true(await env.boot())
+	AdCoreDev.fake_set_next_present_result(AdCore.AdShowResult.ABORTED)
+	AdCoreDev.fake_set_fail("load", true)
+	AdCoreDev.fake_skip_callback()
+	AdCoreDev.fake_delay_callback()
+	AdCoreDev.fake_set_ad_consent(true, true, true)
+	assert_eq(fake.next_present, AdCore.AdShowResult.ABORTED)
+	assert_true(fake.fails["load"])
+	assert_true(fake.skip_callback)
+	assert_true(fake.delay_callback)
+	assert_true(fake.consent_required)
+	assert_true(fake.consent_personalized)
+	assert_true(fake.privacy_required)
+	AdCore.release()
+	assert_eq(fake.next_present, -1)
+	assert_eq(fake.fails.size(), 0)
+	assert_false(fake.skip_callback)
+	assert_false(fake.delay_callback)
+	assert_eq(fake.delayed_notify_id, "")
+	assert_false(fake.consent_required)
+	assert_false(fake.consent_personalized)
+	assert_false(fake.privacy_required)
+
+
+func test_dev_operations_change_nothing_on_another_ads_adapter() -> void:
+	env.ads_adapter = env.adapter
+	assert_true(await env.boot())
+	AdCoreDev.fake_set_next_present_result(AdCore.AdShowResult.ABORTED)
+	AdCoreDev.fake_set_fail("load", true)
+	AdCoreDev.fake_set_ad_consent(true, true, true)
+	assert_eq(fake.next_present, -1)
+	assert_eq(fake.fails.size(), 0)
+	assert_false(fake.consent_required)
+	assert_true(await AdCore.start())
+	AdCore.preload_ad(_basic())
+	assert_eq(AdCore.get_ready_state(_basic()), AdCore.AdReadyState.READY)
+
+
+func test_present_covers_the_screen_for_the_fake_present_ms_core_setting() -> void:
+	await _boot_ready()
+	assert_true(Env.settings({"AdCore.fakePresentMs": 200}))
+	Env.respond_begin("notify-cover")
+	Env.respond("core/cheat/FakeAdCallback", CoreCheatContract.FakeAdCallbackResponse.new())
+	Env.respond_claim(_basic(), 1, 0, _gem(), 10)
+	var root: Window = (Engine.get_main_loop() as SceneTree).root
+	var flow: Flow = Flow.new()
+	flow.show(_basic())
+	await Env.settle()
+	assert_not_null(root.get_node_or_null("FakeAd"))
+	UnitTestCore.advance_clock(150, false)
+	await Env.settle()
+	assert_false(flow.finished)
+	assert_not_null(root.get_node_or_null("FakeAd"))
+	UnitTestCore.advance_clock(50, false)
+	await flow.wait()
+	assert_eq(flow.result, AdCore.AdShowResult.COMPLETED)
+	assert_null(root.get_node_or_null("FakeAd"))
