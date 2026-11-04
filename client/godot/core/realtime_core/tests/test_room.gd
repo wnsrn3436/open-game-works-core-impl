@@ -309,7 +309,7 @@ func test_match_failed_discards_the_rest_of_the_poll_except_room_notifications()
 	await frames()
 	events.lines.clear()
 	push_match_failed(CoreContract.MatchFailReason.MATCH_FAIL_REASON_TIMEOUT, 0)
-	push_match_found(make_info(2, 1))
+	push_peer_connected(0)
 	push_room_failed(CoreContract.CoreError.CORE_ERROR_ROOM_NOT_HOST, RealtimeCore.RoomRequest.KICK)
 	push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID, THIRD_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN))
 	await frames()
@@ -318,7 +318,7 @@ func test_match_failed_discards_the_rest_of_the_poll_except_room_notifications()
 	assert_eq(RealtimeCore.room_info().members, PackedInt64Array([OTHER_ID, USER_ID, THIRD_ID]))
 	assert_eq(RealtimeCore.room_info().status, CoreContract.RoomStatus.ROOM_STATUS_OPEN)
 	assert_eq(events.lines, PackedStringArray(["room:UPDATED"]))
-	# One warn log for the match failed; a handled match found or room failed would add another.
+	# One warn log for the match failed; a handled room failed would add another.
 	assert_eq(warn_logs(), 1)
 
 
@@ -914,6 +914,7 @@ func test_matchmaker_lost_fails_a_waiting_create_room_and_a_waiting_start_room()
 	await op.wait()
 	assert_false(op.room_result.ok)
 	assert_eq(op.room_result.error_code, CoreContract.CoreError.CORE_ERROR_BANNED)
+	assert_eq(transport.count("leave_room"), 1)
 	assert_eq(warn_logs(), 1)
 	await reach_room(PackedInt64Array([USER_ID, OTHER_ID]))
 	events.lines.clear()
@@ -946,13 +947,59 @@ func test_room_stays_after_the_match_and_leave_room_leaves_it_once() -> void:
 	assert_eq(RealtimeCore.room_info().room_code, ROOM_CODE)
 	assert_eq(transport.count("leave_room"), 0)
 	events.lines.clear()
+	transport.clear_calls()
 	RealtimeCore.leave_room()
-	assert_eq(transport.count("leave_room"), 1)
+	assert_eq(transport.calls, PackedStringArray(["leave_room()", "close()"]))
 	assert_eq(events.lines, PackedStringArray(["room:LEFT"]))
 	assert_eq(RealtimeCore.room_info().room_code, "")
 	RealtimeCore.leave_room()
 	assert_eq(warn_logs(), 1)
 	assert_eq(transport.count("leave_room"), 1)
+
+
+func test_host_in_none_that_receives_match_found_closes_once_and_stays_in_none() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([USER_ID, OTHER_ID]))
+	transport.clear_calls()
+	push_match_found(make_info())
+	await frames()
+	assert_eq(transport.calls, PackedStringArray(["close()"]))
+	assert_eq(warn_logs(), 1)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	assert_eq(RealtimeCore.room_info().room_code, ROOM_CODE)
+
+
+## The `Open` that ends the `Matching` makes `None` without `close`, so the match found of the same `poll` is the only one
+## that tells the transport.
+func test_host_that_receives_match_found_after_the_notice_that_made_none_in_one_poll_closes() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([USER_ID, OTHER_ID]))
+	var op: RealtimeAsyncCall = RealtimeAsyncCall.new()
+	op.join_match(MODE_ID)
+	await frames()
+	push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames()
+	transport.clear_calls()
+	push_room_updated(make_room(PackedInt64Array([USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN))
+	push_match_found(make_info())
+	await frames()
+	await op.wait()
+	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.CANCELLED)
+	assert_eq(transport.count("close"), 1)
+	assert_eq(warn_logs(), 1)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+
+
+func test_member_takes_match_found_after_match_failed_in_one_poll() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([OTHER_ID, USER_ID]))
+	push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames()
+	push_match_failed(CoreContract.MatchFailReason.MATCH_FAIL_REASON_TIMEOUT, 0)
+	push_match_found(make_info(2, 1))
+	await frames()
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.CONNECTING)
+	assert_eq(warn_logs(), 1, "the match failed")
 
 
 func test_kick_room_member_needs_the_host() -> void:

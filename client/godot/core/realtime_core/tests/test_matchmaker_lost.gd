@@ -30,10 +30,32 @@ func test_match_found_in_playing_is_dropped_and_keeps_the_match_info() -> void:
 	await reach_playing()
 	var other: MatchInfo = make_info()
 	other.match_id = "match-other"
+	transport.clear_calls()
 	push_match_found(other)
 	await frames()
 	assert_eq(warn_logs(), 1)
 	assert_eq(RealtimeCore.match_info().match_id, MATCH_ID)
+	assert_eq(transport.count("close"), 0, "close would end the running match")
+
+
+func test_match_found_in_connecting_keeps_the_match_info_and_fails_at_the_connect_time_limit() -> void:
+	await start_realtime()
+	var op: RealtimeAsyncCall = await start_join()
+	push_match_found(make_info())
+	await frames()
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.CONNECTING)
+	transport.clear_calls()
+	var other: MatchInfo = make_info()
+	other.match_id = "match-other"
+	push_match_found(other)
+	await frames()
+	assert_eq(warn_logs(), 1)
+	assert_eq(RealtimeCore.match_info().match_id, MATCH_ID)
+	assert_eq(transport.count("close"), 0, "close would end the match in Connecting")
+	await advance(CONNECT_TIMEOUT_MS)
+	await op.wait()
+	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.FAILED)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
 
 
 func test_stop_codes_in_playing_do_not_rejoin() -> void:

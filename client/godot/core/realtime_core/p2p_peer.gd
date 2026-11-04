@@ -25,9 +25,8 @@ var is_offerer: bool = false
 ## Connection attempt number of this connection, carried by the signals it sends. The offering side sets it before
 ## `start`; the answering side takes it from the offer it applies, and it is 0 until then.
 var attempt: int = 0
-## Whether this connection replaced a connected connection with the same participant. The participant stays connected
-## while it connects, so its connect adds no peer connected.
-var replaces_connected: bool = false
+## Whether an engine call of this connection gave an error, which is a failed `connect_peer`.
+var failed: bool = false
 ## Count of received ICE candidates put into the connection. Read by the core tests.
 var added_candidates: int = 0
 var _relay_only: bool = false
@@ -66,8 +65,8 @@ func apply(received: _SIGNAL) -> void:
 			if _relay_only:
 				sdp = _SIGNAL.relay_sdp(sdp)
 			var type_text: String = "offer" if received.type == _SIGNAL.Type.OFFER else "answer"
-			if connection.set_remote_description(type_text, sdp) != OK:
-				status = Status.LOST
+			if _set_remote_description(type_text, sdp) != OK:
+				fail()
 				return
 			has_remote = true
 			for candidate: _SIGNAL in waiting_candidates:
@@ -107,6 +106,12 @@ func send(channel: RealtimeCore.RealtimeChannel, packet: PackedByteArray) -> boo
 	return target.put_packet(packet) == OK
 
 
+## Marks a failed `connect_peer`. The transport raises peer lost at its next read of the connection.
+func fail() -> void:
+	failed = true
+	status = Status.LOST
+
+
 ## Closes the connection. The other side sees it lost.
 func close() -> void:
 	if connection != null:
@@ -127,7 +132,7 @@ func _on_session_description_created(type: String, sdp: String) -> void:
 	if connection == null:
 		return
 	if connection.set_local_description(type, sdp) != OK:
-		status = Status.LOST
+		fail()
 		return
 	var signal_out: _SIGNAL = _SIGNAL.new()
 	signal_out.type = _SIGNAL.Type.OFFER if type == "offer" else _SIGNAL.Type.ANSWER
@@ -146,6 +151,12 @@ func _on_ice_candidate_created(media: String, media_index: int, candidate: Strin
 	signal_out.mid = media
 	signal_out.index = media_index
 	outgoing.append(signal_out)
+
+
+## Whether the connection takes the SDP. A core test overrides it: a real refusal is an engine error, and in the browser
+## the engine refuses after this call returned.
+func _set_remote_description(type_text: String, sdp: String) -> Error:
+	return connection.set_remote_description(type_text, sdp)
 
 
 func _add_candidate(candidate: _SIGNAL) -> void:
