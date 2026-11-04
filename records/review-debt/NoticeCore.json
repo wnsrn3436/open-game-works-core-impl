@@ -1,18 +1,5 @@
 {
   "target": "NoticeCore",
   "nextId": 4,
-  "items": [
-    {
-      "id": "D2",
-      "location": "client/godot/core/notice_core/notice_core.gd:601",
-      "problem": "\"Back input does not close it\" (`open-game-works-core/skills/client-core/modules/notice-core.md:79`) has no `NoticeCore` test. No test under `client/godot/core/notice_core/tests/` sends back input or reads `back_button`. Changing this line to `param.back_button = 0` is not exercised by any assert of `test_maintenance.gd`, so back input could close the maintenance popup without a test failing. `client/godot/core/ui_core/tests/test_system_popup.gd:30` tests only the `UICore` side, with a popup it makes itself. This existed before the range.",
-      "foundBy": "NoticeCore round 1"
-    },
-    {
-      "id": "D3",
-      "location": "client/godot/core/notice_core/notice_core_node.gd:57",
-      "problem": "`cancel()` of the default image downloaders has no test, although the spec type table says that `cancel()` ends a `download` in progress with `Cancelled` and `release` and the time limit depend on it. The `cancel` asserts in `client/godot/core/notice_core/tests/test_image.gd:121` and `client/godot/core/notice_core/tests/test_lifecycle.gd:86` uses the hanging test downloader, whose `cancel` only counts. `http_cancel` here and `cancel` at `client/godot/core/notice_core/web_image_downloader.gd:67` are not run by a test while a download is in progress. This existed before the range.",
-      "foundBy": "NoticeCore round 1"
-    }
-  ]
+  "items": []
 }
