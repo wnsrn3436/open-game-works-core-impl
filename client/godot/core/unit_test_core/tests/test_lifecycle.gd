@@ -4,6 +4,10 @@ extends "res://core/unit_test_core/tests/support/unit_test_core_test_case.gd"
 
 const Probe := preload("res://core/unit_test_core/tests/support/replacement_probe.gd")
 
+## `UnitTestCore` error logs `init` gave while the run of this test was put aside: the log collector of the run takes
+## no log then, so this test listens to `LogCore` itself.
+var _init_errors: PackedStringArray = PackedStringArray()
+
 
 func test_init_release_and_init_again() -> void:
 	assert_true(LogCore.init(), "LogCore.init")
@@ -24,6 +28,44 @@ func test_init_release_and_init_again() -> void:
 		assert_initial_state()
 		assert_true(is_instance_valid(node) and not node.is_inside_tree(), "core node out of the tree")
 	resume(saved)
+
+
+func _on_log(level: LogCore.Level, tag: String, message: String) -> void:
+	if level == LogCore.Level.ERROR and tag == "UnitTestCore":
+		_init_errors.append(message)
+
+
+## `init` with the start time limit setting of `state`: `missing`, `text` or `zero`. Returns whether it succeeded.
+# ogw:input_boundary
+func _init_with_start_time_limit(state: String) -> bool:
+	var key: String = "UnitTestCore.startTimeLimitMs"
+	CoreSettings._read_file()
+	var file_text: String = CoreSettings._file_values[key]
+	if state == "missing":
+		CoreSettings._file_values.erase(key)
+	elif state == "text":
+		assert_true(UnitTestCore.set_invalid_test_settings(key, "slow"), "a string value")
+	else:
+		assert_true(UnitTestCore.set_test_settings(key, 0), "the value 0")
+	LogCoreDev.set_log_listener(_on_log)
+	var saved: Saved = suspend()
+	var initialized: bool = UnitTestCore.init()
+	resume(saved)
+	# The log collector the test setup gave `LogCore`.
+	LogCoreDev.set_log_listener(UnitTestCore._collect)
+	CoreSettings._file_values[key] = file_text
+	CoreSettings._clear_test_values()
+	return initialized
+
+
+func test_init_fails_with_an_error_log_without_a_start_time_limit_of_1_or_more() -> void:
+	assert_true(LogCore.init(), "LogCore.init")
+	for state: String in ["missing", "text", "zero"]:
+		_init_errors.clear()
+		assert_false(_init_with_start_time_limit(state), "init with a start time limit that is " + state)
+		assert_eq(_init_errors, PackedStringArray([
+			"init: core setting UnitTestCore.startTimeLimitMs must be an integer of 1 or more",
+		]), "one error log for " + state)
 
 
 func test_operations_after_release_give_failure_values() -> void:

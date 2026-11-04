@@ -315,9 +315,12 @@ func test_render_test_file_is_skipped_only_in_the_headless_pass_of_core_tests() 
 func test_require_platform_skips_a_core_test_and_fails_a_regression_test() -> void:
 	var core: RunState = await run_nested(PackedStringArray(["sample_platform.gd"]))
 	assert_eq(status_of(core, "test_requires_another_platform"), "skip")
+	assert_eq(status_of(core, "test_requires_another_platform_then_fails"), "skip", "a failure after the skip")
+	assert_eq(core.run_failures, PackedStringArray(), "no run failure for the error log after the skip")
 	assert_eq(status_of(core, "test_requires_this_platform"), "pass")
 	var regression: RunState = await run_nested(PackedStringArray(["sample_platform.gd"]), KIND_REGRESSION)
 	assert_eq(status_of(regression, "test_requires_another_platform"), "fail")
+	assert_eq(status_of(regression, "test_requires_another_platform_then_fails"), "fail")
 	assert_eq(status_of(regression, "test_requires_this_platform"), "fail")
 	assert_string_contains(result_of(regression, "test_requires_this_platform").message, "require_platform called in a regression test")
 
