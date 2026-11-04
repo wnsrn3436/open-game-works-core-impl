@@ -19,12 +19,6 @@
       "location": "server/core/admin-api/index.ts:414",
       "problem": "`spec`. A 500 `internal` caused by a failed storage operation leaves only the `audit` line, with no `error` line. Run paths: `lock_game_row` returns `FAILED` when the lock wait passes `storage.userLockWaitMs` or a deadlock occurs, and the work returns `ROLLBACK` with the initial `fail('internal')` in `box.reply`; `run_transaction` then returns that reply as `REJECTED`, and the `error` line at line 433 is written only for `FAILED`. Also `get_user` and `export_personal_data` answer `fail('internal')` at server/core/admin-api/operations.ts:132 and :150 when `run_user_transaction` is `FAILED`, without a log line. `storage` does not log these failures (`run_user` and `lock_row` of server/core/storage/tx.ts only return `FAILED`). Both 500 rows of `## error` in skills/server-core/modules/admin-api.md have the `error` log, and neither row names this condition. It was checked by reading the code, not by running it. It existed before the range.",
       "foundBy": "admin-api round 1"
-    },
-    {
-      "id": "D4",
-      "location": "settings/core-settings.schema.json:87",
-      "problem": "`spec`. `admin-api.switchCacheMs` has `minimum` 0, and `schedule_job` makes a period below 1 a server start failure (server/core/server-time/scheduler.ts:164, called from server/core/admin-api/index.ts:487). So game settings `core` with value 0 passes the schema and the server does not start. The range gave `routing.storageSweepIntervalMs` the minimum 1 and did not change this key. The cause is the settings row at skills/server-core/modules/admin-api.md:286, and it is already D1 of records/review-debt/spec-admin-api.json. That list is not an input list of this review, so it is written here. It existed before the range.",
-      "foundBy": "admin-api round 1"
     }
   ]
 }
