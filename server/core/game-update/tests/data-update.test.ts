@@ -1,4 +1,5 @@
-import { admin, client_data_version, new_file, other_protocol, peer, publish_body, set_time, start, START_AT, upload, type TestServer } from './helpers.ts';
+import { DEPLOY_LIST_TABLE } from '../store.ts';
+import { admin, client_data_version, new_file, other_protocol, peer, publish_body, read_logs, set_time, start, START_AT, upload, wait_background, type TestServer } from './helpers.ts';
 
 const MAX_AGE_MS = 60_000n;
 const REFRESH_MS = 30_000n;
@@ -47,5 +48,21 @@ describe('is_data_update_ready', () => {
     expect(compat_server.game_update.is_data_update_ready('1.0.0')).toBe(true);
     // The same deploy list on a server instance whose server build data has no compat_client_data_version.
     expect(peer(compat_server, null).game_update.is_data_update_ready('1.0.0')).toBe(false);
+  });
+
+  it('is false with an error log when the deploy list read throws', async () => {
+    // A row the deploy list read cannot read: its deploy_list is not JSON.
+    await server.storage.run_game_transaction((tx) =>
+      server.storage.db(tx).query(`INSERT INTO ${DEPLOY_LIST_TABLE} (sequence, deploy_list, signature, published_at) VALUES ($1, $2, $3, $4)`, [START_AT, new Uint8Array(Buffer.from('not json')), '{}', START_AT]),
+    );
+    // A server instance whose cache was never read: its start's job game_update_cache fails on that row.
+    const other = peer(server);
+    await wait_background(other);
+    set_time(other, READY_AT);
+    const before = read_logs(other, 'error').length;
+    expect(other.game_update.is_data_update_ready('1.0.0')).toBe(false);
+    const errors = read_logs(other, 'error').slice(before);
+    expect(errors).toHaveLength(1);
+    expect(String(errors[0]?.message)).toContain('is_data_update_ready');
   });
 });

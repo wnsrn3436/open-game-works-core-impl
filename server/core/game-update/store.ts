@@ -27,6 +27,20 @@ export const TABLES: readonly TableDefinition[] = [
 
 type Value = ReturnType<DbHandle['query']>[number][string];
 
+/** The most `sha256` parameters of one statement: under the parameter limit of SQLite and PostgreSQL. */
+export const SHA256_CHUNK = 500;
+
+/** The distinct `sha256`s in chunks of `SHA256_CHUNK`, each with its parameter list `$1, $2, ...`. */
+function sha256_chunks(sha256s: Iterable<string>): { readonly chunk: string[]; readonly params: string }[] {
+  const distinct = [...new Set(sha256s)];
+  const out: { chunk: string[]; params: string }[] = [];
+  for (let i = 0; i < distinct.length; i += SHA256_CHUNK) {
+    const chunk = distinct.slice(i, i + SHA256_CHUNK);
+    out.push({ chunk, params: chunk.map((_, j) => `$${String(j + 1)}`).join(', ') });
+  }
+  return out;
+}
+
 /** A stored deploy list: the signed bytes and the signature JSON. */
 export interface StoredDeployList {
   readonly sequence: bigint;
@@ -59,9 +73,8 @@ export function insert_file(db: DbHandle, sha256: string, content: Uint8Array, n
 /** The stored size of each given `sha256` that is stored. */
 export function file_sizes(db: DbHandle, sha256s: readonly string[]): Map<string, bigint> {
   const out = new Map<string, bigint>();
-  for (const sha256 of new Set(sha256s)) {
-    const row = db.query(`SELECT size FROM ${FILE_TABLE} WHERE sha256 = $1`, [sha256])[0];
-    if (row !== undefined) out.set(sha256, as_bigint(row.size));
+  for (const { chunk, params } of sha256_chunks(sha256s)) {
+    for (const row of db.query(`SELECT sha256, size FROM ${FILE_TABLE} WHERE sha256 IN (${params})`, chunk)) out.set(String(row.sha256), as_bigint(row.size));
   }
   return out;
 }
@@ -77,8 +90,11 @@ export function file_sha256s(db: DbHandle): string[] {
   return db.query(`SELECT sha256 FROM ${FILE_TABLE} ORDER BY sha256`, []).map((row) => String(row.sha256));
 }
 
-export function delete_file(db: DbHandle, sha256: string): void {
-  db.query(`DELETE FROM ${FILE_TABLE} WHERE sha256 = $1`, [sha256]);
+/** Deletes the stored files of the given `sha256`s and gives the number deleted. */
+export function delete_files(db: DbHandle, sha256s: readonly string[]): number {
+  let deleted = 0;
+  for (const { chunk, params } of sha256_chunks(sha256s)) deleted += db.query(`DELETE FROM ${FILE_TABLE} WHERE sha256 IN (${params}) RETURNING sha256`, chunk).length;
+  return deleted;
 }
 
 /** The current deploy list: the row of the largest `sequence`, or null. */
@@ -111,8 +127,8 @@ export function keep_newest_deploy_lists(db: DbHandle, keep: number): void {
 /** The given `sha256`s that have an upload record. */
 export function uploaded_sha256s(db: DbHandle, sha256s: readonly string[]): Set<string> {
   const out = new Set<string>();
-  for (const sha256 of new Set(sha256s)) {
-    if (db.query(`SELECT sha256 FROM ${CDN_UPLOAD_TABLE} WHERE sha256 = $1`, [sha256]).length > 0) out.add(sha256);
+  for (const { chunk, params } of sha256_chunks(sha256s)) {
+    for (const row of db.query(`SELECT sha256 FROM ${CDN_UPLOAD_TABLE} WHERE sha256 IN (${params})`, chunk)) out.add(String(row.sha256));
   }
   return out;
 }

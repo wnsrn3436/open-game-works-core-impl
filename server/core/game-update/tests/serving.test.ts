@@ -51,15 +51,18 @@ describe('serving without a cdn adapter', () => {
   });
 });
 
-describe('Cache-Control', () => {
-  it('is max-age of the settings ms divided by 1000, immutable for files', async () => {
+describe('Cache-Control and Content-Type', () => {
+  it('is max-age of the settings ms divided by 1000, immutable for files, and application/json for the deploy list and signature', async () => {
     const server = await start({ settings: { 'game-update.deployListMaxAgeMs': 45_999, 'game-update.fileMaxAgeMs': 86_400_500 } });
     try {
       const files = [new_file('item.bin')];
       await upload(server, files);
       await admin(server, 'publish_deploy_list', publish_body(data_version, files));
-      expect(get(server, '/update/deploy_list.json').headers['cache-control']).toBe('public, max-age=45');
-      expect(get(server, '/update/deploy_list.json.sig').headers['cache-control']).toBe('public, max-age=45');
+      for (const path of ['/update/deploy_list.json', '/update/deploy_list.json.sig']) {
+        const answer = get(server, path);
+        expect(answer.headers['cache-control']).toBe('public, max-age=45');
+        expect(answer.headers['content-type']).toBe('application/json');
+      }
       expect(get(server, `/update/files/${files[0]?.sha256 ?? ''}`).headers['cache-control']).toBe('public, max-age=86400, immutable');
     } finally {
       stop(server);

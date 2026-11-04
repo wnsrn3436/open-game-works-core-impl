@@ -30,6 +30,11 @@ export interface StartOptions {
   readonly compat?: string | null;
   /** The `--secret-file` values. Default: a new `updateSigningKey`. */
   readonly secrets?: Readonly<Record<string, string>>;
+  /**
+   * A server start without `--db` (`db` null, PostgreSQL only): `secrets` is then the host secret store, whose names
+   * game settings `environments.<ENV>.secrets` give. Default: false.
+   */
+  readonly host_secrets?: boolean;
   /** The outgoing HTTP adapter `fetch` of the module input `server`. Default: every request fails. */
   readonly fetch?: OutgoingHttp;
 }
@@ -91,6 +96,11 @@ export function public_key_of(seed_base64: string): string {
   return spki.subarray(SPKI_PREFIX.length).toString('base64');
 }
 
+/** `--db` of the module input `server`: none on a server start with host secrets. */
+function db_argument(options: StartOptions, db: string | null): string | null {
+  return options.host_secrets === true ? null : db;
+}
+
 /** Starts a server instance on `shared`. Returns the server start failure instead on failure. */
 function launch(shared: Shared): TestServer | StartFailure {
   const { options, db, clock, secrets } = shared;
@@ -107,6 +117,8 @@ function launch(shared: Shared): TestServer | StartFailure {
     'environments.<ENV>.secrets.updateSigningKey': '',
     'environments.<ENV>.secrets.cdn': '',
     'environments.<ENV>.cdnR2': {},
+    // Read only without `--db`: the host secret `db` is the database's connection.
+    'environments.<ENV>.secrets.db': 'db',
     ...options.settings,
   };
   const lines: string[] = [];
@@ -119,7 +131,7 @@ function launch(shared: Shared): TestServer | StartFailure {
     fake_adapters: dev ? { cdn: shared.fake.adapter } : {},
     ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
   });
-  const input_server = { ...base_server, compat_client_data_version: options.compat ?? null };
+  const input_server = { ...base_server, db: db_argument(options, base_server.db), compat_client_data_version: options.compat ?? null };
   const storage = create_storage({ settings, modules: { 'server-time': time }, server: input_server });
   const storage_dev = create_storage_dev(storage);
   const logging = create_logging({ settings, modules: { storage, 'server-time': time }, server: input_server });
