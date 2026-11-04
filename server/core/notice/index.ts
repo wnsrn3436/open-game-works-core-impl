@@ -60,13 +60,17 @@ const KIND_VALUES: Readonly<Record<KindElement, CoreContract.NoticeKind>> = {
 const COLUMNS =
   'notice_id, kind, priority, start_at, end_at, platforms, languages, min_client_version, max_client_version, texts, image_url, shortcut_id, link_url, updated_at';
 const SELECT_LIVE = `SELECT ${COLUMNS} FROM ${NOTICE_TABLE} WHERE end_at > $1 ORDER BY notice_id`;
-const SELECT_LIVE_ONE = `SELECT notice_id FROM ${NOTICE_TABLE} WHERE notice_id = $1 AND end_at > $2`;
 const COUNT_LIVE = `SELECT COUNT(*) AS live FROM ${NOTICE_TABLE} WHERE end_at > $1`;
 const INSERT_NOTICE = `INSERT INTO ${NOTICE_TABLE} (${COLUMNS}) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`;
-const UPDATE_NOTICE =
+/**
+ * Replace and delete check that the row is live in the same statement and return the changed row, because
+ * `sweep_expired` takes no `lock_game_row` lock and can delete the row between a separate check and the write.
+ */
+const UPDATE_LIVE_NOTICE =
   `UPDATE ${NOTICE_TABLE} SET kind = $2, priority = $3, start_at = $4, end_at = $5, platforms = $6, languages = $7, ` +
-  'min_client_version = $8, max_client_version = $9, texts = $10, image_url = $11, shortcut_id = $12, link_url = $13, updated_at = $14 WHERE notice_id = $1';
-const DELETE_NOTICE = `DELETE FROM ${NOTICE_TABLE} WHERE notice_id = $1`;
+  'min_client_version = $8, max_client_version = $9, texts = $10, image_url = $11, shortcut_id = $12, link_url = $13, updated_at = $14 ' +
+  'WHERE notice_id = $1 AND end_at > $15 RETURNING notice_id';
+const DELETE_LIVE_NOTICE = `DELETE FROM ${NOTICE_TABLE} WHERE notice_id = $1 AND end_at > $2 RETURNING notice_id`;
 const SELECT_SEQUENCE = `SELECT last_notice_id FROM ${SEQUENCE_TABLE} WHERE id = $1`;
 const INSERT_SEQUENCE = `INSERT INTO ${SEQUENCE_TABLE} (id, last_notice_id) VALUES ($1, $2)`;
 const UPDATE_SEQUENCE = `UPDATE ${SEQUENCE_TABLE} SET last_notice_id = $2 WHERE id = $1`;
@@ -392,18 +396,18 @@ export function create_notice(input: NoticeInput): NoticeModule {
       const requested_id = value['notice_id'] as bigint;
       const db = storage.db(tx);
       const now = server_time.clock_now();
-      let notice_id: bigint;
+      let record: NoticeRecord;
       if (requested_id === 0n) {
         const next = next_notice_id(tx, db, now);
         if (typeof next === 'string') return next;
-        notice_id = next;
+        record = { ...checked, notice_id: next, updated_at: now };
+        db.query(INSERT_NOTICE, params_of(record));
       } else {
         if (storage.lock_game_row(tx, NOTICE_TABLE, [requested_id]) === 'FAILED') return 'internal';
-        if (db.query(SELECT_LIVE_ONE, [requested_id, now]).length === 0) return 'not_found';
-        notice_id = requested_id;
+        record = { ...checked, notice_id: requested_id, updated_at: now };
+        if (db.query(UPDATE_LIVE_NOTICE, [...params_of(record), now]).length === 0) return 'not_found';
       }
-      const record: NoticeRecord = { ...checked, notice_id, updated_at: now };
-      db.query(requested_id === 0n ? INSERT_NOTICE : UPDATE_NOTICE, params_of(record));
+      const notice_id = record.notice_id;
       storage.after_commit(tx, () => {
         const next = new Map(cache);
         next.set(notice_id, cached(validation, record));
@@ -426,8 +430,7 @@ export function create_notice(input: NoticeInput): NoticeModule {
       const notice_id = value['notice_id'] as bigint;
       const db = storage.db(tx);
       if (storage.lock_game_row(tx, NOTICE_TABLE, [notice_id]) === 'FAILED') return 'internal';
-      if (db.query(SELECT_LIVE_ONE, [notice_id, server_time.clock_now()]).length === 0) return 'not_found';
-      db.query(DELETE_NOTICE, [notice_id]);
+      if (db.query(DELETE_LIVE_NOTICE, [notice_id, server_time.clock_now()]).length === 0) return 'not_found';
       storage.after_commit(tx, () => {
         const next = new Map(cache);
         next.delete(notice_id);
