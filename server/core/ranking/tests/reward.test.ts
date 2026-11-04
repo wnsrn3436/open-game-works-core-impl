@@ -3,6 +3,7 @@ import type { DbHandle } from '../../storage/index.ts';
 import type { SeasonReward, SeasonRewardHook } from '../index.ts';
 import * as store from '../store.ts';
 import {
+  as_user,
   at,
   attachments,
   BOARD,
@@ -382,6 +383,43 @@ describe('job ranking_season after stop', () => {
     expect(await mail_counts(sessions)).toEqual([1, 1, 1]);
     const row = season_row(h, BOARD.daily(), season);
     expect([row?.status, row?.cursor_rank, row?.failed_count]).toEqual(['Closed', 3, 0n]);
+  });
+
+  it.each(['a retry row not due yet', 'no retry row left'])('a ranking stop() that begins under the lease transaction of a Retrying season with %s ends the retry without Closed or Retrying; the next holder closes it', async (left) => {
+    const mode = { now: 'fail' as 'fail' | 'send' };
+    // The first retry is due 10 minutes after the first pass, after the next job run.
+    const { sessions, season } = await ranked(1, () => {
+      if (mode.now === 'fail') throw new Error('reward store is down');
+      return { attachments: [gold(1n)], extra_id: 0 };
+    }, { settings: { 'ranking.rewardRetryInitialMs': 600_000 } });
+    const user_id = sessions[0].user_id;
+    await move_to(h, NEXT_DAY);
+    expect(retry_rows(h, BOARD.daily(), season).map((r) => [r.user_id, r.next_attempt_at])).toEqual([[user_id, NEXT_DAY + 600_000n]]);
+    expect(season_row(h, BOARD.daily(), season)?.status).toBe('Retrying');
+    if (left === 'no retry row left') await as_user(h, user_id, (ctx, ranking) => ranking.remove_user(ctx));
+    // Ranking stop() begins inside the transaction of `take_lease`, which then commits as storage is still open.
+    const storage = h.core().storage;
+    const db = storage.db.bind(storage);
+    storage.db = (ctx_or_tx) => {
+      const handle = db(ctx_or_tx);
+      const wrapped = Object.create(handle) as DbHandle;
+      wrapped.query = (statement, params) => {
+        if (statement.startsWith(`UPDATE ${store.SEASON_TABLE} SET lease_owner`)) stop_ranking(h);
+        return handle.query(statement, params);
+      };
+      return wrapped;
+    };
+    await move_to(h, NEXT_DAY + 60_000n);
+    const kept = season_row(h, BOARD.daily(), season);
+    expect([kept?.status, kept?.lease_until_at, kept?.failed_count]).toEqual(['Retrying', NEXT_DAY + 60_000n + LEASE_MS, 0n]);
+    expect(await mail_counts(sessions)).toEqual([0]);
+    mode.now = 'send';
+    await testing.restart_test_server(h.server);
+    await move_to(h, NEXT_DAY + 600_000n);
+    expect(await mail_counts(sessions)).toEqual([left === 'no retry row left' ? 0 : 1]);
+    expect(retry_rows(h, BOARD.daily(), season)).toEqual([]);
+    const row = season_row(h, BOARD.daily(), season);
+    expect([row?.status, row?.failed_count]).toEqual(['Closed', 0n]);
   });
 
   it.each([1, 3])('a reward retry FAILED after ranking stop() began writes nothing to its retry row (rewardRetryMaxAttempts %i); the next holder retries it', async (max_attempts) => {
