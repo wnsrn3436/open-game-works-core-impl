@@ -82,6 +82,32 @@ describe('duplicate', () => {
     }
   });
 
+  it('with nicknameUnique true a nickname_claim lock held past storage.userLockWaitMs is INTERNAL and changes neither the nickname nor the balance (PostgreSQL)', async () => {
+    const folder = cost_data_folder(0, 10n);
+    const h = await start(true, { 'storage.userLockWaitMs': 300 }, folder, 'postgresql');
+    try {
+      const [a] = await users(h.server, ['a']);
+      await set_gems(h.server, a.user_id, 10n);
+      const rows = (): unknown[] => h.core().storage.read_db().query('SELECT user_id FROM nickname_name WHERE user_id = $1', [a.user_id]);
+      const claim = await hold_lock_key(h.server, lock_key('nickname_claim', [normalizeText('Held')]));
+      try {
+        const result = await set_nickname(a, 'Held');
+        expect(result.code).toBe(CoreError.CORE_ERROR_INTERNAL);
+        expect(result.envelope.item_changes).toEqual([]);
+      } finally {
+        await claim.release();
+      }
+      expect(await nickname_state(h.server, a.user_id)).toBeNull();
+      expect(rows()).toEqual([]);
+      expect(await gems(h.server, a.user_id)).toBe(10n);
+      expect((await set_nickname(a, 'Held')).code).toBe(0);
+      expect(await gems(h.server, a.user_id)).toBe(0n);
+    } finally {
+      await stop_test_server(h.server);
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
   it('with nicknameUnique false, two registrations of one normalized nickname on two server instances that both passed rule 3 before either registered both succeed (PostgreSQL)', async () => {
     const folder = cost_data_folder(0, 10n);
     const h = await start(false, {}, folder, 'postgresql');
