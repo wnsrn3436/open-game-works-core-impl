@@ -1,6 +1,6 @@
 {
   "target": "PaymentCore",
-  "nextId": 11,
+  "nextId": 12,
   "items": [
     {
       "id": "D1",
@@ -61,6 +61,12 @@
       "location": "client/godot/core/payment_core/dev/payment_core_dev.gd:67",
       "problem": "`spec`: `PaymentCoreDev` has the same difference from `open-game-works-core/skills/client-core/engines/godot.md:432`: it casts to `class_name` `FakeStoreAdapter` and reads and writes its members (e.g. `fake.next_buy_result` at line 12). Seen while checking the rule for NativeUiCore. The other files of PaymentCore were not checked for it",
       "foundBy": "NativeUiCore round 1"
+    },
+    {
+      "id": "D11",
+      "location": "client/godot/core/payment_core/payment_core.gd:529",
+      "problem": "A `recover_purchases` called in a new login session joins a run still going from the previous session and gets that run's discarded result, so the new session's recovery (`BootstrapCore` at `AfterLogin`) handles no transaction. `open-game-works-core/skills/client-core/modules/payment-core.md:144` makes the call share the run in progress, and `:160` ends that run with the failure value, so a store transaction stays undelivered until the next recovery time (a foreground return or a delivery retry). This is a different operation from D9 of the debt list, which covers the same join for `restore_purchases`. Reproduced with a test in a temporary copy, store `APPLE`: `fake_add_unfinished` of `[iap_gems]`, `add_pending(core/RecoverPurchase)`, `recover_purchases`, `log_in` of another user, `recover_purchases` again, then the held response released with `GRANTED`. Both calls returned `false`, `list_unfinished` stayed at 1 call, `RecoverPurchase` at 1 request and `finish` at 0 calls. `test_verification_response_of_an_earlier_login_session_changes_nothing` in `tests/test_recovery.gd` shows that a later `recover_purchases` handles the transaction. This existed before the range. The fix may need a decision on the spec, because the two lines together define this result",
+      "foundBy": "PaymentCore round 1"
     }
   ]
 }
