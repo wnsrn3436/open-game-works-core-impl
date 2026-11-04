@@ -18,6 +18,7 @@ func test_release_removes_the_filter_and_the_subtitle_box_and_puts_every_static_
 	await load_voice(VOICE_LOOP)
 	assert_true(AccessibilityCore.set_color_mode(DEUTERANOPIA))
 	AccessibilityCore.play_voice(VOICE_LOOP, scope, subtitle_key())
+	AccessibilityCoreDev.set_test_text_scale(1500)
 	var filter: ColorRect = AccessibilityCore._filter
 	var box: ColorRect = AccessibilityCore._subtitle_box
 	var node: Node = AccessibilityCore._node
@@ -47,6 +48,8 @@ func test_release_removes_the_filter_and_the_subtitle_box_and_puts_every_static_
 	assert_null(AccessibilityCore._subtitle_box)
 	assert_null(AccessibilityCore._subtitle_label)
 	assert_eq(AccessibilityCore._subtitle_handle, SoundCore.INVALID_HANDLE)
+	assert_false(AccessibilityCore._test_text_scale_applied)
+	assert_eq(AccessibilityCore._test_rendering_method, "")
 	assert_true(AccessibilityCore.init())
 	assert_false(AccessibilityCore._filter.visible, "a new filter is hidden until the saved values are applied")
 	AccessibilityCore.apply_saved_settings()

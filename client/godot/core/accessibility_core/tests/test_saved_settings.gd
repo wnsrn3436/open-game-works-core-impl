@@ -42,12 +42,16 @@ func test_set_values_come_back_after_release_init_and_apply_saved_settings() -> 
 	assert_true(LocalDataCore.get_value_bool(DEVICE, KEY_REDUCE_SHAKE, false))
 	assert_true(LocalDataCore.get_value_bool(DEVICE, KEY_REDUCE_FLASH, false))
 	AccessibilityCore.release()
+	# The text scale stays on LocalizationCore after the release of AccessibilityCore; set it back to the value of a
+	# fresh LocalizationCore so that only apply_saved_settings can make it 1500.
+	LocalizationCore.set_text_scale(1000)
 	assert_true(AccessibilityCore.init())
 	assert_settings(AccessibilityCore.get_settings(), 1000, NONE, true, false, false, "before apply_saved_settings")
 	assert_false(AccessibilityCore._filter.visible, "nothing applied before apply_saved_settings")
+	assert_eq(LocalizationCore.get_text_scale(), 1000, "text scale not applied before apply_saved_settings")
 	AccessibilityCore.apply_saved_settings()
 	assert_settings(AccessibilityCore.get_settings(), 1500, DEUTERANOPIA, false, true, true, "after apply")
-	assert_eq(LocalizationCore.get_text_scale(), 1500)
+	assert_eq(LocalizationCore.get_text_scale(), 1500, "apply_saved_settings applies the saved text scale")
 	assert_true(AccessibilityCore._filter.visible)
 
 
@@ -84,3 +88,14 @@ func test_saved_values_of_another_type_are_the_default_without_an_accessibility_
 	assert_settings(AccessibilityCore.get_settings(), 1000, NONE, true, false, false)
 	assert_eq(errors(), 0)
 	assert_eq(warns(), 0)
+
+
+func test_saved_text_scale_reaches_localization_core_at_apply_saved_settings() -> void:
+	assert_true(await start_modules(false))
+	LocalDataCore.set_value_int(DEVICE, KEY_TEXT_SCALE, 1250)
+	assert_true(AccessibilityCore.init())
+	assert_eq(LocalizationCore.get_text_scale(), 1000, "nothing applied before apply_saved_settings")
+	AccessibilityCore.apply_saved_settings()
+	assert_eq(AccessibilityCore.get_settings().text_scale_permille, 1250)
+	assert_eq(LocalizationCore.get_text_scale(), 1250)
+	assert_eq(errors(), 0)
