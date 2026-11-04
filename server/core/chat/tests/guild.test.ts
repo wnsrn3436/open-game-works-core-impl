@@ -12,7 +12,10 @@ import {
   got,
   post_system,
   join_guild,
+  field,
   K,
+  later,
+  logs,
   other_tx,
   rows,
   send_chat,
@@ -106,6 +109,45 @@ describe('Guild channel', () => {
 
     const latest = await got(reader, K.CHAT_CHANNEL_KIND_GUILD, 0n);
     expect([latest.deleted_seqs, latest.last_delete_seq, seqs(latest)]).toEqual([[], 2n, [3n]]);
+  });
+
+  it('delivers deleted_seqs at most chat.maxFetchCount by delete_seq ascending with last_delete_seq the largest selected, and the rest on the next request', async () => {
+    h = await start({ settings: { 'chat.maxFetchCount': 2 } });
+    const [leader] = await users(h.server, 1);
+    await create_guild(leader, 'FetchGuild');
+    for (const text of ['one', 'two', 'three', 'four']) await sent(send_chat(leader, K.CHAT_CHANNEL_KIND_GUILD, 0n, text));
+    for (const seq of [3n, 1n, 2n]) expect((await delete_guild_chat(leader, seq)).code).toBe(0);
+    const first = await got(leader, K.CHAT_CHANNEL_KIND_GUILD, 0n, { after_seq: 3n, after_delete_seq: 0n });
+    expect([first.deleted_seqs, first.last_delete_seq]).toEqual([[3n, 1n], 2n]);
+    const next = await got(leader, K.CHAT_CHANNEL_KIND_GUILD, 0n, { after_seq: 3n, after_delete_seq: 2n });
+    expect([next.deleted_seqs, next.last_delete_seq]).toEqual([[2n], 3n]);
+  });
+
+  it('leaves out of deleted_seqs a chat_deletion row past its expires_at that the expiry sweep has not deleted', async () => {
+    h = await start({ settings: { 'chat.retentionMs': 10_000, 'routing.storageSweepIntervalMs': 3_600_000 } });
+    const [leader] = await users(h.server, 1);
+    const guild_id = await create_guild(leader, 'ExpireGuild');
+    await sent(send_chat(leader, K.CHAT_CHANNEL_KIND_GUILD, 0n, 'old'));
+    later(h.server, 5_000n);
+    await sent(send_chat(leader, K.CHAT_CHANNEL_KIND_GUILD, 0n, 'new'));
+    for (const seq of [1n, 2n]) expect((await delete_guild_chat(leader, seq)).code).toBe(0);
+    later(h.server, 5_000n);
+    const response = await got(leader, K.CHAT_CHANNEL_KIND_GUILD, 0n, { after_seq: 2n, after_delete_seq: 0n });
+    expect([response.deleted_seqs, response.last_delete_seq]).toEqual([[2n], 2n]);
+    expect(rows(h.core(), 'SELECT delete_seq FROM chat_deletion WHERE kind = $1 AND key_a = $2 ORDER BY delete_seq', [K.CHAT_CHANNEL_KIND_GUILD, guild_id])).toHaveLength(2);
+  });
+
+  it('leaves the deleting user ID, the guild ID and the seq in an info log after DeleteGuildChatMessage', async () => {
+    h = await start();
+    const [leader, member] = await users(h.server, 2);
+    const guild_id = await create_guild(leader, 'LogGuild');
+    await join_guild(member, guild_id);
+    for (const text of ['one', 'two']) await sent(send_chat(member, K.CHAT_CHANNEL_KIND_GUILD, 0n, text));
+    expect((await delete_guild_chat(leader, 2n)).code).toBe(0);
+    const deleted = logs(h.server, 'core', 'info').filter((line) => line['message'] === 'guild chat message deleted');
+    expect(deleted.map((line) => [field(line, 'module'), field(line, 'user_id'), field(line, 'guild_id'), field(line, 'seq')].map(String))).toEqual([
+      ['chat', String(leader.user_id), String(guild_id), '2'],
+    ]);
   });
 
   it('makes a send that waits on a kick of its sender GUILD_NOT_MEMBER with no message row, as the guild row is locked before the channel row', async () => {

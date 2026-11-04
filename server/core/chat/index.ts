@@ -351,7 +351,7 @@ function get_chat_messages(chat: Chat, ctx: RequestCtx, request: CoreContract.Ge
   response.poll_after_ms = BigInt(chat.s.poll_interval_ms);
   response.channel_key = channel.id;
   if (request.after_seq !== 0n) {
-    const deletions = T.select_deletions(db, channel, request.after_delete_seq, chat.s.max_fetch_count);
+    const deletions = T.select_deletions(db, channel, request.after_delete_seq, now, chat.s.max_fetch_count);
     response.deleted_seqs = deletions.map((row) => row.seq);
     response.last_delete_seq = deletions.reduce((last, row) => max_big(last, row.delete_seq), request.after_delete_seq);
   } else {

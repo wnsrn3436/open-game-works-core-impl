@@ -285,16 +285,22 @@ export function last_live_seq(db: DbHandle, key: ChannelKey, now: bigint, exclud
   return row === undefined ? null : big(row, 'max_seq');
 }
 
-/** Admin `list_chat_messages`: rows with seq above `after_seq`, by seq ascending, deleted rows included. */
-export function list_messages(db: DbHandle, key: ChannelKey, after_seq: bigint, limit: number): MessageRow[] {
-  return select_messages(db, key, { after: after_seq }, limit);
+/** Admin `list_chat_messages`: rows with seq above `after_seq` not expired at `now`, by seq ascending, deleted rows included. */
+export function list_messages(db: DbHandle, key: ChannelKey, after_seq: bigint, limit: number, now: bigint): MessageRow[] {
+  return query(db, `SELECT ${MESSAGE_COLUMNS} FROM ${MESSAGE} WHERE ${KEY_WHERE} AND seq > $4 AND expires_at > $5 ORDER BY seq ASC LIMIT $6`, [
+    ...key_params(key),
+    after_seq,
+    now,
+    limit,
+  ]).map(message_of);
 }
 
-/** The `chat_deletion` rows of the channel with `delete_seq` above `after`, by `delete_seq` ascending. */
-export function select_deletions(db: DbHandle, key: ChannelKey, after: bigint, limit: number): { delete_seq: bigint; seq: bigint }[] {
-  return query(db, `SELECT delete_seq, seq FROM ${DELETION} WHERE ${KEY_WHERE} AND delete_seq > $4 ORDER BY delete_seq ASC LIMIT $5`, [
+/** The `chat_deletion` rows of the channel with `delete_seq` above `after` not expired at `now`, by `delete_seq` ascending. */
+export function select_deletions(db: DbHandle, key: ChannelKey, after: bigint, now: bigint, limit: number): { delete_seq: bigint; seq: bigint }[] {
+  return query(db, `SELECT delete_seq, seq FROM ${DELETION} WHERE ${KEY_WHERE} AND delete_seq > $4 AND expires_at > $5 ORDER BY delete_seq ASC LIMIT $6`, [
     ...key_params(key),
     after,
+    now,
     limit,
   ]).map((row) => ({ delete_seq: big(row, 'delete_seq'), seq: big(row, 'seq') }));
 }

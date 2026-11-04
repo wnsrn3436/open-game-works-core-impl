@@ -10,7 +10,7 @@ import type { Validation } from '../validation/index.ts';
 
 export type ChatStorage = Pick<Storage, 'register_table' | 'get_state' | 'db' | 'lock_game_row' | 'check_hook_output'>;
 
-export type ChatServerTime = Pick<ServerTimeApi, 'now' | 'is_reached_strict'>;
+export type ChatServerTime = Pick<ServerTimeApi, 'now' | 'is_reached_strict' | 'clock_now'>;
 
 export type ChatLogging = Pick<Logging, 'write'>;
 
@@ -98,7 +98,7 @@ function required(modules: Readonly<Record<string, unknown>>, name: string, meth
 export function read_modules(modules: Readonly<Record<string, unknown>>): ChatModules {
   return {
     storage: required(modules, 'storage', ['register_table', 'get_state', 'db', 'lock_game_row', 'check_hook_output']) as ChatStorage,
-    server_time: required(modules, 'server-time', ['now', 'is_reached_strict']) as ChatServerTime,
+    server_time: required(modules, 'server-time', ['now', 'is_reached_strict', 'clock_now']) as ChatServerTime,
     logging: required(modules, 'logging', ['write']) as ChatLogging,
     validation: required(modules, 'validation', ['check_text']) as ChatValidation,
     nickname: required(modules, 'nickname', ['get_nicknames']) as ChatNickname,

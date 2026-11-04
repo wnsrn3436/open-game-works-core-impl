@@ -74,7 +74,9 @@ export function admin_operations(m: ChatModules): ChatAdminOperations {
       max_body_bytes: null,
       input: { channel_kind: required(CHANNEL_KIND), key_a: required(INT64), key_b: required(INT64), after_seq: required(INT64), limit: required({ kind: 'int32' }) },
       user_target: null,
-      handler: (input, tx) => ({ messages: T.list_messages(storage.db(tx), channel_key(input), input['after_seq'] as bigint, input['limit'] as number).map(row_json) }),
+      handler: (input, tx) => ({
+        messages: T.list_messages(storage.db(tx), channel_key(input), input['after_seq'] as bigint, input['limit'] as number, server_time.clock_now()).map(row_json),
+      }),
       prepare: null,
       audit_args: null,
     },
@@ -90,7 +92,8 @@ export function admin_operations(m: ChatModules): ChatAdminOperations {
         if (storage.lock_game_row(tx, T.CHANNEL, T.channel_lock_key(key)) === 'FAILED') return 'internal';
         const db = storage.db(tx);
         const row = T.read_message(db, key, input['seq'] as bigint);
-        if (row === null) return 'not_found';
+        // A row past its `expires_at` that the expiry sweep has not deleted yet counts as no row (`storage` `### expiry`).
+        if (row === null || row.expires_at <= server_time.clock_now()) return 'not_found';
         if (!row.deleted) T.delete_message(db, row);
         return {};
       },

@@ -8,12 +8,16 @@ import {
   core_test,
   create_guild,
   delete_guild_chat,
+  direct_key,
   E,
+  end_other_txs,
   got,
   join_guild,
   K,
   later,
   make_friends,
+  other_tx,
+  rows,
   send_chat,
   sent,
   seqs,
@@ -26,6 +30,7 @@ import {
 let h: Harness;
 
 afterEach(async () => {
+  end_other_txs();
   await stop_test_server(h.server);
 });
 
@@ -73,6 +78,36 @@ describe('Direct channel', () => {
       ],
     ]);
     expect(seqs(await got(stranger, K.CHAT_CHANNEL_KIND_DIRECT, a.user_id))).toEqual([]);
+  });
+
+  it('answers CHAT_NOT_FRIEND with no message row to a Direct send whose friend link is removed by a transaction that holds the channel row lock and commits while the send waits for it (PostgreSQL)', async () => {
+    h = await start({ db: 'postgresql' });
+    const [a, b] = await users(h.server, 2);
+    await make_friends(a, b);
+    // Another server instance's friend removal: it holds the Direct channel key and deletes both friend link rows. It
+    // commits once the send waits for that lock, so the send's step 1 still reads the two users as friends.
+    const key = [K.CHAT_CHANNEL_KIND_DIRECT, ...direct_key(a.user_id, b.user_id)];
+    const removal = await other_tx(h, [['chat_channel', key]]);
+    await removal.run('DELETE FROM friend_link WHERE (user_id = $1 AND other_id = $2) OR (user_id = $2 AND other_id = $1)', [a.user_id, b.user_id]);
+    const committed = removal.commit_when_waited();
+    const raced = await send_chat(a, K.CHAT_CHANNEL_KIND_DIRECT, b.user_id, 'race');
+    expect(await committed).toBe(true);
+    expect(raced.code).toBe(E.CORE_ERROR_CHAT_NOT_FRIEND);
+    expect(rows(h.core(), 'SELECT seq FROM chat_message WHERE kind = $1 AND key_a = $2 AND key_b = $3', key)).toEqual([]);
+  });
+
+  it('answers GetChatMessages on a Direct channel after a block between the two users and after the other user withdrew', async () => {
+    h = await start();
+    const [a, b] = await users(h.server, 2);
+    await make_friends(a, b);
+    await sent(send_chat(a, K.CHAT_CHANNEL_KIND_DIRECT, b.user_id, 'from a'));
+    await sent(send_chat(b, K.CHAT_CHANNEL_KIND_DIRECT, a.user_id, 'from b'));
+    await block(b, a);
+    expect((await got(a, K.CHAT_CHANNEL_KIND_DIRECT, b.user_id)).messages.map((m) => m.text)).toEqual(['from a', 'from b']);
+    expect((await got(b, K.CHAT_CHANNEL_KIND_DIRECT, a.user_id)).messages.map((m) => m.text)).toEqual(['from b']);
+    expect(await withdraw(b)).toBe(0);
+    const after = await got(a, K.CHAT_CHANNEL_KIND_DIRECT, b.user_id);
+    expect([seqs(after), after.channel_key]).toEqual([[], b.user_id]);
   });
 
   it('hides the messages of a user I blocked while last_seq still reaches their seq', async () => {
