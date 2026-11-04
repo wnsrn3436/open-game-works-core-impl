@@ -134,6 +134,39 @@ func test_nodes_that_process_first_and_get_a_mode_during_stage_6_run_frames_only
 	assert_eq(results, PackedInt32Array([1]))
 
 
+## A node that scene code adds while the stage 4 hiding notifies it, to a node whose children the hiding already went
+## through, is checked too: a mode scene code gives it later is stopped until stage 7.
+func test_node_added_by_a_handler_of_the_stage_4_hiding_runs_frames_only_after_stage_7() -> void:
+	assert_true(await start_booted(SCENE_A))
+	var counters: Array[Counter] = []
+	TestScene.ready_hook = func(scene: SceneBase) -> void:
+		var probe: Node2D = (scene as TestScene).probe
+		probe.visibility_changed.connect(func() -> void:
+			if counters.is_empty():
+				var counter: Counter = Counter.new()
+				scene.add_child(counter)
+				counters.append(counter))
+	TestScene.prepare_gate = Gate.new()
+	var results: PackedInt32Array = PackedInt32Array()
+	change_later(SCENE_B, results)
+	await wait_trace("prepare:" + SCENE_B)
+	assert_eq(counters.size(), 1, "the hiding of stage 4 ran the handler")
+	if counters.size() != 1:
+		return
+	assert_true(SceneCore._watched.has(counters[0]), "the added node is in the set")
+	counters[0].process_mode = Node.PROCESS_MODE_ALWAYS
+	await _wait_frames_and_physics(3)
+	assert_eq(counters[0].process_count, 0, "process before stage 7")
+	assert_eq(counters[0].physics_count, 0, "physics process before stage 7")
+	TestScene.prepare_gate.open(true)
+	await wait_trace("started:" + SCENE_B)
+	await _wait_frames_and_physics(2)
+	assert_eq(counters[0].process_mode, Node.PROCESS_MODE_ALWAYS)
+	assert_gt(counters[0].process_count, 0, "process after stage 7")
+	assert_gt(counters[0].physics_count, 0, "physics process after stage 7")
+	assert_eq(results, PackedInt32Array([1]))
+
+
 ## The stop check runs only while the new scene is hidden and reads the nodes under the scene holder from the set that
 ## `node_added` and `node_removed` keep, without walking the tree.
 func test_stop_check_runs_only_from_stage_4_until_stage_7_on_the_nodes_under_the_holder() -> void:
