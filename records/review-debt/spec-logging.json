@@ -1,6 +1,6 @@
 {
   "target": "spec logging",
-  "nextId": 3,
+  "nextId": 7,
   "items": [
     {
       "id": "D1",
@@ -13,6 +13,30 @@
       "location": "skills/server-core/modules/logging.md:241",
       "problem": "`logging.analyticsDeletionIntervalMs` is the period of job `logging_analytics_deletion` and writes no range. Value 0 passes the 0 or more schema range and fails server start in `schedule_job` (skills/server-core/modules/server-time.md:90)",
       "foundBy": "spec routing"
+    },
+    {
+      "id": "D3",
+      "location": "skills/server-core/modules/logging.md:98",
+      "problem": "The handling of a `security` line written after a window has ended and before the job `logging_security_flush` has deleted it is not set. Line 98 starts a new window only for a group key and `reason` that \"have no window\", and counts only the lines \"in the window\", while line 99 deletes an ended window only when the job runs, which can be up to a period later. Run path: a window starts at t, the last job run started just before t, and a second line of the same group key and `reason` is written at t + `logging.securityRepeatWindowMs` before the next job run ends. One implementation counts that line in the old window, and another writes it as the first line of a new window, which then exists together with the ended window. The line count and the summary `count` differ between them. This existed before the diff, which only sets the range of the key",
+      "foundBy": "spec logging"
+    },
+    {
+      "id": "D4",
+      "location": "skills/server-core/modules/logging.md:177",
+      "problem": "The behavior of the job `logging_analytics_deletion` when the current environment has no analytics adapter and rows remain is not set. Line 175 skips writing a row only at request time, line 164 allows `environments.<ENV>.adapters.analytics` to be `null`, and line 177 sets the job unconditionally and calls `delete_user_data` of the adapter for each row. Run path: rows are written under `analytics-ga4`, the game setting is then changed to `null` and the server restarts. The table has scope `game`, so the rows remain. One implementation throws, another skips and keeps the rows, and another counts failed attempts until the row is deleted. The test at line 289 covers only an environment without an adapter that leaves no row",
+      "foundBy": "spec logging"
+    },
+    {
+      "id": "D5",
+      "location": "skills/server-core/modules/logging.md:240",
+      "problem": "`logging.analyticsSendTimeoutMs` has no written range, so the default rule at skills/core/SKILL.md:134 allows 0. It is an external service time limit, which skills/server-core/modules/server-time.md:89 measures only with `network_time_limit`, and that operation throws for ms less than 1 (skills/server-core/modules/server-time.md:39). Input: game settings `core` with `logging.analyticsSendTimeoutMs` 0 passes the schema check, and then every `send` and `delete_user_data` call throws instead of ending with one of the failure kinds of line 170. `push.sendTimeoutMs` (skills/server-core/modules/push.md:195) writes `1 or more` for the same case. The diff sets the range of the two job period keys and does not touch this key",
+      "foundBy": "spec logging"
+    },
+    {
+      "id": "D6",
+      "location": "skills/server-core/modules/logging.md:243",
+      "problem": "`logging.analyticsDeletionMaxAttempts` has no written range, so the default rule at skills/core/SKILL.md:134 allows 0, and its result is not settled. The meaning is the max number of times one deletion request is sent, while lines 177 and 178 send the request before comparing, and the incremented `attempts` of 1 never equals 0. Input: value 0 with a failing `delete_user_data`. One implementation sends once and deletes the row, another sends without end because `attempts` never reaches the value, and the meaning says it is never sent. `storage.userChangeRetryMaxAttempts` (skills/server-core/modules/storage.md:365) writes `1 or more` for the same kind of key",
+      "foundBy": "spec logging"
     }
   ]
 }
