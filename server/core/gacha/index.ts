@@ -147,6 +147,22 @@ function item_amount(item_id: number, amount: bigint): CoreContract.ItemAmount {
   return item;
 }
 
+/** An own copy of an `ItemAmount`, so a change a hook makes to its input does not reach the drawn result. */
+function copy_item(item: CoreContract.ItemAmount): CoreContract.ItemAmount {
+  const copy = item_amount(item.item_id, item.amount);
+  copy.big_amount = item.big_amount;
+  return copy;
+}
+
+/** An own copy of a `GachaDrawResult` and of its items. */
+function copy_draw(draw: CoreContract.GachaDrawResult): CoreContract.GachaDrawResult {
+  const copy = new CoreContract.GachaDrawResult();
+  copy.items = draw.items.map(copy_item);
+  copy.kind = draw.kind;
+  copy.rate_up = draw.rate_up;
+  return copy;
+}
+
 /** The output list of `grant_gacha_result` as `ItemAmount` messages, or null when it is not an `ItemAmount` list. */
 function granted_items(value: unknown): CoreContract.ItemAmount[] | null {
   if (!Array.isArray(value)) return null;
@@ -264,7 +280,8 @@ export function create_gacha(input: GachaInput): Gacha {
       pity = next_pity(banner, pity, reaches(result.tables, pity_tier), rate_up);
       draws.rolled.push(result);
       const draw = new CoreContract.GachaDrawResult();
-      draw.items = [...result.items];
+      // its own items: `grant_gacha_result` gets `rolled`, and `## hook` keeps the drawn result regardless of the hook
+      draw.items = result.items.map(copy_item);
       draw.kind = kind;
       draw.rate_up = rate_up;
       draws.results.push(draw);
@@ -367,10 +384,10 @@ export function create_gacha(input: GachaInput): Gacha {
     // 9. pity state, draw records, core analytics event
     save_draws(ctx, banner, draws, cost, request.use_ticket);
 
-    // 10. after hook on_gacha_drawn
+    // 10. after hook on_gacha_drawn, on its own copy of the results so the response stays the drawn result
     const drawn_hook = hook_slots.on_gacha_drawn;
     if (drawn_hook !== null) {
-      const output: unknown = storage.with_hook_change_source(ctx, SOURCE, ref, () => drawn_hook(ctx, banner_id, request.mode, draws.results));
+      const output: unknown = storage.with_hook_change_source(ctx, SOURCE, ref, () => drawn_hook(ctx, banner_id, request.mode, draws.results.map(copy_draw)));
       // an after hook's output is none; a value is a wrong output form, so the request ends with `INTERNAL`
       if (output !== null && output !== undefined) return internal(ctx, 'hook on_gacha_drawn returned a value', { banner_id });
     }

@@ -137,6 +137,12 @@ describe('DrawGacha', () => {
     expect(amounts(results[5]?.items ?? [])).toEqual([[id('[gacha_hero_a]'), 1n]]);
     expect(results[5]?.rate_up).toBe(true);
     expect(await pity(server, session.user_id, owner)).toMatchObject({ count: 0, rate_up_guaranteed: false });
+    const stored = [false, false, false, false, false, true];
+    expect((await history(session, owner, 0n, 10)).entries.map((e) => [e.draw_seq, e.rate_up])).toEqual(stored.map((r, i) => [BigInt(i + 1), r]).reverse());
+    const range = { from_at: String(START_AT), to_at: String(START_AT + 1n), after_seq: '0', limit: 10 };
+    const listed = await send_admin(server, 'list_gacha_history', { user_id: String(session.user_id), ...range });
+    expect(listed.status).toBe(200);
+    expect((listed.json as { entries: { draw_seq: string; rate_up: boolean }[] }).entries.map((e) => [e.draw_seq, e.rate_up])).toEqual(stored.map((r, i) => [String(i + 1), r]));
   });
 
   it('in MULTI the last draw is MULTI_GUARANTEE when no earlier draw reached G, and NORMAL when one did', async () => {
@@ -218,6 +224,100 @@ describe('DrawGacha', () => {
     expect((await history(session, 0, 0n, 10)).entries.map((e) => amounts(e.items))).toEqual([amounts(drawn_items)]);
   });
 
+  it('grant_gacha_result changing its input items in place changes neither the GachaDrawResult nor the draw record', async () => {
+    const grant = (_ctx: unknown, _banner_id: number, results: readonly { items: readonly CoreContract.ItemAmount[] }[]): CoreContract.ItemAmount[] => {
+      for (const result of results) {
+        for (const rolled of result.items) {
+          rolled.item_id = id('[gacha_shard]');
+          rolled.amount = 5n;
+        }
+      }
+      return [item('[gacha_shard]', 5n)];
+    };
+    const { server } = await start({ hooks: { grant_gacha_result: grant } });
+    const session = await login(server, 'convert_in_place');
+    await set_balance(server, session.user_id, '[gacha_gem]', 100n);
+    const drawn = await draw(session, '[gacha_banner_main]', undefined, { seed: 41n });
+    expect(error_code(drawn)).toBe(0);
+    expect(amounts(drawn.response?.items ?? [])).toEqual([[id('[gacha_shard]'), 5n]]);
+    expect(amounts(drawn.response?.results[0]?.items ?? [])).toEqual([[id('[gacha_star]'), 1n]]);
+    expect((await history(session, 0, 0n, 10)).entries.map((e) => amounts(e.items))).toEqual([[[id('[gacha_star]'), 1n]]]);
+  });
+
+  it('on_gacha_drawn changing its input list and messages does not change the response, which stays the saved draw records', async () => {
+    const on_drawn = (_ctx: unknown, _banner_id: number, _mode: unknown, results: readonly CoreContract.GachaDrawResult[]): void => {
+      const list = results as CoreContract.GachaDrawResult[];
+      for (const result of list) {
+        result.kind = PITY;
+        result.rate_up = true;
+        for (const drawn_item of result.items) drawn_item.amount = 99n;
+        result.items.push(item('[gacha_shard]', 1n));
+      }
+      list.length = 0;
+    };
+    const { server } = await start({ hooks: { on_gacha_drawn: on_drawn } });
+    const session = await login(server, 'drawn_in_place');
+    await set_balance(server, session.user_id, '[gacha_gem]', 100n);
+    const drawn = await draw(session, '[gacha_banner_main]', MULTI, { seed: 61n });
+    expect(error_code(drawn)).toBe(0);
+    const results = drawn.response?.results ?? [];
+    expect(results).toHaveLength(10);
+    const entries = (await history(session, 0, 0n, 100)).entries.reverse();
+    expect(results.map((r) => [r.kind, r.rate_up, amounts(r.items)])).toEqual(entries.map((e) => [e.kind, e.rate_up, amounts(e.items)]));
+    expect(results.every((r) => r.items.every((i) => i.amount === 1n && i.item_id !== id('[gacha_shard]')))).toBe(true);
+  });
+
+  it('a loot-table roll failure and a sum_items failure are INTERNAL, and the cost, pity state and draw records stay', async () => {
+    const { server } = await start();
+    const session = await login(server, 'loot_failure');
+    await set_balance(server, session.user_id, '[gacha_gem]', 100n);
+    const before = await read_user_state(server, session.user_id);
+    // one roll of [gacha_lt_over] sums [gacha_star] over 2^53−1
+    expect(error_code(await draw(session, '[gacha_banner_roll_over]'))).toBe(INTERNAL);
+    expect(await read_user_state(server, session.user_id)).toEqual(before);
+    expect(read_logs(server, 'error').filter((line) => line.message === 'roll item amount is over the amount limit')).toHaveLength(1);
+    // each MULTI round of [gacha_lt_half] is 2^52 [gacha_star], so their sum is over 2^53−1
+    expect(error_code(await draw(session, '[gacha_banner_sum_over]', MULTI))).toBe(INTERNAL);
+    expect(await read_user_state(server, session.user_id)).toEqual(before);
+    expect(read_logs(server, 'error').filter((line) => line.message === 'sum_items amount is over the amount limit')).toHaveLength(1);
+    expect((await history(session, 0, 0n, 10)).entries).toEqual([]);
+  });
+
+  it('a grant that mailbox.grant_or_mail fails is INTERNAL, and the cost, pity state and draw records stay', async () => {
+    let grant: CoreContract.ItemAmount[] = [];
+    const { server } = await start({ hooks: { grant_gacha_result: () => grant } });
+    const session = await login(server, 'grant_failure');
+    await set_balance(server, session.user_id, '[gacha_gem]', 100n);
+    const before = await read_user_state(server, session.user_id);
+    const unknown = new CoreContract.ItemAmount();
+    unknown.item_id = 2_000_000_000;
+    unknown.amount = 1n;
+    // an item ID value with no item row (UNKNOWN_ITEM) and an amount of 0 (INVALID_AMOUNT) fail the item-ledger input check
+    for (const list of [[unknown], [item('[gacha_shard]', 0n)]]) {
+      grant = list;
+      expect(error_code(await draw(session, '[gacha_banner_main]', undefined, { seed: 41n }))).toBe(INTERNAL);
+      expect(await read_user_state(server, session.user_id)).toEqual(before);
+      expect((await history(session, 0, 0n, 10)).entries).toEqual([]);
+    }
+  });
+
+  it('get_pity is the pity state of the pity owner, and (0, false) for an unknown banner', async () => {
+    let core: Core | null = null;
+    const started = await start({ extra: (c) => (core = c) });
+    const session = await login(started.server, 'get_pity');
+    await set_balance(started.server, session.user_id, '[gacha_gem]', 1000n);
+    const get_pity = (banner_id: number): Promise<unknown> =>
+      started.run(session, (ctx) => (core?.gacha?.get_pity as unknown as (ctx: unknown, banner_id: number) => unknown)(ctx, banner_id));
+    expect(await get_pity(id('[gacha_banner_main]'))).toEqual({ count: 0, rate_up_guaranteed: false });
+    // seeds 11 to 13 reach the pity tier on the third draw and miss the rate-up (the rate-up test)
+    for (let seed = 11n; seed <= 14n; seed += 1n) expect(error_code(await draw(session, '[gacha_banner_main]', undefined, { seed }))).toBe(0);
+    expect(await get_pity(id('[gacha_banner_main]'))).toEqual({ count: 1, rate_up_guaranteed: true });
+    expect(await get_pity(id('[gacha_banner_shared]'))).toEqual({ count: 1, rate_up_guaranteed: true });
+    expect(await pity(started.server, session.user_id, '[gacha_banner_shared]')).toBeNull();
+    expect(await get_pity(id('[gacha_banner_plain]'))).toEqual({ count: 0, rate_up_guaranteed: false });
+    expect(await get_pity(2_147_483_647)).toEqual({ count: 0, rate_up_guaranteed: false });
+  });
+
   it('a DrawGacha sent again with the same request ID is applied once', async () => {
     const { server } = await start();
     const session = await login(server, 'again');
@@ -270,6 +370,17 @@ describe('DrawGacha', () => {
     expect(error_code(await draw(session, '[gacha_banner_locked]'))).toBe(CoreError.CORE_ERROR_GACHA_BANNER_LOCKED);
     expect(await read_user_state(server, session.user_id)).toEqual(before);
     expect(granted).toBe(0);
+    expect((await history(session, 0, 0n, 10)).entries).toEqual([]);
+  });
+
+  it('a banner outside its window whose requirement does not pass is GACHA_BANNER_UNAVAILABLE, and GACHA_BANNER_LOCKED inside it', async () => {
+    const { server } = await start();
+    const session = await login(server, 'window_locked');
+    const before = await read_user_state(server, session.user_id);
+    expect(error_code(await draw(session, '[gacha_banner_window_locked]'))).toBe(CoreError.CORE_ERROR_GACHA_BANNER_UNAVAILABLE);
+    set_time(server, WINDOW_START);
+    expect(error_code(await draw(session, '[gacha_banner_window_locked]'))).toBe(CoreError.CORE_ERROR_GACHA_BANNER_LOCKED);
+    expect(await read_user_state(server, session.user_id)).toEqual(before);
     expect((await history(session, 0, 0n, 10)).entries).toEqual([]);
   });
 
@@ -379,6 +490,17 @@ describe('DrawGacha', () => {
       grant = value;
       await expect_unchanged(INTERNAL);
       expect(logs()).toContain(`hook grant_gacha_result returned ${String(value)}, not pass or a GameError`);
+    }
+    grant = {};
+    await expect_unchanged(INTERNAL);
+    expect(logs()).toContain('hook grant_gacha_result returned object, not pass or a GameError');
+
+    const not_a_list = (): number => read_logs(server, 'error').filter((line) => line.message === 'hook grant_gacha_result returned neither an ItemAmount list nor a GameError').length;
+    const wrong = ['pass', [{ item_id: 'x' }], [item('[gacha_shard]', 5n), { item_id: id('[gacha_shard]'), amount: 5 }], [null]];
+    for (const [index, value] of wrong.entries()) {
+      grant = value;
+      await expect_unchanged(INTERNAL);
+      expect(not_a_list()).toBe(index + 1);
     }
   });
 });
