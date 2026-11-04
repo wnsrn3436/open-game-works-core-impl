@@ -9,6 +9,7 @@ import {
   K,
   Reason,
   TICK_MS,
+  WAIT_MS,
   ban,
   barrier,
   calls_of,
@@ -27,6 +28,7 @@ import {
   participants,
   player,
   queued,
+  read_frame,
   report,
   send_and_wait,
   send_frame,
@@ -795,6 +797,75 @@ describe('a match being made', () => {
     const found = await next(m.conn, K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
     return [found, ...(await barrier(m.conn))];
   };
+
+  /** A room of three whose host's `ROOM_START` waits in member rating resolution, and whose host then closed. */
+  const host_left_while_resolving = async (mode_id: number): Promise<{ b: Member; c: Member; a_id: bigint; open: () => void; resolved: () => bigint[] }> => {
+    const h = await harness({ modes: MODES });
+    const { members } = await room(h, mode_id, 3);
+    const [a, b, c] = members;
+    if (a === undefined || b === undefined || c === undefined) throw new Error('room');
+    let open = (): void => {};
+    const gate = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    const storage = storage_module(h.server);
+    const run = storage.run_rollback_transaction.bind(storage);
+    const transaction = vi.spyOn(storage, 'run_rollback_transaction').mockImplementationOnce(async (user_id, fn) => {
+      await gate;
+      return run(user_id, fn);
+    });
+    send_frame(a.conn, start_frame());
+    await vi.waitFor(() => {
+      expect(transaction).toHaveBeenCalledTimes(1);
+    });
+    await close_and_wait(a.conn);
+    expect((await next(b.conn, K.MATCHMAKER_FRAME_KIND_ROOM_STATE)).room_members).toEqual([b.user_id, c.user_id]);
+    return { b, c, a_id: a.user_id, open, resolved: () => transaction.mock.calls.map((call) => call[0]) };
+  };
+
+  /** The frames up to and after the `ROOM_FAILED` of a member, once the connection handled everything sent before. */
+  const until_failed = async (m: Member): Promise<Frame[]> => {
+    const seen: Frame[] = [];
+    for (;;) {
+      const f = await read_frame(m.conn, WAIT_MS);
+      if (f === null) throw new Error('connection ended before ROOM_FAILED');
+      seen.push(f);
+      if (f.kind === K.MATCHMAKER_FRAME_KIND_ROOM_FAILED) return [...seen, ...(await barrier(m.conn))];
+    }
+  };
+
+  it('answers a new host ROOM_START with ROOM_BUSY while the ROOM_START of the host that left still resolves its members, no MATCH_FOUND follows, and a later ROOM_START is taken', async () => {
+    const { b, c, a_id, open, resolved } = await host_left_while_resolving(ROOM4.id);
+    const out = await send_and_wait(b.conn, start_frame());
+    expect(failures(out)).toEqual([[CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_ROOM_START]]);
+    expect(found_count(out)).toBe(0);
+    expect(resolved()).toEqual([a_id]);
+    open();
+    for (const m of [b, c]) {
+      const frames = await until_failed(m);
+      expect(failures(frames)).toEqual([[CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_ROOM_START]]);
+      expect(found_count(frames)).toBe(0);
+    }
+    expect(resolved()).toEqual([a_id]);
+    const again = await send_and_wait(b.conn, start_frame());
+    expect(failures(again)).toEqual([]);
+    expect(found_count(again)).toBe(1);
+  });
+
+  it('answers a new host MATCH_REQUEST with ROOM_BUSY while the ROOM_START of the host that left still resolves its members, and neither a party entry nor a MATCH_FOUND follows', async () => {
+    const { b, c, a_id, open, resolved } = await host_left_while_resolving(BOTH.id);
+    const out = await send_and_wait(b.conn, match_request(BOTH.id));
+    expect(failures(out)).toEqual([[CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_MATCH_REQUEST]]);
+    expect(resolved()).toEqual([a_id]);
+    open();
+    for (const m of [b, c]) {
+      const frames = await until_failed(m);
+      expect(failures(frames)).toEqual([[CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_ROOM_START]]);
+      expect(found_count(frames)).toBe(0);
+      expect(frames.filter((f) => f.kind === K.MATCHMAKER_FRAME_KIND_ROOM_STATE).map((f) => f.room_status)).not.toContain(RoomStatus.ROOM_STATUS_MATCHING);
+    }
+    expect(resolved()).toEqual([a_id]);
+  });
 
   it('answers a new host ROOM_START with ROOM_BUSY while the ROOM_START of the host that left still makes its match, and no member gets two MATCH_FOUND', async () => {
     const { b, c, a_id } = await host_left_while_making(ROOM4.id);
