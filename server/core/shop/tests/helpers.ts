@@ -243,6 +243,30 @@ export function amount_in(items: readonly CoreContract.ItemAmount[], item: strin
   return entry.big_amount !== '' ? BigInt(entry.big_amount) : entry.amount;
 }
 
+/** A module object of the running server instance: shop calls the operations of these objects, so `vi.spyOn` sees the calls. */
+export function module_of(server: TestServer, name: string): unknown {
+  const module = server.running().instance.modules().get(name);
+  if (module === undefined) throw new Error(`the server instance has no ${name} module`);
+  return module;
+}
+
+export interface HistoryEntry {
+  readonly item_id: number;
+  readonly source: string;
+  readonly ref: string;
+  readonly once_key: string;
+  readonly request_id: string | null;
+}
+
+/** The item history rows of a user (`admin-api` `list_item_history`), in order. */
+export async function history(server: TestServer, session: TestSession): Promise<HistoryEntry[]> {
+  const result = await testing.send_admin(server, 'list_item_history', {
+    user_id: String(session.user_id), from_at: String(START_AT - DAY_MS), to_at: String(START_AT + DAY_MS), after_seq: '0', limit: 100,
+  });
+  if (result.status !== 200) throw new Error(`list_item_history: ${String(result.status)}`);
+  return ((result.json ?? {}) as { entries?: HistoryEntry[] }).entries ?? [];
+}
+
 /** The `core_shop_bought` events stored for a user (`logging` admin operation `list_server_events`): name and int params. */
 export async function server_events(server: TestServer, session: TestSession): Promise<{ name: string; params: [string, bigint][] }[]> {
   const result = await testing.send_admin(server, 'list_server_events', {

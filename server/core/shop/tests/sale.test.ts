@@ -1,7 +1,10 @@
+import type { RequestCtx } from '../../storage/index.ts';
 import * as testing from '../../testing/dev/index.ts';
-import { DAY_MS, E, HOUR_MS, JAN_16, JAN_17, START_AT, buy, id, purchase_row, run, set_balance, set_offer, snapshot, start, stop_all, user, type TestServer, type TestSession } from './helpers.ts';
+import type { RequirementResult } from '../../validation/index.ts';
+import { DAY_MS, E, HOUR_MS, JAN_16, JAN_17, START_AT, buy, id, module_of, purchase_row, run, set_balance, set_offer, snapshot, start, stop_all, user, type TestServer, type TestSession } from './helpers.ts';
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await stop_all();
 });
 
@@ -117,5 +120,64 @@ describe('sale condition', () => {
     expect(again?.count).toBe(1);
     expect(again?.reset_at).toBe(JAN_17 + 3n * DAY_MS);
     expect((await buy(session, '[shop_event_offer_pack]')).code).toBe(E.CORE_ERROR_SHOP_LIMIT_REACHED);
+  });
+});
+
+/**
+ * Makes `validation.evaluate_requirement` of the server instance answer `passed` false for every requirement, so a
+ * product with no requirement in the core test data fails the requirement too.
+ */
+function fail_requirements(server: TestServer): void {
+  const validation = module_of(server, 'validation') as { evaluate_requirement(ctx: RequestCtx, requirement_id: number): RequirementResult };
+  vi.spyOn(validation, 'evaluate_requirement').mockReturnValue({ passed: false, failed_requirement_id: 0 });
+}
+
+describe('order of the request check, the sale condition and the purchase limit', () => {
+  it('answers SHOP_PRODUCT_UNAVAILABLE for a product outside its live event window that is also at limit_count', async () => {
+    const server = await start();
+    const session = await user(server);
+    await set_balance(server, session, '[shop_gold]', 1000n);
+    // [shop_event_pack] has limit_count 1, no reset and [shop_event]: round 1 ends at JAN_16.
+    expect((await buy(session, '[shop_event_pack]')).code).toBe(0);
+    testing.set_time(server, JAN_16);
+    expect(await purchase_count(server, session, '[shop_event_pack]')).toBe(1);
+    const before = await snapshot(server, session);
+    expect((await buy(session, '[shop_event_pack]')).code).toBe(E.CORE_ERROR_SHOP_PRODUCT_UNAVAILABLE);
+    expect(await snapshot(server, session)).toEqual(before);
+  });
+
+  it('answers SHOP_PRODUCT_UNAVAILABLE for a product outside its window whose requirement is not passed, and SHOP_PRODUCT_LOCKED inside it', async () => {
+    const server = await start();
+    const session = await user(server);
+    await set_balance(server, session, '[shop_gold]', 1000n);
+    fail_requirements(server);
+    // [shop_window] sells from JAN_16.
+    expect((await buy(session, '[shop_window]')).code).toBe(E.CORE_ERROR_SHOP_PRODUCT_UNAVAILABLE);
+    testing.set_time(server, JAN_16);
+    expect((await buy(session, '[shop_window]')).code).toBe(E.CORE_ERROR_SHOP_PRODUCT_LOCKED);
+  });
+
+  it('answers SHOP_PRODUCT_LOCKED for a product at limit_count whose requirement is not passed', async () => {
+    const server = await start();
+    const session = await user(server);
+    await set_balance(server, session, '[shop_gold]', 1000n);
+    // [shop_once] has limit_count 1 and no reset.
+    expect((await buy(session, '[shop_once]')).code).toBe(0);
+    expect((await buy(session, '[shop_once]')).code).toBe(E.CORE_ERROR_SHOP_LIMIT_REACHED);
+    fail_requirements(server);
+    expect((await buy(session, '[shop_once]')).code).toBe(E.CORE_ERROR_SHOP_PRODUCT_LOCKED);
+  });
+
+  it('answers INVALID_REQUEST for a quantity over max_quantity on a product outside its window, locked or at limit_count', async () => {
+    const server = await start();
+    const session = await user(server);
+    await set_balance(server, session, '[shop_gold]', 1000n);
+    expect((await buy(session, '[shop_once]')).code).toBe(0);
+    // max_quantity of [shop_window] and [shop_once] is 1; [shop_window] has not started.
+    expect((await buy(session, '[shop_window]', 2)).code).toBe(E.CORE_ERROR_INVALID_REQUEST);
+    expect((await buy(session, '[shop_once]', 2)).code).toBe(E.CORE_ERROR_INVALID_REQUEST);
+    fail_requirements(server);
+    expect((await buy(session, '[shop_window]', 2)).code).toBe(E.CORE_ERROR_INVALID_REQUEST);
+    expect((await buy(session, '[shop_locked]', 2)).code).toBe(E.CORE_ERROR_INVALID_REQUEST);
   });
 });
