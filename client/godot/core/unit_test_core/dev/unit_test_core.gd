@@ -18,6 +18,8 @@ const _SCRIPT_LOGGER := preload("res://core/unit_test_core/dev/unit_test_script_
 
 const _TEST_TIME_LIMIT_KEY: String = "UnitTestCore.testTimeLimitMs"
 const _RUN_TIME_LIMIT_KEY: String = "UnitTestCore.runTimeLimitMs"
+## Read only by the tool that runs the tests; `init` checks it like the keys it reads.
+const _START_TIME_LIMIT_KEY: String = "UnitTestCore.startTimeLimitMs"
 ## Device time the test clock starts from (`client-core` Godot `## engine behavior`).
 const _CLOCK_START_DEVICE_MS: int = 1700000000000
 const _DEFAULT_SERVER_URL: String = "http://127.0.0.1"
@@ -125,12 +127,14 @@ static func is_initialized() -> bool:
 
 
 ## Why `init` fails now, other than being initialized: a time limit setting that is missing, not an integer or
-## negative, or a main loop that is not a `SceneTree`. Empty when `init` can start.
+## out of its range, or a main loop that is not a `SceneTree`. Empty when `init` can start.
 static func _init_failure() -> String:
 	if not CoreSettings.has_int(_TEST_TIME_LIMIT_KEY) or not CoreSettings.has_int(_RUN_TIME_LIMIT_KEY):
 		return "core settings %s and %s must be integers" % [_TEST_TIME_LIMIT_KEY, _RUN_TIME_LIMIT_KEY]
 	if CoreSettings.get_int(_TEST_TIME_LIMIT_KEY) < 0 or CoreSettings.get_int(_RUN_TIME_LIMIT_KEY) < 0:
 		return "a time limit is negative"
+	if not CoreSettings.has_int(_START_TIME_LIMIT_KEY) or CoreSettings.get_int(_START_TIME_LIMIT_KEY) < 1:
+		return "core setting %s must be an integer of 1 or more" % _START_TIME_LIMIT_KEY
 	if not Engine.get_main_loop() is SceneTree:
 		return "the main loop is not a SceneTree"
 	return ""
