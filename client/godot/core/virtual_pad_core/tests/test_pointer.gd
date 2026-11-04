@@ -101,19 +101,47 @@ func test_outside_pointer_after_an_input_cancel_is_unconsumed() -> void:
 
 func test_outside_pointer_after_a_popup_is_unconsumed() -> void:
 	await open(LAYOUT_FIXED)
-	touch(0, true, center_of(FIRE))
+	# The popup opens under a block that is already active, so it makes no input cancel.
+	var token: int = _block_with_stick()
+	touch(0, true, stick_point(Vector2(RADIUS * 0.5, 0.0)))
+	var cancels: int = InputCore.get_cancel_count()
 	await open_popup()
-	touch(0, false, center_of(FIRE))
+	assert_eq(VirtualPadCore.get_state(), VirtualPadCore.VirtualPadState.INACTIVE)
+	assert_eq(InputCore.get_cancel_count(), cancels, "the popup makes no input cancel")
+	touch(0, false, stick_point(Vector2(RADIUS * 0.5, 0.0)))
 	UICore.close_all_popups()
 	await run_frames()
+	assert_true(InputBlockCore.unblock(token))
 	assert_eq(VirtualPadCore.get_state(), VirtualPadCore.VirtualPadState.ACTIVE)
 	touch(0, true, OUTSIDE)
 	drag(0, OUTSIDE + Vector2(0.0, 100.0))
 	var drags: int = recorder.drags
-	drag(0, center_of(FIRE))
+	drag(0, stick_point(Vector2(RADIUS * 0.5, 0.0)))
 	assert_eq(recorder.drags, drags + 1, "the pointer ID released while inactive is not consumed")
-	assert_false(InputCore.is_pressed(FIRE_ACTION))
-	touch(0, false, center_of(FIRE))
+	assert_true(no_direction())
+	touch(0, false, stick_point(Vector2(RADIUS * 0.5, 0.0)))
+
+
+func test_outside_pointer_after_close_layout_is_unconsumed() -> void:
+	await open(LAYOUT_FIXED)
+	touch(0, true, center_of(FIRE))
+	var point: Vector2 = center_of(FIRE)
+	VirtualPadCore.close_layout()
+	touch(0, false, point)
+	await open(LAYOUT_FIXED)
+	_assert_outside_pointer_reaches_the_world()
+
+
+func test_outside_pointer_after_a_scope_release_is_unconsumed() -> void:
+	var own: Scope = ResourceCore.create_scope(ResourceCore.ScopeKind.SCENE, "virtual_pad_test_own")
+	assert_true(await VirtualPadCore.open_layout(LAYOUT_FIXED, own))
+	touch(0, true, center_of(FIRE))
+	var point: Vector2 = center_of(FIRE)
+	ResourceCore.release_scope(own)
+	assert_null(VirtualPadCore._pad, "the scope release closes the virtual pad")
+	touch(0, false, point)
+	await open(LAYOUT_FIXED)
+	_assert_outside_pointer_reaches_the_world()
 
 
 func test_block_with_the_joystick_in_its_pass_list() -> void:
@@ -143,6 +171,17 @@ func test_popup_under_a_block_ends_the_joystick() -> void:
 	UICore.close_all_popups()
 	touch(0, false, stick_point(Vector2(RADIUS * 0.5, 0.0)))
 	assert_true(InputBlockCore.unblock(token))
+
+
+## Pointer 0 pressed outside the areas and moved over the button area makes one `DragEvent` per move.
+func _assert_outside_pointer_reaches_the_world() -> void:
+	touch(0, true, OUTSIDE)
+	drag(0, OUTSIDE + Vector2(0.0, 100.0))
+	var drags: int = recorder.drags
+	drag(0, center_of(FIRE))
+	assert_eq(recorder.drags, drags + 1, "the pointer ID held in an area when the layout closed is not consumed")
+	assert_false(InputCore.is_pressed(FIRE_ACTION))
+	touch(0, false, center_of(FIRE))
 
 
 ## A `content` block whose pass list has the joystick element only.

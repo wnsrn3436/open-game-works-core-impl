@@ -37,6 +37,8 @@ const _LOWER_Z: int = 122
 const _DIGIT_0: int = 48
 const _DIGIT_9: int = 57
 const _UNDERSCORE: int = 95
+## Entries of `_area_pointers`: pointers pressed in the element areas and not yet released at once.
+const _AREA_POINTER_SLOTS: int = 32
 
 static var _is_initialized: bool = false
 static var _node: Node = null
@@ -65,8 +67,8 @@ static var _joystick_mode: JoystickMode = JoystickMode.FIXED
 ## Elements of the virtual pad in element list order: the last one is drawn on top.
 static var _elements: Array[_ELEMENT] = []
 ## Pointer IDs of the pointers pressed in an element area while `ACTIVE`, held or not, and not yet released; -1 is a
-## free entry. Their moves and release are consumed. It only grows, so after the most pointers at once it allocates
-## nothing.
+## free entry. Their moves and release are consumed. `init` sizes it to `_AREA_POINTER_SLOTS`, so the pointer path
+## allocates nothing.
 static var _area_pointers: PackedInt64Array = PackedInt64Array()
 ## `InputCore.get_cancel_count` when it was last seen.
 static var _cancel_count: int = 0
@@ -105,6 +107,8 @@ static func init() -> bool:
 	else:
 		_sensitivity = sensitivity / 1000.0
 	_touch_supported = DisplayServer.is_touchscreen_available()
+	_area_pointers.resize(_AREA_POINTER_SLOTS)
+	_area_pointers.fill(-1)
 	_session = RefCounted.new()
 	var node: _NODE_SCRIPT = _NODE_SCRIPT.new()
 	node.name = _TAG
@@ -501,7 +505,8 @@ static func _on_element_input(control: Control, event: InputEvent) -> void:
 	var touch: InputEventScreenTouch = event as InputEventScreenTouch
 	if touch != null:
 		if touch.pressed:
-			_add_area_pointer(touch.index)
+			if not _add_area_pointer(touch.index):
+				return
 			control.accept_event()
 			_press(element, touch.index, touch.position)
 		elif _remove_area_pointer(touch.index):
@@ -521,14 +526,15 @@ static func _on_element_input(control: Control, event: InputEvent) -> void:
 		control.accept_event()
 
 
-static func _add_area_pointer(pointer_id: int) -> void:
+## `false` when every entry is taken: the element does not take the press and passes it on.
+static func _add_area_pointer(pointer_id: int) -> bool:
 	if _area_pointers.has(pointer_id):
-		return
+		return true
 	var free: int = _area_pointers.find(-1)
 	if free < 0:
-		_area_pointers.append(pointer_id)
-	else:
-		_area_pointers[free] = pointer_id
+		return false
+	_area_pointers[free] = pointer_id
+	return true
 
 
 ## `false` when the pointer was not pressed in an area.
