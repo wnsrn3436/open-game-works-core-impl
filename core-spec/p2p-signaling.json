@@ -107,6 +107,12 @@
       "inputs": [
         "other"
       ]
+    },
+    {
+      "name": "is_bound",
+      "inputs": [
+        "other"
+      ]
     }
   ]
 }
