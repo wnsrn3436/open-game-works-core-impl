@@ -57,6 +57,25 @@ describe('leave and disconnect', () => {
     expect(answer[0]?.ok).toBe(false);
   });
 
+  it('is_bound is true from open_match_session and after MATCH_REJOIN, and false after MATCH_LEAVE, a disconnect and for a connection bound to no session', async () => {
+    const server = await started();
+    const match = await open_match(server, 'm-bound', trio());
+    const [c0, c1, c2] = match.connections;
+    expect(match.connections.map((c) => server.p2p.is_bound(c))).toEqual([true, true, true]);
+    expect(server.p2p.is_bound(new TestConnection(new_user_id()))).toBe(false);
+    server.p2p.handle_frame(c0, leave('m-other'));
+    expect(server.p2p.is_bound(c0)).toBe(true);
+    server.p2p.handle_frame(c0, leave('m-bound'));
+    expect(server.p2p.is_bound(c0)).toBe(false);
+    server.p2p.connection_closed(c1);
+    expect(server.p2p.is_bound(c1)).toBe(false);
+    const back = new TestConnection(c1.user_id);
+    expect(server.p2p.is_bound(back)).toBe(false);
+    server.p2p.handle_frame(back, rejoin('m-bound'));
+    expect(server.p2p.is_bound(back)).toBe(true);
+    expect(server.p2p.is_bound(c2)).toBe(true);
+  });
+
   it('returns LEFT, DISCONNECTED and REJOINED participant changes, and none for a connection bound to no session', async () => {
     const server = await started();
     const match = await open_match(server, 'm-changes', trio());

@@ -954,6 +954,31 @@ func test_a_member_whose_open_room_and_match_found_come_in_one_poll_sends_one_ma
 	await _assert_one_match_leave_in_none()
 
 
+## The transport read `MATCH_FOUND` before the change to `None`, so `close` left that match, and the member that is
+## `Matching` again takes it with nothing to connect.
+func test_a_member_whose_room_returned_to_matching_in_one_poll_takes_the_match_found_and_fails_at_the_connect_time_limit() -> void:
+	var members: PackedInt64Array = PackedInt64Array([OTHER_ID, USER_ID])
+	await _start_room_on_p2p(members)
+	server.send(_room_state(members, CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames(5)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.MATCHING)
+	await _deliver_to_core([
+		_room_state(members, CoreContract.RoomStatus.ROOM_STATUS_OPEN),
+		_room_state(members, CoreContract.RoomStatus.ROOM_STATUS_MATCHING),
+		server.match_found(members, 1, false),
+	])
+	await frames(10)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.CONNECTING)
+	assert_eq(server.count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE), 1)
+	var op: RealtimeAsyncCall = RealtimeAsyncCall.new()
+	op.wait_match()
+	await advance(CONNECT_TIMEOUT_MS)
+	await op.wait()
+	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.FAILED)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	assert_eq(server.count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE), 1)
+
+
 func test_a_member_whose_match_failed_and_match_found_come_in_one_poll_sends_one_match_leave() -> void:
 	await _start_room_on_p2p(PackedInt64Array([OTHER_ID, USER_ID]))
 	server.send(_room_state(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))

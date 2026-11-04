@@ -2,6 +2,7 @@ import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import * as testing from '../../testing/dev/index.ts';
 import {
   account_token,
+  answer_as_google,
   APPLE,
   balance,
   claim_daily,
@@ -9,6 +10,7 @@ import {
   CoreError,
   DAY,
   GOOGLE,
+  GOOGLE_APP_ID,
   has_pending,
   payment,
   receipt,
@@ -42,6 +44,43 @@ function lookups(server: TestServer, store: CoreContract.IapStore): string[] {
     .filter((c) => c.operation === 'lookup_subscription')
     .map((c) => String(c.input.original_transaction_id));
 }
+
+describe('a Google line item with no paid order', () => {
+  const google_receipt = (productId: string, purchaseToken: string): string => JSON.stringify({ packageName: GOOGLE_APP_ID, productId, purchaseToken });
+  const answer = (account: string, subscriptionState: string, lineItems: readonly Record<string, unknown>[]): Record<string, unknown> => ({
+    subscriptionState,
+    startTime: new Date(Number(START)).toISOString(),
+    obfuscatedExternalAccountId: account,
+    lineItems,
+  });
+  const owned = { productId: 'vip_google', latestSuccessfulOrderId: 'GPA.owned', expiryTime: new Date(Number(START + 30n * DAY)).toISOString() };
+
+  it('VerifyPurchase of a receipt product with no order next to a line item with an order is PENDING with no grant', async () => {
+    const server = await start();
+    const a = await testing.login(server, 'a');
+    const token = await account_token(a);
+    const lines = [owned, { productId: 'vip_plus_google', expiryTime: new Date(Number(START + 60n * DAY)).toISOString() }];
+    answer_as_google(server, { 'new-token': answer(token, 'SUBSCRIPTION_STATE_ACTIVE', lines) });
+    expect(status_of(await verify(a, GOOGLE, google_receipt('vip_plus_google', 'new-token')))).toBe(Status.PURCHASE_STATUS_PENDING);
+    expect(await balance(server, a.user_id)).toBe(0n);
+    expect(await payment(server, a.user_id, 'new-token')).toBeUndefined();
+    expect(await subscription_row(server, a.user_id, '[iap_vip_plus]')).toBeNull();
+    // The line item with the order of the same response still grants.
+    expect(status_of(await verify(a, GOOGLE, google_receipt('vip_google', 'new-token')))).toBe(Status.PURCHASE_STATUS_GRANTED);
+    expect((await payment(server, a.user_id, 'GPA.owned'))?.result).toBe('GRANTED');
+  });
+
+  it('VerifyPurchase of an EXPIRED subscription whose one line item has no order is INVALID with no grant', async () => {
+    const server = await start();
+    const a = await testing.login(server, 'a');
+    const line = { productId: 'vip_google', expiryTime: new Date(Number(START + 30n * DAY)).toISOString() };
+    answer_as_google(server, { 'expired-token': answer(await account_token(a), 'SUBSCRIPTION_STATE_EXPIRED', [line]) });
+    expect(status_of(await verify(a, GOOGLE, google_receipt('vip_google', 'expired-token')))).toBe(Status.PURCHASE_STATUS_INVALID);
+    expect(await balance(server, a.user_id)).toBe(0n);
+    expect((await payment(server, a.user_id, 'expired-token'))?.result).not.toBe('GRANTED');
+    expect(await subscription_row(server, a.user_id, '[iap_vip]')).toBeNull();
+  });
+});
 
 describe('a subscription snapshot whose state does not grant', () => {
   it('a REFUND of a transaction with no payment record and a REVOKED notification naming it leave the balance and no GRANTED record', async () => {

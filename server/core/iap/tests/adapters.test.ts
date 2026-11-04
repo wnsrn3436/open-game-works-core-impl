@@ -438,6 +438,38 @@ describe('iap-google', () => {
     expect((await google(fetch).lookup_subscription('sub-token', null, call())) as { latest_transaction_id: string }).toMatchObject({ latest_transaction_id: 'GPA.9..1' });
   });
 
+  it('a line item without latestSuccessfulOrderId is not VALID: INVALID for EXPIRED and PENDING_PURCHASE_CANCELED, else PENDING, also when another line item has an order; a line item with an order keeps its result', async () => {
+    const answer = (subscriptionState: string, lineItems: readonly Record<string, unknown>[]) =>
+      http((url) => (url.endsWith('/token') ? json_response(200, { access_token: 'at' }) : json_response(200, { subscriptionState, startTime: '2026-03-01T00:00:00Z', lineItems }))).fetch;
+    const status_of = async (state: string, lineItems: readonly Record<string, unknown>[], productId = 'vip_plus_google') => {
+      const got = await google(answer(state, lineItems)).verify(JSON.stringify({ packageName: 'com.example.app', productId, purchaseToken: 'new-token' }), call());
+      return is_failure(got) ? got : [got.status, got.transaction?.transaction_id];
+    };
+    const unpaid = { productId: 'vip_plus_google', expiryTime: '2026-05-01T00:00:00Z' };
+    const owned = { productId: 'vip_google', latestSuccessfulOrderId: 'GPA.owned', expiryTime: '2026-04-01T00:00:00Z' };
+    for (const [state, status] of [
+      ['SUBSCRIPTION_STATE_ACTIVE', 'PENDING'],
+      ['SUBSCRIPTION_STATE_CANCELED', 'PENDING'],
+      ['SUBSCRIPTION_STATE_IN_GRACE_PERIOD', 'PENDING'],
+      ['SUBSCRIPTION_STATE_ON_HOLD', 'PENDING'],
+      ['SUBSCRIPTION_STATE_PAUSED', 'PENDING'],
+      ['SUBSCRIPTION_STATE_PENDING', 'PENDING'],
+      ['SUBSCRIPTION_STATE_EXPIRED', 'INVALID'],
+      ['SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED', 'INVALID'],
+    ] as const) {
+      expect(await status_of(state, [unpaid])).toEqual([status, 'new-token']);
+      expect(await status_of(state, [owned, unpaid])).toEqual([status, 'new-token']);
+    }
+    for (const [state, status] of [
+      ['SUBSCRIPTION_STATE_ACTIVE', 'VALID'],
+      ['SUBSCRIPTION_STATE_EXPIRED', 'VALID'],
+      ['SUBSCRIPTION_STATE_PENDING', 'PENDING'],
+      ['SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED', 'INVALID'],
+    ] as const) {
+      expect(await status_of(state, [owned, unpaid], 'vip_google')).toEqual([status, 'GPA.owned']);
+    }
+  });
+
   it('a response without latestSuccessfulOrderId: the receipt has the purchase token as its transaction ID also with a latestOrderId, and the lookup has an empty latest transaction ID', async () => {
     const { fetch } = http((url) =>
       url.endsWith('/token')

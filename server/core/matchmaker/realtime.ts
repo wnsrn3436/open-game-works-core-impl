@@ -565,10 +565,16 @@ export function create_realtime(env: Env, results: Results): Realtime {
     return members;
   };
 
+  /** A new match would take a member whose connection is bound to a match session out of that match. */
+  const member_in_match = (user_id: bigint): boolean => {
+    const client = client_of(user_id);
+    return client !== null && env.p2p.is_bound(client);
+  };
+
   /** A room frame or party request of the host that failed before member rating resolution, or null to go on. */
   const host_error = (slot: UserSlot, room: Room | null): number | null => {
     if (room === null || room.members[0] !== slot.client.user_id) return CoreError.CORE_ERROR_ROOM_NOT_HOST;
-    if (room.status === 'Matching') return CoreError.CORE_ERROR_ROOM_BUSY;
+    if (room.status === 'Matching' || room.members.some(member_in_match)) return CoreError.CORE_ERROR_ROOM_BUSY;
     if (env.admin.is_kill_switched('MATCH_REQUEST')) return CoreError.CORE_ERROR_FEATURE_DISABLED;
     return null;
   };

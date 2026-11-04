@@ -64,6 +64,7 @@ export interface P2pSignaling {
   ): ParticipantChange[];
   handle_frame(connection: Connection, frame: CoreContract.MatchmakerFrame): ParticipantChange | null;
   connection_closed(connection: Connection): ParticipantChange | null;
+  is_bound(connection: Connection): boolean;
   begin_start(): void;
   complete_start(): string | null;
   stop(): void;
@@ -188,6 +189,7 @@ export function create_p2p_signaling(input: P2pSignalingInput): P2pSignaling {
     open_match_session: (match_id, players, connections, transport, expires_at) => store.open(match_id, players, connections, transport, expires_at),
     handle_frame: (connection, frame) => store.handle(connection, frame),
     connection_closed: (connection) => store.closed(connection),
+    is_bound: (connection) => store.is_bound(connection),
     begin_start() {
       adapter = pick_adapter();
       time.schedule_job(JOB_SWEEP, BigInt(sweep_interval_ms), () => {
