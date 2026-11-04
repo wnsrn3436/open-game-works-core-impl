@@ -1,6 +1,6 @@
 {
   "target": "spec iap",
-  "nextId": 4,
+  "nextId": 5,
   "items": [
     {
       "id": "D1",
@@ -19,6 +19,12 @@
       "location": "skills/server-core/modules/iap.md:315",
       "problem": "`iap.notifyBodyReadTimeoutMs` has no written range, so value 0 is allowed and a store notification body read reaches the throw of `network_time_limit` (skills/core/SKILL.md:134, skills/server-core/modules/server-time.md:39, skills/server-core/modules/server-time.md:89)",
       "foundBy": "spec auth"
+    },
+    {
+      "id": "D4",
+      "location": "skills/server-core/modules/iap.md:341",
+      "problem": "`iap-google` receipt verification does not set how the adapter decides whether a receipt (`Purchase.getOriginalJson()`, iap.md:54) is a product receipt checked with `purchases.products` or a subscription receipt checked with `purchases.subscriptionsv2`. The transaction ID, the verification result, the purchase time and the test transaction judgement (iap.md:169) all depend on which response is read, but grant order step 2 (iap.md:127) learns the product type only from the SKU the adapter returns, and no defining document gives the adapter the `iap_product` type or names a receipt field to decide by. Implementations can differ (call `purchases.products` first and fall back, read `autoRenewing` of the receipt JSON, look up `sku_google` in `iap_product`)",
+      "foundBy": "spec iap"
     }
   ]
 }
