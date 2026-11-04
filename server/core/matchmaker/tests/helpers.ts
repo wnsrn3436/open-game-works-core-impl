@@ -374,7 +374,7 @@ export function hello(session: TestSession, data_version: string, client_version
   });
 }
 
-const WAIT_MS = 5_000n;
+export const WAIT_MS = 5_000n;
 
 /** The next frame of the kind, skipping other kinds; throws when the connection ends first. */
 export async function next(conn: Conn, kind: CoreContract.MatchmakerFrameKind, ms = WAIT_MS): Promise<Frame> {
