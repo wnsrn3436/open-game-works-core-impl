@@ -1,36 +1,5 @@
 {
   "target": "nickname",
   "nextId": 6,
-  "items": [
-    {
-      "id": "D1",
-      "location": "server/core/nickname/index.ts:267",
-      "problem": "failure path of the spec `## error` without a test: a `nickname_claim` lock wait over the limit or a deadlock in `SetNickname` step 5 is `INTERNAL`, and the nickname and the balance do not change. No nickname test makes `lock_game_row` return `FAILED`; server/core/nickname/tests/set-nickname.test.ts:60 holds the lock only until it releases it, with `storage.userLockWaitMs` 20000. Restored in a temporary copy: returning `CORE_ERROR_NICKNAME_TAKEN` for `FAILED` passed `ogw core test server nickname` on SQLite and PostgreSQL",
-      "foundBy": "nickname round 1"
-    },
-    {
-      "id": "D2",
-      "location": "server/core/nickname/index.ts:325",
-      "problem": "failure path of the spec `## error` without a test: a `nickname_claim` lock wait over the limit or a deadlock in `rename_user` is `internal`. server/core/nickname/tests/admin.test.ts checks only 200, 400 and 409 of `rename_user`. Restored in a temporary copy: returning `conflict` for `FAILED` passed the same run",
-      "foundBy": "nickname round 1"
-    },
-    {
-      "id": "D3",
-      "location": "server/core/nickname/index.ts:255",
-      "problem": "processing order of `### SetNickname` without a test: no test has two failure conditions at once, so swapping steps passes. Restored in temporary copies, each passing the same run: the cooldown check (line 259) moved before the rule check (a nickname that breaks the rules within the cooldown would be `NICKNAME_COOLDOWN`, not `NICKNAME_INVALID`), and in a separate run the cost (line 262) moved before the cooldown check (a change within the cooldown with a short balance would be `ITEM_NOT_ENOUGH`, not `NICKNAME_COOLDOWN`)",
-      "foundBy": "nickname round 1"
-    },
-    {
-      "id": "D4",
-      "location": "server/core/nickname/index.ts:328",
-      "problem": "behavior of `### operator forced change` without a test: `rename_user` writes request time to `changed_at`. server/core/nickname/tests/admin.test.ts:28 and :76 match only `nickname`, `change_count` and `forced`, and with `forced` `true` the next `SetNickname` does not read `changed_at`. Restored in a temporary copy: writing `0n` passed the same run",
-      "foundBy": "nickname round 1"
-    },
-    {
-      "id": "D5",
-      "location": "server/core/nickname/index.ts:149",
-      "problem": "the code point counts of the spec have no test with a character outside the BMP: server/core/nickname/tests/rules.test.ts:20 and :21 and server/core/nickname/tests/admin.test.ts:109 use only ASCII. Restored in a temporary copy: `nickname.length` in place of the code point count at line 149 and at line 293 passed the same run. With that defect one Han character outside the BMP (allowed by the default `nickname.allowedScripts`) would pass `nickname.minLength` 2, and a lookup of 7 such characters would be an empty list or `bad_request` under `nickname.maxLength` 12",
-      "foundBy": "nickname round 1"
-    }
-  ]
+  "items": []
 }
