@@ -83,16 +83,25 @@ func test_get_group_returns_assigned_group() -> void:
 func test_getters_do_not_allocate() -> void:
 	await start()
 	await login(config([bool_entry(flag, true), string_entry(title, "remote")]))
+	# The ballast raises static memory to its peak, so any allocation in the loop raises the peak, even one freed before
+	# the loop ends. It is made before the first read: the array object stays until the test ends.
+	var ballast: PackedByteArray = PackedByteArray()
 	LogCore.release()
 	_read_values(100)
 	var objects: float = Performance.get_monitor(Performance.OBJECT_COUNT)
 	var memory: float = Performance.get_monitor(Performance.MEMORY_STATIC)
+	ballast.resize(int(Performance.get_monitor(Performance.MEMORY_STATIC_MAX) - memory) + 1)
+	var peak: float = Performance.get_monitor(Performance.MEMORY_STATIC_MAX)
 	_read_values(1000)
-	# Both are read before the first assert, which allocates.
+	# All are read before the first assert, which allocates.
+	var peak_after: float = Performance.get_monitor(Performance.MEMORY_STATIC_MAX)
+	ballast.clear()
 	var objects_after: float = Performance.get_monitor(Performance.OBJECT_COUNT)
 	var memory_after: float = Performance.get_monitor(Performance.MEMORY_STATIC)
+	assert_true(memory > 0.0, "static memory is measured")
 	assert_true(objects_after <= objects, "object count")
 	assert_true(memory_after <= memory, "static memory")
+	assert_true(peak_after <= peak, "static memory peak: no allocation freed inside the loop")
 
 
 ## Reads received values and default values `times` times.
