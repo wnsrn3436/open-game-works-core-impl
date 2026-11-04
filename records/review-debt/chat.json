@@ -1,6 +1,6 @@
 {
   "target": "chat",
-  "nextId": 7,
+  "nextId": 9,
   "items": [
     {
       "id": "D1",
@@ -36,6 +36,18 @@
       "id": "D6",
       "location": "server/core/chat/index.ts:442",
       "problem": "`chat` `### delete` step 6 leaves the deleting user ID, the guild ID and the seq in an `info` log, and no test checks that log. The text of the log line is only in server/core/chat/index.ts, and server/core/chat/tests/guild.test.ts:65-84 asserts only response codes and rows. Removing this line fails no chat test",
+      "foundBy": "chat round 1"
+    },
+    {
+      "id": "D7",
+      "location": "server/core/chat/tables.ts:294",
+      "problem": "`select_deletions` has no `expires_at` condition, and `GetChatMessages` (server/core/chat/index.ts:354) returns its rows, so a `chat_deletion` row with `expires_at` ≤ `clock_now` that `sweep_expired` has not deleted is delivered in `deleted_seqs` and raises `last_delete_seq`. The storage `### expiry` rule (open-game-works-core/skills/server-core/modules/storage.md:269) says such a row counts as a row that does not exist, also before it is deleted, so the response differs by sweep timing. Reproduced on SQLite and PostgreSQL in a temporary copy: `chat.retentionMs` 10000, `routing.storageSweepIntervalMs` 3600000, two guild messages with seq 1 deleted by `DeleteGuildChatMessage`, clock advanced 10000 ms, `GetChatMessages` with `after_seq` 1 and `after_delete_seq` 0 returns `deleted_seqs` [1]. The code is unchanged in the range",
+      "foundBy": "chat round 1"
+    },
+    {
+      "id": "D8",
+      "location": "server/core/chat/tables.ts:289",
+      "problem": "`list_messages` has no `expires_at` condition, and admin `list_chat_messages` (server/core/chat/admin.ts:77) returns its rows, so an operator reads the text of a message whose `chat.retentionMs` has passed until `sweep_expired` deletes the row. The storage `### expiry` rule (open-game-works-core/skills/server-core/modules/storage.md:269) says such a row counts as a row that does not exist, and chat `### admin` only adds deleted messages to the list. Reproduced on SQLite and PostgreSQL in a temporary copy: `chat.retentionMs` 10000, `routing.storageSweepIntervalMs` 3600000, one `World` message, clock advanced 10000 ms, `list_chat_messages` returns that row. The code is unchanged in the range",
       "foundBy": "chat round 1"
     }
   ]
