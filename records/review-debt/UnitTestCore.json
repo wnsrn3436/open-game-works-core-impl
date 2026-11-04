@@ -1,6 +1,6 @@
 {
   "target": "UnitTestCore",
-  "nextId": 4,
+  "nextId": 5,
   "items": [
     {
       "id": "D1",
@@ -9,16 +9,10 @@
       "foundBy": "UnitTestCore round 1"
     },
     {
-      "id": "D2",
-      "location": "client/godot/core/unit_test_core/dev/unit_test_core.gd:130",
-      "problem": "`init` does not read `UnitTestCore.startTimeLimitMs`. `open-game-works-core/skills/client-core/engines/godot.md:116` says that in `init` a module reads the keys of `## settings` of its spec, and that a missing key or a key of another type gives an error log and a failed `init`. `open-game-works-core/skills/client-core/modules/unit-test-core.md:191` lists this key, but `_init_failure` checks only `UnitTestCore.testTimeLimitMs` and `UnitTestCore.runTimeLimitMs`. Under `client/godot/core` the key appears only in a comment at `client/godot/core/unit_test_core/dev/unit_test_core.gd:946`. Run path: with the key removed from `core_settings.json`, `init` returns `true`. Only the harness tool reads this key. This was found by reading and not run, and it existed before the range.",
-      "foundBy": "UnitTestCore round 1"
-    },
-    {
-      "id": "D3",
-      "location": "client/godot/core/unit_test_core/dev/unit_test_core.gd:1484",
-      "problem": "The `## error` rows `put_page_key` with an empty key (`open-game-works-core/skills/client-core/modules/unit-test-core.md:178`) and a failed test host request (`open-game-works-core/skills/client-core/modules/unit-test-core.md:176`) are not fully tested. `put_page_key` is called only with `\"q\"` in the tests under `client/godot/core` (`client/godot/core/unit_test_core/tests/test_page_input.gd:54`, `client/godot/core/unit_test_core/tests/test_page_input.gd:66`). The failure branches of `POST /input` with a status other than 204 and 404 (line 1091), `POST /servers` (line 1404), `PUT /responses` (line 1425), `GET /requests` (line 1441) and `POST /ws-servers` (line 1461) log an error under the tag `UnitTestCore`, but no test checks that log. Only `PUT /started` has such a test (`client/godot/core/unit_test_core/tests/test_run.gd:511`). This was found by `grep` and reading, no mutation was run, and it existed before the range.",
-      "foundBy": "UnitTestCore round 1"
+      "id": "D4",
+      "location": "client/godot/core/unit_test_core/dev/unit_test_core.gd:943",
+      "problem": "The `## error` row \"a test host request fails\" (`open-game-works-core/skills/client-core/modules/unit-test-core.md:177`, failure value and an error log) has no test for the failure branches of `PUT /result` (line 943), `PUT /released` (line 989) and the `DELETE` of a WebSocket relay at test end (line 1050). Evidence: in a temporary worktree at `716f069`, deleting those three `_host_failure` calls (the last two replaced with `pass`) and running `ogw core test godot UnitTestCore` (whole module) gives `UnitTestCore pass`. No test under `client/godot/core/unit_test_core/tests` calls `_send_result` with a refusing test host, `_send_released` with one (`test_run.gd:441` checks only the success), or ends a test whose relay delete fails (only the server `DELETE` failure is tested, `test_run.gd:113`). These branches existed before the range and were not in input D3",
+      "foundBy": "UnitTestCore round 2"
     }
   ]
 }
