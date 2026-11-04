@@ -1,42 +1,5 @@
 {
   "target": "friend",
   "nextId": 7,
-  "items": [
-    {
-      "id": "D1",
-      "location": "server/core/friend/index.ts:226",
-      "problem": "`create_friend` reads settings key `public-profile.maxRequestCount` and throws when it is missing, but that key is not in `## settings` of the friend spec nor in `core-spec/friend.json`, and `server-core` says `settings` holds the keys of `## settings` of that module spec. It works only because `module_settings` (server/core/routing/start_parts.ts:89) passes all merged settings. The use is also not needed: `public-profile` says `get_public_profiles` has no limit on the user ID count, while `profiles_of` (server/core/friend/index.ts:293) splits the list by that key. Exists since before the range",
-      "foundBy": "friend round 1"
-    },
-    {
-      "id": "D2",
-      "location": "server/core/friend/index.ts:371",
-      "problem": "behavior of the spec without a test: `GetFriends` leaves out rows without a profile. No friend test or other core test calls `GetFriends` with a link row whose other user has no profile; the only other caller, server/core/auth/tests/withdraw.test.ts:80, runs after the rows are deleted. Changing `continue` to a throw is not reached by any test",
-      "foundBy": "friend round 1"
-    },
-    {
-      "id": "D3",
-      "location": "server/core/friend/index.ts:407",
-      "problem": "failure path of the spec `## error` without a test: \"a link row that `remove_user` read again has an other user that was not locked\" is `FAILED`. The only test near it, server/core/friend/tests/block-withdraw.test.ts:122, races `Withdraw` and `SendFriendRequest` by timing and accepts both outcomes, so a run can pass without entering this branch, and no test holds the order that makes it happen. Removing this line is not detected reliably",
-      "foundBy": "friend round 1"
-    },
-    {
-      "id": "D4",
-      "location": "proto/ogw/core.proto:1307",
-      "problem": "behavior of the spec without a test: `SearchUsers` is `INVALID_REQUEST` for a `nickname` longer than `nickname.maxLength` (`(ogw.v)` `max_chars_key`). server/core/friend/tests/helpers.ts:154 is the only sender of `core/SearchUsers` in the core tests, and server/core/friend/tests/list-search.test.ts sends no over-length nickname. Without the annotation, `find_user_ids_by_nickname` returns an empty list, so the response would be success with no users and no test would fail",
-      "foundBy": "friend round 1"
-    },
-    {
-      "id": "D5",
-      "location": "server/core/friend/index.ts:315",
-      "problem": "processing order of the spec without a test: no test has two failure conditions at once, so swapping steps passes. Cases not run: a target that is both withdrawn and blocked (`USER_NOT_FOUND` before `BLOCKED`, lines 315-316), `FRIEND_LIMIT` with `FRIEND_REQUEST_LIMIT` and with `FRIEND_TARGET_LIMIT` in step 7 of `SendFriendRequest` (lines 331-334), and both users at `friend.maxFriends` in `AcceptFriendRequest` (lines 260-262). server/core/friend/tests/request.test.ts:163 and the limit tests after it reach one limit at a time",
-      "foundBy": "friend round 1"
-    },
-    {
-      "id": "D6",
-      "location": "server/core/friend/index.ts:282",
-      "problem": "On PostgreSQL, exceeding the lock wait on a `friend_count` row in a core rpc leaves no line of `kind` `error`, while `open-game-works-core/skills/server-core/modules/friend.md:163` says `routing` leaves an `error` log. The same return is at `server/core/friend/index.ts:312` (`SendFriendRequest`) and `:350` (`AcceptFriendRequest`); line 282 is `drop`, used by decline, cancel and remove. The handler returns `CORE_ERROR_INTERNAL` as a value, and `finish` in `server/core/routing/pipeline.ts` calls only `fail` for it, without `error_log`. Reproduced with a scratch test on PostgreSQL with `storage.userLockWaitMs` 300: holding the target's `friend_count` row with `hold_game_row_lock` and sending `SendFriendRequest` or `RemoveFriend` gave `INTERNAL` and exactly one log line, `kind` `request` at level `error`. `BlockUser` under the same hold throws at `server/core/friend/index.ts:301` and leaves a line of `kind` `error` with a stack trace plus the `request` line, and the two rows of the spec use the same words. So an operator sees that the request failed but not that a lock wait caused it. No friend test reads a log. The code is older than the range and the range does not touch it",
-      "foundBy": "friend round 1"
-    }
-  ]
+  "items": []
 }
