@@ -1,6 +1,6 @@
 {
   "target": "spec UICore",
-  "nextId": 10,
+  "nextId": 11,
   "items": [
     {
       "id": "D1",
@@ -48,6 +48,12 @@
       "id": "D9",
       "location": "skills/client-core/modules/ui-core.md:165",
       "problem": "The same unset case exists for panels and regular popups, and it predates this diff. With a tween preset of repeat count 0 as the UI property open tween, \"Wait for the open tween and end the transition\" never ends, so every later panel transition operation returns `false` (skills/client-core/modules/ui-core.md:156). A popup open flow never ends either, so the popup queue never runs its next request (skills/client-core/modules/ui-core.md:189, skills/client-core/modules/ui-core.md:190). Forced release frees only the block here, because no system popup timer hold applies. The behavior set for R1-1 should cover all UI property tweens.",
+      "foundBy": "spec UICore"
+    },
+    {
+      "id": "D10",
+      "location": "skills/client-core/modules/ui-core.md:349",
+      "problem": "The `panel key` payload of `PanelFlowFinishedEvent` is not defined for a close flow. `close_panel` has no key input, and the payload could be the key of the closed current panel or of the destination. A close flow can also end with the stack empty and no destination (ui-core.md:181). Two implementations can publish different keys, and test line 498 checks only the count and `is_panel_transitioning`",
       "foundBy": "spec UICore"
     }
   ]
