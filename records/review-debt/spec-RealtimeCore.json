@@ -1,0 +1,12 @@
+{
+  "target": "spec RealtimeCore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/client-core/modules/realtime-core.md:224",
+      "problem": "\"reconnection of `Disconnected` participants uses signaling again\" does not set what happens to signals made while the matchmaker connection is down. Lines 115 to 119 do not say whether `PEER_SIGNAL` made with no matchmaker connection is queued or dropped, and line 104 gives the transport no time limit. Run path: index 0 calls `connect_peer` for a `Disconnected` index 1 while the matchmaker connection is lost. When the offer is dropped, in-match rejoin succeeds and index 1 gets `PEER_REJOINED`, drops its waiting connection and waits for an offer (line 130), while index 0 does not restart its connection. Both reach `PeerLeftEvent`(`Timeout`) at the reconnect time limit. This existed before the diff",
+      "foundBy": "spec RealtimeCore"
+    }
+  ]
+}
