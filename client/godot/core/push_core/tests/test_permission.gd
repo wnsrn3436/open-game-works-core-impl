@@ -4,11 +4,30 @@ extends UnitTestCase
 
 const Env := preload("res://core/push_core/tests/support/push_test_env.gd")
 const TestNotification := preload("res://core/push_core/tests/support/scripted_notification_adapter.gd")
+const NotificationPlugin := preload("res://core/push_core/tests/support/scripted_notification_plugin.gd")
+
+const _NOTIFICATION_SINGLETON: String = "OgwNotification"
+
+var _plugin: NotificationPlugin = null
 
 
 func after_each() -> void:
 	super()
 	Env.stop()
+	if Engine.has_singleton(_NOTIFICATION_SINGLETON):
+		Engine.unregister_singleton(_NOTIFICATION_SINGLETON)
+	if _plugin != null:
+		_plugin.free()
+		_plugin = null
+
+
+## Starts PushCore with the native notification adapter over a scripted plugin whose reads end undetermined and whose
+## request screen waits until the test sets `request_state`.
+func _start_plugin() -> bool:
+	_plugin = NotificationPlugin.new()
+	_plugin.read_state = 0
+	Engine.register_singleton(_NOTIFICATION_SINGLETON, _plugin)
+	return await Env.start(null, NativeNotificationAdapter.new())
 
 
 func test_permission_is_undetermined_before_the_first_read_and_follows_the_os_at_the_foreground_return() -> void:
@@ -105,3 +124,52 @@ func test_fake_permission_status_outside_the_enum_is_an_error_and_is_ignored() -
 	PushCoreDev.set_fake_permission(9 as PushCore.PermissionStatus)
 	assert_eq(Env.errors(), 1)
 	assert_eq(await PushCore.request_permission(), PushCore.PermissionStatus.GRANTED)
+
+
+func test_a_screen_result_that_ends_after_a_foreground_return_read_is_cached() -> void:
+	assert_true(await _start_plugin())
+	var request: Array[PushCore.PermissionStatus] = []
+	var job: Callable = func() -> void:
+		request.append(await PushCore.request_permission())
+	job.call()
+	await UnitTestCore.wait_frames(2)
+	assert_eq(_plugin.requests.size(), 1, "the request screen is open")
+	assert_eq(request.size(), 0)
+	UnitTestCore.advance_clock(1000, true)
+	await UnitTestCore.wait_frames(2)
+	assert_eq(_plugin.started.size(), 4, "init, request_permission and the return from the background read")
+	assert_eq(PushCore.get_permission(), PushCore.PermissionStatus.UNDETERMINED)
+	_plugin.request_state = 1
+	await UnitTestCore.wait_frames(2)
+	assert_eq(request, [PushCore.PermissionStatus.GRANTED] as Array[PushCore.PermissionStatus])
+	assert_eq(PushCore.get_permission(), PushCore.PermissionStatus.GRANTED, "the screen result is newer than the read")
+	assert_true(PushCore.schedule_local(Env.id_of(Env.RETURN_ROW)))
+	_plugin.read_state = 2
+	UnitTestCore.advance_clock(1000, true)
+	await UnitTestCore.wait_frames(2)
+	assert_eq(PushCore.get_permission(), PushCore.PermissionStatus.DENIED, "a read that starts later replaces it")
+	assert_eq(Env.errors(), 0)
+
+
+func test_a_read_that_starts_before_the_screen_result_and_ends_after_it_leaves_the_cache() -> void:
+	assert_true(await _start_plugin())
+	var request: Array[PushCore.PermissionStatus] = []
+	var job: Callable = func() -> void:
+		request.append(await PushCore.request_permission())
+	job.call()
+	await UnitTestCore.wait_frames(2)
+	assert_eq(_plugin.requests.size(), 1, "the request screen is open")
+	assert_eq(request.size(), 0)
+	_plugin.read_state = -1
+	UnitTestCore.advance_clock(1, true)
+	await UnitTestCore.wait_frames(2)
+	assert_eq(_plugin.started.size(), 4, "the read of the return from the background runs")
+	_plugin.request_state = 2
+	await UnitTestCore.wait_frames(2)
+	assert_eq(request, [PushCore.PermissionStatus.DENIED] as Array[PushCore.PermissionStatus])
+	assert_eq(PushCore.get_permission(), PushCore.PermissionStatus.DENIED)
+	_plugin.read_state = 0
+	await UnitTestCore.wait_frames(2)
+	assert_eq(_plugin.cancelled.size(), 0, "the read ended with a result")
+	assert_eq(PushCore.get_permission(), PushCore.PermissionStatus.DENIED, "the older read leaves the screen result")
+	assert_eq(Env.errors(), 0)

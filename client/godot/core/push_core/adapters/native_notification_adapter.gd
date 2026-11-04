@@ -5,7 +5,8 @@ extends NotificationAdapter
 ##
 ## Singleton methods:
 ## - `start_read_permission() -> int`, `start_request_permission() -> int`: start a permission read or the OS
-##   permission request screen and return its operation ID
+##   permission request screen and return its operation ID; 0 when it cannot start, which ends with `UNDETERMINED`
+##   at once
 ## - `permission_state(id: int) -> int`: -1 while the operation runs, then its result: 0 undetermined, 1 granted,
 ##   2 denied
 ## - `cancel_permission(id: int)`: the adapter stopped waiting for operation `id`; the plugin drops its result
@@ -33,6 +34,8 @@ func read_permission() -> PushCore.PermissionStatus:
 		return PushCore.PermissionStatus.UNDETERMINED
 	@warning_ignore("unsafe_method_access")
 	var id: int = plugin.start_read_permission()
+	if id <= 0:
+		return PushCore.PermissionStatus.UNDETERMINED
 	return await _wait_permission(plugin, id, permission_read_timeout_ms)
 
 
@@ -42,6 +45,8 @@ func request_permission() -> PushCore.PermissionStatus:
 		return PushCore.PermissionStatus.UNDETERMINED
 	@warning_ignore("unsafe_method_access")
 	var id: int = plugin.start_request_permission()
+	if id <= 0:
+		return PushCore.PermissionStatus.UNDETERMINED
 	return await _wait_permission(plugin, id, -1)
 
 

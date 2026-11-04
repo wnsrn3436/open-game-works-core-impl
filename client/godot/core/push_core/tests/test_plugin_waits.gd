@@ -2,11 +2,12 @@ extends UnitTestCase
 ## The real push adapter and notification adapter over plugin singletons that never answer: a device token request
 ## ends at `PushCore.deviceTokenTimeoutMs`, a permission read at `PushCore.permissionReadTimeoutMs`, a permission
 ## request waits for the user with no time limit, and `release` ends them all.
-## When an adapter stops waiting it stops reading the plugin and tells the plugin.
+## When an adapter stops waiting it stops reading the plugin and tells the plugin. An operation the plugin cannot start
+## (operation ID 0) ends at once with no read and no cancel.
 
 const Env := preload("res://core/push_core/tests/support/push_test_env.gd")
 const PushPlugin := preload("res://core/push_core/tests/support/scripted_push_plugin.gd")
-const NotificationPlugin := preload("res://core/push_core/tests/support/silent_notification_plugin.gd")
+const NotificationPlugin := preload("res://core/push_core/tests/support/scripted_notification_plugin.gd")
 
 const _FCM_SINGLETON: String = "OgwPushFcm"
 const _NOTIFICATION_SINGLETON: String = "OgwNotification"
@@ -136,3 +137,40 @@ func test_the_permission_request_waits_with_no_time_limit_after_its_read_times_o
 	var told: PackedInt64Array = _notification_plugin.cancelled.slice(2)
 	assert_eq(told, PackedInt64Array([3]), "the request is told once")
 	assert_true(await _notification_reads_stopped(), "the adapter stops reading the plugin")
+
+
+func test_a_token_request_that_cannot_start_gives_no_token_at_once() -> void:
+	assert_true(UnitTestCore.set_test_settings("PushCore.deviceTokenTimeoutMs", _TIMEOUT_MS))
+	_push_plugin = PushPlugin.new()
+	_push_plugin.token = "fcm-token"
+	_push_plugin.cannot_start = true
+	Engine.register_singleton(_FCM_SINGLETON, _push_plugin)
+	assert_true(await Env.start(PushFcmAdapter.new(), null, "android"))
+	assert_true(await Env.login())
+	await Env.settle()
+	assert_eq(_push_plugin.token_requests, 1)
+	assert_eq(PushCore._token_waits.size(), 0, "the token wait ended before the time limit")
+	assert_eq(_push_plugin.token_polls, 0, "operation ID 0 is not read")
+	assert_eq(_push_plugin.cancelled.size(), 0, "an operation that did not start is not cancelled")
+	assert_eq(Env.request_count(Env.REGISTER), 0)
+	assert_eq(Env.errors(), 0)
+
+
+func test_permission_operations_that_cannot_start_end_undetermined_at_once() -> void:
+	assert_true(UnitTestCore.set_test_settings("PushCore.permissionReadTimeoutMs", _READ_TIMEOUT_MS))
+	_notification_plugin = NotificationPlugin.new()
+	_notification_plugin.cannot_start = true
+	Engine.register_singleton(_NOTIFICATION_SINGLETON, _notification_plugin)
+	assert_true(await Env.start(null, NativeNotificationAdapter.new(), "android"))
+	var request: Array[PushCore.PermissionStatus] = []
+	var job: Callable = func() -> void:
+		request.append(await PushCore.request_permission())
+	job.call()
+	await UnitTestCore.wait_frames(2)
+	assert_eq(request.size(), 1, "the read and the request end without the user and without the time limit")
+	if request.size() == 1:
+		assert_eq(request[0], PushCore.PermissionStatus.UNDETERMINED)
+	assert_eq(PushCore.get_permission(), PushCore.PermissionStatus.UNDETERMINED)
+	assert_eq(_notification_plugin.polls, 0, "operation ID 0 is not read")
+	assert_eq(_notification_plugin.cancelled.size(), 0, "an operation that did not start is not cancelled")
+	assert_eq(Env.errors(), 0)

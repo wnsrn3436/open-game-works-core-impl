@@ -2,7 +2,8 @@ extends PushAdapter
 ## Push adapter over a native plugin singleton, the shared part of `PushFcmAdapter` and `PushApnsAdapter`.
 ##
 ## Singleton methods:
-## - `start_token_request() -> int`: starts a device token request and returns its operation ID
+## - `start_token_request() -> int`: starts a device token request and returns its operation ID; 0 when it cannot
+##   start, which gives no token at once
 ## - `token_state(id: int) -> int`: 0 while the request runs, 1 when it ended
 ## - `take_token(id: int) -> String`: the device token of an ended request, empty when there is none; once
 ## - `cancel_token_request(id: int)`: the adapter stopped waiting for request `id`; the plugin drops its token
@@ -39,6 +40,8 @@ func get_device_token() -> String:
 		return ""
 	@warning_ignore("unsafe_method_access")
 	var id: int = plugin.start_token_request()
+	if id <= 0:
+		return ""
 	var life: RefCounted = _life
 	var deadline: int = TimeCore.get_real_time() + token_timeout_ms
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
