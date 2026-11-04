@@ -21,6 +21,38 @@ func test_maintenance_popup_until_a_fetch_says_no_maintenance() -> void:
 	assert_eq(UICore.get_open_popup_count(), 0)
 
 
+func test_back_input_does_not_close_the_maintenance_popup() -> void:
+	if not await start():
+		fail_test("setup failed")
+		return
+	respond([], true)
+	respond([], false)
+	var waiting: Running = start_wait()
+	await pump()
+	assert_eq(UICore.get_open_popup_count(), 1)
+	await press_back()
+	assert_eq(UICore.get_open_popup_count(), 1, "back input does not close the popup")
+	assert_false(waiting.done)
+	assert_eq(request_count(), 1, "no fetch after back input")
+	assert_true(await press(ReservedString.notice_retry()))
+	await pump()
+	assert_true(waiting.done)
+	assert_eq(request_count(), 2)
+
+
+## One back input (the escape key) through `InputCore`, then the frames for the popup to react.
+func press_back() -> void:
+	var press: InputEventKey = InputEventKey.new()
+	press.keycode = KEY_ESCAPE
+	press.physical_keycode = KEY_ESCAPE
+	press.pressed = true
+	InputCoreDev.inject_device_input(press)
+	var release: InputEventKey = press.duplicate() as InputEventKey
+	release.pressed = false
+	InputCoreDev.inject_device_input(release)
+	await pump()
+
+
 func test_popup_closed_by_close_all_popups_fetches_again() -> void:
 	if not await start():
 		fail_test("setup failed")
