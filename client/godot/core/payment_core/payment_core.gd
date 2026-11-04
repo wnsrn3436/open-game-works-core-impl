@@ -429,6 +429,8 @@ static func _run_purchase(product: GameData.IapProductRow, sku: String) -> Purch
 	if life != _life:
 		return PurchaseResult.REJECTED
 	_buying_sku = ""
+	if epoch != _login_epoch:
+		return PurchaseResult.REJECTED
 	var bought: StoreAdapter.BuyResult = bought_call.value as StoreAdapter.BuyResult
 	var status: StoreAdapter.BuyStatus = bought.status if bought != null else StoreAdapter.BuyStatus.FAILED
 	if status == StoreAdapter.BuyStatus.CANCELLED:
@@ -440,8 +442,6 @@ static func _run_purchase(product: GameData.IapProductRow, sku: String) -> Purch
 		return PurchaseResult.STORE_FAILED
 	var receipt: StoreAdapter.Receipt = bought.receipt
 	_purchase_key = _key_of(receipt)
-	if epoch != _login_epoch:
-		return PurchaseResult.REJECTED
 	var verify: CoreContract.VerifyPurchaseRequest = CoreContract.VerifyPurchaseRequest.new()
 	verify.store = _store
 	verify.receipt = receipt.data
@@ -852,10 +852,11 @@ static func claim_daily(product_id: int) -> bool:
 	if not _check("claim_daily") or not _has_product("claim_daily", product_id):
 		return false
 	var life: RefCounted = _life
+	var epoch: int = _login_epoch
 	var request: CoreContract.ClaimIapDailyRequest = CoreContract.ClaimIapDailyRequest.new()
 	request.product_id = product_id
 	var claimed: _REQUEST = await _await_send(request, _REQUEST.new(), false)
-	return life == _life and claimed.ok
+	return life == _life and epoch == _login_epoch and claimed.ok
 
 
 static func open_subscription_management() -> bool:

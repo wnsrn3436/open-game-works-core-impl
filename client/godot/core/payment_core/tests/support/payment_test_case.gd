@@ -3,6 +3,7 @@ extends UnitTestCase
 ## fake store adapter, logs in with a dev login, and reads the fake network, the fake store adapter calls, the popups
 ## and `PurchaseRecoveredEvent`.
 
+const FakeStore := preload("res://core/payment_core/dev/adapters/fake_store_adapter.gd")
 const TestSocial := preload("res://core/payment_core/tests/support/usable_social_adapter.gd")
 
 const SERVER_TIME: int = 1700000500000
@@ -22,7 +23,7 @@ const DEV_LOGIN: String = "core/cheat/DevLogin"
 const CLICK: String = "sfx/ui_button_click"
 const RESOURCES: String = "res://core/payment_core/tests/resources/"
 
-var fake: FakeStoreAdapter = null
+var fake: FakeStore = null
 var social: TestSocial = null
 ## `<product ID value>@<finish calls of the fake adapter>` of each `PurchaseRecoveredEvent`, in order.
 var recovered: PackedStringArray = PackedStringArray()
@@ -134,7 +135,7 @@ func start_auth(social_supported: bool) -> bool:
 ## Inits PaymentCore with a fake adapter of `store`, or with none, and subscribes to `PurchaseRecoveredEvent`.
 func start_payment(store: CoreContract.IapStore, with_adapter: bool = true) -> bool:
 	if with_adapter:
-		fake = FakeStoreAdapter.new(store)
+		fake = FakeStore.new(store)
 		PaymentCore.set_store_adapter(fake)
 	if not PaymentCore.init():
 		return false
@@ -142,7 +143,7 @@ func start_payment(store: CoreContract.IapStore, with_adapter: bool = true) -> b
 
 
 ## `start` with the store adapter `adapter`: a logged-in user with a linked provider.
-func start_with(adapter: FakeStoreAdapter) -> bool:
+func start_with(adapter: FakeStore) -> bool:
 	if not start_modules() or not await prepare_modules() or not start_auth(false):
 		return false
 	fake = adapter

@@ -2,6 +2,19 @@ extends "res://core/payment_core/tests/support/payment_test_case.gd"
 ## Subscription purchase and renewal, entitlement, pass days, ownership and the daily reward.
 
 
+## A `claim_daily` running in the background.
+class Claim extends RefCounted:
+	signal finished
+	var done: bool = false
+	var ok: bool = false
+
+
+func _claim_into(running: Claim, product_id: int) -> void:
+	running.ok = await PaymentCore.claim_daily(product_id)
+	running.done = true
+	running.finished.emit()
+
+
 func _margin() -> int:
 	return CoreSettings.get_int("TimeCore.reachMarginMs")
 
@@ -112,6 +125,42 @@ func test_pass_days_left_ownership_and_daily_end_on_the_pass_end_day() -> void:
 	assert_eq(PaymentCore.get_pass_days_left(pass_id), 0)
 	assert_false(PaymentCore.is_owned(pass_id), "from the pass end day")
 	assert_false(PaymentCore.can_claim_daily(pass_id), "from the pass end day")
+
+
+func test_pass_reads_zero_before_the_time_sync() -> void:
+	assert_true(await start(CoreContract.IapStore.IAP_STORE_APPLE, true, true, false, false))
+	assert_false(TimeCore.is_synced())
+	var pass_id: int = id_of("[iap_pass]")
+	var end_day: int = 100000
+	assert_true(apply(iap_delta(pass_id, 1, end_day)))
+	assert_eq(PaymentCore.get_pass_days_left(pass_id), 0, "not synced")
+	assert_false(PaymentCore.is_owned(pass_id), "not synced")
+	assert_false(PaymentCore.can_claim_daily(pass_id), "not synced")
+	var now: int = TimeCore.get_monotonic_time()
+	TimeCore.sync_server_time(SERVER_TIME, now, now)
+	assert_true(TimeCore.is_synced())
+	assert_eq(PaymentCore.get_pass_days_left(pass_id), end_day - today(), "the same row after the sync")
+	assert_true(PaymentCore.is_owned(pass_id))
+	assert_true(PaymentCore.can_claim_daily(pass_id))
+
+
+func test_login_session_change_during_claim_daily_is_false() -> void:
+	assert_true(await start())
+	var vip: int = id_of("[iap_vip]")
+	assert_true(apply(subscription_delta(vip, CoreContract.SubscriptionState.SUBSCRIPTION_STATE_ACTIVE, SERVER_TIME + 30 * DAY_MS)))
+	UnitTestCore.add_pending(CLAIM)
+	var running: Claim = Claim.new()
+	_claim_into(running, vip)
+	await settle()
+	assert_eq(request_count(CLAIM), 1)
+	assert_false(running.done)
+	assert_true(await log_in(USER_ID + 1))
+	assert_true(UnitTestCore.release_pending(
+		CLAIM, NetworkCore.TransferResult.DONE, 200, envelope(CoreContract.ClaimIapDailyResponse.new())
+	))
+	if not running.done:
+		await running.finished
+	assert_false(running.ok, "the claim of the ended login session")
 
 
 func test_owned_follows_the_product_type() -> void:

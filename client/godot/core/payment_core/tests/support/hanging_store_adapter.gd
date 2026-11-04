@@ -1,4 +1,4 @@
-extends FakeStoreAdapter
+extends "res://core/payment_core/dev/adapters/fake_store_adapter.gd"
 ## Fake store adapter whose `connect` does not end until `release_hang`: the store call time limit test.
 
 signal released

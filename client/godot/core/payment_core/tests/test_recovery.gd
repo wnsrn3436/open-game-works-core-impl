@@ -2,6 +2,8 @@ extends "res://core/payment_core/tests/support/payment_test_case.gd"
 ## Recovery, purchase updates, in-flight transactions, the login session, `restore_purchases`, the store `GOOGLE`
 ## restore, `RecoverySummary` and the subscription sync.
 
+const HoldingLists := preload("res://core/payment_core/tests/support/holding_list_store_adapter.gd")
+
 
 func _release_recover(status: CoreContract.PurchaseStatus, product_id: int) -> bool:
 	return UnitTestCore.release_pending(
@@ -174,6 +176,93 @@ func test_verification_response_of_an_earlier_login_session_changes_nothing() ->
 	assert_eq(fake.count_calls("finish"), 1)
 
 
+func test_login_session_change_while_the_store_lists_run_discards_recovery_and_restore() -> void:
+	var holding: HoldingLists = HoldingLists.new(CoreContract.IapStore.IAP_STORE_APPLE)
+	assert_true(await start_with(holding))
+	PaymentCoreDev.fake_add_unfinished(id_of("[iap_no_ads]"), ACCOUNT_TOKEN)
+	var recovery: Recovery = start_recover()
+	await settle()
+	assert_eq(holding.lists_started, 1, "list_unfinished waits")
+	assert_false(recovery.done)
+	assert_true(await log_in(USER_ID + 1))
+	holding.release_lists()
+	assert_false(await wait_recovery(recovery), "the recovery of the ended session")
+	assert_eq(counts(recovery.summary), "0,0,0,0,0,0")
+	holding.hold_lists = true
+	var restore: Recovery = start_restore()
+	await settle()
+	assert_eq(holding.lists_started, 2, "list_owned waits")
+	assert_false(restore.done)
+	assert_true(await log_in(USER_ID + 2))
+	holding.release_lists()
+	assert_false(await wait_recovery(restore), "the restore of the ended session")
+	assert_eq(counts(restore.summary), "0,0,0,0,0,0")
+	assert_eq(holding.count_calls("list_unfinished"), 1)
+	assert_eq(holding.count_calls("list_owned"), 1)
+	assert_eq(request_count(RECOVER), 0, "no RecoverPurchase for a listed transaction")
+	assert_eq(holding.count_calls("finish"), 0)
+	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 0)
+
+
+func test_session_end_empties_the_finish_list_discards_a_running_result_and_resets_the_google_restore() -> void:
+	assert_true(await start(CoreContract.IapStore.IAP_STORE_GOOGLE))
+	var no_ads: int = id_of("[iap_no_ads]")
+	var gems: int = id_of("[iap_gems]")
+	PaymentCoreDev.fake_add_unfinished(no_ads, ACCOUNT_TOKEN)
+	respond_recover(CoreContract.PurchaseStatus.PURCHASE_STATUS_ALREADY_GRANTED, no_ads)
+	assert_true((await PaymentCore.recover_purchases()).ok)
+	await settle()
+	assert_eq(fake.count_calls("list_owned"), 1, "the GOOGLE restore of this login session")
+	assert_eq(request_count(RECOVER), 1, "the restore skips the transaction finished in this login session")
+	assert_eq(PaymentCore._finished.size(), 1)
+	assert_true(PaymentCore._google_restored)
+	PaymentCoreDev.fake_add_unfinished(gems, ACCOUNT_TOKEN)
+	UnitTestCore.add_pending(RECOVER)
+	var running: Recovery = start_recover()
+	await settle()
+	assert_eq(request_count(RECOVER), 2)
+	# The event alone: a real logout leaves the held `RecoverPurchase` without an access token, so it would not end.
+	var ended: SessionEndedEvent = EventCore.acquire(SessionEndedEvent) as SessionEndedEvent
+	ended.reason = AuthCore.SessionEndReason.LOGOUT
+	EventCore.publish(ended)
+	assert_eq(PaymentCore._finished.size(), 0, "SessionEndedEvent empties the finish success list")
+	assert_false(PaymentCore._google_restored, "SessionEndedEvent resets the GOOGLE restore")
+	assert_true(_release_recover(CoreContract.PurchaseStatus.PURCHASE_STATUS_GRANTED, gems))
+	assert_false(await wait_recovery(running), "the result of the ended session is discarded")
+	assert_eq(counts(running.summary), "0,0,0,0,0,0")
+	await settle()
+	assert_eq(recovered.size(), 0)
+	assert_eq(fake.count_calls("finish"), 1, "only the finish of the first recovery")
+	assert_eq(PaymentCore._finished.size(), 0)
+	assert_true(await log_in(USER_ID))
+	respond_recover(CoreContract.PurchaseStatus.PURCHASE_STATUS_GRANTED, gems)
+	respond_recover(CoreContract.PurchaseStatus.PURCHASE_STATUS_ALREADY_GRANTED, no_ads)
+	assert_true((await PaymentCore.recover_purchases()).ok)
+	await settle()
+	assert_eq(fake.count_calls("list_owned"), 2, "the GOOGLE restore runs again in the next login session")
+	assert_eq(request_count(RECOVER), 4, "the gems recovery and the restore of the owned transaction")
+
+
+func test_concurrent_recover_purchases_share_one_run() -> void:
+	assert_true(await start())
+	var gems: int = id_of("[iap_gems]")
+	PaymentCoreDev.fake_add_unfinished(gems, ACCOUNT_TOKEN)
+	UnitTestCore.add_pending(RECOVER)
+	var first: Recovery = start_recover()
+	var second: Recovery = start_recover()
+	await settle()
+	assert_eq(fake.count_calls("list_unfinished"), 1, "the second call joins the running one")
+	assert_eq(request_count(RECOVER), 1)
+	assert_true(_release_recover(CoreContract.PurchaseStatus.PURCHASE_STATUS_GRANTED, gems))
+	assert_true(await wait_recovery(first))
+	assert_true(await wait_recovery(second))
+	assert_eq(counts(first.summary), "1,0,0,0,0,0")
+	assert_eq(counts(second.summary), counts(first.summary), "the same RecoverySummary")
+	assert_eq(fake.count_calls("list_unfinished"), 1)
+	assert_eq(request_count(RECOVER), 1)
+	assert_eq(fake.count_calls("finish"), 1)
+
+
 func test_restore_is_true_when_list_owned_succeeds_and_false_without_verification_when_it_fails() -> void:
 	assert_true(await start())
 	var no_ads: int = id_of("[iap_no_ads]")
@@ -222,7 +311,7 @@ func test_google_restores_once_per_login_session_after_the_first_recovery() -> v
 	var vip: int = id_of("[iap_vip]")
 	PaymentCoreDev.fake_add_unfinished(no_ads, ACCOUNT_TOKEN)
 	PaymentCoreDev.fake_add_unfinished(vip, ACCOUNT_TOKEN)
-	for transaction: FakeStoreAdapter.Transaction in fake.transactions:
+	for transaction: FakeStore.Transaction in fake.transactions:
 		transaction.finished = true
 	respond_recover(CoreContract.PurchaseStatus.PURCHASE_STATUS_ALREADY_GRANTED, no_ads)
 	respond_recover(CoreContract.PurchaseStatus.PURCHASE_STATUS_ALREADY_GRANTED, vip)
