@@ -60,3 +60,30 @@ func test_release_while_waiting_for_open_panels() -> void:
 	await UnitTestCore.wait_frames(3)
 	assert_eq(stack(), "r,b,c,d")
 	assert_eq(probe.navigated_ids.size(), 0)
+
+
+## `release` inside stage 5, from a popup's hidden callback that `UICore.close_all_popups` calls: the navigation ends
+## with `false` and does not change the scene or open panels.
+func test_release_while_closing_popups() -> void:
+	assert_true(await start_at(SCENE_ROOT, PackedStringArray([PANEL_A])))
+	var result: UICore.PopupOpenResult = await UICore.open_popup(POPUP, null, _release_shortcut)
+	assert_eq(result, UICore.PopupOpenResult.OPENED)
+	Trace.clear()
+	assert_false(await ShortcutCore.navigate(shortcut("change_bc")))
+	assert_true(Trace.has("shortcut_released"))
+	assert_false(ShortcutCore.is_initialized())
+	assert_false(SceneCore.is_transitioning())
+	await UnitTestCore.wait_frames(3)
+	assert_eq(SceneCore.current_scene_key(), SCENE_ROOT)
+	assert_eq(Trace.with_prefix("scene_ended:").size(), 0)
+	assert_eq(flows().size(), 0)
+	assert_eq(stack(), "r,a")
+	assert_eq(probe.navigated_ids.size(), 0)
+	assert_true(ShortcutCore.init())
+	assert_false(ShortcutCore.is_navigating())
+
+
+## Hidden callback of a popup: releases ShortcutCore while a navigation closes the popups.
+func _release_shortcut() -> void:
+	Trace.add("shortcut_released")
+	ShortcutCore.release()

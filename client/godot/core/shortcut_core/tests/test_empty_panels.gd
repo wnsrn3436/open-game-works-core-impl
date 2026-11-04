@@ -39,3 +39,28 @@ func test_top_in_the_current_scene_keeps_the_stack() -> void:
 	assert_eq(probe.navigated_panels[0], PackedStringArray())
 	assert_eq(UICore.get_open_popup_count(), 0)
 	assert_eq(stack(), "r,a")
+
+
+## The scene changes at stage 6 into a scene without a root panel: the stack is the one the new scene's `on_start`
+## opened, with `Root` and with `Top` (which acts as `Root`).
+func test_empty_panels_into_a_scene_without_a_root_panel_keeps_the_stack_the_scene_opened() -> void:
+	assert_true(await start_at(SCENE_ROOT, PackedStringArray([PANEL_A])))
+	TestScene.start_panel = PANEL_X
+	await open_popups(1)
+	var id: int = shortcut("plain_empty")
+	assert_true(await ShortcutCore.navigate(id))
+	assert_in_order(PackedStringArray(["popup_hidden", "scene_start:plain", "start_panel:x:true", "navigated:%d" % id]))
+	assert_eq(flows(), PackedStringArray(["flow:open:x:true"]))
+	assert_eq(probe.navigated_panels[0], PackedStringArray())
+	assert_eq(UICore.get_open_popup_count(), 0)
+	assert_eq(stack(), "x")
+	TestScene.start_panel = ""
+	assert_true(await SceneCore.change_scene(SCENE_ROOT, null))
+	assert_true(await UICore.open_panel(PANEL_A, null, false))
+	TestScene.start_panel = PANEL_X
+	Trace.clear()
+	id = shortcut("plain_top_empty")
+	assert_true(await ShortcutCore.navigate(id))
+	assert_in_order(PackedStringArray(["scene_start:plain", "start_panel:x:true", "navigated:%d" % id]))
+	assert_eq(flows(), PackedStringArray(["flow:open:x:true"]))
+	assert_eq(stack(), "x")

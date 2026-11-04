@@ -84,3 +84,36 @@ func test_root_with_only_the_root_panel_opens_no_panel() -> void:
 	assert_true(await ShortcutCore.navigate(shortcut("root_r")))
 	assert_eq(flows(), PackedStringArray(["flow:close:r:true"]))
 	assert_eq(stack(), "r")
+
+
+## The scene changes at stage 6 into a scene without a root panel, so `Top` acts as `Root`: no `close_panels_to`, and
+## clear stack of the open is on, which also closes the panel the new scene's `on_start` opened.
+func test_top_into_a_scene_without_a_root_panel_opens_with_clear_stack() -> void:
+	assert_true(await start_at(SCENE_ROOT, PackedStringArray([PANEL_A])))
+	TestScene.start_panel = PANEL_X
+	var id: int = shortcut("plain_top_b")
+	assert_true(await ShortcutCore.navigate(id))
+	assert_in_order(PackedStringArray(["scene_start:plain", "start_panel:x:true", "flow:open:b:true", "navigated:%d" % id]))
+	assert_eq(flows(), PackedStringArray(["flow:open:x:true", "flow:open:b:true"]))
+	assert_true(Trace.has("closed:x:closed"))
+	assert_eq(stack(), "b")
+	TestScene.start_panel = ""
+	assert_true(await SceneCore.change_scene(SCENE_ROOT, null))
+	assert_true(await UICore.open_panel(PANEL_A, null, false))
+	TestScene.start_panel = PANEL_X
+	Trace.clear()
+	assert_true(await ShortcutCore.navigate(shortcut("plain_top_bc")))
+	assert_eq(flows(), PackedStringArray(["flow:open:x:true", "flow:open:c:true"]))
+	assert_eq(Trace.with_prefix("opened:"), PackedStringArray(["opened:x", "opened:c"]))
+	assert_true(Trace.has("closed:x:closed"))
+	assert_eq(stack(), "b,c")
+
+
+## The scene changes at stage 6 into a scene without a root panel with `Root`: clear stack is on.
+func test_root_into_a_scene_without_a_root_panel_opens_with_clear_stack() -> void:
+	assert_true(await start_at(SCENE_ROOT, PackedStringArray([PANEL_A])))
+	TestScene.start_panel = PANEL_X
+	assert_true(await ShortcutCore.navigate(shortcut("plain_b")))
+	assert_eq(flows(), PackedStringArray(["flow:open:x:true", "flow:open:b:true"]))
+	assert_true(Trace.has("closed:x:closed"))
+	assert_eq(stack(), "b")
