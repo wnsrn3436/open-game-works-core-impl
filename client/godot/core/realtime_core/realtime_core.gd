@@ -400,6 +400,9 @@ static func leave_room() -> void:
 		_room_leave_count += 1
 		_room_leave_none_count += 1
 		_transport.leave_room()
+		# The transport may hold a match it read in this `poll`, whose match found the rest of the `poll` discards.
+		if _state == MatchState.NONE:
+			_transport.close()
 		waiter.finish(false, 0)
 		return
 	if _room == null:
@@ -519,7 +522,7 @@ static func _frame() -> void:
 		var is_discarded: bool = (
 			room_leave_none_count != _room_leave_none_count
 			or (room_leave_count != _room_leave_count and _is_left_room_notice(notice))
-			or (none_count != _none_count and _state == MatchState.NONE and not _is_handled_in_none(notice))
+			or (none_count != _none_count and _state == MatchState.NONE and not _is_room_notice(notice))
 		)
 		if not is_discarded:
 			_handle_notice(notice)
@@ -529,12 +532,11 @@ static func _frame() -> void:
 
 
 ## A notification handled after `MatchState` became `None` in the same `poll`.
-static func _is_handled_in_none(notice: RealtimeNotice) -> bool:
+static func _is_room_notice(notice: RealtimeNotice) -> bool:
 	return (
 		notice.kind == RealtimeNotice.Kind.ROOM_UPDATED
 		or notice.kind == RealtimeNotice.Kind.ROOM_KICKED
 		or notice.kind == RealtimeNotice.Kind.MATCHMAKER_LOST
-		or notice.kind == RealtimeNotice.Kind.MATCH_FOUND
 	)
 
 
@@ -1099,6 +1101,8 @@ static func _on_room_updated(info: RoomInfo) -> void:
 			_room_matching_received = true
 		elif _room.status == CoreContract.RoomStatus.ROOM_STATUS_OPEN and (_origin == MatchOrigin.ROOM_MEMBER or _room_matching_received):
 			var waiter: _MATCH_WAITER = _waiter
+			# The transport may hold a match it read in this `poll`, whose match found the rest of the `poll` discards.
+			_transport.close()
 			_set_none()
 			_finish(waiter, MatchJoinStatus.CANCELLED, 0)
 	elif _state == MatchState.NONE and _room.status == CoreContract.RoomStatus.ROOM_STATUS_MATCHING:

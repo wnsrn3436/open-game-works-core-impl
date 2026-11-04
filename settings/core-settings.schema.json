@@ -362,7 +362,7 @@
     },
     "mailbox.defaultExpireMs": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "mailbox.maxArgLength": {
       "type": "integer",
@@ -619,7 +619,7 @@
     },
     "testing.backgroundWaitTimeoutMs": {
       "type": "integer",
-      "minimum": 0,
+      "minimum": 1,
       "x-owner": "human"
     },
     "testing.defaultStartAt": {
