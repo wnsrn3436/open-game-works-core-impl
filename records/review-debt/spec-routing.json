@@ -1,0 +1,12 @@
+{
+  "target": "spec routing",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/server-core/modules/routing.md:230",
+      "problem": "`routing.bodyReadTimeoutMs` has no written range, so 0 is allowed (skills/core/SKILL.md:134), while body reads are measured with `network_time_limit`, which throws below 1 (skills/server-core/modules/server-time.md:39, skills/server-core/modules/server-time.md:89). With value 0, step 2 of the request processing order (routing.md:109) and the body step of `POST /account/deletion` (skills/server-core/modules/auth.md:298, read through auth.md:410) reach a throw, not the `INVALID_REQUEST` or 400 that those steps set",
+      "foundBy": "spec auth"
+    }
+  ]
+}

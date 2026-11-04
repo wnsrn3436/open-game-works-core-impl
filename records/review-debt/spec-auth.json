@@ -1,6 +1,6 @@
 {
   "target": "spec auth",
-  "nextId": 7,
+  "nextId": 8,
   "items": [
     {
       "id": "D2",
@@ -31,6 +31,12 @@
       "location": "skills/server-core/modules/auth.md:396",
       "problem": "`auth.guestSweepIntervalMs` is the period of job `auth_guest_sweep` and writes no range. Value 0 passes the 0 or more schema range and fails server start in `schedule_job` (skills/server-core/modules/server-time.md:90)",
       "foundBy": "spec routing"
+    },
+    {
+      "id": "D7",
+      "location": "skills/server-core/modules/auth.md:376",
+      "problem": "`auth.socialVerifyTimeoutMs` has no written range, so the range rule at skills/core/SKILL.md:134 allows 0. Time limits of external service calls are measured only with `server-time.network_time_limit` (skills/server-core/SKILL.md:224), which throws when ms is less than 1 (skills/server-core/modules/server-time.md:39). With value 0, a social `Login`, `LinkAccount` and the `google` method of `POST /account/deletion` reach a throw that auth.md:139, auth.md:257 and auth.md:302 do not set; those lines set only rejection, time limit exceeded and communication failure. The fix is `1 or more` in `meaning`, as `push.sendTimeoutMs` has at skills/server-core/modules/push.md:195",
+      "foundBy": "spec auth"
     }
   ]
 }

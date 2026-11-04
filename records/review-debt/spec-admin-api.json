@@ -1,6 +1,6 @@
 {
   "target": "spec admin-api",
-  "nextId": 5,
+  "nextId": 6,
   "items": [
     {
       "id": "D1",
@@ -25,6 +25,12 @@
       "location": "skills/server-core/modules/admin-api.md:241",
       "problem": "`args` of the `audit` log of a request that ends at step 5 (body check) is not set. Line 238 says `args` is the input that passed the check, and line 241 sets `null` only for steps 1 to 4. A request that fails step 5 has no input that passed the check, and the audit args function at line 119 takes only such an input. One implementation writes `null` and another writes the rejected body, and that body can hold what line 240 forbids in `args`, because an unknown field fails step 5 with its value unchecked.",
       "foundBy": "spec admin-api"
+    },
+    {
+      "id": "D5",
+      "location": "skills/server-core/modules/admin-api.md:280",
+      "problem": "`admin-api.bodyReadTimeoutMs` has no written range, so 0 is allowed (skills/core/SKILL.md:134), and the body limit step at admin-api.md:152 sets 400 `bad_request` for an exceeded read duration, while `network_time_limit` throws below 1 (skills/server-core/modules/server-time.md:39)",
+      "foundBy": "spec auth"
     }
   ]
 }
