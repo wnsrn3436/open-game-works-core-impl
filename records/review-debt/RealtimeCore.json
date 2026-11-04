@@ -1,6 +1,6 @@
 {
   "target": "RealtimeCore",
-  "nextId": 6,
+  "nextId": 8,
   "items": [
     {
       "id": "D1",
@@ -31,6 +31,18 @@
       "location": "client/godot/core/realtime_core/p2p_realtime_transport.gd:324",
       "problem": "The range makes a client that holds a match send `MATCH_LEAVE` of a second `MATCH_FOUND` and keep the first match, but the server has already removed that connection from the first session when it opened the second (server/core/matchmaker/realtime.ts:931, skills `p2p-signaling` `### match session`). The client then counts as left in both matches while it is still playing the first. Run path: host A and member B play match m1 from a room, which stays after the match (open-game-works-core/skills/server-core/modules/matchmaker.md:154). A leaves m1 and sends `ROOM_START` while B is `Playing`; `room_start` (server/core/matchmaker/realtime.ts:718) does not check whether a member is in a match, so m2 is created. Reproduced on the real `SessionStore` (server/core/p2p-signaling/sessions.ts): opening m2 returned `LEFT` of B in m1, B's `MATCH_LEAVE` of m2 returned `LEFT` of B in m2, B's next `PEER_SIGNAL` was dropped with `not_in_session`, and by the code at server/core/p2p-signaling/sessions.ts:191 its `MATCH_REJOIN` of m1 is `ok` `false` because the index is a left index. Result: B stays `Playing` in m1 with `left_at` written (the case at open-game-works-core/skills/server-core/modules/matchmaker.md:374), so a lost P2P connection in m1 cannot signal or rejoin, and in a `ServerReplay` match of 3 or more B's report is not counted and the judgement does not wait for it (matchmaker.md:184, :186). m2 also holds B as left, and A fails at the connect time limit. The client line follows open-game-works-core/skills/client-core/modules/realtime-core.md:298, and the server side follows matchmaker.md:374, so the two specs together set this result; solving it needs a spec change (e.g. `ROOM_START` refused while a member is bound to a running match session, or the client taking the second match).",
       "foundBy": "matchmaker round 1"
+    },
+    {
+      "id": "D6",
+      "location": "client/godot/core/realtime_core/realtime_core.gd:617",
+      "problem": "`RoomMatchStartedEvent` of a match found in `None` is published while `MatchState` is still `None`, before `_enter_connecting`. open-game-works-core/skills/client-core/modules/realtime-core.md:271 defines the event as \"when a non-host member became `Matching` or `Connecting`\", while :186 publishes it before steps 3 to 5 of `join_match`. `ROOM_START` leaves the room `Open` (:184), so this is the path of every non-host member of a `start_room`. Run on the P2P transport in a temporary copy: a subscriber reads `match_state` 0 (`None`), and the `wait_match` it calls has already ended, because `wait_match` refuses `None` with a warn and `Failed` (realtime_core.gd:441). The match goes on to `Connecting` without that waiter. By reading, `leave` in the same subscriber only logs `leave: no match`, so the subscriber cannot leave the match with it. The publish line existed before the range",
+      "foundBy": "RealtimeCore round 2"
+    },
+    {
+      "id": "D7",
+      "location": "client/godot/core/realtime_core/realtime_core.gd:1190",
+      "problem": "`_cancel_room_matching` ends a `join_match` that a `RoomChangedEvent` subscriber just started. `_leave_room_now` (:1166) and `_on_room_kicked` (:1182) check `MatchState` after they publish the event, so they treat that new `Matching` as the `Matching` of the room that was left. Run on the fake transport in a temporary copy: a member in `None` and a subscriber that calls `join_match` on `Left` or `Kicked`. The state is `None` and the `join_match` has ended where `Matching` and a waiting call are expected, and on `Kicked` the `start_matching` count is 0. By reading, its `status` is `Cancelled`. open-game-works-core/skills/client-core/modules/realtime-core.md:177 and :178 cancel the `Matching` of the room and do not set this order. The check existed before the range",
+      "foundBy": "RealtimeCore round 2"
     }
   ]
 }
