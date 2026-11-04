@@ -83,3 +83,36 @@ func test_set_color_mode_outside_color_mode_is_false_with_an_error() -> void:
 	assert_eq(errors(), 2)
 	assert_eq(AccessibilityCore.get_settings().color_mode, NONE)
 	assert_false(AccessibilityCore._filter.visible)
+
+
+func test_engine_without_a_full_screen_shader_applies_no_filter_and_warns_once_per_init() -> void:
+	assert_true(await start_modules(false))
+	AccessibilityCore._test_rendering_method = "dummy"
+	assert_true(AccessibilityCore.init())
+	assert_eq(warns(), 1, "warn at init")
+	assert_null(AccessibilityCore._filter)
+	AccessibilityCore.apply_saved_settings()
+	for mode: AccessibilityCore.ColorMode in FILTER_MODES:
+		assert_true(AccessibilityCore.set_color_mode(mode))
+		assert_eq(AccessibilityCore.get_settings().color_mode, mode)
+	assert_null(AccessibilityCore._filter)
+	assert_eq(warns(), 0, "no warn at set_color_mode")
+	for child: Node in UICore.get_layer(UICore.UILayer.LOADING_ICON).get_children():
+		assert_false(child is ColorRect and (child as ColorRect).material is ShaderMaterial, "no filter on the layer")
+	AccessibilityCore.release()
+	assert_eq(AccessibilityCore._test_rendering_method, "", "release empties the test rendering method")
+	AccessibilityCore._test_rendering_method = "dummy"
+	assert_true(AccessibilityCore.init())
+	assert_eq(warns(), 1, "warn again at the next init")
+	assert_null(AccessibilityCore._filter)
+	assert_eq(errors(), 0)
+
+
+func test_engine_with_a_full_screen_shader_makes_the_filter_without_a_warn() -> void:
+	assert_true(await start_modules(false))
+	for method: String in ["forward_plus", "mobile", "gl_compatibility"]:
+		AccessibilityCore._test_rendering_method = method
+		assert_true(AccessibilityCore.init(), method)
+		assert_not_null(AccessibilityCore._filter, method)
+		AccessibilityCore.release()
+	assert_eq(warns(), 0)

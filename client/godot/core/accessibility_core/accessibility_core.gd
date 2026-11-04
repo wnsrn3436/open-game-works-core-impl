@@ -80,6 +80,11 @@ static var _subtitle_box: ColorRect = null
 static var _subtitle_label: Label = null
 ## Play handle of the voice whose subtitle is on screen. `SoundCore.INVALID_HANDLE` when no subtitle is on screen.
 static var _subtitle_handle: int = SoundCore.INVALID_HANDLE
+## Whether `AccessibilityCoreDev.set_test_text_scale` applied a text scale that `release` puts back to the saved one.
+static var _test_text_scale_applied: bool = false
+## The rendering method a core test sets in place of the engine's before `init`. Empty uses the engine's. `release`
+## empties it.
+static var _test_rendering_method: String = ""
 
 
 static func init() -> bool:
@@ -105,7 +110,7 @@ static func init() -> bool:
 	(Engine.get_main_loop() as SceneTree).root.add_child(node)
 	_make_subtitle_box(message_layer)
 	if _filter_enabled:
-		if _SCREEN_SHADER_METHODS.has(RenderingServer.get_current_rendering_method()):
+		if _SCREEN_SHADER_METHODS.has(_rendering_method()):
 			_make_filter(icon_layer)
 		else:
 			LogCore.log_warn(_TAG, "the engine cannot run a full screen shader; the color filter is not applied")
@@ -115,8 +120,11 @@ static func init() -> bool:
 
 
 static func release() -> void:
+	_test_rendering_method = ""
 	if not _is_initialized:
 		return
+	if _test_text_scale_applied and LocalizationCore.is_initialized():
+		_apply_text_scale()
 	var node: _CORE_NODE = _node
 	if is_instance_valid(node):
 		node.released = true
@@ -328,6 +336,12 @@ static func _read_settings() -> bool:
 	return true
 
 
+static func _rendering_method() -> String:
+	if not _test_rendering_method.is_empty():
+		return _test_rendering_method
+	return RenderingServer.get_current_rendering_method()
+
+
 static func _setting_error(message: String) -> bool:
 	LogCore.log_error(_TAG, "init: " + message)
 	return false
@@ -529,3 +543,4 @@ static func _reset_state() -> void:
 	_subtitle_box = null
 	_subtitle_label = null
 	_subtitle_handle = SoundCore.INVALID_HANDLE
+	_test_text_scale_applied = false

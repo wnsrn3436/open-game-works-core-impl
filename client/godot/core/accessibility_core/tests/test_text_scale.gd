@@ -63,3 +63,24 @@ func test_subtitle_on_screen_takes_the_font_size_of_set_test_text_scale() -> voi
 	AccessibilityCoreDev.set_test_text_scale(1500)
 	assert_true(subtitle_visible())
 	assert_eq(subtitle_font_size(), floori(SUBTITLE_FONT_SIZE * 1500 / 1000.0))
+
+
+func test_release_after_set_test_text_scale_puts_the_saved_text_scale_back() -> void:
+	assert_true(await start_modules())
+	AccessibilityCore.apply_saved_settings()
+	assert_true(AccessibilityCore.set_text_scale(1250))
+	AccessibilityCoreDev.set_test_text_scale(1500)
+	assert_eq(LocalizationCore.get_text_scale(), 1500)
+	AccessibilityCore.release()
+	assert_eq(LocalizationCore.get_text_scale(), 1250, "the saved value")
+	assert_eq(LocalDataCore.get_value_int(DEVICE, KEY_TEXT_SCALE, 0), 1250, "the saved value is unchanged")
+	assert_eq(errors(), 0)
+
+
+func test_release_without_set_test_text_scale_leaves_the_text_scale_to_localization_core() -> void:
+	assert_true(await start_modules())
+	AccessibilityCore.apply_saved_settings()
+	assert_true(AccessibilityCore.set_text_scale(1250))
+	LocalizationCore.set_text_scale(1500)
+	AccessibilityCore.release()
+	assert_eq(LocalizationCore.get_text_scale(), 1500, "release passes no text scale")

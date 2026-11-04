@@ -15,3 +15,4 @@ static func set_test_text_scale(permille: int) -> void:
 		LogCore.log_error(_TAG, "set_test_text_scale got %d, less than 1000" % permille)
 		return
 	LocalizationCore.set_text_scale(permille)
+	AccessibilityCore._test_text_scale_applied = true
