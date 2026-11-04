@@ -9,6 +9,7 @@ const _MIN_DISPLAY_KEY: String = "SceneCore.loadingMinDisplayMs"
 const _RETRY_COUNT_KEY: String = "SceneCore.prepareRetryCount"
 const _REASON: String = "scene"
 const _CORE_NODE := preload("res://core/scene_core/scene_core_node.gd")
+const _STOP_CHECK_NODE := preload("res://core/scene_core/stop_check_node.gd")
 const _JOB := preload("res://core/scene_core/transition_job.gd")
 const _POPUP_WAIT := preload("res://core/scene_core/popup_wait.gd")
 const _WAIT := preload("res://core/scene_core/transition_wait.gd")
@@ -20,10 +21,14 @@ const _OUTCOME_RESTART: int = 2
 const _OUTCOME_CLOSED: int = 3
 const _OUTCOME_NOT_OPENED: int = 4
 
+## The lowest `process_priority` and `process_physics_priority`: the stop check node processes before every node.
+const _STOP_CHECK_PRIORITY: int = -2147483648
+
 static var _is_initialized: bool = false
 ## Replaced by every `init`; a transition that sees another session after `await` stops without changing the state.
 static var _session: RefCounted = null
 static var _node: _CORE_NODE = null
+static var _stop_check_node: _STOP_CHECK_NODE = null
 ## Scene holder: the parent of the scene from stage 4 until it is destroyed.
 static var _holder: Node = null
 ## Safe area root of the `SceneUI` layer: the parent of the scene UI root.
@@ -65,6 +70,11 @@ static var _hidden: Array[Node] = []
 ## holder: they are disabled too, and `_stopped` keeps them with the mode they had in `_stopped_modes`.
 static var _stopped: Array[Node] = []
 static var _stopped_modes: PackedInt32Array = PackedInt32Array()
+## While `_watching`, the stop check node checks the nodes under the scene holder in `_watched` (node -> true) in every
+## frame and physics frame. `node_added` and `node_removed` keep the set, so the check walks no tree, and a node is
+## removed before it is freed. It ends at stage 7 and when the transition ends with `false`.
+static var _watching: bool = false
+static var _watched: Dictionary[Node, bool] = {}
 
 # Progress of the transition: tasks ended and all tasks. `_progress_total` is 0 until `on_preload` returns.
 static var _progress_done: int = 0
@@ -109,6 +119,11 @@ static func init() -> bool:
 	var node: _CORE_NODE = _CORE_NODE.new()
 	node.name = _TAG
 	node.process_mode = Node.PROCESS_MODE_ALWAYS
+	var stop_check_node: _STOP_CHECK_NODE = _STOP_CHECK_NODE.new()
+	stop_check_node.name = "SceneCoreStopCheck"
+	stop_check_node.process_mode = Node.PROCESS_MODE_ALWAYS
+	stop_check_node.process_priority = _STOP_CHECK_PRIORITY
+	stop_check_node.process_physics_priority = _STOP_CHECK_PRIORITY
 	var holder: Node = Node.new()
 	holder.name = "SceneHolder"
 	var scene_ui_area: SafeAreaRoot = SafeAreaRoot.new()
@@ -116,16 +131,23 @@ static func init() -> bool:
 	var loading_area: SafeAreaRoot = SafeAreaRoot.new()
 	loading_area.name = "SceneCoreSafeArea"
 	_node = node
+	_stop_check_node = stop_check_node
 	_holder = holder
 	_scene_ui_area = scene_ui_area
 	_loading_area = loading_area
 	_is_initialized = true
 	tree.root.add_child(node)
+	tree.root.add_child(stop_check_node)
+	_set_watching(false)
 	tree.root.add_child(holder)
 	scene_layer.add_child(scene_ui_area)
 	loading_layer.add_child(loading_area)
 	if tree.node_added.connect(node.on_node_added) != OK:
 		LogCore.log_error(_TAG, "init: could not connect SceneTree.node_added")
+		release()
+		return false
+	if tree.node_removed.connect(node.on_node_removed) != OK:
+		LogCore.log_error(_TAG, "init: could not connect SceneTree.node_removed")
 		release()
 		return false
 	if not EventCore.subscribe(SafeAreaChangedEvent, node._on_safe_area_changed):
@@ -309,6 +331,7 @@ static func _run(job: _JOB, key: String, param: RefCounted, boot: bool) -> void:
 	_holder.add_child(scene)
 	_hiding = true
 	_hide_tree(_holder)
+	_set_watching(true)
 
 	# 5 preload
 	var preload_request: PreloadRequest = PreloadRequest.new()
@@ -317,7 +340,7 @@ static func _run(job: _JOB, key: String, param: RefCounted, boot: bool) -> void:
 	if session != _session:
 		return
 	# A mode that `on_preload` gave a node it did not add is seen here, before any frame of the scene.
-	_stop_tree(_holder)
+	_check_stopped()
 	var preload_count: int = preload_request.items.size()
 	_progress_total = 1 + preload_count + prefill_items.size() + 1
 	_progress_done = 1
@@ -365,6 +388,7 @@ static func _run(job: _JOB, key: String, param: RefCounted, boot: bool) -> void:
 
 	# 7 start
 	UICore.set_panel_lock(false)
+	_set_watching(false)
 	_show_hidden()
 	_restore_stopped()
 	_holder.process_mode = Node.PROCESS_MODE_INHERIT
@@ -572,6 +596,7 @@ static func _preload_item(session: RefCounted, wait: _WAIT, single: PreloadReque
 # lock stay, and the module stays in transition until `release`.
 static func _fail(job: _JOB, reason: String) -> void:
 	LogCore.log_error(_TAG, reason)
+	_set_watching(false)
 	_unblock()
 	_clear_effects()
 	var session: RefCounted = _session
@@ -588,6 +613,7 @@ static func _fail(job: _JOB, reason: String) -> void:
 # The retry popup ended with `[scene_restart]` or without a button: the transition ends with `false` and the module
 # stays in transition until `release`.
 static func _end_with_restart(job: _JOB) -> void:
+	_set_watching(false)
 	_clear_effects()
 	var session: RefCounted = _session
 	var event: RestartRequestedEvent = EventCore.acquire(RestartRequestedEvent) as RestartRequestedEvent
@@ -628,20 +654,24 @@ static func _scene_kind() -> int:
 	return ResourceCore.BaseKind.PACKED_SCENE
 
 
-# Hides every top visual node under `node` and disables every node under it with a `process_mode` of its own.
+# Hides every top visual node under `node`, disables every node under it with a `process_mode` of its own and puts
+# every node under it into `_watched`.
 static func _hide_tree(node: Node) -> void:
 	for child: Node in node.get_children():
 		_hide_if_top(child)
 		_stop_if_own_mode(child)
+		_watched[child] = true
 		_hide_tree(child)
 
 
-# Disables every node under `node` with a `process_mode` of its own: scene code may give one to a node after it entered
-# the tree, which no `node_added` tells.
-static func _stop_tree(node: Node) -> void:
-	for child: Node in node.get_children():
-		_stop_if_own_mode(child)
-		_stop_tree(child)
+# Starts or ends the stop check. Ending it empties `_watched`.
+static func _set_watching(watching: bool) -> void:
+	_watching = watching
+	if not watching:
+		_watched.clear()
+	if is_instance_valid(_stop_check_node):
+		_stop_check_node.set_process(watching)
+		_stop_check_node.set_physics_process(watching)
 
 
 # A node with a `process_mode` other than `PROCESS_MODE_INHERIT` does not inherit the disabled scene holder, so it gets
@@ -720,13 +750,30 @@ static func _on_node_added(node: Node) -> void:
 		return
 	_hide_if_top(node)
 	_stop_if_own_mode(node)
+	if _watching:
+		_watched[node] = true
 
 
-# Frame check from stage 4 until stage 7: disables the nodes under the scene holder that scene code gave a
-# `process_mode` of their own since the last check. The core node runs before the scene holder in the frame.
+# A node that leaves the tree, also by leaving the scene holder or by being freed, leaves `_watched`.
+static func _on_node_removed(node: Node) -> void:
+	if _watching:
+		_watched.erase(node)
+
+
+# Stop check from stage 4 until stage 7: disables the nodes under the scene holder that scene code gave a
+# `process_mode` of their own since the last check, which no `node_added` tells. The nodes are disabled after the
+# loop, because disabling a node notifies scene code, which may add or remove nodes.
 static func _check_stopped() -> void:
-	if _hiding and is_instance_valid(_holder):
-		_stop_tree(_holder)
+	if not _watching:
+		return
+	var own_mode: Array[Node] = []
+	for node: Node in _watched:
+		var mode: Node.ProcessMode = node.process_mode
+		if mode != Node.PROCESS_MODE_INHERIT and mode != Node.PROCESS_MODE_DISABLED:
+			own_mode.append(node)
+	for node: Node in own_mode:
+		if is_instance_valid(node):
+			_stop_if_own_mode(node)
 
 
 # The frame check of the core node: the end of a wait until a real elapsed time.
@@ -756,10 +803,13 @@ static func _end_state(detach: bool) -> void:
 	_clear_effects()
 	if InputBlockCore.is_initialized():
 		_unblock()
-	var objects: Array[Node] = [_ui_root, _scene, _new_scene, _loading_screen, _scene_ui_area, _loading_area, _holder]
+	var objects: Array[Node] = [
+		_ui_root, _scene, _new_scene, _loading_screen, _scene_ui_area, _loading_area, _holder, _stop_check_node,
+	]
 	_is_initialized = false
 	_session = null
 	_node = null
+	_stop_check_node = null
 	_holder = null
 	_scene_ui_area = null
 	_loading_area = null
@@ -784,6 +834,8 @@ static func _end_state(detach: bool) -> void:
 	_hidden = []
 	_stopped = []
 	_stopped_modes = PackedInt32Array()
+	_watching = false
+	_watched = {}
 	_progress_done = 0
 	_progress_total = 0
 	_progress_last = 0
@@ -808,6 +860,8 @@ static func _disconnect(node: _CORE_NODE) -> void:
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
 	if tree != null and is_instance_valid(node) and tree.node_added.is_connected(node.on_node_added):
 		tree.node_added.disconnect(node.on_node_added)
+	if tree != null and is_instance_valid(node) and tree.node_removed.is_connected(node.on_node_removed):
+		tree.node_removed.disconnect(node.on_node_removed)
 	if is_instance_valid(node) and EventCore.is_initialized():
 		EventCore.unsubscribe_all(node)
 
