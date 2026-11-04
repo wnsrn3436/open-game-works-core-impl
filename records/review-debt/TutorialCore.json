@@ -1,6 +1,6 @@
 {
   "target": "TutorialCore",
-  "nextId": 9,
+  "nextId": 10,
   "items": [
     {
       "id": "D1",
@@ -48,6 +48,12 @@
       "id": "D8",
       "location": "client/godot/core/tutorial_core/tests/test_input.gd:121",
       "problem": "`test_with_gamepad_supported_an_anchor_without_a_ui_button_logs_its_name` asserts only `errors() == 1`, but `tutorial-core.md:253` requires an error log with the anchor name. `UnitTestCore.check_logs` (`client/godot/core/unit_test_core/dev/unit_test_core.gd:1290`) counts by level and tag and does not read the message, so dropping the anchor name from the log at `tutorial_core.gd:953` fails no test. The contents that `tutorial-core.md:141` and `:143` set for the step check error (tutorial ID and `step`) and the anchor wait warn (anchor name, anchor key) are unchecked in the same way, in `test_step_check.gd` and in `test_view.gd` `test_a_step_waiting_for_its_anchor_logs_one_warn_after_the_wait_time`. Checked by reading; this was not run. The code is outside the commit range",
+      "foundBy": "TutorialCore round 1"
+    },
+    {
+      "id": "D9",
+      "location": "client/godot/core/tutorial_core/tutorial_core.gd:680",
+      "problem": "`_update_start_watch` has this one caller, in `_complete`, so a start watch is taken off only when a tutorial ends in this run. `open-game-works-core/skills/client-core/modules/tutorial-core.md:64` calls `RequirementCore.unwatch` when all tutorials with that `start_requirement` are completed, and line 42 defines completed by the progress step, which a `TutorialProgressUserState` delta also raises. Run path: after the first start check of a login sets the start watch of a tutorial that is not active, DEV `set_tutorial_step` (`server/core/tutorial/index.ts:79`) sends a delta with its last `step`. `_on_user_state_changed` only runs the start check, `_is_complete` is now `true`, and the watch stays until `release`, running start checks that cannot start that tutorial. A build without DEV code has no such writer: the only other write is this client's own `SaveTutorialProgress`, queued by `_save` before `_complete`, so `_complete` has already taken the watch off when its delta arrives. `test_watch.gd` `test_the_start_watch_is_taken_off_when_every_tutorial_with_its_start_requirement_is_finished` covers only the end through `_complete`. Checked by reading; this was not run. The code is outside the commit range",
       "foundBy": "TutorialCore round 1"
     }
   ]
