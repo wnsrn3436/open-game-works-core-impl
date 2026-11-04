@@ -88,12 +88,16 @@ function join(small: DbValue | undefined, big: DbValue | undefined): bigint {
   return v;
 }
 
+/** The `SET` list of the history upsert: every column outside the key `(user_id, seq)`. */
+const HISTORY_UPSERT_SET = HISTORY_COLUMNS.filter((c) => c.name !== 'user_id' && c.name !== 'seq').map((c) => `${c.name} = excluded.${c.name}`).join(', ');
+
 /**
- * Writes rows in the given order, each in one statement whose `seq` is the user's largest + 1 (1 when there is none),
- * so no value read before is written back while the expiry sweep may delete rows.
+ * Writes rows in the given order, each in one upsert whose `seq` is the largest `seq` of the user's rows that have not
+ * expired at `now` + 1 (1 when there is none), so no value read before is written back while the expiry sweep may delete
+ * rows. An expired row with that key that the sweep has not removed yet is written over.
  */
 export function insert_history(
-  db: DbHandle, user_id: bigint, time: bigint, request_id: string | null, expires_at: bigint, rows: readonly NewHistoryRow[],
+  db: DbHandle, user_id: bigint, time: bigint, request_id: string | null, expires_at: bigint, now: bigint, rows: readonly NewHistoryRow[],
 ): void {
   for (const r of rows) {
     const [delta, big_delta] = split(r.delta);
@@ -101,9 +105,10 @@ export function insert_history(
     const [overflow, big_overflow] = split(r.overflow);
     const [shortfall, big_shortfall] = split(r.shortfall);
     db.query(
-      `INSERT INTO ${HISTORY_TABLE} (user_id, seq, time, item_id, delta, balance_after, overflow, shortfall, source, ref, once_key, request_id, ends_at_after, big_delta, big_balance_after, big_overflow, big_shortfall, expires_at) VALUES ($1, (SELECT COALESCE(MAX(seq), 0) + 1 FROM ${HISTORY_TABLE} WHERE user_id = $1), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+      `INSERT INTO ${HISTORY_TABLE} (user_id, seq, time, item_id, delta, balance_after, overflow, shortfall, source, ref, once_key, request_id, ends_at_after, big_delta, big_balance_after, big_overflow, big_shortfall, expires_at) VALUES ($1, (SELECT COALESCE(MAX(seq), 0) + 1 FROM ${HISTORY_TABLE} WHERE user_id = $1 AND expires_at > $18), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) ` +
+        `ON CONFLICT (user_id, seq) DO UPDATE SET ${HISTORY_UPSERT_SET}`,
       [user_id, time, r.item_id, delta, balance_after, overflow, shortfall, r.source, r.ref, r.once_key, request_id, r.ends_at_after,
-        big_delta, big_balance_after, big_overflow, big_shortfall, expires_at],
+        big_delta, big_balance_after, big_overflow, big_shortfall, expires_at, now],
     );
   }
 }
