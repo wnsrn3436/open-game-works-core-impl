@@ -180,12 +180,12 @@ export interface RemoteConfig {
   get_client_config(ctx: Ctx): { readonly entries: readonly CoreContract.RemoteConfigEntry[]; readonly assignments: readonly CoreContract.ExperimentAssignment[] };
 }
 
-/** `ranking`, `push`, `iap`, `block-report` `remove_user`. */
+/** `ranking`, `push`, `iap` `remove_user`. */
 export interface RemoveUser {
   remove_user(ctx: Ctx): unknown;
 }
 
-/** `chat`, `friend`, `guild` `remove_user`. */
+/** `chat`, `friend`, `guild`, `block-report` `remove_user`. */
 export interface FallibleRemoveUser {
   remove_user(ctx: Ctx): 'FAILED' | null | undefined;
 }
@@ -216,7 +216,7 @@ export interface AuthModules {
   readonly friend?: FallibleRemoveUser;
   readonly guild?: FallibleRemoveUser;
   readonly chat?: FallibleRemoveUser;
-  readonly 'block-report'?: RemoveUser;
+  readonly 'block-report'?: FallibleRemoveUser;
 }
 
 export type Environment = 'LOCAL' | 'DEV' | 'STG' | 'PROD';

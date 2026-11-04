@@ -10,6 +10,7 @@ import {
   DAY,
   GOOGLE,
   has_pending,
+  payment,
   receipt,
   recover,
   set_time_offset,
@@ -41,6 +42,69 @@ function lookups(server: TestServer, store: CoreContract.IapStore): string[] {
     .filter((c) => c.operation === 'lookup_subscription')
     .map((c) => String(c.input.original_transaction_id));
 }
+
+describe('a subscription snapshot whose state does not grant', () => {
+  it('a REFUND of a transaction with no payment record and a REVOKED notification naming it leave the balance and no GRANTED record', async () => {
+    const server = await start();
+    const a = await testing.login(server, 'a');
+    expect(status_of(await verify(a, APPLE, receipt('vip_apple', 'sub-1', await account_token(a))))).toBe(Status.PURCHASE_STATUS_GRANTED);
+    const granted = await balance(server, a.user_id);
+    await testing.call_dev(server, 'iap', 'send_fake_refund', [APPLE, 'sub-2']);
+    expect(await notify(server, APPLE, 'sub-1', { state: 'REVOKED', latest_transaction_id: 'sub-2', ends_at: START.toString(), auto_renew: false })).toBe(200);
+    expect(await balance(server, a.user_id)).toBe(granted);
+    expect(await payment(server, a.user_id, 'sub-2')).toBeUndefined();
+    expect((await subscription_row(server, a.user_id, '[iap_vip]'))?.state).toBe(State.SUBSCRIPTION_STATE_REVOKED);
+  });
+
+  it('a SUBSCRIPTION notification of REVOKED, EXPIRED or BILLING_RETRY with a latest transaction without a payment record grants nothing and takes the state; ACTIVE and GRACE_PERIOD grant once', async () => {
+    const server = await start();
+    const a = await testing.login(server, 'a');
+    expect(status_of(await verify(a, APPLE, receipt('vip_apple', 'p-1', await account_token(a))))).toBe(Status.PURCHASE_STATUS_GRANTED);
+    const before = await balance(server, a.user_id);
+    const ends_at = (START + DAY).toString();
+    for (const [state, value] of [
+      ['REVOKED', State.SUBSCRIPTION_STATE_REVOKED],
+      ['EXPIRED', State.SUBSCRIPTION_STATE_EXPIRED],
+      ['BILLING_RETRY', State.SUBSCRIPTION_STATE_BILLING_RETRY],
+    ] as const) {
+      expect(await notify(server, APPLE, 'p-1', { state, latest_transaction_id: `p-${state}`, ends_at, auto_renew: false })).toBe(200);
+      expect(await balance(server, a.user_id)).toBe(before);
+      expect(await payment(server, a.user_id, `p-${state}`)).toBeUndefined();
+      expect((await subscription_row(server, a.user_id, '[iap_vip]'))?.state).toBe(value);
+    }
+    let expected = before;
+    const reward = before;
+    for (const [state, value] of [
+      ['ACTIVE', State.SUBSCRIPTION_STATE_ACTIVE],
+      ['GRACE_PERIOD', State.SUBSCRIPTION_STATE_GRACE_PERIOD],
+    ] as const) {
+      expected += reward;
+      for (let sent = 0; sent < 2; sent += 1) {
+        expect(await notify(server, APPLE, 'p-1', { state, latest_transaction_id: `p-${state}`, ends_at, auto_renew: true })).toBe(200);
+        expect(await balance(server, a.user_id)).toBe(expected);
+      }
+      expect((await payment(server, a.user_id, `p-${state}`))?.result).toBe('GRANTED');
+      expect((await subscription_row(server, a.user_id, '[iap_vip]'))?.state).toBe(value);
+    }
+  });
+
+  it('VerifyPurchase and RecoverPurchase of a subscription whose snapshot is REVOKED or EXPIRED with that transaction as its latest are INVALID with no grant', async () => {
+    const server = await start();
+    const a = await testing.login(server, 'a');
+    const token = await account_token(a);
+    for (const state of ['REVOKED', 'EXPIRED']) {
+      fake_store(server).set_result('lookup_subscription', { state });
+      expect(status_of(await verify(a, APPLE, receipt('vip_apple', `v-${state}`, token)))).toBe(Status.PURCHASE_STATUS_INVALID);
+      expect(status_of(await recover(a, APPLE, receipt('vip_apple', `r-${state}`, token)))).toBe(Status.PURCHASE_STATUS_INVALID);
+      expect(await balance(server, a.user_id)).toBe(0n);
+      expect(await subscription_row(server, a.user_id, '[iap_vip]')).toBeNull();
+    }
+    // The state judges only the transaction the snapshot names as its latest.
+    fake_store(server).set_result('lookup_subscription', { state: 'EXPIRED', latest_transaction_id: 'newer' });
+    expect(status_of(await verify(a, APPLE, receipt('vip_apple', 'older', token)))).toBe(Status.PURCHASE_STATUS_GRANTED);
+    expect(await payment(server, a.user_id, 'newer')).toBeUndefined();
+  });
+});
 
 describe('subscription', () => {
   it('a Subscription purchase makes SubscriptionUserState ACTIVE with the snapshot ends_at and entitlement; from ends_at there is none', async () => {

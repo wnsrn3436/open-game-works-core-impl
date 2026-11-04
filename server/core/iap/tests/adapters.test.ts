@@ -438,6 +438,43 @@ describe('iap-google', () => {
     expect((await google(fetch).lookup_subscription('sub-token', null, call())) as { latest_transaction_id: string }).toMatchObject({ latest_transaction_id: 'GPA.9..1' });
   });
 
+  it('a response without latestSuccessfulOrderId: the receipt has the purchase token as its transaction ID also with a latestOrderId, and the lookup has an empty latest transaction ID', async () => {
+    const { fetch } = http((url) =>
+      url.endsWith('/token')
+        ? json_response(200, { access_token: 'at' })
+        : json_response(200, {
+            subscriptionState: 'SUBSCRIPTION_STATE_ACTIVE',
+            latestOrderId: 'GPA.unpaid',
+            startTime: '2026-03-01T00:00:00Z',
+            lineItems: [{ productId: 'vip_google', expiryTime: '2026-04-01T00:00:00Z' }],
+          }),
+    );
+    const sub = JSON.stringify({ packageName: 'com.example.app', productId: 'vip_google', purchaseToken: 'sub-token' });
+    const got = await google(fetch).verify(sub, call());
+    expect(is_failure(got) ? got : [got.transaction?.transaction_id, got.transaction?.original_transaction_id]).toEqual(['sub-token', 'sub-token']);
+    expect(await google(fetch).lookup_subscription('sub-token', null, call())).toMatchObject({ latest_transaction_id: '', sku: 'vip_google' });
+  });
+
+  it('the lookup reads the owned line item over one deferred to that ends later, and of two that end together the first in byte order of productId', async () => {
+    const answer = (lineItems: readonly Record<string, unknown>[]) =>
+      http((url) =>
+        url.endsWith('/token') ? json_response(200, { access_token: 'at' }) : json_response(200, { subscriptionState: 'SUBSCRIPTION_STATE_ACTIVE', startTime: '2026-03-01T00:00:00Z', lineItems }),
+      ).fetch;
+    const owned = { productId: 'vip_google', latestSuccessfulOrderId: 'GPA.owned', expiryTime: '2026-04-01T00:00:00Z' };
+    const deferred = { productId: 'vip_plus', expiryTime: '2026-05-01T00:00:00Z' };
+    for (const items of [[owned, deferred], [deferred, owned]]) {
+      expect(await google(answer(items)).lookup_subscription('sub-token', null, call())).toMatchObject({ latest_transaction_id: 'GPA.owned', sku: 'vip_google', ends_at: BigInt(Date.parse('2026-04-01T00:00:00Z')) });
+    }
+    const first = { productId: 'vip_a', latestSuccessfulOrderId: 'GPA.a', expiryTime: '2026-04-01T00:00:00Z' };
+    const second = { productId: 'vip_b', latestSuccessfulOrderId: 'GPA.b', expiryTime: '2026-04-01T00:00:00Z' };
+    for (const items of [[first, second], [second, first]]) {
+      expect(await google(answer(items)).lookup_subscription('sub-token', null, call())).toMatchObject({ latest_transaction_id: 'GPA.a', sku: 'vip_a' });
+    }
+    const unowned_first = { productId: 'vip_a', expiryTime: '2026-04-01T00:00:00Z' };
+    const unowned_later = { productId: 'vip_c', expiryTime: '2026-05-01T00:00:00Z' };
+    expect(await google(answer([unowned_later, unowned_first])).lookup_subscription('sub-token', null, call())).toMatchObject({ latest_transaction_id: '', sku: 'vip_c' });
+  });
+
   it('a response without a purchase time is bad_response; a pending subscription, which has no startTime, has no purchase time (the request time)', async () => {
     const answer = (body: Record<string, unknown>) => http((url) => (url.endsWith('/token') ? json_response(200, { access_token: 'at' }) : json_response(200, body)));
     for (const state of [0, 1, 2]) {
@@ -479,9 +516,9 @@ describe('iap-google', () => {
       if (url.includes('subscriptionsv2')) {
         return json_response(200, {
           subscriptionState: 'SUBSCRIPTION_STATE_IN_GRACE_PERIOD',
-          latestOrderId: 'GPA.9..1',
+          latestOrderId: 'GPA.9..0',
           startTime: '2026-03-01T00:00:00Z',
-          lineItems: [{ productId: 'vip_google', expiryTime: '2026-04-01T00:00:00Z', autoRenewingPlan: { autoRenewEnabled: true } }],
+          lineItems: [{ productId: 'vip_google', latestSuccessfulOrderId: 'GPA.9..1', expiryTime: '2026-04-01T00:00:00Z', autoRenewingPlan: { autoRenewEnabled: true } }],
           acknowledgementState: 'ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED',
         });
       }
