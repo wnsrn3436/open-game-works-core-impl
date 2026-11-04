@@ -3,12 +3,6 @@
   "nextId": 5,
   "items": [
     {
-      "id": "D1",
-      "location": "skills/client-core/engines/godot.md:437",
-      "problem": "It says `LocalizationCore.list_languages` takes `buffer: Array[int]`, which content code cannot declare, while skills/client-core/engines/godot.md:365 says the caller buffer of `list_languages` is a `PackedInt32Array` and skills/client-core/modules/localization-core.md:37 names content code as the caller. The two rows of one document set different types for the same parameter",
-      "foundBy": "spec LocalizationCore"
-    },
-    {
       "id": "D2",
       "location": "skills/client-core/modules/localization-core.md:251",
       "problem": "The test requires a device timezone offset of 9 hours and line 225 requires offset 0, but `## DEV` (line 205) has only `set_test_device_language`. skills/client-core/engines/godot.md:362 reads the offset from `Time.get_time_zone_from_system()`, and skills/core/SKILL.md:207 writes DEV operations only in `## DEV`. The spec gives a core test no operation to set the offset, so these items depend on the time zone of the host that runs them",
