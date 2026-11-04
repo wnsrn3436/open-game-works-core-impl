@@ -6,6 +6,11 @@ const TITLE_KEY: String = "scene/boot_test_title"
 const FIRST_KEY: String = "scene/boot_test_first"
 const OTHER_KEY: String = "scene/boot_test_other"
 const HELD_KEY: String = "scene/boot_test_held"
+## Scene file that the boot tests take as the project main scene. No file is there: `open_entry_scene` makes a
+## node of it.
+const ENTRY_SCENE_PATH: String = "res://core/bootstrap_core/tests/resources/boot_test_entry_scene.tscn"
+## Deploy list URL of `hold_update`.
+const UPDATE_URL: String = "http://127.0.0.1/boot_test_deploy.json"
 const _RESOURCES: String = "res://core/bootstrap_core/tests/resources/"
 const _UPDATE_SET := preload("res://core/bootstrap_core/update_set.gd")
 const _BUNDLE_NAME: String = "boot_test_bundle"
@@ -13,6 +18,10 @@ const _BUNDLE_PATH: String = "update/boot_test_bundle.pck"
 const _BUNDLE_KEYS_PATH: String = "update/boot_test_bundle_keys.json"
 ## Trace entry prefix of a `UICore.open_system_popup` call, followed by its index in `BootstrapCore._traced_popups`.
 const _POPUP_ENTRY: String = "UICore.open_system_popup:"
+const _HELD_DOWNLOADER := preload("res://core/bootstrap_core/tests/support/boot_test_held_downloader.gd")
+
+## The current scene before `open_entry_scene`, which `close_entry_scene` sets back.
+static var _scene_before_entry: Node = null
 
 ## Lifecycle client modules in the module list order rule.
 const MODULE_ORDER: PackedStringArray = [
@@ -130,6 +139,67 @@ static func prepare(launch_values: Dictionary[String, String] = {}, title_key: S
 	BootstrapCore._trace_enabled = true
 	BootstrapCore._test_hold_quit = true
 	BootstrapCore._quit_request_count = 0
+	# A boot of these tests has no boot entry scene unless the test opens one: the main scene of a browser run is
+	# the test runner.
+	BootstrapCore._test_main_scene_path = ENTRY_SCENE_PATH
+
+
+## Makes a node of the scene file `ENTRY_SCENE_PATH` the current scene, as the engine opens the main scene.
+static func open_entry_scene() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	_scene_before_entry = tree.current_scene
+	var scene := Node.new()
+	scene.name = "BootTestEntryScene"
+	scene.scene_file_path = ENTRY_SCENE_PATH
+	tree.root.add_child(scene)
+	tree.current_scene = scene
+	return scene
+
+
+## Frees `scene`, the node of `open_entry_scene` or null when it is freed, and sets the current scene back.
+static func close_entry_scene(scene: Node) -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	if scene != null:
+		scene.get_parent().remove_child(scene)
+		scene.free()
+	if is_instance_valid(_scene_before_entry):
+		tree.current_scene = _scene_before_entry
+	_scene_before_entry = null
+
+
+## Sets the build info of a build with a deploy list URL, and returns `list` with a `GameUpdateCore` that gets the
+## deploy list from a downloader that never answers: the boot waits in `Update` until it is halted.
+static func hold_update(list: Array[CoreModuleEntry]) -> Array[CoreModuleEntry]:
+	var info := BuildInfo.new()
+	info.app_version = "1.0.0"
+	info.environment = "DEV"
+	info.platform = CoreBuildInfo.os_platform()
+	info.server_url = "http://127.0.0.1"
+	info.game_update_url = UPDATE_URL
+	BootstrapCore._build_info = info
+	for item: CoreModuleEntry in list:
+		if item.name == "GameUpdateCore":
+			item.init = func() -> bool:
+				GameUpdateCoreDev.set_downloader(_HELD_DOWNLOADER.new())
+				return GameUpdateCore.init()
+	return list
+
+
+## Module `release` trace entries, in order.
+static func releases() -> PackedStringArray:
+	var result := PackedStringArray()
+	for operation: String in BootstrapCore._trace:
+		if operation.ends_with(".release"):
+			result.append(operation)
+	return result
+
+
+## `release` trace entries of `list` in reverse order.
+static func reverse_releases(list: Array[CoreModuleEntry]) -> PackedStringArray:
+	var result := PackedStringArray()
+	for i: int in range(list.size() - 1, -1, -1):
+		result.append("%s.release" % list[i].name)
+	return result
 
 
 ## Launch values the dev run reads instead of the launch value file.

@@ -87,6 +87,23 @@ func test_exit_in_title_scene_has_no_content_release() -> void:
 	await _assert_no_engine_objects_left()
 
 
+func test_exit_in_update_has_no_content_release() -> void:
+	_SUPPORT.prepare()
+	var entry := _ENTRY.new()
+	var list := _SUPPORT.hold_update(_SUPPORT.modules())
+	_keep_engine_objects()
+	_SUPPORT.start(entry, list)
+	assert_true(await _SUPPORT.wait_stage(BootstrapCore.BootStage.UPDATE), "boot stage Update")
+	_exit_by_os()
+	_assert_exited_once(list)
+	assert_eq(entry.release_count, 0)
+	assert_eq(entry.init_count, 0)
+	assert_eq(_SUPPORT.releases(), _SUPPORT.reverse_releases(list))
+	await UnitTestCore.wait_frames(2)
+	assert_false("stage:ContentInit" in BootstrapCore._trace)
+	await _assert_no_engine_objects_left()
+
+
 func test_exit_after_done() -> void:
 	_SUPPORT.prepare()
 	var entry := _ENTRY.new()
@@ -180,6 +197,23 @@ func test_shutdown_after_done() -> void:
 	BootstrapCoreDev.shutdown()
 	_assert_shut_down(entry)
 	await _boot_again()
+
+
+func test_shutdown_before_content_init_has_no_content_release() -> void:
+	_SUPPORT.prepare()
+	var entry := _ENTRY.new()
+	var list := _SUPPORT.hold_update(_SUPPORT.modules())
+	_SUPPORT.start(entry, list)
+	assert_true(await _SUPPORT.wait_stage(BootstrapCore.BootStage.UPDATE), "boot stage Update")
+	BootstrapCoreDev.shutdown()
+	assert_eq(entry.release_count, 0)
+	assert_eq(entry.init_count, 0)
+	assert_eq(_SUPPORT.releases(), _SUPPORT.reverse_releases(list))
+	for item: CoreModuleEntry in list:
+		assert_false(BootstrapCore._to_bool(item.is_initialized.call()), item.name)
+	await UnitTestCore.wait_frames(2)
+	assert_eq(BootstrapCore.boot_stage(), BootstrapCore.BootStage.NONE)
+	assert_eq(entry.init_count, 0)
 
 
 func test_shutdown_releases_modules_a_test_initialized_without_start_boot() -> void:
