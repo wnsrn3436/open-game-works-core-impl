@@ -14,7 +14,7 @@ import * as GameContract from '../../../generated/contract/game_contract.ts';
 import * as GameData from '../../../generated/data/game_data.ts';
 import { core_test_server_paths, load_data, login, register_required_hooks, restart_test_server, send, start_test_server, stop_test_server, type TestServer, type TestSession } from '../../testing/dev/index.ts';
 import type { ApplyHook, ContinueHook, PlaySessionRecord, PrepareHook, VerifyHook } from '../index.ts';
-import type { RequestCtx } from '../../storage/index.ts';
+import type { DbHandle, RequestCtx } from '../../storage/index.ts';
 
 export const START_AT = 1_800_000_000_000n;
 /** `play_session_mode` rows of the core test data. */
@@ -309,6 +309,12 @@ export function play_session(core: Core): {
   refund_entry(ctx: RequestCtx, record: PlaySessionRecord, items: readonly CoreContract.ItemAmount[]): unknown;
 } {
   return core['play-session'] as unknown as ReturnType<typeof play_session>;
+}
+
+/** The committed `play_session_continue` rows of a user, read outside a request. */
+export function continue_rows(h: Harness, user_id: bigint): Record<string, unknown>[] {
+  const storage = h.server.running().instance.modules().get('storage') as unknown as { read_db(): DbHandle };
+  return storage.read_db().query('SELECT continue_index FROM play_session_continue WHERE user_id = $1 ORDER BY continue_index', [user_id]);
 }
 
 /** The `item-ledger` operations content code calls. */
