@@ -1,0 +1,12 @@
+{
+  "target": "spec NativeUiCore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/client-core/modules/native-ui-core.md:92",
+      "problem": "`copy_text` of an empty string in a headless run of `QACore` (or on a platform without a clipboard) matches two rows of `## error` (lines 117 and 118) with different log levels (error and warn), and `## behavior` lists the three conditions without an order, so the log level of that call differs per implementation",
+      "foundBy": "spec NativeUiCore"
+    }
+  ]
+}
