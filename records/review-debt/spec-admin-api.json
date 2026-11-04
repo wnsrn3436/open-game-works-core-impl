@@ -1,13 +1,7 @@
 {
   "target": "spec admin-api",
-  "nextId": 6,
+  "nextId": 14,
   "items": [
-    {
-      "id": "D1",
-      "location": "skills/server-core/modules/admin-api.md:286",
-      "problem": "`admin-api.switchCacheMs` is the period of job `admin_switch_cache` and writes no range, so `## core settings` of skills/core/SKILL.md gives 0 or more. `schedule_job` makes a period less than 1 a server start failure (skills/server-core/modules/server-time.md:90), so game settings `core` with value 0 passes the schema check of `ogw game check` and the server does not start. The row needs `1 or more`, as `routing.storageSweepIntervalMs` now has",
-      "foundBy": "spec routing"
-    },
     {
       "id": "D2",
       "location": "skills/server-core/modules/admin-api.md:233",
@@ -31,6 +25,54 @@
       "location": "skills/server-core/modules/admin-api.md:280",
       "problem": "`admin-api.bodyReadTimeoutMs` has no written range, so 0 is allowed (skills/core/SKILL.md:134), and the body limit step at admin-api.md:152 sets 400 `bad_request` for an exceeded read duration, while `network_time_limit` throws below 1 (skills/server-core/modules/server-time.md:39)",
       "foundBy": "spec auth"
+    },
+    {
+      "id": "D6",
+      "location": "skills/server-core/modules/admin-api.md:55",
+      "problem": "The output of `get_switches` is not set. Lines 102 to 110 define no format for `maintenance` and `kill_switches`, no other document uses them, and `## test` has no item for their values. One implementation returns a boolean and a list of names, and another returns rows with `updated_at`. Whether it answers from the instance cache or from `admin_api_switch` is also not set, so after a change on another instance the answer differs within `admin-api.switchCacheMs` between implementations",
+      "foundBy": "spec admin-api"
+    },
+    {
+      "id": "D7",
+      "location": "skills/server-core/modules/admin-api.md:184",
+      "problem": "The results `WITHDRAWN` and `FAILED` of the transaction that admin-api opens are mapped to a status only for `get_user` and `export_personal_data` (lines 197, 201). `storage.run_user_transaction` returns `WITHDRAWN` when the user withdraws after the `get_user_record` check of line 182 (skills/server-core/modules/storage.md:137), and returns `FAILED` beyond `storage.userLockWaitMs` (skills/server-core/modules/storage.md:141). `lock_game_row` of line 193 also returns `FAILED` as a value for a core module (skills/server-core/modules/storage.md:89). The `## error` table has no row for them. Run path: `grant_items` races with a withdrawal, and one implementation answers 404 `not_found` and another 500 `internal`",
+      "foundBy": "spec admin-api"
+    },
+    {
+      "id": "D8",
+      "location": "skills/server-core/modules/admin-api.md:278",
+      "problem": "The LOCAL value of `environments.<ENV>.adminAllowedCidrs` is not set. skills/server-core/SKILL.md:86 gives a LOCAL item without a value set by its spec the empty value of its type, skills/core/SKILL.md:47 treats `null` as a meaning other than that empty value, and skills/core/SKILL.md:119 gives `null` to a missing `?` item only in a list that does not cover LOCAL. Run path: a LOCAL server that takes the empty list answers 403 to every admin request at step 1 of line 149, including those of operator `ogw`, and one that takes `null` handles them",
+      "foundBy": "spec admin-api"
+    },
+    {
+      "id": "D9",
+      "location": "skills/server-core/modules/admin-api.md:99",
+      "problem": "`ip_in_cidrs` does not set the result for an IPv4-mapped IPv6 address, and no server core document does. skills/server-core/SKILL.md:243 listens on all addresses, and skills/server-core/modules/routing.md:171 passes the peer address of the TCP connection when `trustedProxyCount` is 0. Run path: a client at `203.0.113.5` arrives as `::ffff:203.0.113.5` with `adminAllowedCidrs` `203.0.113.0/24`, and one implementation answers 403 while another accepts it. The key `ip` of `admin_api_ip_counter` and `logging.truncate_ip` depend on the same form",
+      "foundBy": "spec admin-api"
+    },
+    {
+      "id": "D10",
+      "location": "skills/server-core/modules/admin-api.md:96",
+      "problem": "Which violations are a registration error is not fully set. Lines 267 and 268 and skills/server-core/modules/routing.md:77 to :88 do not list a `user_target` that names no `int64` input field (line 116), a `binary` operation without `max_body_bytes` (line 114), or a `binary` operation with an input type outside `int64`, `int32`, `string` (line 115). Run path: a content admin operation sets `user_target` to a field that is not in `input`, and one implementation fails server start while another fails at each request or skips the target user check of line 182",
+      "foundBy": "spec admin-api"
+    },
+    {
+      "id": "D11",
+      "location": "skills/server-core/modules/admin-api.md:115",
+      "problem": "An `int32` input field of a `binary` body operation has no way to be read that the body rules allow. Line 115 allows `int32` in the query string and skills/server-core/modules/testing.md:139 holds query values as strings, while line 171 does not convert a numeric string to an integer and line 172 accepts a decimal string only for `int64`. Run path: a content binary operation with query `count=3` is 400 in an implementation that follows line 171 and is accepted in one that parses query values",
+      "foundBy": "spec admin-api"
+    },
+    {
+      "id": "D12",
+      "location": "skills/server-core/modules/admin-api.md:238",
+      "problem": "Two documents set the `actor` of a line that ended before step 2 passed differently. Line 238 sets `null`, while skills/server-core/modules/logging.md:45 says a missing value is `null` and skills/server-core/modules/logging.md:93 writes `system` when the entry has no value. Run path: admin-api writes an `audit` entry with `actor` `null` for a wrong secret, and an implementation of `write` that treats `null` as no value records the failed attempt as `system`, the same value as work done by the server itself",
+      "foundBy": "spec admin-api"
+    },
+    {
+      "id": "D13",
+      "location": "skills/server-core/modules/admin-api.md:281",
+      "problem": "`admin-api.authFailuresPerMinute` has no written range, so skills/core/SKILL.md:134 allows 0. At step 1 of line 149 a count of 0 is 0 or more, so every admin request is 429 `rate_limited`, including those of operator `ogw`, and the setting cannot be recovered through the admin API. `admin-api.maxSearchRangeMs` (line 283) and `admin-api.maxSearchRows` (line 284) also allow 0, which makes every request with a time range or `limit` 400 `bad_request` at lines 174 and 175",
+      "foundBy": "spec admin-api"
     }
   ]
 }
