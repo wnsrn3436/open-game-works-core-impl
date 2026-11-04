@@ -1,42 +1,5 @@
 {
   "target": "rating",
   "nextId": 7,
-  "items": [
-    {
-      "id": "D1",
-      "location": "server/core/rating/index.ts:224",
-      "problem": "`test evidence` No core test goes through the `ALREADY_SENT` counts as success rule of `rating` `### season settle`. `server/core/rating/tests/` has no `ALREADY_SENT` case, and every test mail there is the first send of its `once_key`. In a temporary copy, line 224 was changed to accept only `OK` and `ALREADY_SENT` was made to throw; all 28 `rating` tests still passed. Reproducing input for the missing test: send a mail with `once_key` `rating:<rule ID value>:<past season>` first, advance the season with `ranking.close_season_now`, then send `RefreshRating`. It must succeed and write the settled row. This path was not changed in the range",
-      "foundBy": "rating round 1"
-    },
-    {
-      "id": "D2",
-      "location": "server/core/rating/index.ts:225",
-      "problem": "`test evidence` No core test goes through the row of `rating` `## error` \"`INVALID_INPUT` from season reward `send_mail` | throw | `INTERNAL`\". In the same temporary copy, `INVALID_INPUT` was made to return without a throw, so settle is written and the reward is lost; all 28 `rating` tests still passed. Reproducing path for the missing test: make `mailbox.send_mail` return `INVALID_INPUT` during `RefreshRating` after a season change. The response must be `INTERNAL` and the row must stay unsettled. This path was not changed in the range",
-      "foundBy": "rating round 1"
-    },
-    {
-      "id": "D3",
-      "location": "server/core/rating/index.ts:195",
-      "problem": "`test evidence` No core test goes through the row of `rating` `## error` \"failure of `validation.apply_permille` in step 2 of season settle | throw | `INTERNAL`\". In the same temporary copy, the `!scaled.success` throw was removed, so settle uses a scaled value of 0; all 28 `rating` tests still passed. Reproducing input for the missing test: `set_rating` of 2^60 on `[rating_rule_basic]`, advance the season, then `RefreshRating`. `value × permille` is then outside int64, and the response must be `INTERNAL` with the row unchanged. This path was not changed in the range",
-      "foundBy": "rating round 1"
-    },
-    {
-      "id": "D4",
-      "location": "server/core/rating/index.ts:192",
-      "problem": "`spec` A row whose rule has `season_board` `null` and whose `season` is not 0 is settled, while `rating` `## data` says a `null` board has a single season 0 and no settle, and `## test` says such a rule has no settle. `stored.season === season` is the only guard, so a game data change from a board to `null` soft resets the rating and zeroes `season_games` of every row with a past season. Reproduced in a temporary copy: `put_core_state` of a `[rating_rule_seasonless]` row with `season` 5 and `season_games` 3, then `get_rating` gives `season` 0 and `season_games` 0, and `RefreshRating` writes that row",
-      "foundBy": "rating round 1"
-    },
-    {
-      "id": "D5",
-      "location": "server/core/rating/index.ts:197",
-      "problem": "`test evidence` No core test reaches the clamp of step 2 of `### season settle` (\"When it is less than `min_rating`, it is `min_rating`\"). In a temporary copy, changing line 197 to `row.rating = reset` left all 28 `rating` tests passing. The `soft_reset` helper of `server/core/rating/tests/season.test.ts:32` also calculates the clamp itself, and no test input reaches it. Reproducing input for the missing test: `set_rating` of -3000 on `[rating_rule_basic]` (`min_rating` 0, `soft_reset_target` 1000, `soft_reset_permille` 500), advance the season, then `RefreshRating`; the row must be 0. That input passes on the current code",
-      "foundBy": "rating round 1"
-    },
-    {
-      "id": "D6",
-      "location": "server/core/rating/index.ts:212",
-      "problem": "`test evidence` No core test settles a row of tier 0 on a rule with rewards, so the rule that a past season without a tier sends no reward has no test. In a temporary copy, removing `settled.tier_id === 0` left all 28 `rating` tests passing, although `RatingTierTable.get_row(0)` is then called for such a row. Reproducing input for the missing test: `set_rating` of -3000 on `[rating_rule_basic]`, advance the season, then `RefreshRating`; the response must succeed and no mail is sent. That input passes on the current code",
-      "foundBy": "rating round 1"
-    }
-  ]
+  "items": []
 }
