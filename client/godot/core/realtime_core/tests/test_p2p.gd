@@ -895,17 +895,76 @@ func test_a_host_in_none_that_receives_match_found_leaves_it_and_keeps_the_room_
 func test_leave_room_in_none_leaves_a_match_the_transport_read_in_the_same_poll() -> void:
 	await _start_room_on_p2p(PackedInt64Array([USER_ID, OTHER_ID]))
 	assert_true(EventCore.subscribe(RoomChangedEvent, _leave_room_on_room_event))
-	var state: CoreContract.MatchmakerFrame = server.new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_ROOM_STATE)
-	state.room_code = ROOM_CODE
-	state.mode_id = MODE_ID
-	state.room_members = PackedInt64Array([USER_ID, OTHER_ID, THIRD_ID])
-	state.room_status = CoreContract.RoomStatus.ROOM_STATUS_OPEN
+	var state: CoreContract.MatchmakerFrame = _room_state(PackedInt64Array([USER_ID, OTHER_ID, THIRD_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN)
 	await _deliver_to_core([state, server.match_found(PackedInt64Array([USER_ID, OTHER_ID]), 0, false)])
 	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, 1)
 	assert_eq(server.count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_ROOM_LEAVE), 1)
 	assert_eq(RealtimeCore.room_info().room_code, "")
 	assert_eq(p2p._match_id, "")
 	assert_null(p2p._socket, "leaving the room closes the matchmaker connection")
+
+
+## The `poll` reads both frames before RealtimeCore handles them, so the `close` of the `Open` leaves the match.
+func test_a_host_whose_open_room_and_match_found_come_in_one_poll_sends_one_match_leave() -> void:
+	await _start_room_on_p2p(PackedInt64Array([USER_ID, OTHER_ID]))
+	var op: RealtimeAsyncCall = RealtimeAsyncCall.new()
+	op.join_match(MODE_ID)
+	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_REQUEST, 1)
+	server.send(_room_state(PackedInt64Array([USER_ID, OTHER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames(5)
+	await _deliver_to_core([
+		_room_state(PackedInt64Array([USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN),
+		server.match_found(PackedInt64Array([USER_ID, OTHER_ID]), 0, false),
+	])
+	await op.wait()
+	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.CANCELLED)
+	await _assert_one_match_leave_in_none()
+
+
+func test_a_member_whose_open_room_and_match_found_come_in_one_poll_sends_one_match_leave() -> void:
+	await _start_room_on_p2p(PackedInt64Array([OTHER_ID, USER_ID]))
+	server.send(_room_state(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames(5)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.MATCHING)
+	await _deliver_to_core([
+		_room_state(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN),
+		server.match_found(PackedInt64Array([OTHER_ID, USER_ID]), 1, false),
+	])
+	await _assert_one_match_leave_in_none()
+
+
+func test_a_member_whose_match_failed_and_match_found_come_in_one_poll_sends_one_match_leave() -> void:
+	await _start_room_on_p2p(PackedInt64Array([OTHER_ID, USER_ID]))
+	server.send(_room_state(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames(5)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.MATCHING)
+	await _deliver_to_core([
+		server.new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_FAILED),
+		server.match_found(PackedInt64Array([OTHER_ID, USER_ID]), 1, false),
+	])
+	await _assert_one_match_leave_in_none()
+
+
+## The transport read `MATCH_FOUND` before the `leave_room` that ends the wait, so only `close` leaves that match.
+func test_leave_room_while_create_room_waits_leaves_a_match_the_transport_read() -> void:
+	var op: RealtimeAsyncCall = await _wait_create_room_on_p2p()
+	var node: Node = RealtimeCore._node
+	node.set_process(false)
+	server.send(server.match_found(PackedInt64Array([USER_ID, OTHER_ID]), 0, false))
+	await _wait_arrived(1)
+	p2p.poll()
+	assert_eq(p2p._match_id, "match-p2p")
+	RealtimeCore.leave_room()
+	assert_eq(p2p._match_id, "", "close left the match")
+	assert_null(p2p._socket, "leaving the room closes the matchmaker connection")
+	node.set_process(true)
+	await op.wait()
+	assert_false(op.room_result.ok)
+	while not p2p._closing.is_empty() and _running():
+		await frames(1)
+	await frames(10)
+	assert_eq(server.count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE), 1)
+	assert_eq(server.count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_ROOM_LEAVE), 1)
 
 
 func test_disconnect_closes_without_match_leave_and_close_sends_it_first() -> void:
@@ -1134,6 +1193,14 @@ func _play_on_p2p() -> RealtimeRemotePeer:
 
 ## RealtimeCore on a P2P transport in a room with `members`, in `None`.
 func _start_room_on_p2p(members: PackedInt64Array) -> void:
+	var op: RealtimeAsyncCall = await _wait_create_room_on_p2p()
+	server.send(_room_state(members, CoreContract.RoomStatus.ROOM_STATUS_OPEN))
+	await op.wait()
+	assert_true(op.room_result.ok)
+
+
+## RealtimeCore on a P2P transport waiting for the answer to `create_room`. Returns that call.
+func _wait_create_room_on_p2p() -> RealtimeAsyncCall:
 	set_settings()
 	await start_dependencies()
 	server = add_node(RealtimeFakeMatchmaker.new()) as RealtimeFakeMatchmaker
@@ -1145,14 +1212,27 @@ func _start_room_on_p2p(members: PackedInt64Array) -> void:
 	var op: RealtimeAsyncCall = RealtimeAsyncCall.new()
 	op.create_room(MODE_ID)
 	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_ROOM_CREATE, 1)
+	return op
+
+
+func _room_state(members: PackedInt64Array, status: CoreContract.RoomStatus) -> CoreContract.MatchmakerFrame:
 	var state: CoreContract.MatchmakerFrame = server.new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_ROOM_STATE)
 	state.room_code = ROOM_CODE
 	state.mode_id = MODE_ID
 	state.room_members = members
-	state.room_status = CoreContract.RoomStatus.ROOM_STATUS_OPEN
-	server.send(state)
-	await op.wait()
-	assert_true(op.room_result.ok)
+	state.room_status = status
+	return state
+
+
+## The match found of the `poll` was discarded: `None`, no connection, one `MATCH_LEAVE` and the room connection stays.
+func _assert_one_match_leave_in_none() -> void:
+	await frames(10)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	assert_eq(server.count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE), 1)
+	assert_eq(p2p._match_id, "")
+	assert_eq(p2p._peers.size(), 0)
+	assert_eq(RealtimeCore.room_info().room_code, ROOM_CODE)
+	assert_not_null(p2p._socket, "the room keeps the matchmaker connection")
 
 
 func _leave_room_on_room_event(_event: RoomChangedEvent) -> void:

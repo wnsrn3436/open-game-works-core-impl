@@ -105,7 +105,7 @@ func test_while_create_room_waits_other_room_and_match_operations_fail_and_leave
 	assert_eq(transport.calls.size(), 0)
 	RealtimeCore.leave_room()
 	await op.wait()
-	assert_eq(transport.calls, PackedStringArray(["leave_room()"]))
+	assert_eq(transport.calls, PackedStringArray(["leave_room()", "close()"]))
 	assert_false(op.room_result.ok)
 	assert_eq(op.room_result.error_code, 0)
 	assert_eq(events.count("room"), 0)
@@ -253,7 +253,7 @@ func test_host_join_match_cancels_on_an_open_room_after_a_member_left() -> void:
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
 	assert_eq(RealtimeCore.room_info().members, PackedInt64Array([USER_ID]))
 	assert_eq(transport.count("cancel_matching"), 0)
-	assert_eq(transport.count("close"), 0)
+	assert_eq(transport.count("close"), 1)
 	assert_eq(events.count("room_match_started"), 0)
 	assert_eq(warn_logs(), 0)
 	# The room stays, and the next `join_match` of the host is taken.
@@ -636,7 +636,7 @@ func test_host_in_none_cancels_the_entry_of_a_matching_room() -> void:
 	await frames()
 	await second.wait()
 	assert_eq(second.join_result.status, RealtimeCore.MatchJoinStatus.CANCELLED)
-	assert_eq(transport.calls, PackedStringArray(["cancel_matching()"]))
+	assert_eq(transport.calls, PackedStringArray(["close()", "cancel_matching()"]))
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
 	assert_eq(RealtimeCore.room_info().status, CoreContract.RoomStatus.ROOM_STATUS_MATCHING)
 
@@ -969,8 +969,8 @@ func test_host_in_none_that_receives_match_found_closes_once_and_stays_in_none()
 	assert_eq(RealtimeCore.room_info().room_code, ROOM_CODE)
 
 
-## The `Open` that ends the `Matching` makes `None` without `close`, so the match found of the same `poll` is the only one
-## that tells the transport.
+## The `Open` that ends the `Matching` calls `close`, which leaves the match the transport read in the same `poll`, so the
+## match found of that `poll` is discarded.
 func test_host_that_receives_match_found_after_the_notice_that_made_none_in_one_poll_closes() -> void:
 	await start_realtime()
 	await reach_room(PackedInt64Array([USER_ID, OTHER_ID]))
@@ -986,20 +986,38 @@ func test_host_that_receives_match_found_after_the_notice_that_made_none_in_one_
 	await op.wait()
 	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.CANCELLED)
 	assert_eq(transport.count("close"), 1)
-	assert_eq(warn_logs(), 1)
+	assert_eq(warn_logs(), 0, "a discarded match found logs nothing")
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
 
 
-func test_member_takes_match_found_after_match_failed_in_one_poll() -> void:
+func test_member_discards_match_found_after_match_failed_in_one_poll() -> void:
 	await start_realtime()
 	await reach_room(PackedInt64Array([OTHER_ID, USER_ID]))
 	push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
 	await frames()
+	transport.clear_calls()
 	push_match_failed(CoreContract.MatchFailReason.MATCH_FAIL_REASON_TIMEOUT, 0)
 	push_match_found(make_info(2, 1))
 	await frames()
-	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.CONNECTING)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	assert_eq(transport.count("close"), 1)
+	assert_eq(transport.count("connect_peer"), 0)
 	assert_eq(warn_logs(), 1, "the match failed")
+
+
+func test_member_discards_match_found_after_an_open_room_in_one_poll() -> void:
+	await start_realtime()
+	await reach_room(PackedInt64Array([OTHER_ID, USER_ID]))
+	push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+	await frames()
+	transport.clear_calls()
+	push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_OPEN))
+	push_match_found(make_info(2, 1))
+	await frames()
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	assert_eq(transport.count("close"), 1)
+	assert_eq(transport.count("connect_peer"), 0)
+	assert_eq(warn_logs(), 0)
 
 
 func test_kick_room_member_needs_the_host() -> void:

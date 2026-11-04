@@ -26,7 +26,6 @@ const AT_DEFAULT: Readonly<Record<string, string>> = {
   'remote-config.maxStringBytes': 'the bytes of the String default_value rows or more',
   // A start condition on the key alone that its schema minimum does not hold.
   'idempotency.maxNotifyIdBytes': 'ads-reward needs 36 or more, the bytes of a reward notify ID',
-  'mailbox.defaultExpireMs': 'mailbox needs 1 or more',
   // A real time limit that a PostgreSQL connection and schema lock take longer than.
   'storage.dbAnswerWaitMs': 'the time limit of connecting to PostgreSQL at server start',
   'storage.schemaLockWaitMs': 'the time limit of the schema lock at server start, which the wait for a free connection takes from',
