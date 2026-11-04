@@ -290,10 +290,11 @@ export async function progress(session: Session, mission_id: number): Promise<{ 
   return { progress: result.progress, claimed: result.claimed };
 }
 
-export async function claim(session: Session, mission_id: number): Promise<Sent> {
+/** `ClaimMission`; with `request_id` the request carries that request ID. */
+export async function claim(session: Session, mission_id: number, request_id?: string): Promise<Sent> {
   const request = new CoreContract.ClaimMissionRequest();
   request.mission_id = mission_id;
-  return send(session, 'core/ClaimMission', request);
+  return send(session, 'core/ClaimMission', request, request_id);
 }
 
 export async function set_progress(session: Session, mission_id: number, value: bigint, claimed: boolean): Promise<Sent> {

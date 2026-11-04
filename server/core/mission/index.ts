@@ -64,6 +64,14 @@ function module_of<T>(modules: Readonly<Record<string, unknown>>, name: string, 
   return module as T;
 }
 
+/** The `add_progress` amount: throws when it is not an integer or is less than 1, and is at most 2^53−1. */
+function amount_of(amount: bigint | number): bigint {
+  if (typeof amount === 'number' && !Number.isInteger(amount)) throw new RangeError('mission: add_progress amount is not an integer');
+  const value = BigInt(amount);
+  if (value < 1n) throw new RangeError(`mission: add_progress amount ${String(value)} is less than 1`);
+  return value > MAX_SAFE ? MAX_SAFE : value;
+}
+
 /** `ResetCycle?`: `None` is null. */
 function cycle_of(row: GameData.MissionRow): GameData.ResetCycle | null {
   return row.reset === GameData.ResetCycle.None ? null : row.reset;
@@ -108,9 +116,13 @@ export function create_mission(input: MissionInput): Mission {
   /** A fresh row: the first value, the next reset time and the round rule. */
   const fresh = (ctx: RequestCtx, row: GameData.MissionRow, event_round: number): Row => ({ progress: 0n, claimed: false, reset_at: next_reset(ctx, row), event_round });
 
-  /** The stored row read through round reset, then lazy reset. A missing row is the first value. */
+  /** The stored row of a mission read with `get_state`, through round reset and lazy reset. */
   function read(ctx: RequestCtx, row: GameData.MissionRow): Row {
-    const stored = storage.get_state(ctx, CoreContract.MissionProgressUserState, BigInt(row.id)) as CoreContract.MissionProgressUserState | null;
+    return current_of(ctx, row, storage.get_state(ctx, CoreContract.MissionProgressUserState, BigInt(row.id)) as CoreContract.MissionProgressUserState | null);
+  }
+
+  /** `stored` through round reset, then lazy reset. A missing row is the first value. */
+  function current_of(ctx: RequestCtx, row: GameData.MissionRow, stored: CoreContract.MissionProgressUserState | null): Row {
     if (stored === null) return fresh(ctx, row, round_of(ctx, row));
     let current: Row = { progress: stored.progress, claimed: stored.claimed, reset_at: stored.reset_at, event_round: stored.event_round };
     if (live_event.is_round_reset(ctx, row.live_event, current.event_round)) current = fresh(ctx, row, round_of(ctx, row));
@@ -133,15 +145,16 @@ export function create_mission(input: MissionInput): Mission {
   const add_progress: Mission['add_progress'] = (ctx, counter_id, amount) => {
     const counter = ctx.data.MissionCounterTable;
     if (!counter.has_row(counter_id)) throw new RangeError(`mission: add_progress got an unknown counter ${String(counter_id)}`);
-    if (typeof amount === 'number' && !Number.isInteger(amount)) throw new RangeError('mission: add_progress amount is not an integer');
-    let value = BigInt(amount);
-    if (value < 1n) throw new RangeError(`mission: add_progress amount ${String(value)} is less than 1`);
-    if (value > MAX_SAFE) value = MAX_SAFE;
+    const value = amount_of(amount);
     const mode = counter.get_row(counter_id).mode;
     const changed: number[] = [];
+    // All rows of the user in one query, read at the first in-window mission. Each mission of the counter is read
+    // and written once, so the rows stay current through the loop.
+    let rows: Map<bigint, CoreContract.MissionProgressUserState> | null = null;
     for (const row of missions_of(ctx.data, counter_id)) {
       if (!in_window(ctx, row)) continue;
-      const current = read(ctx, row);
+      rows ??= new Map((storage.list_state(ctx, CoreContract.MissionProgressUserState) as CoreContract.MissionProgressUserState[]).map((v) => [v.id, v]));
+      const current = current_of(ctx, row, rows.get(BigInt(row.id)) ?? null);
       if (current.claimed || current.progress >= row.target) continue;
       let progress = mode === GameData.MissionCounterMode.Max ? (value > current.progress ? value : current.progress) : current.progress + value;
       if (progress > row.target) progress = row.target;

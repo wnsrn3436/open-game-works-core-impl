@@ -196,6 +196,29 @@ describe('ClaimMission', () => {
     expect(await balance(s, u, GOLD)).toBe(3n);
     expect(await balance(s, u, GEM)).toBe(2n);
   });
+
+  it('answers a ClaimMission sent again with the same request ID with the saved response and grants once', async () => {
+    const s = await start();
+    const u = await new_user(s);
+    await add_ids(u, C.sum, 10n);
+    const request_id = '6d0e3a7b-1c4f-4e2a-8b9d-5f7c2e1a0b34';
+    const first = await claim(u, M.sum_daily, request_id);
+    expect(code_of(first)).toBe(0);
+    const after_first = await state(s, u);
+
+    const again = await claim(u, M.sum_daily, request_id);
+    expect(code_of(again)).toBe(0);
+    expect(plain(items_of(again))).toEqual(plain(items_of(first)));
+    expect(plain(items_of(again))).toEqual(plain([item(GOLD, 100n)]));
+    expect(await state(s, u)).toEqual(after_first);
+    expect(await balance(s, u, GOLD)).toBe(100n);
+    expect((await stored(s, u, M.sum_daily))?.claimed).toBe(true);
+    expect(s.hooks.validate_calls).toEqual([M.sum_daily]);
+
+    // Another request ID runs the claim and ends with MISSION_ALREADY_CLAIMED.
+    expect(code_of(await claim(u, M.sum_daily))).toBe(CODE.CORE_ERROR_MISSION_ALREADY_CLAIMED);
+    expect(await balance(s, u, GOLD)).toBe(100n);
+  });
 });
 
 describe('extra grant', () => {
