@@ -24,6 +24,8 @@ static var prepare_hook: Callable = Callable()
 static var exit_hook: Callable = Callable()
 ## When valid, `on_preload` calls it with the scene last.
 static var preload_hook: Callable = Callable()
+## When valid, `_ready` calls it with the scene.
+static var ready_hook: Callable = Callable()
 ## The preload request the last `on_preload` got.
 static var preload_request_ref: WeakRef = null
 ## The last scene that got `on_preload`.
@@ -57,6 +59,7 @@ static func reset() -> void:
 	prepare_hook = Callable()
 	exit_hook = Callable()
 	preload_hook = Callable()
+	ready_hook = Callable()
 	preload_request_ref = null
 	last = null
 	progress_at_preload = PackedInt32Array()
@@ -64,6 +67,8 @@ static func reset() -> void:
 
 func _ready() -> void:
 	Trace.add("loaded:" + scene_key)
+	if ready_hook.is_valid():
+		ready_hook.call(self)
 
 
 func _process(_delta: float) -> void:

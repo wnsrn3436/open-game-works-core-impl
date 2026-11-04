@@ -329,9 +329,11 @@ static func _run(job: _JOB, key: String, param: RefCounted, boot: bool) -> void:
 	_fit_new_ui_root()
 	_holder.process_mode = Node.PROCESS_MODE_DISABLED
 	_holder.add_child(scene)
+	# The stop check starts before the hiding, because hiding and disabling notify scene code, which may add nodes: each
+	# node that `node_added` tells from here on is put into `_watched`.
 	_hiding = true
-	_hide_tree(_holder)
 	_set_watching(true)
+	_hide_tree(_holder)
 
 	# 5 preload
 	var preload_request: PreloadRequest = PreloadRequest.new()
