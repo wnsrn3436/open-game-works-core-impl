@@ -1,0 +1,12 @@
+{
+  "target": "spec InputCore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/client-core/modules/input-core.md:255",
+      "problem": "a row rule of `## data` (`input` of `Touch` and `KeyboardMouse` rows) is named static check `action reference`, while `skills/core/SKILL.md:144` says row rules written in `## data` of a spec are data checks tested with data tool tests",
+      "foundBy": "spec ShortcutCore"
+    }
+  ]
+}
