@@ -174,7 +174,7 @@ describe('withdrawal', () => {
     let inserted = false;
     // Between the first read (step 1) and the second read (step 3) of `remove_user`, a request of C to A commits.
     const spy = vi.spyOn(storage, 'lock_game_row').mockImplementation((ctx, table, key) => {
-      if (table === COUNT_TABLE && ctx.user_id === id(a) && !inserted) {
+      if (table === COUNT_TABLE && 'user_id' in ctx && ctx.user_id === id(a) && !inserted) {
         inserted = true;
         const db = storage.db(ctx);
         db.query(`INSERT INTO ${LINK_TABLE} (user_id, other_id, state, created_at, updated_at) VALUES ($1, $2, $3, $4, $4)`, [id(c), id(a), 'FRIEND_STATE_SENT', START_AT]);
