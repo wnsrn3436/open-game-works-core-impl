@@ -41,3 +41,6 @@ id,order,kind,weight,items,table
 [gacha_lt_plain],2,Weighted,3,[gacha_star2] 1,null
 [gacha_lt_plain],3,Weighted,6,[gacha_star3] 1,null
 [gacha_lt_capped],1,Guaranteed,0,[gacha_capped] 2,null
+[gacha_lt_over],1,Guaranteed,0,[gacha_star] 9007199254740991,null
+[gacha_lt_over],2,Guaranteed,0,[gacha_star] 1,null
+[gacha_lt_half],1,Guaranteed,0,[gacha_star] 4503599627370496,null

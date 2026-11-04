@@ -10,3 +10,6 @@ id,name,loot_table,single_cost,multi_count,multi_cost,multi_guaranteed_table,tic
 [gacha_banner_window],Window banner,[gacha_lt_plain],,null,,null,null,null,null,null,false,null,2027-02-01T00:00:00Z,2027-03-01T00:00:00Z,null,
 [gacha_banner_event],Event banner,[gacha_lt_plain],,null,,null,null,null,null,null,false,null,null,null,[gacha_event],
 [gacha_banner_locked],Locked banner,[gacha_lt_plain],,null,,null,null,null,null,null,false,null,null,null,null,Level(1)
+[gacha_banner_roll_over],Roll overflow banner,[gacha_lt_over],[gacha_gem] 1,null,,null,null,null,null,null,false,null,null,null,null,
+[gacha_banner_sum_over],Sum overflow banner,[gacha_lt_half],[gacha_gem] 1,2,[gacha_gem] 2,null,null,null,null,null,false,null,null,null,null,
+[gacha_banner_window_locked],Window locked banner,[gacha_lt_plain],,null,,null,null,null,null,null,false,null,2027-02-01T00:00:00Z,2027-03-01T00:00:00Z,null,Level(1)

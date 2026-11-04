@@ -36,8 +36,11 @@ gacha_banner.name.[gacha_banner_locked],Locked banner,57bb75f91f5034b3,57bb75f91
 gacha_banner.name.[gacha_banner_main],Main banner,047d63432d4b9ecd,047d63432d4b9ecd,Main banner
 gacha_banner.name.[gacha_banner_multi],Multi banner,57d058dab9dc543d,57d058dab9dc543d,Multi banner
 gacha_banner.name.[gacha_banner_plain],Plain banner,8c40cbca5f9c933e,8c40cbca5f9c933e,Plain banner
+gacha_banner.name.[gacha_banner_roll_over],Roll overflow banner,1b12a419f15ed8d9,1b12a419f15ed8d9,Roll overflow banner
 gacha_banner.name.[gacha_banner_shared],Shared banner,27c4d9ed3be34ba9,27c4d9ed3be34ba9,Shared banner
+gacha_banner.name.[gacha_banner_sum_over],Sum overflow banner,8a92624273b72ea9,8a92624273b72ea9,Sum overflow banner
 gacha_banner.name.[gacha_banner_window],Window banner,0a48073f4bf3b927,0a48073f4bf3b927,Window banner
+gacha_banner.name.[gacha_banner_window_locked],Window locked banner,d127e9e387eb63f6,d127e9e387eb63f6,Window locked banner
 iap_product.name.[admin_pack],Admin pack,f7751669b31c4b0d,f7751669b31c4b0d,Admin pack
 iap_product.name.[iap_apple_only],Iap apple only pack,d11b554ccfcacfe8,d11b554ccfcacfe8,Iap apple only pack
 iap_product.name.[iap_capped],Iap capped pack,e0556f3552820965,e0556f3552820965,Iap capped pack
