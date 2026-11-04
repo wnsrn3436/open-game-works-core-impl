@@ -1,4 +1,5 @@
-import { CoreError, INSTANT, TIMED, data_with_modes, default_modes, finish, harness, opened, player, restart_with_data, stop_all } from './helpers.ts';
+import type { PlaySessionRecord } from '../index.ts';
+import { CoreError, INSTANT, TIMED, continue_session, data_with_modes, default_modes, finish, harness, opened, play_session, player, restart_with_data, stop_all } from './helpers.ts';
 
 afterEach(async () => {
   await stop_all();
@@ -22,5 +23,33 @@ describe('a play session of a mode that left the data', () => {
     expect((await finish(s, old.play_session_id)).code).toBe(CoreError.CORE_ERROR_PLAY_SESSION_NOT_FOUND);
     expect((await finish(s, next.play_session_id)).code).toBe(0);
     expect(h.calls.filter((c) => c.hook === 'apply_play_session').length).toBe(1);
+  });
+
+  it('answers PLAY_SESSION_NOT_FOUND to ContinuePlaySession without a hook, and get_active_play_session returns none for that row', async () => {
+    const seen: (PlaySessionRecord | null)[] = [];
+    const modes = default_modes();
+    const h = await harness(
+      {
+        prepare: (core, ctx) => {
+          seen.push(play_session(core).get_active_play_session(ctx));
+          return new Uint8Array(0);
+        },
+      },
+      undefined,
+      modes,
+    );
+    const timed = h.id(TIMED);
+    const s = await player(h);
+    const first = await opened(s, timed);
+    const current = await opened(s, timed);
+    // While the mode is in the data, the row is the active play session.
+    expect(seen[1]?.play_session_id).toBe(first.play_session_id);
+
+    await restart_with_data(h, data_with_modes(modes.filter((row) => row.id !== timed)));
+    const before = h.calls.length;
+    expect((await continue_session(s, current.play_session_id)).code).toBe(CoreError.CORE_ERROR_PLAY_SESSION_NOT_FOUND);
+    expect(h.calls.length).toBe(before);
+    await opened(s, h.id(INSTANT));
+    expect(seen[2]).toBeNull();
   });
 });

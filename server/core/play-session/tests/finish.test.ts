@@ -9,6 +9,8 @@ import {
   TIMED,
   amount,
   bytes_equal,
+  continue_rows,
+  continue_session,
   finish,
   harness,
   hook_calls,
@@ -92,6 +94,22 @@ describe('FinishPlaySession', () => {
     expect(logs[0]?.['ip']).toBe(truncate_ip(CLIENT_IP));
     set_time(h.server, started.started_at + mode(h, TIMED).min);
     expect((await finish(s, started.play_session_id)).code).toBe(0);
+  });
+
+  it("deletes that user's continue rows and keeps another user's", async () => {
+    const h = await harness();
+    const s = await player(h);
+    const other = await player(h);
+    const started = await opened(s, h.id(TIMED));
+    const kept = await opened(other, h.id(TIMED));
+    expect((await continue_session(s, started.play_session_id)).code).toBe(0);
+    expect((await continue_session(s, started.play_session_id)).code).toBe(0);
+    expect((await continue_session(other, kept.play_session_id)).code).toBe(0);
+    expect(continue_rows(h, s.user_id).map((r) => Number(r['continue_index']))).toEqual([0, 1]);
+    set_time(h.server, started.started_at + mode(h, TIMED).min);
+    expect((await finish(s, started.play_session_id)).code).toBe(0);
+    expect(continue_rows(h, s.user_id)).toEqual([]);
+    expect(continue_rows(h, other.user_id).length).toBe(1);
   });
 
   it('calls verify_play_session at the request time of started_at in a mode with min_duration 0, with finished_at - started_at of 0', async () => {
