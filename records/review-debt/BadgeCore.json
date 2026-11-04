@@ -1,18 +1,5 @@
 {
   "target": "BadgeCore",
   "nextId": 3,
-  "items": [
-    {
-      "id": "D1",
-      "location": "client/godot/core/badge_core/badge_core.gd:239",
-      "problem": "`load_saved` always sets `_save_pending`, but the spec saves only when the save targets in memory differ from the saved values. Run path: a user file without the key `BadgeCore.items` and no item badge in memory (e.g. the first login, or a game with no `persist` badge) -> `_run_frame_end` (badge_core.gd:511) -> `_save` writes an empty array (badge_core.gd:613) -> `LocalDataCore._write_entry` has no such key, so it adds the entry and marks the `user` file dirty (client/godot/core/local_data_core/local_data_core.gd:544). Memory and saved values are both empty, yet the key is added and the file is written. No test covers the case where they do not differ. Found by reading this path; it was not run. The code is outside the commit range",
-      "foundBy": "BadgeCore round 1"
-    },
-    {
-      "id": "D2",
-      "location": "client/godot/core/badge_core/badge_core.gd:747",
-      "problem": "`_is_decimal` rejects the item key -9223372036854775808. `set_item` accepts it (the spec allows any non-zero `long`, and badge_core.gd:163 rejects only 0) and `_save` writes `<badge ID>:-9223372036854775808=<count>`, but `load_saved` discards that element as malformed with a warn log, so the item is lost after a restart. A scratch script with a copy of `_is_decimal` gave `false` for that text and `true` for 9223372036854775807. The negative value is compared with the positive limit. The code is outside the commit range",
-      "foundBy": "BadgeCore round 1"
-    }
-  ]
+  "items": []
 }
