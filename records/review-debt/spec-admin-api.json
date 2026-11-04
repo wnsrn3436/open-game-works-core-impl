@@ -1,12 +1,30 @@
 {
   "target": "spec admin-api",
-  "nextId": 2,
+  "nextId": 5,
   "items": [
     {
       "id": "D1",
       "location": "skills/server-core/modules/admin-api.md:286",
       "problem": "`admin-api.switchCacheMs` is the period of job `admin_switch_cache` and writes no range, so `## core settings` of skills/core/SKILL.md gives 0 or more. `schedule_job` makes a period less than 1 a server start failure (skills/server-core/modules/server-time.md:90), so game settings `core` with value 0 passes the schema check of `ogw game check` and the server does not start. The row needs `1 or more`, as `routing.storageSweepIntervalMs` now has",
       "foundBy": "spec routing"
+    },
+    {
+      "id": "D2",
+      "location": "skills/server-core/modules/admin-api.md:233",
+      "problem": "The state of the maintenance and kill switch cache before the first read and after a failed read is not set. Line 233 sets only that job `admin_switch_cache` reads the state again and that the instance that made a change updates its own cache. `skills/server-core/SKILL.md:109` and `skills/server-core/modules/routing.md:71` start listening on the port before `server-time.end_start`, and `skills/server-core/modules/server-time.md:91` runs a job for the first time in `end_start`. So a request can reach `routing` steps 4 and 9 (`skills/server-core/modules/routing.md:111`, `:116`) before the first read has ended. Run path: maintenance is on, a server instance restarts, a request arrives between listening and the end of the first read. One implementation answers `MAINTENANCE` because it loaded the table in `complete_start` or holds the request, and another handles the request because its cache is still empty. `skills/build/SKILL.md:186` starts the new server with maintenance on, and this request can then be handled during that deploy. `skills/server-core/modules/server-time.md:93` says only that a job function logs its own failures, so whether a failed `storage.read_db` keeps the previous cache is also not set.",
+      "foundBy": "spec admin-api"
+    },
+    {
+      "id": "D3",
+      "location": "skills/server-core/modules/admin-api.md:32",
+      "problem": "Two rules name the admin secret differently. Line 32 has no environment condition and says the admin secret is `server.read_secret`(`adminSecret.<operator name>`). Line 277 says `secret` of `adminOperators` is the name of the secret in the host secret store, and `tools/ogw.md:530` sets the `secret` of `ogw` to `admin-ogw-<lowercase environment>`. `skills/server-core/SKILL.md:100` reads key `name` from the host secret store outside the LOCAL server and test servers, and its rule for a name set in game settings covers only `environments.<ENV>.secrets.<key>`. Run path: an STG server that follows line 32 reads `adminSecret.ogw` from the host secret store, gets `null` because `ogw secret generate` and `ogw deploy` store `admin-ogw-stg`, and does not start by line 267. Nothing states that line 32 applies only to the LOCAL server and test servers.",
+      "foundBy": "spec admin-api"
+    },
+    {
+      "id": "D4",
+      "location": "skills/server-core/modules/admin-api.md:241",
+      "problem": "`args` of the `audit` log of a request that ends at step 5 (body check) is not set. Line 238 says `args` is the input that passed the check, and line 241 sets `null` only for steps 1 to 4. A request that fails step 5 has no input that passed the check, and the audit args function at line 119 takes only such an input. One implementation writes `null` and another writes the rejected body, and that body can hold what line 240 forbids in `args`, because an unknown field fails step 5 with its value unchecked.",
+      "foundBy": "spec admin-api"
     }
   ]
 }
