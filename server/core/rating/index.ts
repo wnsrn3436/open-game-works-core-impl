@@ -189,7 +189,8 @@ export function create_rating(input: RatingInput): Rating {
     row.season = stored.season;
     row.season_games = stored.season_games;
     row.total_games = stored.total_games;
-    if (stored.season === season) return { row, settled: null };
+    // A rule without `season_board` has a single season 0 and no settle, whatever `season` a stored row holds.
+    if (rule.season_board === 0 || stored.season === season) return { row, settled: null };
     const settled: Settled = { season: stored.season, tier_id: tier_of(ctx.data, rule.id, stored.rating), season_games: stored.season_games };
     const scaled = validation.apply_permille(stored.rating - rule.soft_reset_target, BigInt(rule.soft_reset_permille));
     if (!scaled.success) throw new Error(`soft reset of rating rule ${String(rule.id)} overflows int64`);

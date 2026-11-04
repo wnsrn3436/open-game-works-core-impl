@@ -1,7 +1,9 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
+import { send } from '../../testing/dev/index.ts';
 import type { MatchOutcome } from '../index.ts';
 import {
   close_season,
+  error_logs,
   expected_tier,
   in_tx,
   mails,
@@ -18,6 +20,13 @@ import {
 
 const BASIC = '[rating_rule_basic]';
 const BOARD = '[board_rating_weekly]';
+const SEASONLESS = '[rating_rule_seasonless]';
+
+/** Sends `RefreshRating` and returns the error code of its envelope (0 when none). */
+async function refresh_code(session: TestSession): Promise<number> {
+  const { envelope } = await send(session, 'core/RefreshRating', new CoreContract.RefreshRatingRequest());
+  return envelope.error?.code ?? 0;
+}
 
 /** Wins `count` 1 vs 1 matches of equal record ratings 1000 on the basic rule. */
 async function win(kit: Kit, a: TestSession, b: TestSession, count: number): Promise<void> {
@@ -220,14 +229,131 @@ describe('season settle', () => {
   it('has no settle for a rule whose season_board is null', async () => {
     const kit = await start();
     const a = await user(kit, 'rating-no-season-a');
-    const rule = kit.id('[rating_rule_seasonless]');
-    await set_rating(kit, a.user_id, '[rating_rule_seasonless]', 1234n);
+    const rule = kit.id(SEASONLESS);
+    await set_rating(kit, a.user_id, SEASONLESS, 1234n);
     const before = await rating_row(kit, a.user_id, rule);
     expect(before).toMatchObject({ rating: 1234n, season: 0n });
     await close_season(kit, BOARD, a.user_id);
     await refresh(a);
     expect(await rating_row(kit, a.user_id, rule)).toEqual(before);
     expect(await in_tx(kit, a.user_id, (ctx) => kit.core.rating.get_rating(ctx, rule))).toMatchObject({ rating: 1234n, season: 0n });
+    expect(await mails(kit, a.user_id)).toEqual([]);
+  });
+
+  it('has no settle for a row of a rule whose season_board is null even when the row holds a season other than 0', async () => {
+    const kit = await start();
+    const a = await user(kit, 'rating-no-season-past-a');
+    const rule = kit.id(SEASONLESS);
+    const stored = new CoreContract.RatingUserState();
+    stored.id = BigInt(rule);
+    stored.rating = 1234n;
+    stored.tier_id = kit.id('[rating_tier_plain]');
+    stored.season = 5n;
+    stored.season_games = 3;
+    stored.total_games = 7;
+    await in_tx(kit, a.user_id, (ctx) => {
+      kit.core.storage.put_core_state(ctx, stored);
+    });
+    const before = await rating_row(kit, a.user_id, rule);
+    expect(before).toMatchObject({ rating: 1234n, season: 5n, season_games: 3, total_games: 7 });
+
+    expect(await in_tx(kit, a.user_id, (ctx) => kit.core.rating.get_rating(ctx, rule))).toMatchObject({ rating: 1234n, season_games: 3 });
+    await refresh(a);
+    expect(await rating_row(kit, a.user_id, rule)).toEqual(before);
+    expect(await mails(kit, a.user_id)).toEqual([]);
+  });
+
+  it('counts ALREADY_SENT of the season reward mail as success: RefreshRating writes the settle and sends no second mail', async () => {
+    const kit = await start();
+    const a = await user(kit, 'rating-already-sent-a');
+    const b = await user(kit, 'rating-already-sent-b');
+    const rule = kit.id(BASIC);
+    const last = await season_of(kit, a.user_id, BOARD);
+    await win(kit, a, b, 2);
+    const once_key = `rating:${String(rule)}:${String(last)}`;
+    const first = await in_tx(kit, a.user_id, (ctx) =>
+      kit.core.mailbox.send_mail(ctx, {
+        template_id: kit.id('[mail_rating_season]'),
+        args: [{ name: 'season', int_value: last }],
+        attachments: [],
+        extra_id: 0,
+        expire_ms: 0n,
+        no_expiry: false,
+        once_key,
+      }),
+    );
+    expect(first.result).toBe('OK');
+    const sent = await mails(kit, a.user_id);
+    expect(sent.length).toBe(1);
+    expect(sent[0]?.attachments).toEqual([]);
+    await close_season(kit, BOARD, a.user_id);
+    const now = await season_of(kit, a.user_id, BOARD);
+
+    expect(await refresh_code(a)).toBe(0);
+    expect(await rating_row(kit, a.user_id, rule)).toMatchObject({ rating: 1032n, season: now, season_games: 0, total_games: 2 });
+    expect(await mails(kit, a.user_id)).toEqual(sent);
+    expect(once_key_rows(kit, once_key).length).toBe(1);
+  });
+
+  it('fails RefreshRating with INTERNAL and leaves the row unsettled when the season reward send_mail returns INVALID_INPUT', async () => {
+    // `mailbox.maxArgs` 0 makes the one `season` arg of the reward mail over the limit, so `send_mail` returns INVALID_INPUT.
+    const kit = await start(undefined, { 'mailbox.maxArgs': 0 });
+    const a = await user(kit, 'rating-mail-invalid-a');
+    const b = await user(kit, 'rating-mail-invalid-b');
+    const rule = kit.id(BASIC);
+    await win(kit, a, b, 2);
+    const played = await rating_row(kit, a.user_id, rule);
+    expect(played).toMatchObject({ rating: 1064n, season_games: 2 });
+    await close_season(kit, BOARD, a.user_id);
+
+    expect(await refresh_code(a)).toBe(CoreContract.CoreError.CORE_ERROR_INTERNAL);
+    expect(await rating_row(kit, a.user_id, rule)).toEqual(played);
+    expect(await mails(kit, a.user_id)).toEqual([]);
+    expect(error_logs(kit, 'send_mail input is invalid').length).toBeGreaterThan(0);
+  });
+
+  it('fails RefreshRating with INTERNAL and leaves the row as it was when the soft reset overflows apply_permille', async () => {
+    const kit = await start();
+    const a = await user(kit, 'rating-overflow-a');
+    const rule = kit.id(BASIC);
+    // (2^60 − 1000) × 500 is over int64.
+    await set_rating(kit, a.user_id, BASIC, 2n ** 60n);
+    const before = await rating_row(kit, a.user_id, rule);
+    expect(before?.rating).toBe(2n ** 60n);
+    await close_season(kit, BOARD, a.user_id);
+
+    expect(await refresh_code(a)).toBe(CoreContract.CoreError.CORE_ERROR_INTERNAL);
+    expect(await rating_row(kit, a.user_id, rule)).toEqual(before);
+    expect(await mails(kit, a.user_id)).toEqual([]);
+  });
+
+  it('clamps the soft reset rating to min_rating', async () => {
+    const kit = await start();
+    const a = await user(kit, 'rating-reset-clamp-a');
+    const rule = kit.id(BASIC);
+    // 1000 + floor_div((−3000 − 1000) × 500, 1000) = −1000, below min_rating 0.
+    await set_rating(kit, a.user_id, BASIC, -3000n);
+    await close_season(kit, BOARD, a.user_id);
+    const now = await season_of(kit, a.user_id, BOARD);
+
+    await refresh(a);
+    expect(await rating_row(kit, a.user_id, rule)).toMatchObject({ rating: 0n, season: now, season_games: 0, tier_id: kit.id('[rating_tier_bronze]') });
+  });
+
+  it('mails no season reward when the past season has no tier, even with reward_min_games matches', async () => {
+    const kit = await start();
+    const a = await user(kit, 'rating-no-tier-a');
+    const b = await user(kit, 'rating-no-tier-b');
+    const rule = kit.id(BASIC);
+    await win(kit, a, b, 2);
+    // set_rating in the same season keeps season_games 2 and gives a rating below every tier of the rule.
+    await set_rating(kit, a.user_id, BASIC, -3000n);
+    expect(await rating_row(kit, a.user_id, rule)).toMatchObject({ rating: -3000n, season_games: 2, tier_id: 0 });
+    await close_season(kit, BOARD, a.user_id);
+    const now = await season_of(kit, a.user_id, BOARD);
+
+    expect(await refresh_code(a)).toBe(0);
+    expect(await rating_row(kit, a.user_id, rule)).toMatchObject({ rating: 0n, season: now, season_games: 0, total_games: 2 });
     expect(await mails(kit, a.user_id)).toEqual([]);
   });
 });

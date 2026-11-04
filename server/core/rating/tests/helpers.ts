@@ -5,6 +5,7 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import * as GameContract from '../../../generated/contract/game_contract.ts';
 import type * as GameData from '../../../generated/data/game_data.ts';
+import type { Mailbox } from '../../mailbox/index.ts';
 import type { Ranking } from '../../ranking/index.ts';
 import type { RequestCtx, Storage } from '../../storage/index.ts';
 import {
@@ -44,6 +45,7 @@ export interface Core {
   readonly rating: Rating;
   readonly validation: Validation;
   readonly ranking: Ranking;
+  readonly mailbox: Mailbox;
 }
 
 export interface Kit {
@@ -88,6 +90,7 @@ export async function start(more: (core: RegisterView) => void = () => {}, setti
     rating: module_object(server, 'rating') as Rating,
     validation: module_object(server, 'validation') as Validation,
     ranking: module_object(server, 'ranking') as Ranking,
+    mailbox: module_object(server, 'mailbox') as Mailbox,
   };
   return { server, core, data, id: (name) => dev.find_id_value(name) };
 }
