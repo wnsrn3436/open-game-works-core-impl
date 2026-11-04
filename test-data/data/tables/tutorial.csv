@@ -14,3 +14,4 @@ id,order,start_requirement,skippable
 [tutorial_gated],10,FlagA(),false
 [tutorial_prompt],11,,false
 [tutorial_plain],12,,true
+[tutorial_silent],13,,false

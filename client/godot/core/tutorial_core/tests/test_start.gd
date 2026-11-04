@@ -130,3 +130,14 @@ func test_the_shown_tutorial_moving_to_its_next_step_runs_a_start_check() -> voi
 	]))
 	assert_true(await wait_shown())
 	assert_eq(shown_text(), "[tutorial_prompt]")
+
+
+func test_a_hook_that_returns_no_bool_does_not_start_with_an_error_log() -> void:
+	assert_true(await start(false, false))
+	assert_true(TutorialCore.register_can_start_tutorial(Hooks.can_start_not_bool))
+	assert_true(await log_in())
+	assert_false(TutorialCore.check_start())
+	assert_gt(Hooks.not_bool_calls, 0)
+	assert_eq(errors(), Hooks.not_bool_calls, "one error log for each output that is not a bool")
+	assert_eq(events, PackedStringArray())
+	assert_false(TutorialCore.is_running())

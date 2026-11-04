@@ -69,6 +69,22 @@ func test_the_start_watch_is_taken_off_when_every_tutorial_with_its_start_requir
 	assert_true(_start_watched(time_start), "a tutorial with this start requirement is not finished")
 
 
+func test_the_start_watch_is_taken_off_when_a_user_state_delta_finishes_every_tutorial_with_its_start_requirement() -> void:
+	assert_true(await start())
+	allow(PackedStringArray())
+	assert_false(TutorialCore.check_start())
+	var gated: int = _start_requirement("[tutorial_gated]")
+	var time_start: int = _start_requirement("[tutorial_time_start]")
+	assert_true(_start_watched(gated))
+	assert_true(_start_watched(time_start))
+	put_progress(id_of("[tutorial_gated]"), 1)
+	await frames(2)
+	assert_true(TutorialCore.is_completed(id_of("[tutorial_gated]")))
+	assert_false(TutorialCore.is_running())
+	assert_false(_start_watched(gated))
+	assert_true(_start_watched(time_start), "a tutorial with this start requirement is not finished")
+
+
 ## `complete_requirement` of the current step of the only active tutorial.
 func _step_requirement() -> int:
 	assert_eq(TutorialCore._runs.size(), 1)

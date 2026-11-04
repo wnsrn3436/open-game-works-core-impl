@@ -24,3 +24,4 @@ id,step,text,anchor,anchor_key,panel,popup,pointer,restrict_input,complete,compl
 [tutorial_gated],1,Gated step one,,null,null,null,false,false,Advance,,null,false
 [tutorial_prompt],1,Press {action:back},,null,null,null,false,false,Advance,,null,false
 [tutorial_plain],1,Plain step one,tc_plain,null,null,null,false,false,AnchorTap,,null,false
+[tutorial_silent],1,,,null,null,null,false,false,Advance,,null,false

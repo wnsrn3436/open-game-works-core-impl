@@ -391,6 +391,18 @@ func warns(tag: String = TAG) -> int:
 	return UnitTestCore.check_logs(WARN, tag)
 
 
+## Messages of the `level` logs of `tag` in the log files of this test, in order. `list_log_files` writes the LogCore
+## write buffer to the log file first, and the test setup deletes the log files of the tests before.
+func log_messages(level: String, tag: String = TAG) -> PackedStringArray:
+	var out: PackedStringArray = PackedStringArray()
+	for path: String in LogCoreDev.list_log_files():
+		for line: String in FileAccess.get_file_as_string(CoreBuildInfo.storage_root + path).split("\n", false):
+			var fields: PackedStringArray = line.split("\t")
+			if fields.size() >= 4 and fields[1] == level and fields[2] == tag:
+				out.append(fields[3])
+	return out
+
+
 # --- network ---
 
 

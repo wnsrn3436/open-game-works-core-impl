@@ -70,8 +70,14 @@ func test_a_tutorial_with_a_step_that_breaks_a_rule_does_not_start_and_logs_an_e
 		assert_true(TutorialCore.register_can_start_tutorial(_can_start))
 		assert_true(TutorialCore._make_defs())
 		TutorialCore._defs_by_id[first].steps = _broken_case(i)
+		var steps: Array[TutorialCore._STEP] = TutorialCore._defs_by_id[first].steps
+		var broken: int = steps[steps.size() - 1].step
 		assert_false(TutorialCore.check_start(), "case %d" % i)
 		assert_eq(errors(), 1, "case %d" % i)
+		var messages: PackedStringArray = log_messages(ERROR)
+		assert_eq(messages.size(), i + 1, "case %d" % i)
+		if messages.size() == i + 1:
+			assert_string_contains(messages[i], "tutorial %d step %d:" % [first, broken], "case %d" % i)
 		assert_false(TutorialCore.check_start(), "case %d again" % i)
 		assert_eq(errors(), 0, "case %d is not checked again" % i)
 	assert_eq(events, PackedStringArray())

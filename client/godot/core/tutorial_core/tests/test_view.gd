@@ -4,6 +4,8 @@ extends "res://core/tutorial_core/tests/support/tutorial_test_case.gd"
 
 const MISSING_VIEW: String = "prefab/tutorial_core_test_missing_view"
 const NEAR: Vector2 = Vector2(0.01, 0.01)
+## Position of the speech bubble in `tests/resources/tutorial_view.tscn`.
+const BUBBLE_HOME: Vector2 = Vector2(40, 40)
 
 
 ## Game coordinates rectangle of `control`.
@@ -93,7 +95,52 @@ func test_the_speech_bubble_overlaps_a_tall_anchor_and_touches_an_edge_of_the_vi
 	var root: Rect2 = root_rect()
 	assert_true(bubble.intersects(anchor_rect()))
 	assert_true(root.grow(0.01).encloses(bubble))
-	assert_true(is_equal_approx(bubble.position.y, root.position.y) or is_equal_approx(bubble.end.y, root.end.y))
+	# The room above and below is equal, so the speech bubble goes below and is moved up to the bottom edge.
+	assert_almost_eq(bubble.end.y, root.end.y, 0.01)
+
+
+func test_the_speech_bubble_goes_right_below_an_anchor_with_equal_room_above_and_below() -> void:
+	assert_true(await start())
+	var area: Rect2 = SafeAreaCore.get_safe_area()
+	var top: Vector2 = stage_point(Vector2(area.get_center().x - 80, area.get_center().y - 30))
+	add_anchor("tc_anchor", Rect2(top, Vector2(160, 60)))
+	assert_true(await start_tutorials(PackedStringArray(["[tutorial_anchor]"])))
+	assert_true(await wait_shown())
+	var bubble: Rect2 = bubble_rect()
+	assert_almost_eq(anchor_rect().position.y - root_rect().position.y, root_rect().end.y - anchor_rect().end.y, 0.01)
+	assert_almost_eq(bubble.position.y, anchor_rect().end.y, 0.01, "right below")
+	assert_false(bubble.intersects(anchor_rect()))
+
+
+func test_a_step_without_anchor_puts_the_speech_bubble_at_its_position_in_the_view_resource() -> void:
+	assert_true(await start())
+	var anchor: Button = add_anchor("tc_anchor", Rect2(560, 300, 160, 60))
+	assert_true(await start_tutorials(PackedStringArray(["[tutorial_anchor]"])))
+	assert_true(await wait_shown())
+	respond_saved(id_of("[tutorial_anchor]"), 1)
+	await click(anchor)
+	assert_eq(current_text(), "[tutorial_anchor]:2")
+	assert_true(await wait_shown())
+	assert_ne(view().speech_bubble.position, BUBBLE_HOME, "the anchored step moved the speech bubble")
+	await click(view().advance_button)
+	assert_eq(current_text(), "[tutorial_anchor]:3")
+	assert_true(await wait_shown())
+	assert_true(view().speech_bubble.visible)
+	assert_almost_eq(view().speech_bubble.position, BUBBLE_HOME, NEAR)
+
+
+func test_a_step_without_text_hides_the_speech_bubble_and_binds_no_text() -> void:
+	assert_true(await start())
+	assert_true(await start_tutorials(PackedStringArray(["[tutorial_silent]"])))
+	assert_true(await wait_shown())
+	assert_false(view().speech_bubble.visible)
+	assert_true(view().advance_button.visible)
+	# A bound element would be written again with the text of its key.
+	view().text_label.text = "unbound label"
+	assert_true(await LocalizationCore.load_translation([]))
+	InputCoreDev.set_test_device(InputCore.InputDevice.KEYBOARD_MOUSE)
+	await frames()
+	assert_eq(view().text_label.text, "unbound label")
 
 
 func test_a_wide_speech_bubble_stays_in_the_view_root_at_its_left_edge() -> void:
@@ -158,6 +205,42 @@ func test_a_system_popup_hides_the_view_and_keeps_the_block_and_the_step() -> vo
 	assert_false(UICore.is_system_popup_visible(), "the system popup button was pressed")
 	assert_true(view_visible())
 	assert_eq(current_text(), "[tutorial_anchor]:1")
+
+
+func test_a_system_popup_keeps_a_paused_tutorial_from_showing_until_it_closes() -> void:
+	assert_true(await start())
+	await open_system_popup()
+	assert_true(UICore.is_system_popup_visible())
+	assert_true(await start_tutorials(PackedStringArray(["[tutorial_first]"])))
+	await frames(3)
+	assert_eq(shown_text(), "none")
+	assert_false(view_visible())
+	assert_eq(current_text(), "[tutorial_first]:1")
+	await click(system_popup_button())
+	assert_false(UICore.is_system_popup_visible())
+	assert_true(await wait_shown())
+	assert_eq(shown_text(), "[tutorial_first]")
+
+
+func test_a_system_popup_keeps_the_tutorial_view_focus_while_it_hides_the_view() -> void:
+	assert_true(await start())
+	InputCoreDev.set_test_device(InputCore.InputDevice.GAMEPAD)
+	assert_true(await start_tutorials(PackedStringArray(["[tutorial_first]"])))
+	assert_true(await wait_shown())
+	await frames(2)
+	assert_eq(get_viewport().gui_get_focus_owner(), view().advance_button, "before the system popup")
+	await open_system_popup()
+	assert_false(view_visible())
+	assert_true(TutorialCore._shown.has_focus)
+	# The accept input clicks the focused system popup button and keeps the input device `Gamepad`.
+	await frames(2)
+	await press_pad(JOY_BUTTON_A)
+	assert_false(UICore.is_system_popup_visible())
+	assert_true(await wait_shown())
+	await frames(2)
+	# The view is shown again without step progress 3, so the focus comes from the kept view focus.
+	assert_eq(get_viewport().gui_get_focus_owner(), view().advance_button, "after the system popup")
+	assert_true(UICoreDev.set_test_focus(view().advance_button))
 
 
 func test_without_a_tutorial_view_advance_steps_end_at_once_without_a_block() -> void:
@@ -288,5 +371,9 @@ func test_a_step_waiting_for_its_anchor_logs_one_warn_after_the_wait_time() -> v
 	assert_eq(warns(), 0)
 	await advance(1)
 	assert_eq(warns(), 1)
+	var messages: PackedStringArray = log_messages(WARN)
+	assert_eq(messages.size(), 1)
+	if messages.size() == 1:
+		assert_string_contains(messages[0], "anchor tc_anchor key 0")
 	await advance(ANCHOR_WAIT_WARN_MS * 3)
 	assert_eq(warns(), 0)

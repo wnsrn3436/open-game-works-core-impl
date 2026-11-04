@@ -40,6 +40,29 @@ func test_a_scene_change_stops_the_step_and_the_next_scene_shows_it_again() -> v
 	assert_eq(current_text(), "[tutorial_anchor]:1")
 
 
+func test_a_cue_while_the_step_progress_is_stopped_does_not_end_the_step() -> void:
+	assert_true(await start())
+	assert_true(await SceneCore.boot_change_scene(SCENE_A, null))
+	add_anchor("tc_anchor", Rect2(560, 300, 160, 60))
+	assert_true(await start_tutorials(PackedStringArray(["[tutorial_cue]"])))
+	assert_eq(current_text(), "[tutorial_cue]:1")
+	TestScene.hold_prepare = true
+	var results: PackedInt32Array = PackedInt32Array()
+	_change_later(SCENE_B, results)
+	while TutorialCore._runs[0].stage != TutorialCore._RUN.Stage.STOPPED and SceneCore.is_initialized():
+		await frames()
+	assert_false(TutorialCore.notify_cue(GameData.TutorialCue.OPENED))
+	assert_eq(current_text(), "[tutorial_cue]:1")
+	TestScene.open_prepare()
+	while results.is_empty() and SceneCore.is_initialized():
+		await frames()
+	assert_eq(results, PackedInt32Array([1]))
+	assert_eq(current_text(), "[tutorial_cue]:1")
+	assert_eq(events, PackedStringArray(["started:[tutorial_cue]:1"]))
+	assert_true(TutorialCore.notify_cue(GameData.TutorialCue.OPENED))
+	assert_eq(current_text(), "[tutorial_cue]:2")
+
+
 func _change_later(scene_key: String, results: PackedInt32Array) -> void:
 	var ok: bool = await SceneCore.change_scene(scene_key, null)
 	results.append(1 if ok else 0)
