@@ -150,6 +150,43 @@ func test_optional_update_popup_that_cannot_open_is_later() -> void:
 	assert_eq(downloader.count_calls(FILE_BASE + list.bundle_files[0].sha256), 1, "file update ran")
 
 
+func test_store_redirect_opens_store_url_with_the_runtime_call() -> void:
+	if not await start():
+		fail_test("setup failed")
+		return
+	var list: _BUILDER = make_list()
+	list.min_version = "2.0.0"
+	list.recommended_version = "2.0.0"
+	list.store_url = "https://store.example.com/app?id=a\"b'c\\d&lang=é"
+	serve(list)
+	start_check(make_source())
+	await pump()
+	assert_true(await press(ReservedString.game_update_go_to_store()))
+	assert_eq(store_urls, PackedStringArray([list.store_url]), "the store URL reaches the call unchanged")
+	var is_web: bool = OS.get_name() == "Web"
+	assert_eq(page_redirects, 1 if is_web else 0,
+			"window.location.assign in the browser runtime, OS.shell_open elsewhere")
+	assert_eq(errors(), 0)
+
+
+func test_store_redirect_that_cannot_open_leaves_error_log() -> void:
+	if not await start():
+		fail_test("setup failed")
+		return
+	var list: _BUILDER = make_list()
+	list.min_version = "2.0.0"
+	list.recommended_version = "2.0.0"
+	serve(list)
+	store_open_fails = true
+	start_check(make_source())
+	await pump()
+	assert_true(await press(ReservedString.game_update_go_to_store()))
+	assert_eq(errors(), 1, "error log for the store URL that could not open")
+	assert_true(popup_shows(ReservedString.game_update_app_update_required()), "opens again after the redirect")
+	assert_eq(popup_count(), 1)
+	assert_false(check_finished)
+
+
 func _optional_list() -> _BUILDER:
 	var list: _BUILDER = make_list()
 	list.min_version = "1.0.0"
