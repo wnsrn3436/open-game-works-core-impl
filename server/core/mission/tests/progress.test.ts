@@ -1,5 +1,7 @@
+import * as CoreContract from '../../../generated/contract/core_contract.ts';
+import * as GameContract from '../../../generated/contract/game_contract.ts';
 import { set_time } from '../../testing/dev/index.ts';
-import { C, CODE, M, MAX_SAFE, REJECTED, add, add_ids, at, claim, code_of, new_user, progress, start, stop_all, stored } from './support.ts';
+import { C, CODE, M, MAX_SAFE, REJECTED, add, add_ids, at, claim, code_of, new_user, progress, run, start, stop_all, stored } from './support.ts';
 
 afterEach(stop_all);
 
@@ -116,6 +118,34 @@ describe('add_progress', () => {
     expect(await add_ids(u, C.sum, 2n)).toHaveLength(4);
     expect(code_of(await add(u, C.sum, 4n, true))).toBe(REJECTED);
     expect(await progress(u, M.sum_daily)).toEqual({ progress: 2n, claimed: false });
+  });
+
+  it('changes the missions of its counter when a mission row of another counter fails its read conversion', async () => {
+    const s = await start();
+    const u = await new_user(s);
+    // A row of [mission_other] saved by a later contract version for which a converter from this version is
+    // registered, as after a server rollback: its read conversion is FAILED.
+    const later = BigInt(GameContract.CONTRACT_VERSION + 1);
+    const column = CoreContract.KINDS.find((kind) => kind.name === 'MissionProgressUserState')?.column ?? '';
+    const value = new CoreContract.MissionProgressUserState();
+    value.id = BigInt(M.other);
+    value.progress = 2n;
+    const { sent } = await run(u, (ctx, _mission, storage) => {
+      const db = storage.db(ctx);
+      db.query('INSERT INTO migration_converter (kind, from_version, registered_at) VALUES ($1, $2, $3)', [column, BigInt(GameContract.CONTRACT_VERSION), 0n]);
+      db.query(
+        'INSERT INTO user_state (user_id, kind, item_id, value, contract_version, updated_at) VALUES ($1, $2, $3, $4, $5, $6)',
+        [ctx.user_id, column, value.id, value.encode(), later, ctx.request_time],
+      );
+    });
+    expect(code_of(sent)).toBe(0);
+    expect(await add_ids(u, C.other, 1n)).toBe(CODE.CORE_ERROR_INTERNAL);
+
+    const sum_missions = [M.sum_daily, M.sum_weekly, M.sum_monthly, M.sum_forever].sort(by_id);
+    expect(await add_ids(u, C.sum, 3n)).toEqual(sum_missions);
+    for (const m of sum_missions) expect(await progress(u, m)).toEqual({ progress: 3n, claimed: false });
+    expect(await add_ids(u, C.max, 4n)).toEqual([M.max]);
+    expect(await progress(u, M.max)).toEqual({ progress: 4n, claimed: false });
   });
 
   it('reads an unknown mission as (0, false)', async () => {

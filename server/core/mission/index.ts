@@ -148,13 +148,11 @@ export function create_mission(input: MissionInput): Mission {
     const value = amount_of(amount);
     const mode = counter.get_row(counter_id).mode;
     const changed: number[] = [];
-    // All rows of the user in one query, read at the first in-window mission. Each mission of the counter is read
-    // and written once, so the rows stay current through the loop.
-    let rows: Map<bigint, CoreContract.MissionProgressUserState> | null = null;
+    // Only the rows of the counter's in-window missions are read, each by its item ID: a row of another counter whose
+    // read conversion fails must not fail this call, and `list_state` would read it.
     for (const row of missions_of(ctx.data, counter_id)) {
       if (!in_window(ctx, row)) continue;
-      rows ??= new Map((storage.list_state(ctx, CoreContract.MissionProgressUserState) as CoreContract.MissionProgressUserState[]).map((v) => [v.id, v]));
-      const current = current_of(ctx, row, rows.get(BigInt(row.id)) ?? null);
+      const current = read(ctx, row);
       if (current.claimed || current.progress >= row.target) continue;
       let progress = mode === GameData.MissionCounterMode.Max ? (value > current.progress ? value : current.progress) : current.progress + value;
       if (progress > row.target) progress = row.target;
