@@ -1,36 +1,5 @@
 {
   "target": "migration",
   "nextId": 6,
-  "items": [
-    {
-      "id": "D1",
-      "location": "server/core/migration/index.ts:242",
-      "problem": "`value.encode()` runs outside the `FAILED` handling of `convert`, so a converter that returns the same kind message with a field that cannot be encoded makes `convert_item` throw instead of giving `FAILED`. Run path: a converter sets an `int64` field to the number `1` and returns the item; `BigInt.asUintN(64, value)` at server/generated/contract/wire.ts:135 throws `TypeError: Cannot convert 1 to a BigInt` (checked on a generated class, `CoreContract.NicknameUserState`, and through migration with the test kind `QuestUserState`). Result in a temporary copy: `migrate_snapshot` throws out of `records.map` at server/core/migration/dev/index.ts:38 and returns no per record result, while `## DEV` of the migration spec says a record whose result cannot be encoded is `FAILED`. On a request read the same throw reaches the handler with 0 `item conversion failed` log lines, so the `fields` that `### convert_item` requires are missing. Unrelated to the commit range: server/core/migration/ has no change in it. A batch still counts that user as failed, through the catch at server/core/migration/index.ts:368",
-      "foundBy": "migration round 1"
-    },
-    {
-      "id": "D2",
-      "location": "server/core/migration/index.ts:150",
-      "problem": "`test evidence` no test goes through the `migration.maxRecordedFailures` limit of `failed_users` in `### batch`. Removing `if (out.length >= max) break;` in a temporary copy leaves every migration test passing (49 tests on SQLite, 48 passed and 1 skipped on PostgreSQL). A probe with the limit 1 and 3 failed users on the unchanged code gave one user ID and `failed_count` 3, so the behavior is right and only the test is missing",
-      "foundBy": "migration round 1"
-    },
-    {
-      "id": "D3",
-      "location": "server/core/migration/index.ts:374",
-      "problem": "`test evidence` no test goes through `WITHDRAWN` of `run_user_transaction` in a step, which `### batch` says counts nothing. Changing `else if (result !== 'WITHDRAWN')` to `else` in a temporary copy, which counts a withdrawn user as failed, leaves every migration test passing (same counts as above)",
-      "foundBy": "migration round 1"
-    },
-    {
-      "id": "D4",
-      "location": "server/core/migration/index.ts:223",
-      "problem": "`test evidence` no test goes through the decode failure that `### convert_item` makes `FAILED`. Changing that branch to return the stored bytes in a temporary copy leaves every migration test passing (same counts as above). A probe with bytes `ff ff ff` at a lower version on the unchanged code gave a throw, an `item conversion failed` log and an unchanged row, so the behavior is right and only the test is missing",
-      "foundBy": "migration round 1"
-    },
-    {
-      "id": "D5",
-      "location": "server/core/migration/index.ts:118",
-      "problem": "`test evidence` no test checks the `lease_owner` condition of the `DONE` write, which `### batch` says makes a step that lost its lease not change to `DONE`. Replacing `lease_owner = $3` with `$3 = $3` in a temporary copy leaves every migration test passing (same counts as above). The existing `DONE` write tests cover only the `status` condition, through `stop_migration_batch`",
-      "foundBy": "migration round 1"
-    }
-  ]
+  "items": []
 }
