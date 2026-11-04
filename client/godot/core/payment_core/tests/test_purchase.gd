@@ -3,6 +3,7 @@ extends "res://core/payment_core/tests/support/payment_test_case.gd"
 ## `CheckPurchase` failures and the delivery retry.
 
 const HoldingFinish := preload("res://core/payment_core/tests/support/holding_finish_store_adapter.gd")
+const HoldingBuy := preload("res://core/payment_core/tests/support/holding_buy_store_adapter.gd")
 
 
 func test_purchase_checks_buys_with_the_account_token_and_verifies_in_order() -> void:
@@ -111,6 +112,68 @@ func test_login_session_change_during_finish_rejects_the_purchase() -> void:
 		assert_eq(await wait_purchase(running), PaymentCore.PurchaseResult.REJECTED, label)
 		assert_eq(PaymentCore._finished.size(), 0, label + ": the finish success list does not change")
 	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 1, "Invalid")
+	assert_eq(recovered.size(), 0)
+
+
+func test_login_session_change_during_check_purchase_rejects_without_buy() -> void:
+	assert_true(await start())
+	var gems: int = id_of("[iap_gems]")
+	UnitTestCore.add_pending(CHECK)
+	var running: Purchase = start_purchase(gems)
+	await settle()
+	assert_eq(request_count(CHECK), 1)
+	assert_true(await log_in(USER_ID + 1))
+	var check: CoreContract.CheckPurchaseResponse = CoreContract.CheckPurchaseResponse.new()
+	check.account_token = ACCOUNT_TOKEN
+	assert_true(UnitTestCore.release_pending(CHECK, NetworkCore.TransferResult.DONE, 200, envelope(check)))
+	assert_eq(await wait_purchase(running), PaymentCore.PurchaseResult.REJECTED)
+	assert_eq(fake.count_calls("buy"), 0)
+	assert_eq(request_count(VERIFY), 0)
+
+
+func test_login_session_change_during_buy_rejects_without_verify_for_every_buy_result() -> void:
+	var holding: HoldingBuy = HoldingBuy.new(CoreContract.IapStore.IAP_STORE_APPLE)
+	assert_true(await start_with(holding))
+	var gems: int = id_of("[iap_gems]")
+	var statuses: Array[StoreAdapter.BuyStatus] = [
+		StoreAdapter.BuyStatus.SUCCESS,
+		StoreAdapter.BuyStatus.CANCELLED,
+		StoreAdapter.BuyStatus.PENDING,
+		StoreAdapter.BuyStatus.FAILED,
+	]
+	for i: int in statuses.size():
+		var label: String = "buy %d" % statuses[i]
+		holding.hold_store_buy = true
+		respond_check()
+		var running: Purchase = start_purchase(gems)
+		await settle()
+		assert_eq(holding.buy_started, i + 1, label + ": buy waits")
+		assert_false(running.done, label)
+		assert_true(await log_in(USER_ID + 1 + i), label)
+		PaymentCoreDev.fake_set_next_buy_result(statuses[i])
+		holding.release_buy()
+		assert_eq(await wait_purchase(running), PaymentCore.PurchaseResult.REJECTED, label)
+	assert_eq(request_count(VERIFY), 0)
+	assert_eq(fake.count_calls("finish"), 0)
+	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 0, "the discarded Failed has no buy error")
+
+
+func test_login_session_change_during_verify_purchase_rejects_without_finish() -> void:
+	assert_true(await start())
+	var gems: int = id_of("[iap_gems]")
+	respond_check()
+	UnitTestCore.add_pending(VERIFY)
+	var running: Purchase = start_purchase(gems)
+	await settle()
+	assert_eq(request_count(VERIFY), 1)
+	assert_true(await log_in(USER_ID + 1))
+	assert_true(UnitTestCore.release_pending(
+		VERIFY, NetworkCore.TransferResult.DONE, 200,
+		envelope(verify_response(CoreContract.PurchaseStatus.PURCHASE_STATUS_GRANTED, gems))
+	))
+	assert_eq(await wait_purchase(running), PaymentCore.PurchaseResult.REJECTED)
+	assert_eq(fake.count_calls("finish"), 0)
+	assert_eq(PaymentCore._finished.size(), 0)
 	assert_eq(recovered.size(), 0)
 
 
@@ -282,6 +345,6 @@ func test_logs_hold_no_receipt_data_or_account_token() -> void:
 		text += FileAccess.get_file_as_string(CoreBuildInfo.storage_root + path)
 	assert_false(text.is_empty(), "the logs were written")
 	assert_false(text.contains(ACCOUNT_TOKEN), "no account token")
-	for transaction: FakeStoreAdapter.Transaction in fake.transactions:
+	for transaction: FakeStore.Transaction in fake.transactions:
 		assert_false(text.contains(transaction.receipt.data), "no receipt data")
 		assert_true(text.contains(transaction.receipt.transaction_id), "the transaction ID names the transaction")

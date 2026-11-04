@@ -1,4 +1,4 @@
-extends FakeStoreAdapter
+extends "res://core/payment_core/dev/adapters/fake_store_adapter.gd"
 ## Fake store adapter whose `finish` does not end while `hold_finish` is true: a login session change during `finish`.
 
 signal finish_released

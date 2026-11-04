@@ -1,4 +1,4 @@
-extends FakeStoreAdapter
+extends "res://core/payment_core/dev/adapters/fake_store_adapter.gd"
 ## Fake store adapter whose `query_prices` succeeds but gives an empty price to the SKUs in `priceless`.
 
 var priceless: PackedStringArray = PackedStringArray()

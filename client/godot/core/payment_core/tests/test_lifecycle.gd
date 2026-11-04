@@ -39,7 +39,7 @@ func test_operations_before_init_fail_with_an_error() -> void:
 
 func test_set_store_adapter_after_init_is_ignored_with_an_error() -> void:
 	assert_true(await start(CoreContract.IapStore.IAP_STORE_APPLE, false))
-	PaymentCore.set_store_adapter(FakeStoreAdapter.new(CoreContract.IapStore.IAP_STORE_APPLE))
+	PaymentCore.set_store_adapter(FakeStore.new(CoreContract.IapStore.IAP_STORE_APPLE))
 	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 1)
 	assert_false(PaymentCore.is_supported())
 
