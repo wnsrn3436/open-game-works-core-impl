@@ -1,6 +1,6 @@
 {
   "target": "spec logging",
-  "nextId": 14,
+  "nextId": 15,
   "items": [
     {
       "id": "D3",
@@ -66,6 +66,12 @@
       "id": "D13",
       "location": "skills/server-core/modules/logging.md:47",
       "problem": "The result of `log` with a level that is not one of the four is not set. Line 47 lists the levels, the API row at line 28 has failure value `none`, and the `## error` table has no row for it. Input: a content handler calls `log` with level `trace`. One implementation writes a line with that level, another drops it, and another throws and ends the request with `INTERNAL`.",
+      "foundBy": "spec logging"
+    },
+    {
+      "id": "D14",
+      "location": "skills/server-core/modules/logging.md:178",
+      "problem": "The failure path of the job `logging_analytics_deletion` does not set the case where the row no longer exists. Line 179 says two server instances may send the same row at the same time, and line 178 increments `attempts` \"the same way\" in one `storage.run_game_transaction` and, at `logging.analyticsDeletionMaxAttempts`, deletes the row and writes an `error` log. Run path: instance A succeeds and deletes the row, instance B's call fails and then increments `attempts` of the missing row. One implementation upserts the row back with `attempts` 1 and requests the deletion again, another updates no row; when the increment would reach the max, one writes the `error` log for a row already deleted, another writes nothing",
       "foundBy": "spec logging"
     }
   ]
