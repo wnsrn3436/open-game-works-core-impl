@@ -167,6 +167,55 @@ func test_node_added_by_a_handler_of_the_stage_4_hiding_runs_frames_only_after_s
 	assert_eq(results, PackedInt32Array([1]))
 
 
+## A node that scene code removes from the scene, or frees, while the stage 4 hiding notifies it, before the hiding
+## reached that node, is not put into the set: the stop check keeps stopping the other nodes after it is freed.
+func test_node_removed_by_a_handler_of_the_stage_4_hiding_is_not_checked() -> void:
+	await _check_node_left_during_the_stage_4_hiding(false)
+
+
+func test_node_freed_by_a_handler_of_the_stage_4_hiding_is_not_checked() -> void:
+	await _check_node_left_during_the_stage_4_hiding(true)
+
+
+func _check_node_left_during_the_stage_4_hiding(frees: bool) -> void:
+	var label: String = "freed" if frees else "removed"
+	assert_true(await start_booted(SCENE_A))
+	var taken: Array[Node] = []
+	TestScene.ready_hook = func(scene: SceneBase) -> void:
+		var probe: Node2D = (scene as TestScene).probe
+		probe.visibility_changed.connect(func() -> void:
+			if taken.is_empty():
+				var spatial: Node = scene.get_node("Spatial")
+				taken.append(spatial)
+				scene.remove_child(spatial)
+				if frees:
+					spatial.free())
+	TestScene.prepare_gate = Gate.new()
+	var results: PackedInt32Array = PackedInt32Array()
+	change_later(SCENE_B, results)
+	await wait_trace("prepare:" + SCENE_B)
+	var scene: TestScene = TestScene.last as TestScene
+	assert_not_null(scene)
+	if scene == null or taken.size() != 1:
+		assert_eq(taken.size(), 1, "the hiding of stage 4 ran the handler (%s)" % label)
+		return
+	if not frees:
+		assert_false(SceneCore._watched.has(taken[0]), "the removed node is not in the set")
+		taken[0].free()
+	assert_eq(SceneCore._watched.size(), _count_under(SceneCore._holder), "the set holds only nodes under the holder (%s)" % label)
+	var counter: Counter = Counter.new()
+	scene.add_child(counter)
+	counter.process_mode = Node.PROCESS_MODE_ALWAYS
+	await _wait_frames_and_physics(3)
+	assert_eq(counter.process_count, 0, "process before stage 7 (%s)" % label)
+	assert_eq(counter.physics_count, 0, "physics process before stage 7 (%s)" % label)
+	TestScene.prepare_gate.open(true)
+	await wait_trace("started:" + SCENE_B)
+	await _wait_frames_and_physics(2)
+	assert_gt(counter.process_count, 0, "process after stage 7 (%s)" % label)
+	assert_eq(results, PackedInt32Array([1]))
+
+
 ## The stop check runs only while the new scene is hidden and reads the nodes under the scene holder from the set that
 ## `node_added` and `node_removed` keep, without walking the tree.
 func test_stop_check_runs_only_from_stage_4_until_stage_7_on_the_nodes_under_the_holder() -> void:
