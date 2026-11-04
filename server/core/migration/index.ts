@@ -221,7 +221,8 @@ export function create_migration_with(input: MigrationInput, contract: Migration
     if (version === current) return { kind: 'bytes', bytes, applied: false };
     let value: KindValue | null = info.kind_class.decode(bytes);
     if (value === null) return { kind: 'failed', from_version: version, reason: `the stored bytes are not a ${info.name} message` };
-    let applied = false;
+    // The from version of the last converter applied: an encode failure of the result is that converter's.
+    let applied: bigint | null = null;
     for (const entry of (by_kind.get(info.name) ?? []).filter((e) => e.from_version >= version)) {
       const from = entry.from_version;
       const id = info.is_list ? (value as unknown as Record<string, unknown>)['id'] : null;
@@ -237,9 +238,14 @@ export function create_migration_with(input: MigrationInput, contract: Migration
         return { kind: 'failed', from_version: from, reason: `the converter changed the id of a ${info.name} item` };
       }
       value = out;
-      applied = true;
+      applied = from;
     }
-    return { kind: 'bytes', bytes: applied ? value.encode() : bytes, applied };
+    if (applied === null) return { kind: 'bytes', bytes, applied: false };
+    try {
+      return { kind: 'bytes', bytes: value.encode(), applied: true };
+    } catch (error) {
+      return { kind: 'failed', from_version: applied, reason: `the converter result cannot be encoded as a ${info.name} message: ${message_of(error)}` };
+    }
   };
 
   /** A conversion that leaves an `error` log when it fails (`### convert_item`). */
