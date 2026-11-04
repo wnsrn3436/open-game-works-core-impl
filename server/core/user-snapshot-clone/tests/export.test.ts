@@ -1,5 +1,8 @@
 import * as GameContract from '../../../generated/contract/game_contract.ts';
+import type { GameTx, RequestCtx } from '../../storage/index.ts';
 import { stop_test_server } from '../../testing/dev/index.ts';
+import { create_user_snapshot_clone, type AdminOperation, type AdminOutput, type FailureReason } from '../index.ts';
+import type { GameStateSnapshot, SnapshotRecord, UserSnapshot } from '../snapshot.ts';
 import {
   admin,
   dumpDb,
@@ -197,6 +200,86 @@ describe('sample_user_ids', () => {
       expect((await admin(server, 'sample_user_ids', { count: 0 })).status).toBe(400);
       expect((await admin(server, 'sample_user_ids', { count: 6 })).status).toBe(400);
       expect((await admin(server, 'sample_user_ids', { count: 5 })).status).toBe(200);
+    } finally {
+      await stop_test_server(server);
+    }
+  });
+});
+
+describe('export in PROD', () => {
+  const BOSS = 'CloneBossGameState';
+
+  it('export_user_snapshot, export_game_state and sample_game_state return the stored rows with source_environment PROD, changing nothing', async () => {
+    const { server, core } = await startServer();
+    try {
+      const source = await richUser(server, core, 'source');
+      const local = await exportSnapshot(server, source.user_id);
+      const column = GameContract.KINDS.find((k) => k.name === BOSS)?.column;
+      if (column === undefined) throw new Error(`no game state kind ${BOSS}`);
+      const writer = await newUser(server, 'writer');
+      const write = await core.storage.run_user_transaction(writer.user_id, (ctx) => {
+        for (const [key, hp] of [[1n, 100n], [2n, 200n]] as const) {
+          const value = new GameContract.CloneBossGameState();
+          value.key = key;
+          value.hp = hp;
+          core.storage.put_game_state(ctx, value, 0n);
+        }
+        return 'pass';
+      });
+      expect(write).toBe('COMMITTED');
+      const prod = create_user_snapshot_clone({
+        settings: {
+          'user-snapshot-clone.maxSnapshotBytes': 1_000_000,
+          'user-snapshot-clone.maxSampleCount': 100,
+          'user-snapshot-clone.cloneRetentionMs': 86_400_000,
+          'user-snapshot-clone.sweepIntervalMs': 60_000,
+          'admin-api.maxBodyBytes': 65_536,
+          appId: local.app_id,
+          coreVersion: local.core_version,
+        },
+        modules: { validation: core.validation, storage: core.storage, session: core.session, 'server-time': core['server-time'], logging: core.logging },
+        server: { env: 'PROD', data_version: local.data_version },
+      });
+      // Read operations run as admin-api runs them: inside run_read_only of the operation's transaction.
+      const read = (operation: AdminOperation, input: Readonly<Record<string, unknown>>, transaction: RequestCtx | GameTx) =>
+        core.storage.run_read_only(transaction, () => operation.handler(input, transaction, null, null));
+      const before = dumpDb(core);
+
+      const user: { output: AdminOutput | FailureReason | null } = { output: null };
+      const status = await core.storage.run_user_transaction(source.user_id, (ctx) => {
+        user.output = read(prod.export_user_snapshot, { user_id: source.user_id }, ctx);
+        return 'pass';
+      });
+      expect(status).toBe('COMMITTED');
+      const snapshot = user.output as unknown as UserSnapshot;
+      expect(snapshot.source_environment).toBe('PROD');
+      expect(snapshot.source_user_id).toBe(String(source.user_id));
+      expect(snapshot.records).toEqual(recordsOf(await userRows(core, source.user_id)));
+      expect(snapshot.records.length).toBeGreaterThan(0);
+
+      const stored: SnapshotRecord[] = core.storage
+        .read_db()
+        .query('SELECT "key", value, contract_version FROM game_state WHERE kind = $1 ORDER BY "key"', [column])
+        .map((r) => ({
+          table: 'game_state',
+          key: `${column}/${String(r['key'])}`,
+          contract_version: Number(r['contract_version']),
+          value: Buffer.from(r['value'] as Uint8Array).toString('base64'),
+        }));
+      expect(stored.length).toBe(2);
+      const game = await core.storage.run_game_transaction((tx) => ({
+        exported: read(prod.export_game_state, { kind: BOSS, keys: [1n, 2n] }, tx),
+        sampled: read(prod.sample_game_state, { kind: BOSS, count: 10 }, tx),
+      }));
+      if (game === 'FAILED') throw new Error('game transaction failed');
+      const exported = game.exported as unknown as GameStateSnapshot;
+      const sampled = game.sampled as unknown as GameStateSnapshot;
+      expect(exported.source_environment).toBe('PROD');
+      expect(exported.records).toEqual(stored);
+      expect(sampled.source_environment).toBe('PROD');
+      expect([...sampled.records].sort((a, b) => a.key.localeCompare(b.key))).toEqual(stored);
+
+      expect(dumpDb(core)).toEqual(before);
     } finally {
       await stop_test_server(server);
     }
