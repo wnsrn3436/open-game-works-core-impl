@@ -61,6 +61,10 @@ static var _shown_at: int = 0
 ## From stage 4 until stage 7 the top visual nodes under the scene holder are hidden; `_hidden` keeps them.
 static var _hiding: bool = false
 static var _hidden: Array[Node] = []
+## In the same time, the nodes under the scene holder with a `process_mode` of their own do not inherit the disabled
+## holder: they are disabled too, and `_stopped` keeps them with the mode they had in `_stopped_modes`.
+static var _stopped: Array[Node] = []
+static var _stopped_modes: PackedInt32Array = PackedInt32Array()
 
 # Progress of the transition: tasks ended and all tasks. `_progress_total` is 0 until `on_preload` returns.
 static var _progress_done: int = 0
@@ -312,6 +316,8 @@ static func _run(job: _JOB, key: String, param: RefCounted, boot: bool) -> void:
 	scene.on_preload(preload_request, prefill_items)
 	if session != _session:
 		return
+	# A mode that `on_preload` gave a node it did not add is seen here, before any frame of the scene.
+	_stop_tree(_holder)
 	var preload_count: int = preload_request.items.size()
 	_progress_total = 1 + preload_count + prefill_items.size() + 1
 	_progress_done = 1
@@ -360,6 +366,7 @@ static func _run(job: _JOB, key: String, param: RefCounted, boot: bool) -> void:
 	# 7 start
 	UICore.set_panel_lock(false)
 	_show_hidden()
+	_restore_stopped()
 	_holder.process_mode = Node.PROCESS_MODE_INHERIT
 	var ui_root: Control = scene.ui_root
 	if is_instance_valid(ui_root):
@@ -621,11 +628,31 @@ static func _scene_kind() -> int:
 	return ResourceCore.BaseKind.PACKED_SCENE
 
 
-# Hides every top visual node under `node`.
+# Hides every top visual node under `node` and disables every node under it with a `process_mode` of its own.
 static func _hide_tree(node: Node) -> void:
 	for child: Node in node.get_children():
 		_hide_if_top(child)
+		_stop_if_own_mode(child)
 		_hide_tree(child)
+
+
+# Disables every node under `node` with a `process_mode` of its own: scene code may give one to a node after it entered
+# the tree, which no `node_added` tells.
+static func _stop_tree(node: Node) -> void:
+	for child: Node in node.get_children():
+		_stop_if_own_mode(child)
+		_stop_tree(child)
+
+
+# A node with a `process_mode` other than `PROCESS_MODE_INHERIT` does not inherit the disabled scene holder, so it gets
+# `PROCESS_MODE_DISABLED` and is kept with its mode to give it back in stage 7.
+static func _stop_if_own_mode(node: Node) -> void:
+	var mode: Node.ProcessMode = node.process_mode
+	if mode == Node.PROCESS_MODE_INHERIT or mode == Node.PROCESS_MODE_DISABLED:
+		return
+	node.process_mode = Node.PROCESS_MODE_DISABLED
+	_stopped.append(node)
+	_stopped_modes.append(mode)
 
 
 # Hides `node` when it is a top visual node that is visible, and keeps it to show it in stage 7.
@@ -662,6 +689,18 @@ static func _fit_new_ui_root() -> void:
 	ui_root.size = area.size
 
 
+# Gives the kept nodes their modes back, the last kept first: a node that scene code gave another mode and that was
+# disabled again is kept twice, and its last mode wins. A node whose mode scene code changed after it was disabled
+# keeps the mode scene code gave it.
+static func _restore_stopped() -> void:
+	for i: int in range(_stopped.size() - 1, -1, -1):
+		var node: Node = _stopped[i]
+		if is_instance_valid(node) and node.process_mode == Node.PROCESS_MODE_DISABLED:
+			node.process_mode = _stopped_modes[i] as Node.ProcessMode
+	_stopped.clear()
+	_stopped_modes.clear()
+
+
 static func _show_hidden() -> void:
 	_hiding = false
 	for node: Node in _hidden:
@@ -680,6 +719,14 @@ static func _on_node_added(node: Node) -> void:
 	if not _hiding or not is_instance_valid(_holder) or not _holder.is_ancestor_of(node):
 		return
 	_hide_if_top(node)
+	_stop_if_own_mode(node)
+
+
+# Frame check from stage 4 until stage 7: disables the nodes under the scene holder that scene code gave a
+# `process_mode` of their own since the last check. The core node runs before the scene holder in the frame.
+static func _check_stopped() -> void:
+	if _hiding and is_instance_valid(_holder):
+		_stop_tree(_holder)
 
 
 # The frame check of the core node: the end of a wait until a real elapsed time.
@@ -735,6 +782,8 @@ static func _end_state(detach: bool) -> void:
 	_shown_at = 0
 	_hiding = false
 	_hidden = []
+	_stopped = []
+	_stopped_modes = PackedInt32Array()
 	_progress_done = 0
 	_progress_total = 0
 	_progress_last = 0
