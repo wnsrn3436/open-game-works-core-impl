@@ -207,6 +207,45 @@ describe('limits', () => {
   });
 });
 
+describe('limit order', () => {
+  it('a request of a user at friend.maxFriends and friend.maxSentRequests to a user at both target limits is FRIEND_LIMIT', async () => {
+    const h = await start({ 'friend.maxFriends': 1, 'friend.maxSentRequests': 1, 'friend.maxReceivedRequests': 1 });
+    const [a, b, c, d, e, f] = await users(h, 6);
+    // A has one Sent row and one friend; D has one Received row and one friend.
+    expect((await send_request(a, id(c))).code).toBe(0);
+    await befriend(b, a);
+    expect((await send_request(f, id(d))).code).toBe(0);
+    await befriend(d, e);
+    const before = snapshot(h);
+    expect((await send_request(a, id(d))).code).toBe(CoreError.CORE_ERROR_FRIEND_LIMIT);
+    expect(snapshot(h)).toEqual(before);
+  });
+
+  it('a request of a user at friend.maxSentRequests to a user at both target limits is FRIEND_REQUEST_LIMIT', async () => {
+    const h = await start({ 'friend.maxFriends': 1, 'friend.maxSentRequests': 1, 'friend.maxReceivedRequests': 1 });
+    const [a, c, d, e, f] = await users(h, 5);
+    expect((await send_request(a, id(c))).code).toBe(0);
+    expect((await send_request(f, id(d))).code).toBe(0);
+    await befriend(d, e);
+    const before = snapshot(h);
+    expect((await send_request(a, id(d))).code).toBe(CoreError.CORE_ERROR_FRIEND_REQUEST_LIMIT);
+    expect(snapshot(h)).toEqual(before);
+  });
+
+  it('accepting, or a request answering a pending request, when both users are at friend.maxFriends is FRIEND_LIMIT', async () => {
+    const h = await start({ 'friend.maxFriends': 1 });
+    const [a, b, c, d] = await users(h, 4);
+    // B sent A a request, then both become friends of another user.
+    expect((await send_request(b, id(a))).code).toBe(0);
+    await befriend(c, a);
+    await befriend(d, b);
+    const before = snapshot(h);
+    expect((await accept(a, id(b))).code).toBe(CoreError.CORE_ERROR_FRIEND_LIMIT);
+    expect((await send_request(a, id(b))).code).toBe(CoreError.CORE_ERROR_FRIEND_LIMIT);
+    expect(snapshot(h)).toEqual(before);
+  });
+});
+
 describe('on_friend_changed', () => {
   it('is called once with each FriendChange, and with Accepted for a request to a user whose request is pending', async () => {
     const h = await start();

@@ -17,6 +17,8 @@ import {
   users,
 } from './helpers.ts';
 import type { TestSession } from '../../testing/dev/index.ts';
+import { core_settings } from '../../storage/tests/helpers.ts';
+import { LINK_TABLE } from '../index.ts';
 
 /** Birth year-months `ConfirmAge` takes at `START_AT` (2027-01): age 9, below `auth.childAgeYears`, and age 37. */
 const CHILD_BIRTH = 201801;
@@ -78,6 +80,30 @@ describe('GetFriends', () => {
   });
 });
 
+describe('GetFriends without a profile', () => {
+  it('leaves out a link row whose other user has no profile and keeps the other rows', async () => {
+    const h = await start();
+    const [a, b, c] = await users(h, 3);
+    await befriend(a, b);
+    advance(h, 1_000n);
+    expect((await send_request(c, id(a))).code).toBe(0);
+    // A link row with a user ID that no user has, the newest Friend row: it would be listed first if kept.
+    advance(h, 1_000n);
+    const ghost = 2n ** 63n - 1n;
+    const storage = h.core().storage;
+    await run_core_test(h, a, (ctx) => {
+      storage.db(ctx).query(`INSERT INTO ${LINK_TABLE} (user_id, other_id, state, created_at, updated_at) VALUES ($1, $2, $3, $4, $4)`, [id(a), ghost, 'FRIEND_STATE_FRIEND', START_AT + 2_000n]);
+      return true;
+    });
+    const listed = await get_friends(a);
+    expect(listed.code).toBe(0);
+    expect(listed.response?.friends.map((x) => [x.profile?.user_id, x.state])).toEqual([
+      [id(b), FriendState.FRIEND_STATE_FRIEND],
+      [id(c), FriendState.FRIEND_STATE_RECEIVED],
+    ]);
+  });
+});
+
 describe('SearchUsers', () => {
   it('leaves out oneself and users in a block relation and returns at most friend.maxSearchResults users, user ID ascending', async () => {
     const h = await start({ nicknameUnique: false, 'friend.maxSearchResults': 2 });
@@ -99,6 +125,23 @@ describe('SearchUsers', () => {
     expect((await block(a, id(b))).code).toBe(0);
     expect((await search(a, 'twin')).response?.users.map((u) => u.user_id)).toEqual(ascending([id(c), id(d)]));
     expect((await search(a, 'Nobody')).response?.users).toEqual([]);
+  });
+
+  it('a nickname of nickname.maxLength + 1 code points is INVALID_REQUEST, and one of nickname.maxLength code points is searched', async () => {
+    // `(ogw.v)` `max_chars_key` takes the settings value when the contract is generated, so the test uses that value.
+    const max = core_settings()['nickname.maxLength'];
+    if (typeof max !== 'number') throw new Error('core settings have no nickname.maxLength');
+    const h = await start({ nicknameUnique: false });
+    const [a, b] = await users(h, 2);
+    const longest = 'A'.repeat(max);
+    await set_nickname(b, longest);
+    expect((await search(a, `${longest}A`)).code).toBe(CoreError.CORE_ERROR_INVALID_REQUEST);
+    expect((await search(a, '😀'.repeat(max + 1))).code).toBe(CoreError.CORE_ERROR_INVALID_REQUEST);
+    const found = await search(a, longest);
+    expect(found.code).toBe(0);
+    expect(found.response?.users.map((u) => u.user_id)).toEqual([id(b)]);
+    // `max` code points that are 2 × `max` UTF-16 code units.
+    expect((await search(a, '😀'.repeat(max))).code).toBe(0);
   });
 
   it('with chat.allowChild false is CHILD_RESTRICTED for a child user and returns the results to a user who is not a child', async () => {
