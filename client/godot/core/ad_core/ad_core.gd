@@ -37,7 +37,6 @@ static var _session: RefCounted = RefCounted.new()
 static var _adapter: AdsAdapter = null
 ## Ad unit ID by placement ID value.
 static var _ad_units: Dictionary[int, String] = {}
-static var _fake_present_ms: int = 0
 
 ## `start` was called after `init`.
 static var _start_called: bool = false
@@ -67,19 +66,6 @@ static var _last_interstitial_at: int = 0
 ## Waits that `release` stops.
 static var _calls: Array[_CALL] = []
 
-# DEV state of the fake adapter. `AdCoreDev` writes it; `FakeAdsAdapter` reads it.
-## `AdShowResult` of the next fake `present`, or -1.
-static var _fake_next_present: int = -1
-## Fail flag by adapter operation name.
-static var _fake_fails: Dictionary[String, bool] = {}
-static var _fake_skip_callback: bool = false
-static var _fake_delay_callback: bool = false
-## Reward notify ID of the `present` whose `FakeAdCallback` waits for the next rewarded load.
-static var _fake_delayed_notify_id: String = ""
-static var _fake_consent_required: bool = false
-static var _fake_consent_personalized: bool = false
-static var _fake_privacy_required: bool = false
-
 
 static func init() -> bool:
 	if _is_initialized:
@@ -89,7 +75,6 @@ static func init() -> bool:
 		if not CoreSettings.has_int(key):
 			LogCore.log_error(_TAG, "init found no integer core setting " + key)
 			return false
-	_fake_present_ms = CoreSettings.get_int(_SETTING_FAKE_PRESENT)
 	if _adapter != null:
 		_adapter.call_timeout_ms = CoreSettings.get_int(_SETTING_SDK_CALL_TIMEOUT)
 	_session = RefCounted.new()
@@ -112,7 +97,6 @@ static func release() -> void:
 	_session = RefCounted.new()
 	_adapter = null
 	_ad_units = {}
-	_fake_present_ms = 0
 	_start_called = false
 	_started = false
 	_start_call = null
@@ -126,14 +110,6 @@ static func release() -> void:
 	_opportunity = {}
 	_last_interstitial_at = 0
 	_calls = []
-	_fake_next_present = -1
-	_fake_fails = {}
-	_fake_skip_callback = false
-	_fake_delay_callback = false
-	_fake_delayed_notify_id = ""
-	_fake_consent_required = false
-	_fake_consent_personalized = false
-	_fake_privacy_required = false
 	for call: _CALL in calls:
 		call.abort()
 
@@ -414,14 +390,26 @@ static func _run_banner(session: RefCounted, seq: int, placement_id: int) -> voi
 	if session != _session:
 		return
 	if seq != _banner_seq:
-		if opened.flag and _banner_target == 0:
-			adapter.close_banner()
+		if opened.flag:
+			_drop_late_banner(session, adapter)
 		return
 	if opened.flag:
 		_banner_shown = placement_id
 	else:
 		_banner_target = 0
 		LogCore.log_warn(_TAG, "open_banner failed for placement %d" % placement_id)
+
+
+## Closes the banner of an `open_banner` that succeeded after another `show_banner` or `hide_banner`. When the banner
+## of a later `show_banner` is already open, the adapter's one banner may now be the late one, so that later banner
+## is opened again after the close.
+static func _drop_late_banner(session: RefCounted, adapter: AdsAdapter) -> void:
+	var shown: int = _banner_shown
+	_banner_shown = 0
+	adapter.close_banner()
+	if shown != 0:
+		_banner_seq += 1
+		_run_banner(session, _banner_seq, shown)
 
 
 # --- show ---

@@ -268,3 +268,25 @@ func test_no_claim_for_interstitial_aborted_rewarded_and_banner() -> void:
 	assert_eq(env.adapter.count("open_banner"), 1)
 	assert_eq(Env.request_count("core/ClaimAdReward"), 0)
 	assert_eq(Env.request_count("core/BeginAdReward"), 2)
+
+
+func test_show_whose_run_blocked_sets_no_block_fails_without_present_and_releases_the_pause() -> void:
+	await _ready_placement(_basic())
+	# The window without InputBlockCore lasts no frame: `show` reaches `run_blocked` without waiting.
+	InputBlockCore.release()
+	var flow: Flow = Flow.new()
+	flow.show(_basic())
+	assert_true(InputBlockCore.init())
+	assert_true(flow.finished)
+	assert_eq(flow.result, AdCore.AdShowResult.FAILED)
+	assert_eq(UnitTestCore.check_logs("error", "InputBlockCore"), 1)
+	assert_eq(UnitTestCore.check_logs("error", "AdCore"), 0)
+	assert_eq(env.adapter.count("present"), 0)
+	assert_eq(Env.request_count("core/BeginAdReward"), 0)
+	assert_eq(Env.ad_blocks(), 0)
+	assert_false(AdCore._show_paused)
+	assert_true(await Env.no_sound_pause())
+	Env.respond_begin("notify-after")
+	Env.respond_claim(_basic(), 1, 0, _gem(), 10)
+	assert_eq(await AdCore.show(_basic()), AdCore.AdShowResult.COMPLETED)
+	assert_eq(env.adapter.count("present"), 1)

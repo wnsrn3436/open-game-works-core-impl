@@ -76,3 +76,37 @@ func test_failed_open_banner_leaves_no_banner_with_a_warn_log() -> void:
 	assert_eq(AdCore._banner_shown, 0)
 	AdCore.hide_banner()
 	assert_eq(env.adapter.count("close_banner"), 0)
+
+
+func test_late_success_of_a_replaced_banner_while_the_new_one_opens_is_closed() -> void:
+	await _boot_started()
+	env.adapter.hold("open_banner")
+	env.adapter.hold("open_banner")
+	AdCore.show_banner(_banner_a())
+	AdCore.show_banner(_banner_b())
+	assert_true(env.adapter.finish("open_banner", true))
+	assert_eq(env.adapter.names(), PackedStringArray(["open_banner", "open_banner", "close_banner"]))
+	assert_eq(AdCore._banner_shown, 0)
+	assert_true(env.adapter.finish("open_banner", false))
+	assert_eq(UnitTestCore.check_logs("warn", "AdCore"), 1)
+	assert_eq(AdCore._banner_shown, 0)
+	AdCore.hide_banner()
+	AdCore.show_banner(_banner_a())
+	assert_eq(env.adapter.names(), PackedStringArray(["open_banner", "open_banner", "close_banner", "open_banner"]))
+	assert_eq(AdCore._banner_shown, _banner_a())
+
+
+func test_late_success_of_a_replaced_banner_after_the_new_one_opened_opens_the_new_one_again() -> void:
+	await _boot_started()
+	env.adapter.hold("open_banner")
+	AdCore.show_banner(_banner_a())
+	AdCore.show_banner(_banner_b())
+	assert_eq(AdCore._banner_shown, _banner_b())
+	assert_true(env.adapter.finish("open_banner", true))
+	var names: PackedStringArray = ["open_banner", "open_banner", "close_banner", "open_banner"]
+	assert_eq(env.adapter.names(), names)
+	assert_eq(env.adapter.last("open_banner").unit_id, "unit-%d" % _banner_b())
+	assert_eq(AdCore._banner_shown, _banner_b())
+	AdCore.hide_banner()
+	assert_eq(env.adapter.count("close_banner"), 2)
+	assert_eq(AdCore._banner_shown, 0)
