@@ -58,6 +58,29 @@ describe('history', () => {
     expect(history(env, user_id).map((h) => h.seq)).toEqual([1n]);
   });
 
+  test('past item-ledger.historyRetentionMs and before the expiry sweep, a new history row gets seq 1 and writes over the expired row', async () => {
+    const { user_id } = await user(env);
+    expect(await tx(env, user_id, (ctx) => env.ledger.add_items(ctx, items(['[gold]', 1])))).toBe('OK');
+    advance_time(env, 1000n);
+    expect(await tx(env, user_id, (ctx) => env.ledger.add_items(ctx, items(['[potion]', 1])))).toBe('OK');
+    expect(history(env, user_id).map((h) => h.seq)).toEqual([1n, 2n]);
+    // Only the first row has expired: the next seq comes after the row that has not.
+    advance_time(env, BigInt(RETENTION - 1000));
+    expect(await tx(env, user_id, (ctx) => env.ledger.add_items(ctx, items(['[ticket]', 1])))).toBe('OK');
+    expect(history(env, user_id).map((h) => [h.seq, h.item_id])).toEqual([[2n, id('[potion]')], [3n, id('[ticket]')]]);
+    // Every row has expired and none is swept: seq starts again from 1 over the expired row with that key.
+    advance_time(env, BigInt(RETENTION));
+    expect(stored(user_id)[0]).toBe(3);
+    expect(await tx(env, user_id, (ctx) => env.ledger.add_items(ctx, items(['[ticket]', 2])))).toBe('OK');
+    const rows = history(env, user_id);
+    expect(rows.map((h) => [h.seq, h.item_id, h.delta])).toEqual([[1n, id('[ticket]'), 2n]]);
+    expect(stored(user_id)[0]).toBe(3);
+    // The written-over row holds the new expiry: the sweep keeps it and removes the other two.
+    await env.storage.sweep_expired();
+    expect(stored(user_id)[0]).toBe(1);
+    expect(history(env, user_id).map((h) => h.seq)).toEqual([1n]);
+  });
+
   test('list_history gives the rows in the time range in seq order; a cursor of the last seq continues past rows of the same time', async () => {
     const { user_id } = await user(env);
     const t0 = await tx(env, user_id, (ctx) => {

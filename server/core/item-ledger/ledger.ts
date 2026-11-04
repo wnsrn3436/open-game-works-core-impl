@@ -804,8 +804,9 @@ export class Change {
     }
     rows.push(...this.entry_rows());
     const db = ledger.storage.db(ctx);
-    const expires = ledger.time.clock_now() + ledger.retention_ms;
-    insert_history(db, ctx.user_id, t, ctx.request_id === '' ? null : ctx.request_id, expires, rows);
+    const now = ledger.time.clock_now();
+    const expires = now + ledger.retention_ms;
+    insert_history(db, ctx.user_id, t, ctx.request_id === '' ? null : ctx.request_id, expires, now, rows);
     for (const e of this.entries) if (e.item_change) ledger.storage.add_item_change(ctx, item_change(e));
     if (source.once_key !== '') put_once_key(db, ctx.user_id, source.once_key, expires);
   }
