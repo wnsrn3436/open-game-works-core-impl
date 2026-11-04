@@ -204,7 +204,34 @@ func test_login_session_change_while_the_store_lists_run_discards_recovery_and_r
 	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 0)
 
 
-func test_session_end_empties_the_finish_list_discards_a_running_result_and_resets_the_google_restore() -> void:
+func test_logout_empties_the_finish_list_and_resets_the_google_restore() -> void:
+	assert_true(await start(CoreContract.IapStore.IAP_STORE_GOOGLE))
+	var no_ads: int = id_of("[iap_no_ads]")
+	PaymentCoreDev.fake_add_unfinished(no_ads, ACCOUNT_TOKEN)
+	respond_recover(CoreContract.PurchaseStatus.PURCHASE_STATUS_ALREADY_GRANTED, no_ads)
+	assert_true((await PaymentCore.recover_purchases()).ok)
+	await settle()
+	assert_eq(fake.count_calls("list_owned"), 1, "the GOOGLE restore of this login session")
+	assert_eq(request_count(RECOVER), 1, "the restore skips the transaction finished in this login session")
+	assert_eq(PaymentCore._finished.size(), 1)
+	assert_true(PaymentCore._google_restored)
+	# AuthCore ends the session before it publishes SessionEndedEvent.
+	respond("core/Logout", CoreContract.LogoutResponse.new())
+	await AuthCore.logout()
+	assert_false(AuthCore.is_logged_in())
+	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 2, "login token storage remove: the test sets no scope")
+	assert_eq(PaymentCore._finished.size(), 0, "the logout empties the finish success list")
+	assert_false(PaymentCore._google_restored, "the logout resets the GOOGLE restore")
+	assert_true(await log_in(USER_ID))
+	respond_recover(CoreContract.PurchaseStatus.PURCHASE_STATUS_ALREADY_GRANTED, no_ads)
+	assert_true((await PaymentCore.recover_purchases()).ok)
+	await settle()
+	assert_eq(fake.count_calls("list_owned"), 2, "the GOOGLE restore runs again in the next login session")
+	assert_eq(request_count(RECOVER), 2, "the restore of the owned transaction")
+	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 0)
+
+
+func test_session_end_discards_a_running_recovery_result() -> void:
 	assert_true(await start(CoreContract.IapStore.IAP_STORE_GOOGLE))
 	var no_ads: int = id_of("[iap_no_ads]")
 	var gems: int = id_of("[iap_gems]")
@@ -225,8 +252,6 @@ func test_session_end_empties_the_finish_list_discards_a_running_result_and_rese
 	var ended: SessionEndedEvent = EventCore.acquire(SessionEndedEvent) as SessionEndedEvent
 	ended.reason = AuthCore.SessionEndReason.LOGOUT
 	EventCore.publish(ended)
-	assert_eq(PaymentCore._finished.size(), 0, "SessionEndedEvent empties the finish success list")
-	assert_false(PaymentCore._google_restored, "SessionEndedEvent resets the GOOGLE restore")
 	assert_true(_release_recover(CoreContract.PurchaseStatus.PURCHASE_STATUS_GRANTED, gems))
 	assert_false(await wait_recovery(running), "the result of the ended session is discarded")
 	assert_eq(counts(running.summary), "0,0,0,0,0,0")
