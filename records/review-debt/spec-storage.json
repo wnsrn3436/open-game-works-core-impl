@@ -1,0 +1,12 @@
+{
+  "target": "spec storage",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/server-core/modules/storage.md:92",
+      "problem": "The result of a throw of the change function of `run_user_transaction` is not defined. storage.md:94 and 140 define a throw for `run_game_transaction` and `run_request_transaction` (rolls back and throws), and storage.md:193 defines it only for the apply function and fail function of a user change (handled as `FAILED`). ranking.md:164 requires that a throw of its change function makes that handling `FAILED`, while routing.md:74 says `dev` throws when the operation throws, without saying what `run_user_transaction` does. An implementation that rethrows and one that returns `FAILED` both fit this text and give different results in callers that only handle `FAILED`",
+      "foundBy": "spec block-report"
+    }
+  ]
+}
