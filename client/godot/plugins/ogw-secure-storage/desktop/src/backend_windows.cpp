@@ -1,6 +1,7 @@
 // Windows Credential Manager: one generic credential per item, target `ogw-secure-storage:<name>`, holding the UTF-8
 // text as its blob. It is kept for this Windows user on this computer only (`CRED_PERSIST_LOCAL_MACHINE`, which does
-// not roam with the user profile). The Credential Manager calls never show a window.
+// not roam with the user profile). The Credential Manager calls never show a window. A logon session that has no
+// credential set gets no singleton.
 
 #include "backend.h"
 
@@ -14,6 +15,8 @@ namespace {
 
 const wchar_t *const TARGET_PREFIX = L"ogw-secure-storage:";
 const wchar_t *const USER_NAME = L"ogw-secure-storage";
+// Target that `available()` reads to check the logon session. It is outside `TARGET_PREFIX`, so it is never an item.
+const wchar_t *const PROBE_TARGET = L"ogw-secure-storage-probe";
 
 // UTF-16 of the UTF-8 `text`; false when it is not valid UTF-8.
 bool to_wide(const std::string &text, std::wstring &out) {
@@ -57,7 +60,24 @@ int32_t status_of(DWORD error) {
 namespace backend {
 
 bool available() {
-	return true;
+	static bool tried = false;
+	static bool usable = false;
+	if (!tried) {
+		tried = true;
+		// A logon session without a credential set (e.g. a network or service logon) cannot keep a credential for this
+		// computer, and its reads of a missing credential fail with `ERROR_NO_SUCH_LOGON_SESSION`, not `ERROR_NOT_FOUND`.
+		DWORD persist[CRED_TYPE_MAXIMUM] = {};
+		if (CredGetSessionTypes(CRED_TYPE_MAXIMUM, persist) && persist[CRED_TYPE_GENERIC] >= CRED_PERSIST_LOCAL_MACHINE) {
+			PCREDENTIALW credential = nullptr;
+			if (CredReadW(PROBE_TARGET, CRED_TYPE_GENERIC, 0, &credential)) {
+				CredFree(credential);
+				usable = true;
+			} else {
+				usable = GetLastError() != ERROR_NO_SUCH_LOGON_SESSION;
+			}
+		}
+	}
+	return usable;
 }
 
 Result read(const std::string &name) {
