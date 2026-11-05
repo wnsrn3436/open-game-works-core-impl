@@ -47,6 +47,25 @@ describe('mail operations', () => {
     expect(args.mail).toEqual({ template_id: Number(template), args: [{ name: 'n', value: { int_value: '9007199254740993' } }] });
   });
 
+  it('answers 400 for send_mail and broadcast_mail whose text_value, once_key or arg name is a JSON integer past 2^53, and sends no mail', async () => {
+    server = await start();
+    const { user_id } = await login(server, 'wide');
+    const template = String(id_value('[mail_admin_notice]'));
+    const mails = [
+      `{"template_id":${template},"args":[{"name":"text","value":{"text_value":9007199254740993}}]}`,
+      `{"template_id":${template},"args":[{"name":"text","value":{"text_value":"x"}}],"once_key":9007199254740993}`,
+      `{"template_id":${template},"args":[{"name":9007199254740993,"value":{"text_value":"x"}}]}`,
+    ];
+    for (const [i, mail] of mails.entries()) {
+      expect((await admin(server, 'send_mail', `{"operation_id":"w${String(i)}","user_id":${user_id},"mail":${mail}}`)).status).toBe(400);
+      expect((await admin(server, 'broadcast_mail', `{"operation_id":"b${String(i)}","mail":${mail},"start_at":"0"}`)).status).toBe(400);
+    }
+    const state = (await get_user(server, user_id)).json.user_state as Record<string, unknown[] | undefined>;
+    expect(state.mail_user_state ?? []).toEqual([]);
+    const text = `{"template_id":${template},"args":[{"name":"text","value":{"text_value":"9007199254740993"}}]}`;
+    expect((await admin(server, 'send_mail', `{"operation_id":"s","user_id":${user_id},"mail":${text}}`)).status).toBe(200);
+  });
+
   it('answers the first mail ID to a second send_mail with another operation_id and the same once_key', async () => {
     server = await start();
     const { user_id } = await login(server, 'once');
