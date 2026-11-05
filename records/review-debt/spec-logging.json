@@ -1,11 +1,11 @@
 {
   "target": "spec logging",
-  "nextId": 16,
+  "nextId": 17,
   "items": [
     {
-      "id": "D15",
-      "location": "skills/server-core/modules/logging.md:113",
-      "problem": "For a client log request that ends with `INVALID_REQUEST` in the handler (event `name` or param `key` not snake_case, or `core_` name, logging.md:109), it is not set whether the handler still passes `client_dropped_count` (and minimum level `warn` when it is more than 0) with `annotate_request_log` before failing. logging.md:113 adds `dropped_event_count` to \"that request's `request` log\" with no exception, logging.md:110 to logging.md:112 apply only to saved requests, and logging.md:50 keeps annotations after rollback, so both behaviors fit the text. Input: `ReportAnalyticsEvents` with one event named `core_x` and `dropped_event_count` 3 can log level `info` with no count fields, or level `warn` with `client_dropped_count` 3. In the same way, logging.md:90 lists `dropped_count`, `client_dropped_count`, `consent_dropped_count` as fields of the client log `rpc` `request` log, but it is not set whether they are absent, `null` or 0 when `routing` ends the request before the handler runs (no session, `RATE_LIMITED` at logging.md:278, field validation `INVALID_REQUEST` at logging.md:108)",
+      "id": "D16",
+      "location": "skills/server-core/modules/logging.md:105",
+      "problem": "For a `ReportAnalyticsEvents` that the handler ends with `INVALID_REQUEST` (logging.md:109), logging.md:105 says the handler passes `dropped_count` to `annotate_request_log`, but the order of the snake_case and `core_` check (logging.md:109) and the param drop check (logging.md:110) is not set, and it is not set whether a mismatched param counts as dropped in a request that saves nothing. logging.md:106 sets the order and `dropped_count` 0 only for the consent path, and the test at logging.md:291 uses no mismatched param. Input: one event named `core_x` with one param whose `kind` is `INT` and whose `string_value` is set, `dropped_event_count` 0: an implementation that checks names first logs `dropped_count` 0 at level `info`, and one that checks params in the same pass logs `dropped_count` 1 at level `warn`",
       "foundBy": "spec logging"
     }
   ]
