@@ -599,6 +599,21 @@ func test_subscription_sync_follows_the_processing_when_a_subscription_row_exist
 	assert_eq(UnitTestCore.check_logs("warn", "NetworkCore"), 1, "the SyncSubscriptions failure callback handles it")
 
 
+func test_no_subscription_sync_after_a_store_list_that_fails_in_the_current_login_session() -> void:
+	assert_true(await start())
+	var vip: int = id_of("[iap_vip]")
+	assert_true(apply(subscription_delta(vip, CoreContract.SubscriptionState.SUBSCRIPTION_STATE_ACTIVE, SERVER_TIME + DAY_MS)))
+	PaymentCoreDev.fake_set_fail("list_unfinished", true)
+	assert_false((await PaymentCore.recover_purchases()).ok)
+	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 1, "the list_unfinished failure")
+	PaymentCoreDev.fake_set_fail("list_owned", true)
+	assert_false((await PaymentCore.restore_purchases()).ok)
+	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 1, "the list_owned failure")
+	assert_eq(fake.count_calls("list_unfinished"), 1)
+	assert_eq(fake.count_calls("list_owned"), 1)
+	assert_eq(request_count(SYNC), 0, "no SyncSubscriptions after a failed list")
+
+
 func test_recover_without_a_store_adapter_is_false_without_store_request_or_log() -> void:
 	assert_true(await start(CoreContract.IapStore.IAP_STORE_APPLE, false))
 	var result: RecoverPurchasesResult = await PaymentCore.recover_purchases()

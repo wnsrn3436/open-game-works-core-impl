@@ -483,9 +483,11 @@ static func _needs_guest_warning() -> bool:
 	return false
 
 
-## Opens the guest warning popup and waits for its answer. `NONE` when it did not open or `release` cut it short.
+## Opens the guest warning popup and waits for its answer. `NONE` when it did not open or `release` cut it short. A
+## popup that did not open after the login session at its start ended is not logged.
 static func _guest_warning() -> _GUEST_CHOICE.Choice:
 	var life: RefCounted = _life
+	var epoch: int = _login_epoch
 	var choice: _GUEST_CHOICE = _GUEST_CHOICE.new()
 	_choices.append(choice)
 	var param: SystemPopupParam = SystemPopupParam.new()
@@ -499,7 +501,8 @@ static func _guest_warning() -> _GUEST_CHOICE.Choice:
 		return _GUEST_CHOICE.Choice.NONE
 	if not opened and not choice.finished and not choice.hidden_called:
 		_choices.erase(choice)
-		LogCore.log_error(_TAG, "purchase: the guest warning popup did not open")
+		if epoch == _login_epoch:
+			LogCore.log_error(_TAG, "purchase: the guest warning popup did not open")
 		return _GUEST_CHOICE.Choice.NONE
 	if not choice.finished:
 		await choice.done
