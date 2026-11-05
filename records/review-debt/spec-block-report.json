@@ -1,12 +1,5 @@
 {
   "target": "spec block-report",
   "nextId": 4,
-  "items": [
-    {
-      "id": "D3",
-      "location": "skills/server-core/modules/block-report.md:81",
-      "problem": "`resolution` of `resolve_report` is written to the `block_report_report` row, but neither this spec nor the body rules of `admin-api` (skills/server-core/modules/admin-api.md:178, which set only the byte limit and a non-empty `operation_id`) exclude U+0000. A JSON body `{\"resolution\": \"a\\u0000b\"}` passes the body check; on SQLite (LOCAL) the row stores it, on PostgreSQL (DEV, STG, PROD) the write fails with an encoding error and the operation is 500 `internal`. An implementation that rejects it as `bad_request` is equally allowed, so the observable failure value is not set. The diff adds the \"holds no U+0000\" rule only to `ref` and `evidence` of the same row. Fix direction: a body rule in `admin-api` that a string holds no U+0000 (`bad_request`), which covers every admin string written to the DB",
-      "foundBy": "spec block-report"
-    }
-  ]
+  "items": []
 }
