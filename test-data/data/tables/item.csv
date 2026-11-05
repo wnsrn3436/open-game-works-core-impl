@@ -65,3 +65,12 @@ id,name,type,max_amount,overflow
 [user_state_recovery],,Currency,100,Discard
 [user_state_bonus_recovery],,Currency,100,Discard
 [user_state_bonus],,Goods,10,Reject
+[ledger_group_r],,Currency,20,Reject
+[ledger_paid_r],,Currency,10,Reject
+[ledger_free_r],,Currency,10,Reject
+[ledger_group_d],,Currency,20,Reject
+[ledger_paid_d],,Currency,10,Reject
+[ledger_free_d],,Currency,10,Discard
+[ledger_convert_1],,Goods,5,Convert
+[ledger_convert_2],,Goods,5,Convert
+[ledger_convert_target],,Goods,5,Discard

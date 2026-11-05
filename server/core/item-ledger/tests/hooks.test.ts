@@ -49,6 +49,20 @@ describe('hooks', () => {
     ]);
   });
 
+  test('an exchange subtracting 1 and adding 1 of X and adding 1 of Y passes both hooks a list with Y and not X', async () => {
+    const { user_id } = await user(env);
+    await set_balance(env, user_id, '[gold]', 5);
+    const seen: { hook: string; list: readonly ItemBalanceChange[] }[] = [];
+    env.hooks.validate = (_ctx, _source, list) => {
+      seen.push({ hook: 'validate', list });
+      return 'pass';
+    };
+    env.hooks.after = (_ctx, _source, list) => { seen.push({ hook: 'after', list }); };
+    expect(await tx(env, user_id, (ctx) => env.ledger.exchange_items(ctx, items(['[gold]', 1]), items(['[gold]', 1], ['[potion]', 1])))).toBe('OK');
+    const list = [{ item_id: id('[potion]'), before: 0n, after: 1n }];
+    expect(seen).toEqual([{ hook: 'validate', list }, { hook: 'after', list }]);
+  });
+
   test('add_items and exchange_items called inside another module content hook apply', async () => {
     const { user_id } = await user(env);
     const r = await request(env, user_id, (ctx) => env.storage.with_hook_change_source(ctx, Source.ITEM_CHANGE_SOURCE_LIVE_EVENT, '3:1', () => [

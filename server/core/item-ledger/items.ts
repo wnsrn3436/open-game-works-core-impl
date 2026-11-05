@@ -54,9 +54,21 @@ export function write_big(v: bigint): { small: bigint; big: string } {
   return v <= MAX_SAFE && v >= -MAX_SAFE ? { small: v, big: '' } : { small: 0n, big: v.toString() };
 }
 
-/** The value of an `ItemAmount`; null when `big_amount` is not a big integer. */
+/**
+ * The value of a contract big encoding pair as the sender must write it: null when the big field is neither empty nor a
+ * big integer, when it is empty and the small field is more than 2^53−1 in absolute value, and when it is a big integer
+ * and the small field is not 0 or the value is 2^53−1 or less in absolute value.
+ */
+export function read_encoded(small: bigint, big: string): bigint | null {
+  if (big === '') return small <= MAX_SAFE && small >= -MAX_SAFE ? small : null;
+  if (small !== 0n || !BIG_INTEGER.test(big)) return null;
+  const v = BigInt(big);
+  return v > MAX_SAFE || v < -MAX_SAFE ? v : null;
+}
+
+/** The value of an `ItemAmount`; null when `amount`, `big_amount` is not the big encoding of an integer. */
 export function amount_of(a: CoreContract.ItemAmount): bigint | null {
-  return read_big(a.amount, a.big_amount);
+  return read_encoded(a.amount, a.big_amount);
 }
 
 export function min(a: bigint, b: bigint): bigint {

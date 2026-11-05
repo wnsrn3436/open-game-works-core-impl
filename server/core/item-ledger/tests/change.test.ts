@@ -1,7 +1,10 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
+import type { ItemBalanceChange } from '../index.ts';
 import {
-  amount, balance, balance_entries, change_rows, flush, history, id, items, logs, request, row, set_balance, Source, start, stop, tx, user, type Env,
+  amount, balance, balance_entries, change_rows, flush, history, id, items, logs, put_row, request, row, set_balance, Source, start, stop, tx, user, type Env,
 } from './helpers.ts';
+
+const HOUR = 3_600_000n;
 
 let env: Env;
 
@@ -11,6 +14,11 @@ beforeAll(async () => {
 
 afterAll(() => {
   stop();
+});
+
+afterEach(() => {
+  env.hooks.validate = null;
+  env.hooks.after = null;
 });
 
 describe('add, subtract, exchange', () => {
@@ -209,6 +217,89 @@ describe('add, subtract, exchange', () => {
     expect(await balance(env, user_id, '[gold]')).toBe(6n);
   });
 
+  test('a balance saved over a smaller max_amount: Discard add keeps it with overflow, subtract lowers it, a timed Discard add keeps ends_at; a net 0 exchange is OK for Reject, Discard and Convert with no ItemChange or history', async () => {
+    const { user_id } = await user(env);
+    await put_row(env, user_id, '[potion]', { amount: 15n });
+    const add = await request(env, user_id, (ctx) => env.ledger.add_items(ctx, items(['[potion]', 1])));
+    expect(add.out).toBe('OK');
+    expect(change_rows(add.delta.item_changes)).toEqual([[id('[potion]'), 0n, 1n, Source.ITEM_CHANGE_SOURCE_REQUEST, 'core/Test']]);
+    expect(await balance(env, user_id, '[potion]')).toBe(15n);
+    const sub = await request(env, user_id, (ctx) => env.ledger.subtract_items(ctx, items(['[potion]', 1])));
+    expect(change_rows(sub.delta.item_changes)).toEqual([[id('[potion]'), -1n, 0n, Source.ITEM_CHANGE_SOURCE_REQUEST, 'core/Test']]);
+    expect(await balance(env, user_id, '[potion]')).toBe(14n);
+
+    const ends_at = env.server.clock.now() + 4n * HOUR;
+    await put_row(env, user_id, '[boost_discard]', { ends_at });
+    const timed = await request(env, user_id, (ctx) => env.ledger.add_items(ctx, items(['[boost_discard]', 1])));
+    expect(timed.out).toBe('OK');
+    expect(change_rows(timed.delta.item_changes)).toEqual([[id('[boost_discard]'), 0n, 1n, Source.ITEM_CHANGE_SOURCE_REQUEST, 'core/Test']]);
+    expect((await row(env, user_id, '[boost_discard]'))?.ends_at).toBe(ends_at);
+
+    await put_row(env, user_id, '[ticket]', { amount: 7n });
+    await put_row(env, user_id, '[shard]', { amount: 12n });
+    const before = history(env, user_id).length;
+    for (const [name, b] of [['[ticket]', 7n], ['[potion]', 14n], ['[shard]', 12n]] as const) {
+      const ex = await request(env, user_id, (ctx) => env.ledger.exchange_items(ctx, items([name, 1]), items([name, 1])));
+      expect([name, ex.out, ex.delta.item_changes, balance_entries(ex.delta.user_state)]).toEqual([name, 'OK', [], []]);
+      expect(await balance(env, user_id, name)).toBe(b);
+    }
+    expect(await balance(env, user_id, '[dust]')).toBe(0n);
+    expect(history(env, user_id).length).toBe(before);
+  });
+
+  test('item_changes order: X Convert overflow then its Y grant over a net 0 Y; B, A then the group member; X then the group member; two Convert grants into one Discard item each after its item', async () => {
+    const { user_id } = await user(env);
+    await set_balance(env, user_id, '[badge_coin]', 10);
+    await set_balance(env, user_id, '[ticket]', 2);
+    const seen: { hook: string; list: readonly ItemBalanceChange[] }[] = [];
+    env.hooks.validate = (_ctx, _source, list) => {
+      seen.push({ hook: 'validate', list });
+      return 'pass';
+    };
+    env.hooks.after = (_ctx, _source, list) => { seen.push({ hook: 'after', list }); };
+    const yx = await request(env, user_id, (ctx) => env.ledger.exchange_items(ctx, items(['[ticket]', 1]), items(['[ticket]', 1], ['[badge_coin]', 1])));
+    env.hooks.validate = null;
+    env.hooks.after = null;
+    expect(yx.out).toBe('OK');
+    expect(change_rows(yx.delta.item_changes)).toEqual([
+      [id('[badge_coin]'), 0n, 1n, Source.ITEM_CHANGE_SOURCE_REQUEST, 'core/Test'],
+      [id('[ticket]'), 1n, 0n, Source.ITEM_CHANGE_SOURCE_OVERFLOW, String(id('[badge_coin]'))],
+    ]);
+    const list = [{ item_id: id('[badge_coin]'), before: 10n, after: 10n }, { item_id: id('[ticket]'), before: 2n, after: 3n }];
+    expect(seen).toEqual([{ hook: 'validate', list }, { hook: 'after', list }]);
+
+    await set_balance(env, user_id, '[gold]', 5);
+    await set_balance(env, user_id, '[gem_paid]', 5);
+    const bga = await request(env, user_id, (ctx) => env.ledger.exchange_items(ctx, items(['[gold]', 1], ['[gem]', 1]), items(['[potion]', 1])));
+    expect(bga.out).toBe('OK');
+    expect(change_rows(bga.delta.item_changes).map((c) => [c[0], c[1]])).toEqual([[id('[gold]'), -1n], [id('[potion]'), 1n], [id('[gem_paid]'), -1n]]);
+    const gx = await request(env, user_id, (ctx) => env.ledger.subtract_items(ctx, items(['[gem]', 2], ['[gold]', 1])));
+    expect(gx.out).toBe('OK');
+    expect(change_rows(gx.delta.item_changes).map((c) => [c[0], c[1]])).toEqual([[id('[gold]'), -1n], [id('[gem_paid]'), -2n]]);
+
+    await set_balance(env, user_id, '[ledger_convert_1]', 5);
+    await set_balance(env, user_id, '[ledger_convert_2]', 5);
+    await set_balance(env, user_id, '[ledger_convert_target]', 4);
+    const before = history(env, user_id).length;
+    const two = await request(env, user_id, (ctx) => env.ledger.exchange_items(ctx, items(['[ledger_convert_1]', 1]), items(['[ledger_convert_2]', 1], ['[ledger_convert_1]', 2])));
+    expect(two.out).toBe('OK');
+    const x1 = String(id('[ledger_convert_1]'));
+    const x2 = String(id('[ledger_convert_2]'));
+    expect(change_rows(two.delta.item_changes)).toEqual([
+      [id('[ledger_convert_1]'), 0n, 1n, Source.ITEM_CHANGE_SOURCE_REQUEST, 'core/Test'],
+      [id('[ledger_convert_target]'), 1n, 0n, Source.ITEM_CHANGE_SOURCE_OVERFLOW, x1],
+      [id('[ledger_convert_2]'), 0n, 1n, Source.ITEM_CHANGE_SOURCE_REQUEST, 'core/Test'],
+      [id('[ledger_convert_target]'), 0n, 1n, Source.ITEM_CHANGE_SOURCE_OVERFLOW, x2],
+    ]);
+    expect(history(env, user_id).slice(before).map((h) => [h.item_id, h.delta, h.overflow, h.source, h.ref])).toEqual([
+      [id('[ledger_convert_1]'), 0n, 1n, 'ITEM_CHANGE_SOURCE_REQUEST', 'core/Test'],
+      [id('[ledger_convert_target]'), 1n, 0n, 'ITEM_CHANGE_SOURCE_OVERFLOW', x1],
+      [id('[ledger_convert_2]'), 0n, 1n, 'ITEM_CHANGE_SOURCE_REQUEST', 'core/Test'],
+      [id('[ledger_convert_target]'), 0n, 1n, 'ITEM_CHANGE_SOURCE_OVERFLOW', x2],
+    ]);
+    expect(await balance(env, user_id, '[ledger_convert_target]')).toBe(5n);
+  });
+
   test('a balance of 0 deletes the ItemBalanceUserState row', async () => {
     const { user_id } = await user(env);
     await set_balance(env, user_id, '[gold]', 5);
@@ -270,6 +361,14 @@ describe('change source', () => {
     await expect(request(env, user_id, (ctx) => env.module.add_items(ctx, items(['[gold]', 1]), {}))).rejects.toThrow();
     expect(logs(env, 'error').length).toBe(errors + 1);
     expect(await balance(env, user_id, '[gold]')).toBe(0n);
+  });
+
+  test('content add_items with source Recovery outside with_hook_change_source records source Request', async () => {
+    const { user_id } = await user(env);
+    const r = await request(env, user_id, (ctx) => env.ledger.add_items(ctx, items(['[gold]', 1]), { source: Source.ITEM_CHANGE_SOURCE_RECOVERY }), 'core/TestRecovery');
+    expect(r.out).toBe('OK');
+    expect(change_rows(r.delta.item_changes)).toEqual([[id('[gold]'), 1n, 0n, Source.ITEM_CHANGE_SOURCE_REQUEST, 'core/TestRecovery']]);
+    expect(history(env, user_id).map((h) => [h.item_id, h.source, h.ref])).toEqual([[id('[gold]'), 'ITEM_CHANGE_SOURCE_REQUEST', 'core/TestRecovery']]);
   });
 
   test('a ref content code passes is the ref, with source Request', async () => {

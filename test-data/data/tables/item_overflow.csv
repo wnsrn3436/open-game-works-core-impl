@@ -6,3 +6,5 @@ id,convert_to
 [badge_coin],[ticket] 1
 [stamina_shard],"[stamina] 1, [dust] 1"
 [shop_convert],[shop_shard] 2
+[ledger_convert_1],[ledger_convert_target] 1
+[ledger_convert_2],[ledger_convert_target] 1
