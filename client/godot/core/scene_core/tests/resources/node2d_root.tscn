@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/scene_core/tests/support/scene_stub.gd" id="1_scene"]
+
+[node name="Node2DRoot" type="Node2D" node_paths=PackedStringArray("probe")]
+script = ExtResource("1_scene")
+probe = NodePath("Probe")
+
+[node name="Probe" type="Node2D" parent="."]

@@ -27,6 +27,10 @@ const SCENE_OTHER_PANEL: String = "scene/scene_core_test_other_panel"
 const SCENE_FAIL_PANEL: String = "scene/scene_core_test_fail_panel"
 ## Scene resource whose root is not `SceneBase`.
 const NOT_SCENE: String = "scene/scene_core_test_not_scene"
+## Scene resource whose root is a `Node2D` with the `SceneBase` script.
+const NODE2D_ROOT: String = "scene/scene_core_test_node2d_root"
+## Scene with a visible `Window` and a hidden `Window` directly under the scene root.
+const SCENE_WINDOW: String = "scene/scene_core_test_window"
 ## Not in the test key list.
 const MISSING: String = "scene/scene_core_test_missing"
 const LOADING: String = "prefab/scene_core_test_loading"
@@ -86,6 +90,8 @@ static func resource_keys() -> Dictionary[String, String]:
 		SCENE_OTHER_PANEL: RESOURCES + "scene_other_panel.tscn",
 		SCENE_FAIL_PANEL: RESOURCES + "scene_fail_panel.tscn",
 		NOT_SCENE: RESOURCES + "not_scene.tscn",
+		NODE2D_ROOT: RESOURCES + "node2d_root.tscn",
+		SCENE_WINDOW: RESOURCES + "scene_window.tscn",
 		LOADING: RESOURCES + "loading.tscn",
 		BAD_LOADING: RESOURCES + "bad_loading.tscn",
 		PANEL: RESOURCES + "panel.tscn",

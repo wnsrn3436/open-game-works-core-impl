@@ -53,6 +53,49 @@ func test_root_panel_prepare_failure_is_fatal_without_on_start() -> void:
 	assert_true(SceneCore.is_transitioning())
 
 
+func test_panel_opens_after_release_while_waiting_on_stage_6() -> void:
+	assert_true(await start_booted(SCENE_A))
+	TestScene.prepare_gate = Gate.new()
+	var results: PackedInt32Array = PackedInt32Array()
+	change_later(SCENE_B, results)
+	await wait_trace("prepare:" + SCENE_B)
+	SceneCore.release()
+	TestScene.prepare_gate = null
+	assert_eq(results, PackedInt32Array([0]))
+	await _assert_panel_opens()
+
+
+func test_panel_opens_after_release_of_a_transition_stopped_by_an_unrecoverable_failure() -> void:
+	assert_true(await start_booted(SCENE_A))
+	assert_false(await SceneCore.change_scene(NOT_SCENE, null))
+	assert_eq(probe.fatal_count, 1)
+	assert_eq(errors(TAG), 1)
+	SceneCore.release()
+	await _assert_panel_opens()
+
+
+## `release` turns off only the panel lock that a transition turned on and did not turn off.
+func test_release_after_a_transition_leaves_a_panel_lock_of_other_code() -> void:
+	assert_true(await start_booted(SCENE_A))
+	assert_true(await SceneCore.change_scene(SCENE_B, null))
+	UICore.set_panel_lock(true)
+	SceneCore.release()
+	var locked: bool = await UICore.open_panel(PANEL, null, false)
+	assert_false(locked)
+	assert_eq(warns("UICore"), 1)
+	UICore.set_panel_lock(false)
+
+
+# After `release` of SceneCore no block is active and a panel open opens the panel.
+func _assert_panel_opens() -> void:
+	await UnitTestCore.wait_frames(2)
+	assert_false(InputBlockCore.is_blocked())
+	var opened: bool = await UICore.open_panel(PANEL, null, false)
+	assert_true(opened)
+	assert_eq(UICore.get_current_panel_key(), PANEL)
+	assert_eq(warns("UICore"), 0)
+
+
 func _open_panel_in_start(_scene: Node) -> void:
 	var ok: bool = await UICore.open_panel(OTHER_PANEL, null, false)
 	_start_open_result = 1 if ok else 0

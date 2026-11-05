@@ -22,6 +22,16 @@ func test_scene_root_that_is_not_scene_base_is_fatal_after_the_block_is_lifted()
 	await _assert_fatal_stop()
 
 
+## A root of another engine class is not the scene base type, also when its script extends `SceneBase`.
+func test_scene_root_of_another_engine_class_with_the_scene_base_script_is_fatal() -> void:
+	assert_true(await start_booted(SCENE_A))
+	Trace.clear()
+	var ok: bool = await SceneCore.change_scene(NODE2D_ROOT, null)
+	assert_false(ok)
+	assert_eq(SceneCore.current_scene_key(), "")
+	await _assert_fatal_stop()
+
+
 ## `InputBlockCore` is released, so `block` gives the invalid token 0.
 func test_transition_block_that_cannot_be_set_in_stage_1_is_fatal() -> void:
 	assert_true(await start_booted(SCENE_A))

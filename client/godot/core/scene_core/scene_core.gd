@@ -52,6 +52,8 @@ static var _transition_key: String = ""
 static var _job: _JOB = null
 ## Block token of the transition block. 0: no transition block.
 static var _block_token: int = 0
+## Stage 1 turned the panel lock on and stage 7 has not turned it off.
+static var _panel_locked: bool = false
 
 static var _loading_screen: LoadingScreenBase = null
 static var _loading_shown: bool = false
@@ -233,6 +235,7 @@ static func _run(job: _JOB, key: String, param: RefCounted, boot: bool) -> void:
 	MessageCore.close_black_box()
 	InputBlockCore.release_all(_REASON)
 	UICore.set_panel_lock(true)
+	_panel_locked = true
 	UICore.close_all_popups()
 	if session != _session:
 		return
@@ -292,10 +295,11 @@ static func _run(job: _JOB, key: String, param: RefCounted, boot: bool) -> void:
 	# the scene resource alive after the scope drops it.
 	loaded = null
 	packed = null
-	if not (instance is SceneBase):
+	# A root of another engine class is not the scene base type, also when its script extends `SceneBase`.
+	if not (instance is SceneBase) or instance.get_class() != "Node":
 		if instance != null:
 			instance.free()
-		_fail(job, "scene root is not SceneBase. scene=" + key)
+		_fail(job, "scene root is not a Node with SceneBase. scene=" + key)
 		return
 	var scene: SceneBase = instance as SceneBase
 	scene.scene_key = key
@@ -365,6 +369,7 @@ static func _run(job: _JOB, key: String, param: RefCounted, boot: bool) -> void:
 
 	# 7 start
 	UICore.set_panel_lock(false)
+	_panel_locked = false
 	_show_hidden()
 	_restore_stopped()
 	_holder.process_mode = Node.PROCESS_MODE_INHERIT
@@ -687,6 +692,11 @@ static func _hide_if_top(node: Node) -> void:
 		if spatial.visible and not (parent is Node3D):
 			spatial.visible = false
 			_hidden.append(node)
+	elif node is Window:
+		var window: Window = node as Window
+		if window.visible:
+			window.visible = false
+			_hidden.append(node)
 
 
 # From stage 4 until stage 7 moves it, the scene UI root of the new scene takes the position and size of the safe area
@@ -725,6 +735,8 @@ static func _show_hidden() -> void:
 			(node as CanvasItem).visible = true
 		elif node is Node3D:
 			(node as Node3D).visible = true
+		elif node is Window:
+			(node as Window).visible = true
 	_hidden.clear()
 
 
@@ -762,6 +774,8 @@ static func _end_state(detach: bool) -> void:
 	_clear_effects()
 	if InputBlockCore.is_initialized():
 		_unblock()
+	if _panel_locked and UICore.is_initialized():
+		UICore.set_panel_lock(false)
 	var objects: Array[Node] = [
 		_ui_root, _scene, _new_scene, _loading_screen, _scene_ui_area, _loading_area, _holder,
 	]
@@ -785,6 +799,7 @@ static func _end_state(detach: bool) -> void:
 	_transition_key = ""
 	_job = null
 	_block_token = 0
+	_panel_locked = false
 	_loading_screen = null
 	_loading_shown = false
 	_shown_at = 0
