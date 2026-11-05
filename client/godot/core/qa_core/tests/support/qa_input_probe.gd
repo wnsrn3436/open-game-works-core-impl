@@ -5,7 +5,8 @@ extends Node
 ## Action whose just pressed and just released frames are recorded. Empty: none.
 var watched: StringName = &""
 ## `<frame>:<kind>:<detail>` of every input: `touch_down`, `touch_up` and `drag` with the touch index, `key_down` and
-## `key_up` with the keycode, `text` with the code point, `mouse_down` and `mouse_up` with the button index.
+## `key_up` with the keycode, `text` with the code point, `mouse_down` and `mouse_up` with the button index, `pad_down`
+## and `pad_up` with the gamepad button index, `axis` with `<axis index>=<value>` (two decimals).
 var inputs: PackedStringArray = PackedStringArray()
 var just_pressed_frames: PackedInt64Array = PackedInt64Array()
 var just_released_frames: PackedInt64Array = PackedInt64Array()
@@ -27,6 +28,12 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton:
 		var mouse: InputEventMouseButton = event as InputEventMouseButton
 		inputs.append("%d:%s:%d" % [frame, "mouse_down" if mouse.pressed else "mouse_up", mouse.button_index])
+	elif event is InputEventJoypadButton:
+		var pad: InputEventJoypadButton = event as InputEventJoypadButton
+		inputs.append("%d:%s:%d" % [frame, "pad_down" if pad.pressed else "pad_up", pad.button_index])
+	elif event is InputEventJoypadMotion:
+		var motion: InputEventJoypadMotion = event as InputEventJoypadMotion
+		inputs.append("%d:axis:%d=%.2f" % [frame, motion.axis, motion.axis_value])
 
 
 func _process(_delta: float) -> void:
@@ -55,5 +62,14 @@ func frames_of(kind: String, from: int = 0) -> PackedInt64Array:
 	var frames: PackedInt64Array = PackedInt64Array()
 	for i: int in range(from, inputs.size()):
 		if inputs[i].get_slice(":", 1) == kind:
+			frames.append(inputs[i].get_slice(":", 0).to_int())
+	return frames
+
+
+## The frames of the inputs `<kind>:<detail>` from input number `from` on, in order.
+func frames_of_input(input: String, from: int = 0) -> PackedInt64Array:
+	var frames: PackedInt64Array = PackedInt64Array()
+	for i: int in range(from, inputs.size()):
+		if inputs[i].substr(inputs[i].find(":") + 1) == input:
 			frames.append(inputs[i].get_slice(":", 0).to_int())
 	return frames
