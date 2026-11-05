@@ -21,7 +21,7 @@ function reward_mail_id(): number {
 describe('RedeemCoupon', () => {
   it('gives a shared coupon to two users once each; the second use of a user is COUPON_ALREADY_REDEEMED', async () => {
     const s = await server();
-    await create(s, { code: 'SHARED1' });
+    const id = await create(s, { code: 'SHARED1' });
     const a = await user(s);
     const b = await user(s);
     expect((await redeem(a, 'SHARED1')).code).toBe(0);
@@ -29,6 +29,9 @@ describe('RedeemCoupon', () => {
     expect((await redeem(a, 'SHARED1')).code).toBe(E.CORE_ERROR_COUPON_ALREADY_REDEEMED);
     expect(await balance(s, a, '[coupon_gold]')).toBe(100n);
     expect(await balance(s, b, '[coupon_gold]')).toBe(100n);
+    // A shared code keeps no redeemer.
+    const listed = await admin(s, 'list_coupon_codes', { coupon_id: String(id), after_code: '', limit: 10 });
+    expect(listed.json['codes']).toEqual([{ code: 'SHARED1', redeemed_by: null, redeemed_at: null }]);
   });
 
   it('answers COUPON_USED_UP for a shared coupon at max_uses', async () => {

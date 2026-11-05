@@ -48,10 +48,12 @@ const CORE_SETTINGS = JSON.parse(readFileSync(new URL('core-settings.json', SETT
 const SCHEMA = JSON.parse(readFileSync(new URL('core-settings.schema.json', SETTINGS_FOLDER), 'utf8')) as { properties: Record<string, { minimum?: number }> };
 
 describe('coupon admin operations', () => {
-  it('makes count different unique codes and list_coupon_codes returns them all in byte order', async () => {
+  it('makes count different unique codes and list_coupon_codes returns them all in byte order, none redeemed', async () => {
     const s = await server();
     const id = await create(s, { kind: 'unique', count: 50 });
     const codes = await codes_of(s, id);
+    const listed = await admin(s, 'list_coupon_codes', { coupon_id: String(id), after_code: '', limit: 100 });
+    expect(listed.json['codes']).toEqual(codes.map((code) => ({ code, redeemed_by: null, redeemed_at: null })));
     expect(codes).toHaveLength(50);
     expect(new Set(codes).size).toBe(50);
     expect(codes).toEqual([...codes].sort((a, b) => Buffer.compare(Buffer.from(a), Buffer.from(b))));
@@ -96,7 +98,7 @@ describe('coupon admin operations', () => {
     expect((await admin(s, 'get_coupon', { coupon_id: '1' })).status).toBe(404);
     // A and B are every code these settings allow: neither has a code row.
     for (const code of ['A', 'B']) expect((await admin(s, 'get_coupon', { code })).status).toBe(404);
-  }, 10_000);
+  });
 
   it.each([1, 3])('accepts a code found on pick %i of coupon.maxCodePicks and ends in conflict after exactly that many picks', async (max_picks) => {
     const s = await server({ ...CODE_SPACE_AB, 'coupon.maxCodePicks': max_picks });
@@ -142,7 +144,7 @@ describe('coupon admin operations', () => {
     expect(result.json['error']).toBe('conflict');
     expect((await admin(s, 'get_coupon', { coupon_id: String(first + 1n) })).status).toBe(404);
     expect(await codes_of(s, first)).toHaveLength(2);
-  }, 10_000);
+  });
 
   it('get_coupon answers bad_request for both or neither of coupon_id and code, and finds a coupon by an unnormalized code', async () => {
     const s = await server();
@@ -156,7 +158,7 @@ describe('coupon admin operations', () => {
     expect((await admin(s, 'get_coupon', { coupon_id: '999' })).status).toBe(404);
   });
 
-  it('list_coupon_codes pages from an empty after_code and continues from the last code without gaps or repeats', async () => {
+  it('list_coupon_codes pages from an empty after_code and continues from the last code without gaps or repeats, and after_code ab returns no code', async () => {
     const s = await server();
     const id = await create(s, { kind: 'unique', count: 7 });
     const seen: string[] = [];
@@ -172,6 +174,10 @@ describe('coupon admin operations', () => {
     }
     expect(seen).toEqual(await codes_of(s, id));
     expect(new Set(seen).size).toBe(7);
+    // `ab` is used as given, not normalized to `AB`: every code is byte before it.
+    const lower = await admin(s, 'list_coupon_codes', { coupon_id: String(id), after_code: 'ab', limit: 3 });
+    expect(lower.status).toBe(200);
+    expect(lower.json['codes']).toEqual([]);
     expect((await admin(s, 'list_coupon_codes', { coupon_id: '999', after_code: '', limit: 3 })).status).toBe(404);
   });
 
@@ -249,7 +255,10 @@ describe('coupon admin operations', () => {
       coupon_body({ code: 'AB' }),
       coupon_body({ code: 'BAD_CODE' }),
       coupon_body({ code: 'COUNTED1', count: 2 }),
+      coupon_body({ code: 'MINUS1', max_uses: -1 }),
       coupon_body({ kind: 'unique', code: 'UNIQUE1', count: 1 }),
+      // normalizes to the empty string, but a unique `code` is judged as given
+      coupon_body({ kind: 'unique', code: ' - ', count: 1 }),
       coupon_body({ kind: 'unique', count: 0 }),
       coupon_body({ kind: 'unique', count: 1, max_uses: 3 }),
       coupon_body({ code: 'WINDOW1', start_at: 2000n, end_at: 2000n }),
@@ -262,6 +271,17 @@ describe('coupon admin operations', () => {
     for (const body of bad) expect((await admin(s, 'create_coupon', body)).status).toBe(400);
     const listed = await admin(s, 'get_coupon', { coupon_id: '1' });
     expect(listed.status).toBe(404);
+  });
+
+  it('creates a unique coupon whose code is the empty string with coupon.minCodeLength 1 or more', async () => {
+    for (const min_length of [1, 4]) {
+      const s = await server({ 'coupon.minCodeLength': min_length });
+      const result = await admin(s, 'create_coupon', coupon_body({ kind: 'unique', code: '', count: 2 }));
+      expect(result.status).toBe(200);
+      const id = BigInt(String(result.json['coupon_id']));
+      expect(await codes_of(s, id)).toHaveLength(2);
+      expect((await admin(s, 'get_coupon', { coupon_id: String(id) })).json['code']).toBe('');
+    }
   });
 
   it('disable_coupon answers not_found for a coupon that does not exist', async () => {

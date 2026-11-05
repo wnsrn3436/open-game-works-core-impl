@@ -13,7 +13,7 @@ import { alphabet_error, code_bound_after, generate_code, is_valid_code, normali
 export { normalize_code } from './code.ts';
 
 /** The `storage` operations coupon calls. */
-export type CouponStorage = Pick<Storage, 'register_table' | 'db' | 'lock_game_row' | 'run_user_transaction' | 'with_hook_change_source' | 'after_commit'>;
+export type CouponStorage = Pick<Storage, 'register_table' | 'db' | 'lock_game_row' | 'run_user_transaction' | 'with_hook_change_source' | 'on_commit'>;
 
 /** The `server-time` operations coupon calls. */
 export type CouponServerTime = Pick<ServerTimeApi, 'is_reached' | 'is_reached_strict' | 'clock_now' | 'get_window_start'>;
@@ -398,9 +398,10 @@ export function create_coupon(input: CouponInput): CouponModule {
     if (!run_hook(ctx, coupon.coupon_id)) return CoreContract.CoreError.CORE_ERROR_INTERNAL;
     const { user_id, request_id } = ctx;
     const args: LogValue = { coupon_id: String(coupon.coupon_id), code } as unknown as LogValue;
-    storage.after_commit(ctx, () =>
-      logging.write({ kind: 'audit', level: 'info', message: 'coupon redeemed', user_id, request_id, request: REDEEM_REQUEST, fields: { args } }),
-    );
+    // At the commit itself, so a server stop right after the commit does not drop the line.
+    storage.on_commit(ctx, () => {
+      logging.write({ kind: 'audit', level: 'info', message: 'coupon redeemed', user_id, request_id, request: REDEEM_REQUEST, fields: { args } });
+    });
     const response = new CoreContract.RedeemCouponResponse();
     response.items = received;
     return response;
