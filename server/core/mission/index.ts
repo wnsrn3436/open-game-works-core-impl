@@ -148,11 +148,17 @@ export function create_mission(input: MissionInput): Mission {
     const value = amount_of(amount);
     const mode = counter.get_row(counter_id).mode;
     const changed: number[] = [];
-    // Only the rows of the counter's in-window missions are read, each by its item ID: a row of another counter whose
-    // read conversion fails must not fail this call, and `list_state` would read it.
-    for (const row of missions_of(ctx.data, counter_id)) {
-      if (!in_window(ctx, row)) continue;
-      const current = read(ctx, row);
+    // Only the rows of the counter's in-window missions are read, with one `get_states` call: a row of another counter
+    // whose read conversion fails must not fail this call, and `list_state` would read it.
+    const rows = missions_of(ctx.data, counter_id).filter((row) => in_window(ctx, row));
+    if (rows.length === 0) return changed;
+    const stored = new Map<number, CoreContract.MissionProgressUserState>();
+    for (const value of storage.get_states(ctx, CoreContract.MissionProgressUserState, rows.map((row) => BigInt(row.id)))) {
+      const state = value as CoreContract.MissionProgressUserState;
+      stored.set(Number(state.id), state);
+    }
+    for (const row of rows) {
+      const current = current_of(ctx, row, stored.get(row.id) ?? null);
       if (current.claimed || current.progress >= row.target) continue;
       let progress = mode === GameData.MissionCounterMode.Max ? (value > current.progress ? value : current.progress) : current.progress + value;
       if (progress > row.target) progress = row.target;
