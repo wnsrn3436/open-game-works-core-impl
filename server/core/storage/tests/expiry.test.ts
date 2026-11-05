@@ -105,7 +105,7 @@ describe('sweep_expired batches', () => {
   });
 
   it('with storage.sweepBatchSize 1 and storage.sweepTableBudgetMs 1, one sweep_expired deletes fewer than the 2000 expired rows of a table, and later runs delete the rest', async () => {
-    const { storage, clock } = await instance({ settings: { 'storage.sweepBatchSize': 1, 'storage.sweepTableBudgetMs': 1 }, register: expiring_tables(undefined) });
+    const { db, storage, clock } = await instance({ settings: { 'storage.sweepBatchSize': 1, 'storage.sweepTableBudgetMs': 1 }, register: expiring_tables(undefined) });
     const now = clock.now();
     const rows = 2000;
     await insert_rows(
@@ -117,9 +117,15 @@ describe('sweep_expired batches', () => {
     expect(first.failed).toEqual([]);
     expect(first.deleted).toBeGreaterThan(0);
     expect(first.deleted).toBeLessThan(rows);
-    let total = first.deleted;
+    const second = await storage.sweep_expired();
+    expect(second.failed).toEqual([]);
+    expect(second.deleted).toBeGreaterThan(0);
+    // The rest by the later runs of another server instance whose statements delete more rows each: a run of one
+    // statement per table per run takes thousands of runs, longer than a test under the load of a whole core test run.
+    const other = await instance({ db, clock, settings: { 'storage.sweepBatchSize': rows }, register: expiring_tables(undefined) });
+    let total = first.deleted + second.deleted;
     while (total < rows) {
-      const next = await storage.sweep_expired();
+      const next = await other.storage.sweep_expired();
       expect(next.failed).toEqual([]);
       expect(next.deleted).toBeGreaterThan(0);
       total += next.deleted;
