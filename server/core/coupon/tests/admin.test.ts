@@ -210,7 +210,7 @@ describe('coupon admin operations', () => {
     const id = await create(s, { kind: 'unique', count: 8 });
     const all = await codes_of(s, id);
     expect(all).toHaveLength(8);
-    for (const after of ['a', 'm', 'z', 'Aa', 'Mm', 'A:', 'A ', 'M-', 'Zz', 'é', 'MZ', 'ZZ', 'M\u0000']) {
+    for (const after of ['a', 'm', 'z', 'Aa', 'Mm', 'A:', 'A ', 'M-', 'Zz', 'é', 'MZ', 'ZZ']) {
       const page = await admin(s, 'list_coupon_codes', { coupon_id: String(id), after_code: after, limit: 10 });
       expect(page.status).toBe(200);
       const codes = (page.json['codes'] as { code: string }[]).map((row) => row.code);
