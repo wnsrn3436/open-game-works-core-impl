@@ -7,12 +7,6 @@
       "location": "client/godot/core/scene_core/scene_core.gd:304",
       "problem": "A node of the new scene whose `process_mode` is `PROCESS_MODE_ALWAYS` receives `_process` from stage 4, which differs from \"does not receive the per-frame engine callbacks or the input callbacks\" (`open-game-works-core/skills/client-core/modules/scene-core.md`, `### scene`). The only stop is `PROCESS_MODE_DISABLED` on the scene holder, and a node with its own mode does not inherit it. `PROCESS_MODE_ALWAYS` is the documented way for a node to run during pause (`open-game-works-core/skills/client-core/engines/godot.md:312`). Run path: in a scratch copy, `on_prepare` of `scene_b` added such a node and `on_prepare` waited on a gate; after 3 more frames that node had counted 4 `_process` calls while the scene root had counted 0. The engine mapping (`open-game-works-core/skills/client-core/engines/godot.md:294`) says `_process()` does not run under the holder, so that sentence also needs correcting. The code has been this way since before the range",
       "foundBy": "SceneCore round 1"
-    },
-    {
-      "id": "D2",
-      "location": "client/godot/core/scene_core/scene_core.gd:665",
-      "problem": "A top visual node that scene code hides in `on_preload` or `on_prepare` is made visible again at stage 7. `_hide_if_top` remembers it at stage 4, and `_show_hidden` sets `visible` to `true` on every remembered node without knowing that scene code hid it. Run path: in a scratch copy, the `on_prepare` of `scene_b` set `probe.visible = false`, and after `change_scene` returned `true`, `probe.visible` was `true`. `_ready()` is not affected, because it runs before `_hide_tree`. `open-game-works-core/skills/client-core/engines/godot.md:294` writes this restore as it is implemented and `scene-core.md` does not set the case, so the fix needs a spec change. The code has been this way since before the range",
-      "foundBy": "SceneCore round 1"
     }
   ]
 }
