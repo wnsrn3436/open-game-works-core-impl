@@ -1,18 +1,5 @@
 {
   "target": "spec block-report",
   "nextId": 3,
-  "items": [
-    {
-      "id": "D1",
-      "location": "skills/server-core/modules/block-report.md:211",
-      "problem": "`## test` has no item for the second order that block-report.md:127 sets, where `remove_user` holds the `block_report_sequence` lock first and `add_report` waits and then reads the target as withdrawn. Run path of a defect that no item catches: an implementation of step 4 of `add_report` (block-report.md:121) calls `is_active_user` before `lock_game_row`; the withdrawal holds the lock with its `delete_user` not committed, `add_report` reads the target as active, waits for the lock, and after the withdrawal commits writes the row with the text as `evidence`, so the text of a withdrawn user stays. block-report.md:210 passes because the target already committed its withdrawal, and block-report.md:211 passes because `add_report` holds the lock first. It is not one of the problems of `## spec review`, because the order is set and each existing item has a judgement criterion",
-      "foundBy": "spec block-report"
-    },
-    {
-      "id": "D2",
-      "location": "skills/server-core/modules/block-report.md:155",
-      "problem": "The `FAILED` of `remove_user` on exceeding the lock wait has no `## test` item. block-report.md:193-212 do not go through it, and the `remove_user` `FAILED` test of `auth` (skills/server-core/modules/auth.md:473) names only `guild.remove_user`. `testing.hold_game_row_lock` can hold that lock, so a core test can check that `Withdraw` is `INTERNAL` and that the `evidence` and the other rows of that user keep their values. It is not one of the problems of `## spec review`, because the failure and its result are set",
-      "foundBy": "spec block-report"
-    }
-  ]
+  "items": []
 }
