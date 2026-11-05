@@ -1,12 +1,5 @@
 {
   "target": "spec SceneCore",
   "nextId": 2,
-  "items": [
-    {
-      "id": "D1",
-      "location": "skills/client-core/modules/scene-core.md:191",
-      "problem": "Test item \"`release` while waiting on any stage ... destroys the three scene objects\" uses \"the three scene objects\", which no defining document defines. `### lifecycle` (scene-core.md:113) lists more objects that `release` destroys: the current scene, its scene UI root, the scene created at stage 4, the loading screen, the two safe area roots, the scene holder. So a core test has no criterion for which objects to check, and two implementations can test different sets",
-      "foundBy": "spec SceneCore"
-    }
-  ]
+  "items": []
 }
