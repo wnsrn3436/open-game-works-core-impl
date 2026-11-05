@@ -39,7 +39,7 @@ func test_second_pointer_in_an_owned_element_changes_nothing() -> void:
 	drag(1, OUTSIDE)
 	touch(1, false, OUTSIDE)
 	assert_vector(Vector2(0.5, 0.0), "the other pointer does not move the joystick")
-	assert_eq(under.touches, 0, "the UI below gets neither pointer")
+	assert_eq(under.inputs, 0, "the UI below gets neither pointer")
 	assert_eq(recorder.gestures(), 0, "no gesture from either pointer")
 
 
@@ -60,7 +60,7 @@ func test_pointer_in_an_area_is_consumed_and_outside_is_not() -> void:
 	var under: VirtualPadTestControl = make_control(area_of(element(STICK)))
 	touch(0, true, stick_point(Vector2.ZERO))
 	touch(0, false, stick_point(Vector2.ZERO))
-	assert_eq(under.touches, 0, "the UI element below gets nothing")
+	assert_eq(under.inputs, 0, "the UI element below gets nothing")
 	assert_eq(recorder.gestures(), 0, "no gesture")
 	touch(1, true, OUTSIDE)
 	touch(1, false, OUTSIDE)
@@ -191,3 +191,20 @@ func _block_with_stick() -> int:
 	var token: int = InputBlockCore.block("content", pass_list)
 	assert_true(InputBlockCore.is_active(token))
 	return token
+
+
+func test_forty_pointers_in_one_button_area_leave_the_joystick_free() -> void:
+	assert_true(UnitTestCore.set_test_settings("InputCore.maxJudgePointers", 50))
+	assert_true(await restart_modules(), "the modules start with 50 judge pointers")
+	await open(LAYOUT_FIXED)
+	for i: int in 40:
+		touch(i, true, center_of(FIRE))
+	assert_true(InputCore.is_pressed(FIRE_ACTION))
+	touch(40, true, stick_point(Vector2(RADIUS * 0.5, 0.0)))
+	assert_vector(Vector2(0.5, 0.0), "the joystick takes the 41st pointer")
+	for i: int in 40:
+		touch(i, false, center_of(FIRE))
+	assert_false(InputCore.is_pressed(FIRE_ACTION))
+	assert_eq(recorder.taps, 0, "the 40 pointers pressed in the button area give no tap")
+	touch(40, false, stick_point(Vector2(RADIUS * 0.5, 0.0)))
+	assert_true(no_direction())

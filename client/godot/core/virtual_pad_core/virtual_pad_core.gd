@@ -3,9 +3,10 @@ extends RefCounted
 ## Draws the virtual joystick and the virtual buttons of a layout prefab on the `VirtualPad` UI layer and turns their
 ## pointers into `InputCore` action injects. Keeps the element layout the user changed in the device file. The
 ## elements are engine GUI controls: while the virtual pad is `ACTIVE` they take the pointer input on them and accept
-## the press, moves and release of a pointer pressed in an element area, so that pointer is consumed at the `InputCore`
-## UI stage. The moves of a pointer pressed outside the areas pass over them unconsumed. Outside `ACTIVE` they ignore
-## pointers.
+## the press of a pointer pressed in an element area and the moves and release of the pointer an element holds, so those
+## are consumed at the `InputCore` UI stage. The moves of a pointer pressed outside the areas pass over them unconsumed.
+## Outside `ACTIVE` they ignore pointers. The engine keeps sending the moves and release of a pointer to the element its
+## press reached, so they reach no UI element outside the virtual pad even when they are not consumed.
 
 ## `ACTIVE` draws and takes pointers, `INACTIVE` draws without taking pointers, `HIDDEN` neither draws nor takes them.
 enum VirtualPadState { ACTIVE, INACTIVE, HIDDEN }
@@ -37,8 +38,6 @@ const _LOWER_Z: int = 122
 const _DIGIT_0: int = 48
 const _DIGIT_9: int = 57
 const _UNDERSCORE: int = 95
-## Entries of `_area_pointers`: pointers pressed in the element areas and not yet released at once.
-const _AREA_POINTER_SLOTS: int = 32
 
 static var _is_initialized: bool = false
 static var _node: Node = null
@@ -66,10 +65,6 @@ static var _pad_scope: Scope = null
 static var _joystick_mode: JoystickMode = JoystickMode.FIXED
 ## Elements of the virtual pad in element list order: the last one is drawn on top.
 static var _elements: Array[_ELEMENT] = []
-## Pointer IDs of the pointers pressed in an element area while `ACTIVE`, held or not, and not yet released; -1 is a
-## free entry. Their moves and release are consumed. `init` sizes it to `_AREA_POINTER_SLOTS`, so the pointer path
-## allocates nothing.
-static var _area_pointers: PackedInt64Array = PackedInt64Array()
 ## `InputCore.get_cancel_count` when it was last seen.
 static var _cancel_count: int = 0
 ## Whether `UICore.get_open_popup_count` was 1 or more when it was last seen.
@@ -107,8 +102,6 @@ static func init() -> bool:
 	else:
 		_sensitivity = sensitivity / 1000.0
 	_touch_supported = DisplayServer.is_touchscreen_available()
-	_area_pointers.resize(_AREA_POINTER_SLOTS)
-	_area_pointers.fill(-1)
 	_session = RefCounted.new()
 	var node: _NODE_SCRIPT = _NODE_SCRIPT.new()
 	node.name = _TAG
@@ -393,7 +386,6 @@ static func _close() -> void:
 	_pad_scope = null
 	_joystick_mode = JoystickMode.FIXED
 	_elements = []
-	_area_pointers.fill(-1)
 	_state = VirtualPadState.HIDDEN
 
 
@@ -439,18 +431,18 @@ static func _set_state(state: VirtualPadState) -> void:
 		return
 	if _state == VirtualPadState.ACTIVE:
 		_release_all()
-		# Outside `ACTIVE` the elements get no release, and moves and releases are not consumed.
-		_area_pointers.fill(-1)
 	_state = state
 	_apply_state()
 
 
 ## Draws the virtual pad unless `HIDDEN`; its elements take pointers only while `ACTIVE`. They pass the pointer input
-## they do not accept, so a move of a pointer pressed outside the areas goes on to the world stage.
+## they do not accept, so a move of a pointer pressed outside the areas goes on to the world stage. `HIDDEN` stops the
+## drawing in the rendering server and keeps the elements visible to the engine GUI: hiding an element drops the engine
+## mouse focus it holds, and the later mouse moves made from that touch would go to the UI element under them.
 static func _apply_state() -> void:
 	if _pad == null:
 		return
-	_pad.visible = _state != VirtualPadState.HIDDEN
+	RenderingServer.canvas_item_set_visible(_pad.get_canvas_item(), _state != VirtualPadState.HIDDEN)
 	var mouse_filter: Control.MouseFilter = Control.MOUSE_FILTER_PASS if _state == VirtualPadState.ACTIVE \
 		else Control.MOUSE_FILTER_IGNORE
 	for element: _ELEMENT in _elements:
@@ -486,15 +478,14 @@ static func _check_cancel() -> void:
 		return
 	_cancel_count = count
 	_release_all()
-	_area_pointers.fill(-1)
 
 
 # --- pointers
 
 
 ## GUI input of an element (`VirtualPadJoystick`, `VirtualButton`). A touch press on it is in its area; it accepts
-## that press and the moves and release of the pointers pressed in an area, and passes the moves of a pointer pressed
-## outside the areas. Frame code.
+## every such press and the moves and release of the pointer it holds, and passes the moves and release of the other
+## pointers. Frame code.
 static func _on_element_input(control: Control, event: InputEvent) -> void:
 	if not _is_initialized or _pad == null or _state != VirtualPadState.ACTIVE:
 		return
@@ -505,45 +496,21 @@ static func _on_element_input(control: Control, event: InputEvent) -> void:
 	var touch: InputEventScreenTouch = event as InputEventScreenTouch
 	if touch != null:
 		if touch.pressed:
-			if not _add_area_pointer(touch.index):
-				return
 			control.accept_event()
 			_press(element, touch.index, touch.position)
-		elif _remove_area_pointer(touch.index):
+		elif element.pointer_id == touch.index:
 			control.accept_event()
-			if element.pointer_id == touch.index:
-				_release_element(element)
+			_release_element(element)
 		return
 	var drag: InputEventScreenDrag = event as InputEventScreenDrag
 	if drag != null:
-		if _area_pointers.has(drag.index):
+		if element.pointer_id == drag.index:
 			control.accept_event()
-			if element.pointer_id == drag.index:
-				_move(element, drag.position)
+			_move(element, drag.position)
 		return
 	# Engine mouse input made from touch: the elements take it as they did with every pointer input on them.
 	if event is InputEventMouse:
 		control.accept_event()
-
-
-## `false` when every entry is taken: the element does not take the press and passes it on.
-static func _add_area_pointer(pointer_id: int) -> bool:
-	if _area_pointers.has(pointer_id):
-		return true
-	var free: int = _area_pointers.find(-1)
-	if free < 0:
-		return false
-	_area_pointers[free] = pointer_id
-	return true
-
-
-## `false` when the pointer was not pressed in an area.
-static func _remove_area_pointer(pointer_id: int) -> bool:
-	var index: int = _area_pointers.find(pointer_id)
-	if index < 0:
-		return false
-	_area_pointers[index] = -1
-	return true
 
 
 ## A pointer pressed in the area of `element` at `position` (element local). The element takes it unless it has one.
@@ -878,7 +845,6 @@ static func _reset_state() -> void:
 	_pad_scope = null
 	_joystick_mode = JoystickMode.FIXED
 	_elements = []
-	_area_pointers = PackedInt64Array()
 	_cancel_count = 0
 	_has_popup = false
 	_saved_names = PackedStringArray()
