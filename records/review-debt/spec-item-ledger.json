@@ -1,0 +1,12 @@
+{
+  "target": "spec item-ledger",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/server-core/modules/item-ledger.md:34",
+      "problem": "For a big item, `read_amount` and the `add_items` input check accept an `ItemAmount` whose `amount` is outside int64 when `big_amount` is the empty string. `max_digits` can be up to `item-ledger.bigMaxDigits`, which is 16 or more (item-ledger.md:211, :289), so with `max_digits` 20 the amount 10^19 in `amount` with `big_amount` `\"\"` is within the amount limit. `mailbox.send_mail` then saves it in the `int64 amount` field of `ItemAmount` in `MailUserState` (skills/server-core/modules/mailbox.md:87), and no defining document sets what happens when an `int64` field gets a value outside the int64 range on encode (skills/server-core/SKILL.md:161, skills/contract/SKILL.md:136). The pair is also not canonical, because the contract carries a value above 2^53−1 in `big_amount` with `amount` 0. Any content caller of `send_mail` or `add_items` can reach this, and so can a `ranking_season_reward` output that passes the new format check",
+      "foundBy": "spec ranking"
+    }
+  ]
+}
