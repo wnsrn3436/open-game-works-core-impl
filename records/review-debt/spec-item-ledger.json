@@ -1,5 +1,12 @@
 {
   "target": "spec item-ledger",
-  "nextId": 3,
-  "items": []
+  "nextId": 4,
+  "items": [
+    {
+      "id": "D3",
+      "location": "skills/server-core/modules/item-ledger.md:176",
+      "problem": "The `validate_item_change` and `after_item_change` lists are \"one per item\" (item-ledger.md:176-180), and an `exchange_items` item whose net change is 0 has no `ItemChange` and no history row (item-ledger.md:53). Nothing says whether that item is in the hook lists (with before = after) or whether its balance row is saved again. So whether a hook sees a net-0 item can differ per implementation. This is the same before this diff for net-0 changes at balances ≤ `max_amount`",
+      "foundBy": "spec item-ledger"
+    }
+  ]
 }
