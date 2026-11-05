@@ -1,12 +1,5 @@
 {
   "target": "spec admin-api",
   "nextId": 18,
-  "items": [
-    {
-      "id": "D17",
-      "location": "skills/server-core/modules/admin-api.md:120",
-      "problem": "The audit args function has no failure output and no set call time or failure handling, while the audit args of `import_user_snapshot` (skills/server-core/modules/user-snapshot-clone.md:118) and `import_game_state` (skills/server-core/modules/user-snapshot-clone.md:135) take `source_environment`, `source_user_id`, the record key list and `sha256` from the snapshot body. For a request that reached step 6 with a body that is not snapshot JSON (the handler function returns `bad_request`), it is not set whether `audit_args` is called, what `args` is when it throws or cannot read those fields, and whether the `audit` line is still written, so implementations can write `null`, a partial object or an `internal` result",
-      "foundBy": "spec admin-api"
-    }
-  ]
+  "items": []
 }
