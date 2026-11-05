@@ -15,8 +15,11 @@ import {
 } from './pg_messages.ts';
 import { DbError, type BeginOptions, type Begun, type DbAdapter, type DbConn, type DbTxConn, type DbValue, type Row, type Statement } from './types.ts';
 
-/** SQLSTATE of a lock wait over `lock_timeout`, a deadlock and a serialization failure, and the wait for a free connection. */
-const LOCK_CODES = new Set(['55P03', '40P01', '40001', NO_FREE_CONNECTION]);
+/**
+ * SQLSTATE of a lock wait over `lock_timeout`, a deadlock, a serialization failure and a statement over
+ * `statement_timeout` (handled as a lock wait over its limit), and the wait for a free connection.
+ */
+const LOCK_CODES = new Set(['55P03', '40P01', '40001', '57014', NO_FREE_CONNECTION]);
 const READ_ONLY_CODE = '25006';
 
 function db_error(code: string, message: string): DbError {

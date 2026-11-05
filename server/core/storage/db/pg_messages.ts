@@ -61,20 +61,26 @@ export const SIGNAL_ANSWERED = 1;
 export const SIGNAL_DEAD = 2;
 
 /**
- * The answer limit of a statement whose lock wait limit is `wait_ms`: its lock wait ends at `wait_ms` by `lock_timeout`,
- * and its answer past that waits `answer_wait_ms` (its transaction's answer wait), by default the limits' one.
+ * The time after which PostgreSQL aborts a statement whose lock wait limit is `wait_ms` (its `statement_timeout`): its
+ * lock wait ends at `wait_ms` by `lock_timeout`, and PostgreSQL aborts it `answer_wait_ms` (its transaction's answer
+ * wait, by default the limits' one) after that.
  */
-export function statement_limit_ms(limits: PgLimits, wait_ms: number, answer_wait_ms: number = limits.answer_wait_ms): number {
+export function abort_after_ms(limits: PgLimits, wait_ms: number, answer_wait_ms: number = limits.answer_wait_ms): number {
   return Math.max(0, Math.trunc(wait_ms)) + answer_wait_ms;
+}
+
+/** The answer limit of a statement: its abort time, then the limits' answer wait for the answer of that abort. */
+export function statement_limit_ms(limits: PgLimits, wait_ms: number, answer_wait_ms: number = limits.answer_wait_ms): number {
+  return abort_after_ms(limits, wait_ms, answer_wait_ms) + limits.answer_wait_ms;
 }
 
 /**
  * The longest a live worker takes to answer one request whose lock wait limit is `wait_ms` and whose transaction's
- * answer wait is `answer_wait_ms`: at most four limited steps (`begin`: the wait for a free connection, a connect, then
- * `BEGIN`, `SET` and the first statement, each within `statement_limit_ms` or, for the connect, the limits' answer
- * wait; a read: a connect, `SET` and the statement).
+ * answer wait is `answer_wait_ms`: at most five limited steps (`begin`: the wait for a free connection, a connect, then
+ * `BEGIN`, the `set_config` of its limits and the first statement, each within `statement_limit_ms` or, for the
+ * connect, the limits' answer wait; a read: the statement on the read connection that failed, then a connect, two
+ * session settings and the statement again).
  */
 export function answer_bound_ms(limits: PgLimits, wait_ms: number, answer_wait_ms: number = limits.answer_wait_ms): number {
-  return 4 * statement_limit_ms(limits, wait_ms, Math.max(answer_wait_ms, limits.answer_wait_ms));
+  return 5 * statement_limit_ms(limits, wait_ms, Math.max(answer_wait_ms, limits.answer_wait_ms));
 }
-

@@ -295,6 +295,21 @@ export function q(state: TxState, sql: string, params: readonly DbValue[] = []):
   }
 }
 
+/**
+ * The condition that `column` is one of `ids`, with the list as the one parameter `$<index>`, so a list longer than the
+ * parameter limit of a statement is still one query: PostgreSQL reads it as a bigint array, SQLite as a JSON array.
+ */
+export function in_id_list(core: StorageCore, column: string, ids: readonly bigint[], index: number): { sql: string; param: string } {
+  const at = `$${String(index)}`;
+  if (adapter_of(core).dialect === 'postgresql') return { sql: `${column} = ANY(CAST(string_to_array(${at}, ',') AS BIGINT[]))`, param: ids.join(',') };
+  return { sql: `${column} IN (SELECT value FROM json_each(${at}))`, param: `[${ids.join(',')}]` };
+}
+
+/** The distinct bigints of a list in ascending order. */
+export function ascending_ids(ids: readonly bigint[]): bigint[] {
+  return [...new Set(ids)].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+}
+
 export function big(value: DbValue | undefined): bigint {
   if (typeof value === 'bigint') return value;
   if (typeof value === 'number') return BigInt(value);

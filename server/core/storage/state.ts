@@ -4,8 +4,10 @@
  */
 import type { DbValue } from './db/types.ts';
 import {
+  ascending_ids,
   big,
   bytes,
+  in_id_list,
   handle_of,
   q,
   StorageMisuse,
@@ -153,6 +155,28 @@ export function list_state(core: StorageCore, ctx: unknown, kind_class: unknown)
   const kind = user_kind(core, kind_class);
   if (!kind.info.is_list) throw new StorageMisuse(`storage: list_state of single kind ${kind.info.name}`);
   const rows = q(state, `SELECT item_id, value, contract_version FROM ${table_of(kind)} WHERE user_id = $1 AND kind = $2 ORDER BY item_id`, [state.user_id, kind.info.column]);
+  const out: KindValue[] = [];
+  for (const row of rows) {
+    const id = big(row.item_id);
+    const value = read_value(core, state, kind, id, { value: bytes(row.value), version: big(row.contract_version) }, user_persist(core, state, kind, id));
+    if (value !== null) out.push(value);
+  }
+  return out;
+}
+
+/** `get_states`: the values `get_state` gives for the listed item IDs, read with one query, in item ID order. */
+export function get_states(core: StorageCore, ctx: unknown, kind_class: unknown, item_ids: unknown): KindValue[] {
+  const state = user_state_of(core, ctx);
+  const kind = user_kind(core, kind_class);
+  if (!Array.isArray(item_ids)) throw new StorageMisuse(`storage: get_states item IDs of ${kind.info.name} are not a list`);
+  const ids = ascending_ids((item_ids as unknown[]).map((id) => check_item_id(kind, id)));
+  if (ids.length === 0) return [];
+  const list = in_id_list(core, 'item_id', ids, 3);
+  const rows = q(state, `SELECT item_id, value, contract_version FROM ${table_of(kind)} WHERE user_id = $1 AND kind = $2 AND ${list.sql} ORDER BY item_id`, [
+    state.user_id,
+    kind.info.column,
+    list.param,
+  ]);
   const out: KindValue[] = [];
   for (const row of rows) {
     const id = big(row.item_id);

@@ -31,6 +31,7 @@ import {
   export_user_rows,
   find_user_by_public_code,
   get_user_record,
+  get_user_records,
   read_game_rows,
   read_user_rows,
   replace_game_rows,
@@ -45,6 +46,7 @@ import {
   type RawRow,
   type SweepResult,
   type UserRecord,
+  type UserRecordEntry,
 } from './rows.ts';
 import { apply_schema, schema_lock, table_def, type ColumnType, type Scope } from './schema.ts';
 import {
@@ -53,6 +55,7 @@ import {
   delete_state,
   get_game_state,
   get_state,
+  get_states,
   list_game_state,
   list_state,
   put_core_state,
@@ -97,7 +100,7 @@ export type { DbHandle, FailureCode, GameTx, ItemConverter, Pass, UserChangeAppl
 export type { FullStateResult, ResponseDelta, TakenDelta } from './delta.ts';
 export type { KindClass, KindValue } from './kinds.ts';
 export type { Random } from './random.ts';
-export type { NewUser, RawRow, SweepFailure, SweepResult, UserRecord } from './rows.ts';
+export type { NewUser, RawRow, SweepFailure, SweepResult, UserRecord, UserRecordEntry } from './rows.ts';
 /** The `## API` operation `is_public_code_input`. */
 export { is_public_code_input } from './public_code.ts';
 export type { ColumnType, Scope } from './schema.ts';
@@ -132,6 +135,7 @@ export interface StorageInput {
 export interface Storage {
   get_state(ctx: RequestCtx, kind: KindClass, item_id: bigint): KindValue | null;
   list_state(ctx: RequestCtx, kind: KindClass): KindValue[];
+  get_states(ctx: RequestCtx, kind: KindClass, item_ids: readonly bigint[]): KindValue[];
   put_state(ctx: RequestCtx, value: KindValue): void;
   delete_state(ctx: RequestCtx, kind: KindClass, item_id: bigint): void;
   put_core_state(ctx: RequestCtx, value: KindValue): void;
@@ -163,6 +167,7 @@ export interface Storage {
   create_user(tx: GameTx): NewUser;
   delete_user(ctx: RequestCtx): void;
   get_user_record(db: DbHandle, user_id: bigint): UserRecord | null;
+  get_user_records(db: DbHandle, user_ids: readonly bigint[]): UserRecordEntry[];
   find_user_by_public_code(db: DbHandle, public_code: string): bigint | null;
   is_public_code_input(text: string): boolean;
   set_user_created_at(ctx: RequestCtx, time: bigint): void;
@@ -257,9 +262,11 @@ function secret(input: StorageInput, name: string, what: string): string {
 }
 
 /**
- * The waits of the PostgreSQL adapter: a connect answers within `storage.dbAnswerWaitMs`, and a statement within its
- * lock wait limit (where `lock_timeout` ends its lock wait) plus that, or plus `storage.schemaAnswerWaitMs` in the
- * schema lock transaction (`complete_start`). TCP keepalive starts after twice `storage.userLockWaitMs`.
+ * The waits of the PostgreSQL adapter: a connect answers within `storage.dbAnswerWaitMs`. PostgreSQL aborts a statement
+ * `storage.dbAnswerWaitMs` after its lock wait limit (where `lock_timeout` ends its lock wait), or
+ * `storage.schemaAnswerWaitMs` after it in the schema lock transaction (`complete_start`), and the adapter waits
+ * `storage.dbAnswerWaitMs` past that abort time for the answer. TCP keepalive starts after twice
+ * `storage.userLockWaitMs`.
  */
 function pg_limits(settings: StorageSettings): PgLimits {
   return {
@@ -371,6 +378,7 @@ export function create_storage_with(input: StorageInput, contract: StorageContra
   const storage: Omit<Storage, 'content'> = {
     get_state: (ctx, kind, item_id) => get_state(core, ctx, kind, item_id),
     list_state: (ctx, kind) => list_state(core, ctx, kind),
+    get_states: (ctx, kind, item_ids) => get_states(core, ctx, kind, item_ids),
     put_state: (ctx, value) => {
       put_state(core, ctx, value);
     },
@@ -426,6 +434,7 @@ export function create_storage_with(input: StorageInput, contract: StorageContra
       delete_user(core, ctx);
     },
     get_user_record: (handle, user_id) => get_user_record(handle, user_id),
+    get_user_records: (handle, user_ids) => get_user_records(core, handle, user_ids),
     find_user_by_public_code: (handle, public_code) => find_user_by_public_code(handle, public_code),
     is_public_code_input,
     set_user_created_at: (ctx, time) => {

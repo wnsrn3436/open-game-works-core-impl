@@ -1,5 +1,6 @@
 import { StorageMisuse, type RawRow, type Storage } from '../index.ts';
 import { DB_KIND, instance, lock_holder, new_user, new_users, PG_LOCK_SQL, raw_rows, request, stop_all } from './helpers.ts';
+import { hold_lock_key } from '../../testing/dev/index.ts';
 import { lock_key } from '../tx.ts';
 import { boss, BossGameState, profile, quest, wallet } from './kinds.ts';
 
@@ -289,27 +290,35 @@ describe('replace_game_rows lock', () => {
     expect(storage.read_game_rows(storage.read_db(), BossGameState, [1n])).toEqual([replacement]);
   });
 
-  it.runIf(DB_KIND === 'postgresql')('PostgreSQL: is FAILED past the lock wait limit and changes no row', async () => {
-    const { db, storage } = await instance({ settings: { 'storage.userLockWaitMs': LOCK_WAIT_MS } });
-    const user = await new_user(storage);
-    await request(storage, user, (ctx) => {
-      storage.put_game_state(ctx, boss(1n, 1n), 0n);
-      storage.put_game_state(ctx, boss(2n, 2n), 0n);
-    });
-    const before = storage.read_game_rows(storage.read_db(), BossGameState, [1n, 2n]);
-    const holder = await lock_holder(db);
-    await hold_boss(holder, 2n);
-    const rows = [1n, 2n].map((key) => ({ table: 'game_state', key: `boss_game_state/${String(key)}`, contract_version: 3n, value: boss(key, 9n).encode() }));
-    let inner: unknown = null;
-    const result = await storage.run_game_transaction((tx) => {
-      inner = storage.replace_game_rows(tx, rows);
-      return { inner };
-    });
-    expect(inner).toBe('FAILED');
-    expect(result).toBe('FAILED');
-    expect(storage.read_game_rows(storage.read_db(), BossGameState, [1n, 2n])).toEqual(before);
-    await holder.ok('ROLLBACK');
-  });
+  it.runIf(DB_KIND === 'postgresql')(
+    'PostgreSQL: past the lock wait limit for a key that testing.hold_lock_key holds it is FAILED without a throw, a second one in that game transaction is FAILED, the game transaction is FAILED and no row changes',
+    async () => {
+      const { db, storage } = await instance({ settings: { 'storage.userLockWaitMs': LOCK_WAIT_MS } });
+      const user = await new_user(storage);
+      await request(storage, user, (ctx) => {
+        storage.put_game_state(ctx, boss(1n, 1n), 0n);
+        storage.put_game_state(ctx, boss(2n, 2n), 0n);
+      });
+      const before = storage.read_game_rows(storage.read_db(), BossGameState, [1n, 2n]);
+      // The key `testing.game_row_lock_id` gives for this row: the lock key of `lock_game_row(game_state, [BossGameState, 2])`.
+      const holder = await hold_lock_key(db.secrets.db ?? '', lock_key('game_state', ['boss_game_state', 2n]));
+      const rows = [1n, 2n].map((key) => ({ table: 'game_state', key: `boss_game_state/${String(key)}`, contract_version: 3n, value: boss(key, 9n).encode() }));
+      const inner: unknown[] = [];
+      try {
+        const result = await storage.run_game_transaction((tx) => {
+          inner.push(storage.replace_game_rows(tx, rows));
+          // Row 1 is locked already: the second call is FAILED by the abort, not by a wait.
+          inner.push(storage.replace_game_rows(tx, rows.slice(0, 1)));
+          return { inner };
+        });
+        expect(inner).toEqual(['FAILED', 'FAILED']);
+        expect(result).toBe('FAILED');
+        expect(storage.read_game_rows(storage.read_db(), BossGameState, [1n, 2n])).toEqual(before);
+      } finally {
+        await holder.release();
+      }
+    },
+  );
 });
 
 describe('users', () => {

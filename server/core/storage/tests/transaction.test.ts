@@ -164,6 +164,25 @@ describe('user transaction', () => {
     for (const table of ['user_state', 'server_state', 'pending_delta']) expect(raw_rows(storage, table, user)).toEqual([]);
   });
 
+  it('run_user_transaction and run_rollback_transaction throw the value their function throws and keep no write and no pending delta', async () => {
+    const { storage } = await instance();
+    const user = await new_user(storage);
+    const failure = new Error('the change function failed');
+    const write_then_throw = (ctx: RequestCtx): never => {
+      storage.put_state(ctx, quest(1n, 1n));
+      storage.put_state(ctx, wallet(1n));
+      throw failure;
+    };
+    const caught = (promise: Promise<unknown>): Promise<unknown> =>
+      promise.then(
+        () => null,
+        (error: unknown) => error,
+      );
+    expect(await caught(storage.run_user_transaction(user, write_then_throw))).toBe(failure);
+    expect(await caught(storage.run_rollback_transaction(user, write_then_throw))).toBe(failure);
+    for (const table of ['user_state', 'server_state', 'pending_delta']) expect(raw_rows(storage, table, user)).toEqual([]);
+  });
+
   it('throws when a transaction opens inside a transaction', async () => {
     const { storage } = await instance();
     const user = await new_user(storage);
