@@ -1,12 +1,5 @@
 {
   "target": "spec PaymentCore",
   "nextId": 2,
-  "items": [
-    {
-      "id": "D1",
-      "location": "skills/client-core/modules/payment-core.md:162",
-      "problem": "`restore_purchases` does not say what it does when PaymentCore is not in the ready state (after a disconnection notification, line 107, or after a failed `prepare`). Line 144 has `recover_purchases` run `prepare` first, but line 162 only says that `restore_purchases` handles `list_owned` with transaction processing, and skipped transactions depend on the SKU table that `prepare` builds (line 155), so one implementation runs `prepare`, another calls `list_owned` without `connect`, and another returns `false`",
-      "foundBy": "spec PaymentCore"
-    }
-  ]
+  "items": []
 }
