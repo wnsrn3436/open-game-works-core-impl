@@ -1,11 +1,17 @@
 {
   "target": "spec NativeUiCore",
-  "nextId": 2,
+  "nextId": 3,
   "items": [
     {
       "id": "D1",
       "location": "skills/client-core/modules/native-ui-core.md:92",
       "problem": "`copy_text` of an empty string in a headless run of `QACore` (or on a platform without a clipboard) matches two rows of `## error` (lines 117 and 118) with different log levels (error and warn), and `## behavior` lists the three conditions without an order, so the log level of that call differs per implementation",
+      "foundBy": "spec NativeUiCore"
+    },
+    {
+      "id": "D2",
+      "location": "skills/client-core/modules/native-ui-core.md:61",
+      "problem": "The condition under which `request_review` of the adapter reports a failure is set only for `android` (line 62). For `ios` and `macos` (`SKStoreReviewController`, line 52-53), whether the adapter reports a failure (e.g. no foreground window scene for the scene-taking request call) or always reports success is not set, so the `Failed` row of `## error` (line 111) can differ per implementation on those platforms",
       "foundBy": "spec NativeUiCore"
     }
   ]
