@@ -1,11 +1,11 @@
 {
   "target": "spec CameraCore",
-  "nextId": 9,
+  "nextId": 10,
   "items": [
     {
-      "id": "D8",
-      "location": "skills/client-core/modules/camera-core.md:81",
-      "problem": "Step 3 applies \"the value with the shake offset and the shake rotation added\", but the spec defines only a base position, not a base rotation. For a 2D camera whose rotation is r0 ≠ 0 when it is attached, one implementation sets the rotation to the shake rotation (so r0 is overwritten with 0 on the first frame), and another adds the shake rotation to r0. What is drawn differs from the first frame after `attach_camera`, even without a shake. camera-core.md:69 says only position and zoom are taken at attach",
+      "id": "D9",
+      "location": "skills/client-core/modules/camera-core.md:69",
+      "problem": "The base position of a 2D camera is \"the position of the attached camera\", and `get_view_center` (camera-core.md:44) is \"the world position at the screen center\", but neither camera-core.md nor the `CameraCore` rows of skills/client-core/engines/godot.md:332-337 set how the engine camera properties that move the screen center away from the camera position are handled (for Godot `Camera2D`: `anchor_mode` `ANCHOR_MODE_FIXED_TOP_LEFT`, `offset`, `limit_*`, `position_smoothing_enabled`, `drag_*_enabled`). Run path: attach a `Camera2D` with `anchor_mode` = `ANCHOR_MODE_FIXED_TOP_LEFT` or `offset` ≠ 0, then call `get_view_center` and `screen_to_world`(center of the visible game area). One implementation takes `global_position` as the base position and leaves those properties as they are, so `get_view_center` differs from the drawn screen center and the bounds fitting (camera-core.md:109) and test camera-core.md:208 (position of c equals `get_view_center`) give different results from an implementation that resets those properties at attach or converts between camera position and screen center",
       "foundBy": "spec CameraCore"
     }
   ]
