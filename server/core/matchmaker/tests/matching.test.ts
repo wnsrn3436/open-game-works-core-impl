@@ -1,17 +1,21 @@
 /** `### matching` and `### match creation` through `/realtime`: queues, spread, teams, blocks, versions, lockstep. */
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
-import { call_dev, fake, read_logs, send } from '../../testing/dev/index.ts';
+import { storage_module } from '../../storage/tests/helpers.ts';
+import { advance_time, call_dev, fake, read_logs, send } from '../../testing/dev/index.ts';
 import {
   CoreError,
   GameError,
   K,
   Reason,
+  TICK_MS,
   barrier,
   missing,
   calls_of,
   close_and_wait,
+  close_code,
   frame,
   harness,
+  hold_next_transaction,
   kill_switch,
   kinds,
   match_request,
@@ -19,8 +23,10 @@ import {
   mode,
   next,
   online,
+  participants,
   player,
   queued,
+  read_frame,
   report,
   send_and_wait,
   send_frame,
@@ -28,6 +34,8 @@ import {
   stop_all,
   tick,
   version,
+  type Conn,
+  type Frame,
   type Harness,
 } from './helpers.ts';
 
@@ -38,6 +46,7 @@ const TEAMS = mode(7204, { max_players: 4, min_players: 4, team_size: 2, max_par
 const SPREAD = mode(7205, { rating_spread: 10n, rating_spread_per_sec: 5n, match_wait: 600_000n });
 const ROOM_ONLY = mode(7206, { allow_queue: false, allow_room: true });
 const RATED = mode(7207, { rating_rule: 7901, rating_spread: 10n, match_wait: 600_000n });
+const TRIO = mode(7208, { max_players: 3, min_players: 3 });
 
 afterEach(async () => {
   await stop_all();
@@ -425,5 +434,156 @@ describe('DEV lockstep', () => {
     await send_and_wait(b, match_request(DUEL.id, false));
     const found = await next(a, K.MATCHMAKER_FRAME_KIND_MATCH_FOUND, 15_000n);
     expect(found.lockstep).toBe(false);
+  });
+});
+
+/** The user IDs of each saved match record in index order, the earliest record first. */
+function read_match_users(h: Harness): bigint[][] {
+  const rows = storage_module(h.server)
+    .read_db()
+    .query('SELECT p.match_id, p.user_id FROM matchmaker_participant p JOIN matchmaker_match m ON m.match_id = p.match_id ORDER BY m.created_at, p.match_id, p.idx', []);
+  const by_match = new Map<string, bigint[]>();
+  for (const r of rows) {
+    const id = String(r['match_id']);
+    by_match.set(id, [...(by_match.get(id) ?? []), r['user_id'] as bigint]);
+  }
+  return [...by_match.values()];
+}
+
+function room_create(mode_id: number): Frame {
+  return frame(K.MATCHMAKER_FRAME_KIND_ROOM_CREATE, (f) => {
+    f.mode_id = mode_id;
+  });
+}
+
+/** The frames of a connection up to the first one of the kind, that one included. */
+async function frames_until(conn: Conn, kind: CoreContract.MatchmakerFrameKind): Promise<Frame[]> {
+  const seen: Frame[] = [];
+  for (;;) {
+    const f = await read_frame(conn, 5_000n);
+    if (f === null) throw new Error(`connection ended before frame kind ${String(kind)}`);
+    seen.push(f);
+    if (f.kind === kind) return seen;
+  }
+}
+
+describe('frames sent while prepare_match_request waits', () => {
+  /** A user whose `MATCH_REQUEST` waits in the transaction of `prepare_match_request` while `after` is sent. */
+  const waiting_request = async (h: Harness, mode_id: number, after: Frame): Promise<{ user_id: bigint; frames: Frame[] }> => {
+    const s = await player(h);
+    const conn = await online(h, s);
+    const held = hold_next_transaction(h, 'run_rollback_transaction');
+    send_frame(conn, match_request(mode_id));
+    send_frame(conn, after);
+    await vi.waitFor(() => {
+      expect(held.calls()).toBe(1);
+    });
+    held.open();
+    return { user_id: s.user_id, frames: await barrier(conn) };
+  };
+
+  it('handles a MATCH_CANCEL, a second MATCH_REQUEST and a ROOM_CREATE after that MATCH_REQUEST ends: no entry, one entry, and ROOM_BUSY', async () => {
+    const h = await harness({ modes: [FOUR, ROOM_ONLY], hooks: by_rating });
+    const cancelled = await waiting_request(h, FOUR.id, frame(K.MATCHMAKER_FRAME_KIND_MATCH_CANCEL));
+    expect(cancelled.frames).toEqual([]);
+    const twice = await waiting_request(h, FOUR.id, match_request(FOUR.id));
+    expect(twice.frames).toEqual([]);
+    const created = await waiting_request(h, FOUR.id, room_create(ROOM_ONLY.id));
+    expect(created.frames.map((f) => [f.kind, f.error_code, f.request])).toEqual([
+      [K.MATCHMAKER_FRAME_KIND_ROOM_FAILED, CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_ROOM_CREATE],
+    ]);
+    // The second MATCH_REQUEST was handled: its own prepare_match_request ran.
+    expect(calls_of(h, 'prepare_match_request').map((c) => c.user_id)).toEqual([cancelled.user_id, twice.user_id, twice.user_id, created.user_id]);
+    // At match_wait every entry of the queue is in one match of up to four.
+    await tick(h, FOUR.match_wait);
+    expect(read_match_users(h)).toEqual([[twice.user_id, created.user_id]]);
+  });
+
+  it('does not put the user in the queue when the connection closes while prepare_match_request of its MATCH_REQUEST waits', async () => {
+    const h = await harness({ modes: [DUEL] });
+    const conn = await online(h, await player(h));
+    const held = hold_next_transaction(h, 'run_rollback_transaction');
+    send_frame(conn, match_request(DUEL.id));
+    await vi.waitFor(() => {
+      expect(held.calls()).toBe(1);
+    });
+    await close_and_wait(conn);
+    held.open();
+    await held.done();
+    const other = await queued(h, DUEL.id);
+    await tick(h);
+    expect(kinds(await barrier(other.conn))).not.toContain(K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+    expect(read_match_users(h)).toEqual([]);
+  });
+
+  it.each([
+    ['a second MATCH_REQUEST', match_request(FOUR.id)],
+    ['a ROOM_CREATE', room_create(ROOM_ONLY.id)],
+  ])('drops %s of the previous connection sent while its prepare_match_request waited for a new connection that authenticated, and the new connection makes the only entry of that user', async (_name, after) => {
+    const h = await harness({ modes: [FOUR, ROOM_ONLY] });
+    const s = await player(h);
+    const previous = await online(h, s);
+    const held = hold_next_transaction(h, 'run_rollback_transaction');
+    send_frame(previous, match_request(FOUR.id));
+    send_frame(previous, after);
+    await vi.waitFor(() => {
+      expect(held.calls()).toBe(1);
+    });
+    const fresh = await online(h, s);
+    expect(await close_code(previous)).toBe(CoreError.CORE_ERROR_SESSION_REPLACED);
+    held.open();
+    await held.done();
+    await barrier(fresh);
+    // In no queue and no room: the MATCH_REQUEST of the new connection is a request outside a room.
+    expect(await send_and_wait(fresh, match_request(FOUR.id))).toEqual([]);
+    const other = await queued(h, FOUR.id);
+    await tick(h, FOUR.match_wait);
+    const found = await next(fresh, K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+    expect(found.players.map((p) => [p.user_id, p.party])).toEqual([[s.user_id, 0], [other.session.user_id, 0]]);
+    expect(kinds(await barrier(fresh))).not.toContain(K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+    expect(read_match_users(h)).toEqual([[s.user_id, other.session.user_id]]);
+  });
+});
+
+describe('a participant connection closed while its match is created', () => {
+  it.each([
+    ['closes', async (_h: Harness, q: Awaited<ReturnType<typeof queued>>): Promise<Conn | null> => {
+      await close_and_wait(q.conn);
+      return null;
+    }],
+    ['is replaced by a new connection of that user', async (h: Harness, q: Awaited<ReturnType<typeof queued>>): Promise<Conn | null> => online(h, q.session)],
+  ])('when it %s after matching collected the entry: PEER_LEFT of that index, disconnected_at before MATCH_FOUND, no PEER_SIGNAL to it, and no MATCH_FOUND for a new connection', async (_name, close_it) => {
+    const h = await harness({ modes: [TRIO], settings: { 'environments.<ENV>.adapters.turn': 'fake', 'p2p-signaling.turnTimeoutMs': 1000 } });
+    const a = await queued(h, TRIO.id);
+    const b = await queued(h, TRIO.id);
+    const c = await queued(h, TRIO.id);
+    // The relays of the match do not come until p2p-signaling.turnTimeoutMs: the match is being created until then.
+    const turn = fake(h.server, 'turn') as { set_failure(op: string, f: string): void; calls(): readonly unknown[] };
+    turn.set_failure('issue_relays', 'timeout');
+    advance_time(h.server, TICK_MS);
+    await vi.waitFor(() => {
+      expect(turn.calls()).toHaveLength(1);
+    });
+    const fresh = await close_it(h, a);
+    const b_frames = await frames_until(b.conn, K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+    const found = b_frames.at(-1);
+    const match_id = found?.match_id ?? '';
+    // The DISCONNECTED of index 0 was written before MATCH_FOUND.
+    expect(participants(h, match_id).map((p) => p.disconnected_at !== 0n)).toEqual([true, false, false]);
+    expect(found?.players.map((p) => p.user_id)).toEqual([a.session.user_id, b.session.user_id, c.session.user_id]);
+    expect(b_frames.filter((f) => f.kind === K.MATCHMAKER_FRAME_KIND_PEER_LEFT).map((f) => f.index)).toEqual([0]);
+    const c_frames = await frames_until(c.conn, K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+    expect(c_frames.filter((f) => f.kind === K.MATCHMAKER_FRAME_KIND_PEER_LEFT).map((f) => f.index)).toEqual([0]);
+    send_frame(b.conn, frame(K.MATCHMAKER_FRAME_KIND_PEER_SIGNAL, (f) => {
+      f.index = 0;
+      f.payload = new Uint8Array([1]);
+    }));
+    await barrier(b.conn);
+    if (fresh !== null) {
+      const seen = kinds(await barrier(fresh));
+      expect(seen).not.toContain(K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+      expect(seen).not.toContain(K.MATCHMAKER_FRAME_KIND_PEER_SIGNAL);
+    }
+    expect(kinds(await barrier(c.conn))).not.toContain(K.MATCHMAKER_FRAME_KIND_PEER_SIGNAL);
   });
 });

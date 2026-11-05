@@ -1,6 +1,7 @@
 /** `### ReportMatchResult`, `### result decision` and the apply hook inputs. */
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import * as GameContract from '../../../generated/contract/game_contract.ts';
+import { storage_module } from '../../storage/tests/helpers.ts';
 import { advance_time, call_dev, hold_game_row_lock, load_data, read_logs, send, wait_background } from '../../testing/dev/index.ts';
 import type { MatchRecordInput } from '../index.ts';
 import {
@@ -8,12 +9,15 @@ import {
   GameError,
   Judge,
   K,
+  WAIT_MS,
   bytes_equal,
   calls_of,
   close_and_wait,
   frame,
   harness,
+  hold_next_transaction,
   hold_until_waiter,
+  hold_writes,
   log_bytes,
   match_request,
   matched,
@@ -22,6 +26,7 @@ import {
   online,
   participants,
   player,
+  read_frame,
   report,
   result_bytes,
   send_and_wait,
@@ -31,6 +36,7 @@ import {
   until,
   until_participants,
   version,
+  type Frame,
   type Harness,
   type HookCall,
   type Hooks,
@@ -49,6 +55,23 @@ function replayed(_record: MatchRecordInput, input_log: Uint8Array): Uint8Array 
 }
 
 const HOOKS: Hooks = { apply_result: () => 'pass', apply_mismatch: () => 'pass', replay: replayed };
+
+function rejoin(match_id: string): Frame {
+  return frame(K.MATCHMAKER_FRAME_KIND_MATCH_REJOIN, (f) => {
+    f.match_id = match_id;
+  });
+}
+
+function leave(match_id: string): Frame {
+  return frame(K.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, (f) => {
+    f.match_id = match_id;
+  });
+}
+
+/** The `MATCH_REJOINED` of the match among the frames. */
+function rejoined(frames: readonly Frame[], match_id: string): Frame | undefined {
+  return frames.find((f) => f.kind === K.MATCHMAKER_FRAME_KIND_MATCH_REJOINED && f.match_id === match_id);
+}
 
 afterEach(async () => {
   await stop_all();
@@ -328,6 +351,18 @@ describe('report errors', () => {
     expect(applied(h)).toHaveLength(2);
   });
 
+  it('throws from testing.call_dev of create_test_match when the game transaction that saves the match record is FAILED', async () => {
+    const h = await harness({ modes: MODES, hooks: HOOKS, settings: { 'storage.userLockWaitMs': 200 } });
+    const users = [(await player(h)).user_id, (await player(h)).user_id];
+    const release = await hold_writes(h, 'matchmaker_match');
+    try {
+      await expect(call_dev(h.server, 'matchmaker', 'create_test_match', [CONS2.id, users, 1n])).rejects.toThrow('the match record save failed');
+    } finally {
+      await release();
+    }
+    expect(storage_module(h.server).read_db().query('SELECT match_id FROM matchmaker_match', [])).toEqual([]);
+  });
+
   it('keeps the report and decision and marks the index when the reporter apply hook returns a GameError; the other apply goes on', async () => {
     let refuse: bigint | null = null;
     const hooks: Hooks = { apply_result: (_core, ctx) => (ctx.user_id === refuse ? GameError.GAME_ERROR_CORE_TEST : 'pass') };
@@ -477,6 +512,92 @@ describe('participants', () => {
     await tick(h, 1_000n);
     expect(b_calls()).toHaveLength(2);
     expect(b_calls()[1]?.record?.participants.map((p) => p.disconnected_at)).toEqual([0n, created_at]);
+  });
+
+  it('writes disconnected_at 0 when the REJOINED of an index is returned while the write of its DISCONNECTED waits for the match record lock', async () => {
+    const h = await harness({ modes: MODES, hooks: HOOKS });
+    const { players, found } = await matched(h, CONS2.id, 2);
+    const id = found[0]?.match_id ?? '';
+    const [a] = players;
+    if (a === undefined) throw new Error('players');
+    const held = hold_next_transaction(h, 'run_game_transaction');
+    // The new connection of a closes the earlier one before HELLO_ACK: the write of that DISCONNECTED waits.
+    const back = await online(h, a.session);
+    await vi.waitFor(() => {
+      expect(held.calls()).toBe(1);
+    });
+    expect(rejoined(await send_and_wait(back, rejoin(id)), id)?.ok).toBe(true);
+    expect(held.calls()).toBe(1);
+    held.open();
+    await vi.waitFor(() => {
+      expect(held.calls()).toBe(2);
+    });
+    await held.done();
+    expect(participants(h, id).map((p) => p.disconnected_at)).toEqual([0n, 0n]);
+  });
+
+  it('On PostgreSQL, takes a MATCH_LEAVE sent after MATCH_REJOINED while the REJOINED waits for the held match record lock, and a later MATCH_REJOIN of that participant is ok false after its connection closed before the release', async () => {
+    const h = await harness({ modes: MODES, hooks: HOOKS, db: 'postgresql', settings: { 'storage.userLockWaitMs': 20_000 } });
+    const { players, found } = await matched(h, CONS2.id, 2);
+    const id = found[0]?.match_id ?? '';
+    const [a] = players;
+    if (a === undefined) throw new Error('players');
+    await close_and_wait(a.conn);
+    await until_participants(h, id, (rows) => rows[0]?.disconnected_at !== 0n);
+    const back = await online(h, a.session);
+    const { released } = await hold_until_waiter(h.server, 'matchmaker_match', [id]);
+    // A lock wait of a game transaction holds the test's thread too, so the transaction of the REJOINED starts only
+    // after the close below, and then waits for the held lock.
+    const held = hold_next_transaction(h, 'run_game_transaction');
+    expect(rejoined(await send_and_wait(back, rejoin(id)), id)?.ok).toBe(true);
+    await vi.waitFor(() => {
+      expect(held.calls()).toBe(1);
+    });
+    await send_and_wait(back, leave(id));
+    await close_and_wait(back);
+    held.open();
+    await released;
+    await held.done();
+    const again = await online(h, a.session);
+    expect(rejoined(await send_and_wait(again, rejoin(id)), id)?.ok).toBe(false);
+  });
+
+  it('writes nothing for the DISCONNECTED of a connection that closes while the ReportMatchResult that decides holds the match record lock, and every apply hook gets disconnected_at 0 for that index', async () => {
+    const closing: { close: () => void } = { close: () => {} };
+    const hooks: Hooks = {
+      ...HOOKS,
+      apply_result: (_core, ctx) => {
+        // The apply of the reporter runs in the request transaction, which holds the lock of the match record row.
+        if (ctx.request_name !== '') closing.close();
+        return 'pass';
+      },
+    };
+    const h = await harness({ modes: MODES, hooks });
+    const open = vi.spyOn(h.core()['p2p-signaling'] as { open_match_session(...args: unknown[]): unknown }, 'open_match_session');
+    const { players, found } = await matched(h, CONS2.id, 2);
+    const id = found[0]?.match_id ?? '';
+    const [a, b] = players;
+    const a_index = found[0]?.my_index ?? -1;
+    if (a === undefined || b === undefined) throw new Error('players');
+    // The server side of a's connection, as matchmaker passed it to p2p-signaling.
+    const connections = (open.mock.calls[0]?.[2] ?? []) as readonly { close(): void }[];
+    closing.close = () => {
+      connections[a_index]?.close();
+    };
+    const games = vi.spyOn(storage_module(h.server), 'run_game_transaction');
+    expect((await report(a.session, id, result_bytes(1))).status).toBe(Judge.MATCH_JUDGE_STATUS_PENDING);
+    expect((await report(b.session, id, result_bytes(1))).status).toBe(Judge.MATCH_JUDGE_STATUS_CONFIRMED);
+    // The close happened in the reporter's apply: a's connection ended and b got PEER_LEFT of a's index.
+    expect(await read_frame(a.conn, WAIT_MS)).toBeNull();
+    expect((await next(b.conn, K.MATCHMAKER_FRAME_KIND_PEER_LEFT)).index).toBe(a_index);
+    await settled(h);
+    // Every game transaction, the one of the DISCONNECTED included, has ended.
+    await Promise.all(games.mock.results.map((r) => r.value as unknown));
+    const applies = calls_of(h, 'apply_match_result');
+    expect(applies.map((c) => c.user_id).sort()).toEqual([a.session.user_id, b.session.user_id].sort());
+    for (const c of applies) expect(c.record?.participants[a_index]?.disconnected_at).toBe(0n);
+    expect(participants(h, id)[a_index]?.disconnected_at).toBe(0n);
+    expect(read_logs(h.server, 'error').filter((l) => l['message'] === 'match record transaction failed')).toEqual([]);
   });
 
   it('writes the time a participant of a PENDING match was bound to a new match to left_at of the earlier record', async () => {

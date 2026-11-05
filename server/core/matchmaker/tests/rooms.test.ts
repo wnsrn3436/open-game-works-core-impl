@@ -17,6 +17,7 @@ import {
   close_code,
   frame,
   harness,
+  hold_next_transaction,
   hold_user_row,
   hold_writes,
   kill_switch,
@@ -651,6 +652,58 @@ describe('party', () => {
     const solo = await queued(h, BOTH.id);
     await tick(h, BOTH.match_wait);
     expect((await next(solo.conn, K.MATCHMAKER_FRAME_KIND_MATCH_FAILED)).reason).toBe(Reason.MATCH_FAIL_REASON_TIMEOUT);
+  });
+
+  it('answers a second host MATCH_REQUEST and a host ROOM_START sent while member rating resolution of a host MATCH_REQUEST waits with ROOM_BUSY after the party entry is in, and the queue has that one party entry', async () => {
+    const h = await harness({ modes: MODES });
+    const { members } = await room(h, BOTH.id, 2);
+    const [a, b] = members;
+    if (a === undefined || b === undefined) throw new Error('room');
+    const held = hold_next_transaction(h, 'run_rollback_transaction');
+    send_frame(a.conn, match_request(BOTH.id));
+    send_frame(a.conn, match_request(BOTH.id));
+    send_frame(a.conn, start_frame());
+    await vi.waitFor(() => {
+      expect(held.calls()).toBe(1);
+    });
+    held.open();
+    const out = await barrier(a.conn);
+    expect(out.map((f) => (f.kind === K.MATCHMAKER_FRAME_KIND_ROOM_STATE ? [f.kind, f.room_status] : [f.kind, f.error_code, f.request]))).toEqual([
+      [K.MATCHMAKER_FRAME_KIND_ROOM_STATE, RoomStatus.ROOM_STATUS_MATCHING],
+      [K.MATCHMAKER_FRAME_KIND_ROOM_FAILED, CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_MATCH_REQUEST],
+      [K.MATCHMAKER_FRAME_KIND_ROOM_FAILED, CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_ROOM_START],
+    ]);
+    // One party entry: the match of four with two solo users has each member once.
+    const s1 = await queued(h, BOTH.id);
+    const s2 = await queued(h, BOTH.id);
+    await tick(h);
+    const found = await next(s1.conn, K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+    expect(found.players.map((p) => p.user_id)).toEqual([a.user_id, b.user_id, s1.session.user_id, s2.session.user_id]);
+  });
+
+  it('changes nothing for a host MATCH_CANCEL sent while the match of its party entry is created: the members get MATCH_FOUND, then ROOM_STATE Open', async () => {
+    const h = await harness({ modes: MODES, settings: { 'environments.<ENV>.adapters.turn': 'fake', 'p2p-signaling.turnTimeoutMs': 1000 } });
+    const { members } = await room(h, PARTY2.id, 2);
+    const [a, b] = members;
+    if (a === undefined || b === undefined) throw new Error('room');
+    await send_and_wait(a.conn, match_request(PARTY2.id));
+    await barrier(b.conn);
+    await queued(h, PARTY2.id);
+    await queued(h, PARTY2.id);
+    // The relays of the match do not come until p2p-signaling.turnTimeoutMs: the match is being created until then.
+    const turn = fake(h.server, 'turn') as { set_failure(op: string, f: string): void; calls(): readonly unknown[] };
+    turn.set_failure('issue_relays', 'timeout');
+    advance_time(h.server, TICK_MS);
+    await vi.waitFor(() => {
+      expect(turn.calls()).toHaveLength(1);
+    });
+    expect(await send_and_wait(a.conn, frame(K.MATCHMAKER_FRAME_KIND_MATCH_CANCEL))).toEqual([]);
+    await wait_background(h.server);
+    for (const m of [a, b]) {
+      const out = await barrier(m.conn);
+      expect(kinds(out)).toEqual([K.MATCHMAKER_FRAME_KIND_MATCH_FOUND, K.MATCHMAKER_FRAME_KIND_ROOM_STATE]);
+      expect(out[1]?.room_status).toBe(RoomStatus.ROOM_STATUS_OPEN);
+    }
   });
 
   it('answers ROOM_START and a host MATCH_REQUEST with ROOM_BUSY while a member connection is bound to a match session, also with the kill switch MATCH_REQUEST on, leaving that match running, and they go on after that member MATCH_LEAVE', async () => {

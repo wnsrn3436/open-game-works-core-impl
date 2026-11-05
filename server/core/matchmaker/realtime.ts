@@ -752,9 +752,10 @@ export function create_realtime(env: Env, results: Results): Realtime {
     }
   };
 
-  const p2p_frame = async (client: Client, frame: CoreContract.MatchmakerFrame): Promise<void> => {
+  /** The handling ends when `handle_frame` returns; the participant change is written after it, in its match's order. */
+  const p2p_frame = (client: Client, frame: CoreContract.MatchmakerFrame): void => {
     const change = env.p2p.handle_frame(client, frame);
-    if (change !== null) await results.participant_change(change);
+    if (change !== null) void results.participant_change(change);
   };
 
   /** The handler of each client frame kind after `HELLO`; kinds without one are dropped. */

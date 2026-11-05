@@ -77,6 +77,8 @@ function collect<E extends QueueEntry>(queue: readonly E[], rule: MatchRule, spr
     teams.push(team);
     count += size;
     if (rule.team_size > 0) seats[team] = (seats[team] ?? 0) - size;
+    // No later entry fits a full match.
+    if (count === rule.max_players) break;
   }
   return { entries, teams, count };
 }
