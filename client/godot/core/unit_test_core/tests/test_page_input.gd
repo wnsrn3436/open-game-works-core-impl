@@ -41,8 +41,7 @@ func _js(code: String) -> String:
 
 
 func test_a_page_click_and_a_page_key_are_trusted_page_events_that_activate_the_page() -> void:
-	UnitTestCore.require_platform(PackedStringArray(["web"]))
-	if OS.get_name() != "Web":
+	if not UnitTestCore.require_platform(PackedStringArray(["web"])):
 		return
 	assert_eq(_js(_WATCH), "0")
 	assert_true(await UnitTestCore.put_page_click(Vector2(2, 2)))
@@ -59,8 +58,7 @@ func test_a_page_click_and_a_page_key_are_trusted_page_events_that_activate_the_
 
 ## An error log would fail the test: it is left unchecked.
 func test_page_input_is_false_without_an_error_log_in_the_native_run() -> void:
-	UnitTestCore.require_platform(_NATIVE)
-	if not CoreBuildInfo.platform in _NATIVE:
+	if not UnitTestCore.require_platform(_NATIVE):
 		return
 	assert_false(await UnitTestCore.put_page_click(Vector2(2, 2)))
 	assert_false(await UnitTestCore.put_page_key("q"))

@@ -4,6 +4,7 @@ extends "res://core/unit_test_core/tests/support/unit_test_core_test_case.gd"
 
 const STUCK := preload("res://core/unit_test_core/tests/resources/sample_stuck_signal.gd")
 const EARLY := preload("res://core/unit_test_core/tests/resources/sample_run_time_limit.gd")
+const PLATFORM := preload("res://core/unit_test_core/tests/resources/sample_platform.gd")
 
 
 func test_module_a_test_left_initialized_inits_in_the_next_test() -> void:
@@ -313,13 +314,34 @@ func test_render_test_file_is_skipped_only_in_the_headless_pass_of_core_tests() 
 
 
 func test_require_platform_skips_a_core_test_and_fails_a_regression_test() -> void:
+	PLATFORM.returned.clear()
 	var core: RunState = await run_nested(PackedStringArray(["sample_platform.gd"]))
+	var core_returned: Dictionary[String, bool] = {
+		"test_requires_another_platform": false,
+		"test_requires_another_platform_then_fails": false,
+		"test_requires_this_platform": true,
+	}
+	assert_eq(PLATFORM.returned, core_returned, "false for a list without the platform of the run, true for one with it")
 	assert_eq(status_of(core, "test_requires_another_platform"), "skip")
-	assert_eq(status_of(core, "test_requires_another_platform_then_fails"), "skip", "a failure after the skip")
-	assert_eq(core.run_failures, PackedStringArray(), "no run failure for the error log after the skip")
+	assert_string_contains(result_of(core, "test_requires_another_platform").message, "no_such_platform")
+	assert_eq(status_of(core, "test_fails_then_requires_another_platform"), "fail", "a failure before the skip")
+	assert_string_contains(result_of(core, "test_fails_then_requires_another_platform").message, "an assert failure before the skip")
+	assert_eq(status_of(core, "test_requires_another_platform_then_fails"), "fail", "a failure after the skip")
+	var after: String = result_of(core, "test_requires_another_platform_then_fails").message
+	assert_string_contains(after, "an assert failure after the skip")
+	assert_string_contains(after, "an error log after the skip")
+	assert_eq(core.run_failures, PackedStringArray(), "the error log after the skip fails its test, not the run")
 	assert_eq(status_of(core, "test_requires_this_platform"), "pass")
+	PLATFORM.returned.clear()
 	var regression: RunState = await run_nested(PackedStringArray(["sample_platform.gd"]), KIND_REGRESSION)
+	var regression_returned: Dictionary[String, bool] = {
+		"test_requires_another_platform": false,
+		"test_requires_another_platform_then_fails": false,
+		"test_requires_this_platform": false,
+	}
+	assert_eq(PLATFORM.returned, regression_returned, "false in a regression test")
 	assert_eq(status_of(regression, "test_requires_another_platform"), "fail")
+	assert_eq(status_of(regression, "test_fails_then_requires_another_platform"), "fail")
 	assert_eq(status_of(regression, "test_requires_another_platform_then_fails"), "fail")
 	assert_eq(status_of(regression, "test_requires_this_platform"), "fail")
 	assert_string_contains(result_of(regression, "test_requires_this_platform").message, "require_platform called in a regression test")

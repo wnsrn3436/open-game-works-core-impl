@@ -32,7 +32,8 @@ func test_default_downloader_of_the_runtime() -> void:
 
 
 func test_redirect_and_size_limit_over_real_http() -> void:
-	UnitTestCore.require_platform(PackedStringArray(["web"]))
+	if not UnitTestCore.require_platform(PackedStringArray(["web"])):
+		return
 	if not await start():
 		fail_test("setup failed")
 		return
@@ -71,7 +72,8 @@ func test_redirect_and_size_limit_over_real_http() -> void:
 
 
 func test_cancel_ends_the_download_once() -> void:
-	UnitTestCore.require_platform(PackedStringArray(["web"]))
+	if not UnitTestCore.require_platform(PackedStringArray(["web"])):
+		return
 	if not await start():
 		fail_test("setup failed")
 		return
@@ -92,7 +94,8 @@ func test_cancel_ends_the_download_once() -> void:
 
 
 func test_stall_timeout_over_the_fetch_downloader() -> void:
-	UnitTestCore.require_platform(PackedStringArray(["web"]))
+	if not UnitTestCore.require_platform(PackedStringArray(["web"])):
+		return
 	if not await start(_STALL_MS):
 		fail_test("setup failed")
 		return
