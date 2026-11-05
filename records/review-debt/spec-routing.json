@@ -1,18 +1,5 @@
 {
   "target": "spec routing",
   "nextId": 7,
-  "items": [
-    {
-      "id": "D5",
-      "location": "skills/server-core/modules/routing.md:147",
-      "problem": "The HTTP response of a route whose handler threw is not set. routing.md:147 says routing \"responds with `INTERNAL`\" on an unhandled exception of \"a handler or core\", and routing.md:221 says the `request` line of a route has `error_code` `INTERNAL` \"when the route handler threw\", so routing catches a route handler exception; but `INTERNAL` is defined only as a `ResponseEnvelope` error sent with HTTP 200 (routing.md:124), and route responses are HTTP status responses defined by the exporting module (routing.md:51, routing.md:60). One implementation sends HTTP 200 with a `ResponseEnvelope`, another HTTP 500 with no body. A caller that retries on a non-2xx status sees different results: e.g. a store or ad network calling `POST /iap/notify/<store>` or `GET /ads/callback/<network>` whose handler hits a `read_db` query that throws (storage.md:302, storage.md:350) does not resend after an HTTP 200, and the notification is lost. admin-api catches its own exceptions as 500 `internal` (admin-api.md:265), so this concerns the other routes",
-      "foundBy": "spec routing"
-    },
-    {
-      "id": "D6",
-      "location": "skills/server-core/modules/routing.md:122",
-      "problem": "Step 15 and the routing error table define no `error` log for a `CoreError` `INTERNAL` that a core `rpc` handler returns. Yet skills/server-core/modules/guild.md:297 (a core rpc lock wait `FAILED` → `INTERNAL`) and skills/server-core/modules/auth.md:350 (`remove_user` `FAILED` in `Withdraw` or `ConfirmAge` → `INTERNAL`) say routing leaves that `error` log. So whether those requests leave an `error` kind line is not set",
-      "foundBy": "spec coupon"
-    }
-  ]
+  "items": []
 }
