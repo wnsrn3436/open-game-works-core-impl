@@ -1037,6 +1037,135 @@ describe('a match being made', () => {
     expect(found_count(again)).toBe(1);
   });
 
+  const rejoin_frame = (match_id: string): Frame =>
+    frame(K.MATCHMAKER_FRAME_KIND_MATCH_REJOIN, (f) => {
+      f.match_id = match_id;
+    });
+
+  /** The next `MATCH_REJOINED` of the match on the connection. */
+  const rejoined = async (conn: Conn, match_id: string): Promise<Frame> => {
+    for (;;) {
+      const f = await next(conn, K.MATCHMAKER_FRAME_KIND_MATCH_REJOINED);
+      if (f.match_id === match_id) return f;
+    }
+  };
+
+  /**
+   * A room of two in `BOTH` whose `ROOM_START` match the host left and whose other member is disconnected from it, and
+   * that member back in the room on a new connection: the match, the host and that member's new connection.
+   */
+  const disconnected_member_back = async (h: Harness): Promise<{ match_id: string; a: Member; b: Member; code: string }> => {
+    const { members, code } = await room(h, BOTH.id, 2);
+    const [a, b] = members;
+    if (a === undefined || b === undefined) throw new Error('room');
+    const found = (await send_and_wait(a.conn, start_frame())).find((f) => f.kind === K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+    if (found === undefined) throw new Error('no MATCH_FOUND');
+    await next(b.conn, K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+    await close_and_wait(b.conn);
+    await send_and_wait(a.conn, frame(K.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, (f) => {
+      f.match_id = found.match_id;
+    }));
+    // The participant changes are written after the frame handling ends.
+    await vi.waitFor(() => {
+      expect(participants(h, found.match_id).map((p) => [p.left_at !== 0n, p.disconnected_at !== 0n])).toEqual([[true, false], [false, true]]);
+    });
+    const back: Member = { ...b, conn: await online(h, b.session) };
+    expect(failures(await join(code, back))).toEqual([]);
+    await barrier(a.conn);
+    return { match_id: found.match_id, a, b: back, code };
+  };
+
+  it('answers the ROOM_START of another room with ROOM_BUSY while the match record save of a ROOM_START waits and a member of that match left its room and joined the other room, and that member gets one MATCH_FOUND', async () => {
+    const h = await harness({ modes: MODES });
+    const { members } = await room(h, ROOM4.id, 3);
+    const [a, b, c] = members;
+    if (a === undefined || b === undefined || c === undefined) throw new Error('room');
+    const other = await create(h, ROOM4.id);
+    const d = other.host;
+    const save = hold_next_transaction(h, 'run_game_transaction');
+    send_frame(a.conn, start_frame());
+    await vi.waitFor(() => {
+      expect(save.calls()).toBe(1);
+    });
+    await send_and_wait(b.conn, frame(K.MATCHMAKER_FRAME_KIND_ROOM_LEAVE));
+    expect(failures(await join(other.code, b))).toEqual([]);
+    await barrier(d.conn);
+    const out = await send_and_wait(d.conn, start_frame());
+    expect(failures(out)).toEqual([[CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_ROOM_START]]);
+    expect(found_count(out)).toBe(0);
+    save.open();
+    await save.done();
+    await wait_background(h.server);
+    const b_frames = await until_found(b);
+    expect(found_count(b_frames)).toBe(1);
+    expect(b_frames[0]?.players.map((p) => p.user_id)).toEqual([a.user_id, b.user_id, c.user_id]);
+    expect(found_count(await barrier(d.conn))).toBe(0);
+  });
+
+  it('answers MATCH_REJOIN of a party member to an earlier match it was disconnected from with ok false while the match record save of its party match waits, keeps left_at 0 there, and gives the member the MATCH_FOUND of the new match', async () => {
+    const h = await harness({ modes: MODES });
+    const { match_id, a, b } = await disconnected_member_back(h);
+    expect(failures(await send_and_wait(a.conn, match_request(BOTH.id)))).toEqual([]);
+    await barrier(b.conn);
+    await queued(h, BOTH.id);
+    await queued(h, BOTH.id);
+    const save = hold_next_transaction(h, 'run_game_transaction');
+    advance_time(h.server, TICK_MS);
+    await vi.waitFor(() => {
+      expect(save.calls()).toBe(1);
+    });
+    send_frame(b.conn, rejoin_frame(match_id));
+    const answer = await rejoined(b.conn, match_id);
+    expect([answer.ok, answer.my_index, answer.players, answer.left_indices]).toEqual([false, 0, [], []]);
+    save.open();
+    await wait_background(h.server);
+    const found = await next(b.conn, K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+    expect(found.match_id).not.toBe(match_id);
+    expect(found.players.map((p) => p.user_id).slice(0, 2)).toEqual([a.user_id, b.user_id]);
+    expect(participants(h, match_id)[1]?.left_at).toBe(0n);
+  });
+
+  it('takes a member whose MATCH_REJOIN is ok true out of its room and the party entry out of the queue, and the member stays in the match it rejoined', async () => {
+    const h = await harness({ modes: MODES });
+    const { match_id, a, b } = await disconnected_member_back(h);
+    expect(failures(await send_and_wait(a.conn, match_request(BOTH.id)))).toEqual([]);
+    await barrier(b.conn);
+    send_frame(b.conn, rejoin_frame(match_id));
+    const answer = await rejoined(b.conn, match_id);
+    expect([answer.ok, answer.my_index]).toEqual([true, 1]);
+    const state = await last_state(a);
+    expect([state?.room_members, state?.room_status]).toEqual([[a.user_id], RoomStatus.ROOM_STATUS_OPEN]);
+    // Not in a room or the queue: ROOM_CREATE is taken.
+    const created = await send_and_wait(b.conn, frame(K.MATCHMAKER_FRAME_KIND_ROOM_CREATE, (f) => {
+      f.mode_id = BOTH.id;
+    }));
+    expect(failures(created)).toEqual([]);
+    await send_and_wait(b.conn, frame(K.MATCHMAKER_FRAME_KIND_ROOM_LEAVE));
+    await queued(h, BOTH.id);
+    await queued(h, BOTH.id);
+    await tick(h, BOTH.match_wait);
+    for (const conn of [a.conn, b.conn]) expect(found_count(await barrier(conn))).toBe(0);
+    await vi.waitFor(() => {
+      expect(participants(h, match_id)[1]).toEqual({ left_at: 0n, disconnected_at: 0n });
+    });
+  });
+
+  it('takes a solo user whose MATCH_REJOIN is ok true out of the queue', async () => {
+    const h = await harness({ modes: MODES });
+    const { match_id, b } = await disconnected_member_back(h);
+    await send_and_wait(b.conn, frame(K.MATCHMAKER_FRAME_KIND_ROOM_LEAVE));
+    expect(failures(await send_and_wait(b.conn, match_request(BOTH.id)))).toEqual([]);
+    send_frame(b.conn, rejoin_frame(match_id));
+    expect((await rejoined(b.conn, match_id)).ok).toBe(true);
+    const other = await queued(h, BOTH.id);
+    await tick(h, BOTH.match_wait);
+    expect(found_count(await barrier(b.conn))).toBe(0);
+    expect((await barrier(other.conn)).map((f) => [f.kind, f.reason])).toEqual([[K.MATCHMAKER_FRAME_KIND_MATCH_FAILED, Reason.MATCH_FAIL_REASON_TIMEOUT]]);
+    await vi.waitFor(() => {
+      expect(participants(h, match_id)[1]).toEqual({ left_at: 0n, disconnected_at: 0n });
+    });
+  });
+
   it('takes a ROOM_START again after making the match threw', async () => {
     const h = await harness({ modes: MODES });
     const { members } = await room(h, ROOM4.id, 2);
