@@ -7,6 +7,8 @@ var consume_keys: bool = false
 ## When not empty, it injects this action with the touch index as pointer ID for each touch press and release it gets.
 var pointer_action: StringName = &""
 var gui_inputs: int = 0
+## The engine class names of the GUI inputs it gets, in order.
+var gui_input_classes: PackedStringArray = PackedStringArray()
 var touch_presses: int = 0
 var touch_moves: int = 0
 var touch_releases: int = 0
@@ -16,6 +18,7 @@ var keys: int = 0
 
 func _gui_input(event: InputEvent) -> void:
 	gui_inputs += 1
+	gui_input_classes.append(event.get_class())
 	if event is InputEventKey:
 		keys += 1
 		if consume_keys:

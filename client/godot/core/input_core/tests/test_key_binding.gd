@@ -177,6 +177,33 @@ func test_get_keys_of_back_and_a_small_buffer() -> void:
 	assert_eq(errors(), 1, "the buffer is smaller than the binding")
 
 
+func test_a_default_binding_longer_than_the_limit() -> void:
+	InputCore.release()
+	var long_keys: PackedStringArray = PackedStringArray(["H", "G", "Y", "U"])
+	var long_pads: PackedStringArray = PackedStringArray(["y", "left_shoulder", "right_shoulder", "dpad_up"])
+	add_action(&"dash", [key_event(KEY_H), key_event(KEY_G), key_event(KEY_Y), key_event(KEY_U),
+		pad_button_event(JOY_BUTTON_Y), pad_button_event(JOY_BUTTON_LEFT_SHOULDER),
+		pad_button_event(JOY_BUTTON_RIGHT_SHOULDER), pad_button_event(JOY_BUTTON_DPAD_UP)])
+	assert_true(InputCore.init(), "a default binding longer than the limit")
+	var keys: PackedStringArray = PackedStringArray()
+	keys.resize(long_keys.size())
+	assert_eq(InputCore.get_keys(&"dash", keys), long_keys.size())
+	assert_eq(keys, long_keys)
+	var pads: PackedStringArray = PackedStringArray()
+	pads.resize(long_pads.size())
+	assert_eq(InputCore.get_pad_buttons(&"dash", pads), long_pads.size())
+	assert_eq(pads, long_pads)
+	assert_eq(errors(), 0, "the buffers hold the whole bindings")
+	key(KEY_U, true)
+	assert_true(InputCore.is_pressed(&"dash"), "the last key of the binding presses it")
+	key(KEY_U, false)
+	assert_false(InputCore.set_keys(&"dash", long_keys))
+	assert_false(InputCore.set_pad_buttons(&"dash", long_pads))
+	assert_eq(errors(), 0)
+	assert_eq(keys_of(&"dash"), long_keys)
+	assert_eq(pads_of(&"dash"), long_pads)
+
+
 ## The key binding of `action`.
 func pads_of(action: StringName) -> PackedStringArray:
 	var buffer: PackedStringArray = PackedStringArray()
