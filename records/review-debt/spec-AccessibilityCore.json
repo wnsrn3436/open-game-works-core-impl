@@ -1,12 +1,5 @@
 {
   "target": "spec AccessibilityCore",
   "nextId": 2,
-  "items": [
-    {
-      "id": "D1",
-      "location": "skills/client-core/modules/accessibility-core.md:76",
-      "problem": "When a subtitle is visible and a new `play_voice` shows no subtitle of its own (invalid handle by line 77, or an empty subtitle translation key by the error table at line 102), the spec does not set whether the previous subtitle stays until its own playback ends or is hidden by the new request. Line 76 says only that \"the subtitle of a new `play_voice` replaces the previous subtitle\", which covers a new request that has a subtitle, so implementations can differ, and `## test` (line 153) does not check this case",
-      "foundBy": "spec AccessibilityCore"
-    }
-  ]
+  "items": []
 }
