@@ -88,6 +88,20 @@ export interface DbAdapter {
   close(): void;
 }
 
+/** The SQLSTATE PostgreSQL gives a text parameter that holds U+0000. */
+const BAD_TEXT = '22021';
+
+/**
+ * Throws the `sql` DbError of a `string` parameter that holds U+0000 or is not well-formed UTF-16 (an unpaired
+ * surrogate): both DBs fail such a statement. PostgreSQL itself refuses U+0000, but both drivers would write an unpaired
+ * surrogate as U+FFFD.
+ */
+export function check_text_param(value: DbValue): void {
+  if (typeof value !== 'string') return;
+  if (value.includes('\u0000')) throw new DbError('sql', BAD_TEXT, 'a string parameter holds U+0000');
+  if (!value.isWellFormed()) throw new DbError('sql', BAD_TEXT, 'a string parameter holds an unpaired surrogate');
+}
+
 /** True for a `lock` or `connection` DbError: the operation that opened the transaction ends with `FAILED`. */
 export function is_db_failure(error: unknown): error is DbError {
   return error instanceof DbError && (error.kind === 'lock' || error.kind === 'connection');

@@ -127,18 +127,55 @@ export function set_user_created_at(core: StorageCore, ctx: unknown, time: unkno
   q(state, 'UPDATE "user" SET created_at = $1 WHERE user_id = $2', [time, state.user_id]);
 }
 
-export function scan_users(db: unknown, after: unknown, max: unknown, version?: unknown): bigint[] {
+export function scan_users(core: StorageCore, db: unknown, after: unknown, max: unknown, version?: unknown): bigint[] {
   if (typeof after !== 'bigint' || typeof max !== 'number' || !Number.isSafeInteger(max) || max < 1) throw new StorageMisuse('storage: scan_users input is not (bigint, integer >= 1)');
   if (version !== undefined && version !== null && typeof version !== 'bigint' && typeof version !== 'number') throw new StorageMisuse('storage: scan_users version is not an integer');
-  const lower = version === undefined || version === null ? null : BigInt(version);
-  const filter =
-    lower === null
-      ? ''
-      : ' AND (EXISTS (SELECT 1 FROM user_state s WHERE s.user_id = u.user_id AND s.contract_version < $3) OR EXISTS (SELECT 1 FROM server_state s WHERE s.user_id = u.user_id AND s.contract_version < $3))';
-  const params: DbValue[] = lower === null ? [after, max] : [after, max, lower];
-  return handle(db)
-    .query(`SELECT u.user_id FROM "user" u WHERE u.user_id > $1 AND u.withdrawn_at IS NULL${filter} ORDER BY u.user_id LIMIT $2`, params)
-    .map((row) => big(row.user_id));
+  const db_handle = handle(db);
+  if (version === undefined || version === null) {
+    return db_handle.query('SELECT user_id FROM "user" WHERE user_id > $1 AND withdrawn_at IS NULL ORDER BY user_id LIMIT $2', [after, max]).map((row) => big(row.user_id));
+  }
+  return users_below(core, db_handle, after, max, BigInt(version));
+}
+
+/**
+ * `scan_users` with a contract version: the users above `after` that are not withdrawn and have a row below `lower`.
+ * It reads only the index `(contract_version, user_id)` of each state table (core schema version 3): per contract
+ * version below `lower`, the first `max` users above the cursor. So the work of one call follows `max` and the number
+ * of those versions, not the number of users, also when no user is left.
+ */
+function users_below(core: StorageCore, db_handle: DbHandle, after: bigint, max: number, lower: bigint): bigint[] {
+  const sources = STATE_TABLES.flatMap((table) => versions_below(db_handle, table, lower).map((version) => ({ table, version })));
+  const found: bigint[] = [];
+  let cursor = after;
+  for (;;) {
+    const want = max - found.length;
+    const candidates = new Set<bigint>();
+    for (const { table, version } of sources) {
+      const rows = db_handle.query(`SELECT DISTINCT user_id FROM ${table} WHERE contract_version = $1 AND user_id > $2 ORDER BY user_id LIMIT $3`, [version, cursor, want]);
+      for (const row of rows) candidates.add(big(row.user_id));
+    }
+    // The first `want` of the candidates are the first `want` users of all sources: each source gave its first `want`.
+    const first = ascending_ids([...candidates]).slice(0, want);
+    if (first.length === 0) return found;
+    const list = in_id_list(core, 'user_id', first, 1);
+    const kept = db_handle.query(`SELECT user_id FROM "user" WHERE ${list.sql} AND withdrawn_at IS NULL ORDER BY user_id`, [list.param]).map((row) => big(row.user_id));
+    found.push(...kept);
+    // Fewer than `want` candidates: every source has given all its users above the cursor.
+    if (found.length === max || first.length < want) return found;
+    cursor = first[first.length - 1] as bigint;
+  }
+}
+
+/** The distinct contract versions below `lower` in a state table, one index step each. */
+function versions_below(db_handle: DbHandle, table: string, lower: bigint): bigint[] {
+  const versions: bigint[] = [];
+  let row = db_handle.query(`SELECT contract_version FROM ${table} WHERE contract_version < $1 ORDER BY contract_version LIMIT 1`, [lower])[0];
+  while (row !== undefined) {
+    const version = big(row.contract_version);
+    versions.push(version);
+    row = db_handle.query(`SELECT contract_version FROM ${table} WHERE contract_version > $1 AND contract_version < $2 ORDER BY contract_version LIMIT 1`, [version, lower])[0];
+  }
+  return versions;
 }
 
 /**

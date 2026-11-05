@@ -13,7 +13,7 @@ import {
   type WorkerRequest,
   type WorkerResult,
 } from './pg_messages.ts';
-import { DbError, type BeginOptions, type Begun, type DbAdapter, type DbConn, type DbTxConn, type DbValue, type Row, type Statement } from './types.ts';
+import { check_text_param, DbError, type BeginOptions, type Begun, type DbAdapter, type DbConn, type DbTxConn, type DbValue, type Row, type Statement } from './types.ts';
 
 /**
  * SQLSTATE of a lock wait over `lock_timeout`, a deadlock, a serialization failure and a statement over
@@ -30,6 +30,7 @@ function db_error(code: string, message: string): DbError {
 }
 
 function params_of(params: readonly DbValue[]): PgValue[] {
+  for (const p of params) check_text_param(p);
   return params.map((p) => p);
 }
 

@@ -440,7 +440,7 @@ export function create_storage_with(input: StorageInput, contract: StorageContra
     set_user_created_at: (ctx, time) => {
       set_user_created_at(core, ctx, time);
     },
-    scan_users: (handle, after, max, version) => scan_users(handle, after, max, version),
+    scan_users: (handle, after, max, version) => scan_users(core, handle, after, max, version),
     sample_users: (handle, max) => sample_users(core, handle, max),
     read_full_state: (ctx) => read_full_state(core, ctx),
     read_user_rows: (ctx) => read_user_rows(core, ctx),

@@ -188,9 +188,10 @@ async function open_user(core: StorageCore, user_id: bigint, fields: RequestFiel
 }
 
 /**
- * Runs a body. A lock or connection failure, and a body that ends by return or by throw after a statement broke the
- * transaction, end it as `FAILED`; the one exception is a body that throws the value of the statement failure that
- * broke it, which rolls back and throws. Any other throw rolls back and throws.
+ * Runs a body. A body that ends by return or by throw after a statement of this transaction broke it ends it as
+ * `FAILED`; the one exception is a body that throws the `sql` failure of the statement that broke it, which rolls
+ * back and throws. Any other throw rolls back and throws, also a lock or connection failure of a `read_db` statement:
+ * it is not a statement of this transaction.
  */
 async function body<T>(core: StorageCore, state: TxState, fn: () => T): Promise<{ value: T } | 'FAILED'> {
   let value: T;
@@ -198,8 +199,7 @@ async function body<T>(core: StorageCore, state: TxState, fn: () => T): Promise<
     value = in_context(core, state, fn);
   } catch (error) {
     await rollback(core, state);
-    if (is_db_failure(error)) return 'FAILED';
-    if (state.broken && error !== state.broken_by) return 'FAILED';
+    if (state.broken && (error !== state.broken_by || is_db_failure(error))) return 'FAILED';
     throw error;
   }
   if (!state.broken) return { value };
