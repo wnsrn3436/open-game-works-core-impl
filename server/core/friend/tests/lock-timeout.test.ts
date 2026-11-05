@@ -47,12 +47,12 @@ function lock_errors(h: Harness): Record<string, unknown>[] {
 
 /**
  * Sends `request` while another connection holds the `friend_count` row of `user_id`, and returns its error code.
- * On PostgreSQL the request reaches the friend lock, and `logged` is the request name of the one `error` log line of
- * the lock wait timeout it must add (null: none). On SQLite the holder holds the whole database, so the request fails
- * before friend runs.
+ * On PostgreSQL the request reaches the friend lock, whose `FAILED` makes the request transaction `FAILED`, and the
+ * request adds exactly one `error` log line: the `routing` line of that transaction, with the request name `logged`.
+ * On SQLite the holder holds the whole database, so the request fails before friend runs.
  */
-async function while_held(h: Harness, user_id: bigint, request: () => Promise<{ code: number }>, logged: string | null = null): Promise<number> {
-  const logs = lock_errors(h).length;
+async function while_held(h: Harness, user_id: bigint, request: () => Promise<{ code: number }>, logged: string): Promise<number> {
+  const logs = read_logs(h.server, 'error', 'error').length;
   const release = await hold_game_row_lock(h.server, COUNT_TABLE, [user_id]);
   let code: number;
   try {
@@ -60,7 +60,10 @@ async function while_held(h: Harness, user_id: bigint, request: () => Promise<{ 
   } finally {
     await release();
   }
-  if (default_db_kind() === 'postgresql') expect(lock_errors(h).slice(logs).map((line) => line['request'])).toEqual(logged === null ? [] : [logged]);
+  if (default_db_kind() === 'postgresql') {
+    const added = read_logs(h.server, 'error', 'error').slice(logs);
+    expect(added.map((line) => [line['message'], line['request']])).toEqual([['request transaction failed', logged]]);
+  }
   return code;
 }
 
@@ -107,7 +110,7 @@ describe('count row lock wait timeout', () => {
     const [a, b] = await users(h, 2);
     await befriend(a, b);
     const before = state(h, [a, b]);
-    expect(await while_held(h, id(b), () => withdraw(a))).toBe(CoreError.CORE_ERROR_INTERNAL);
+    expect(await while_held(h, id(b), () => withdraw(a), 'core/Withdraw')).toBe(CoreError.CORE_ERROR_INTERNAL);
     expect(state(h, [a, b])).toEqual(before);
   });
 

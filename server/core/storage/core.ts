@@ -124,6 +124,8 @@ export class TxState {
   active = true;
   /** A statement failed: the transaction does not commit. */
   broken = false;
+  /** The value that the statement which broke the transaction threw. */
+  broken_by: unknown = null;
   read_only = 0;
   touched = new Map<string, Touched>();
   item_changes: CoreContract.ItemChange[] = [];
@@ -219,7 +221,9 @@ export function is_write(sql: string): boolean {
  * a failed statement, so SQLite keeps the same meaning even when the caller catches the failure and goes on.
  */
 export function mark_broken(state: TxState, error: unknown): void {
-  if (error instanceof DbError && error.kind !== 'readonly') state.broken = true;
+  if (!(error instanceof DbError) || error.kind === 'readonly' || state.broken) return;
+  state.broken = true;
+  state.broken_by = error;
 }
 
 /** Everything one `storage` instance holds. */

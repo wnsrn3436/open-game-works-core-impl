@@ -366,12 +366,11 @@ export function create_coupon(input: CouponInput): CouponModule {
     return coupon;
   };
 
-  /** The step 4 row lock. False, with the `error` log, when `lock_game_row` is `FAILED`. */
-  const lock_use_row = (ctx: RequestCtx, table: string, key: readonly unknown[]): boolean => {
-    if (storage.lock_game_row(ctx, table, key) !== 'FAILED') return true;
-    write_error(`coupon ${table} row lock failed`, ctx.user_id, ctx.request_id, null);
-    return false;
-  };
+  /**
+   * The step 4 row lock. False when `lock_game_row` is `FAILED`: that breaks the transaction, so `storage` makes the
+   * request transaction `FAILED` and `routing` leaves the `error` log.
+   */
+  const lock_use_row = (ctx: RequestCtx, table: string, key: readonly unknown[]): boolean => storage.lock_game_row(ctx, table, key) !== 'FAILED';
 
   /** Step 4: locks the coupon row (`shared`) or the code row (`unique`) and reads the use limit again. Null when it is free. */
   const check_use_limit = (ctx: RequestCtx, db: DbHandle, coupon: CouponRow, code: string): CoreContract.CoreError | null => {
