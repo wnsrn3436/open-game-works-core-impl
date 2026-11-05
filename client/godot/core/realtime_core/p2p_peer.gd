@@ -81,14 +81,16 @@ func apply(received: _SIGNAL) -> void:
 			_add_candidate(received)
 
 
-## Reads the connection and updates `status`.
+## Reads the connection and updates `status`. A connection that fails before it was connected stays `CONNECTING`: only
+## a connected connection becomes `LOST` here, and RealtimeCore judges the time limit of the other.
 func poll() -> void:
 	if connection == null or status == Status.LOST:
 		return
 	connection.poll()
 	var state: WebRTCPeerConnection.ConnectionState = connection.get_connection_state()
 	if state == WebRTCPeerConnection.STATE_FAILED or state == WebRTCPeerConnection.STATE_CLOSED:
-		status = Status.LOST
+		if status == Status.CONNECTED:
+			status = Status.LOST
 		return
 	if status == Status.CONNECTED:
 		if state == WebRTCPeerConnection.STATE_DISCONNECTED or not _is_open(reliable) or not _is_open(unreliable):
