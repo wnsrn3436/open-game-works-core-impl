@@ -1,6 +1,6 @@
 {
   "target": "storage",
-  "nextId": 3,
+  "nextId": 4,
   "items": [
     {
       "id": "D1",
@@ -13,6 +13,12 @@
       "location": "server/core/storage/db/pg_worker.ts:287",
       "problem": "On PostgreSQL, a lock wait of 0 fails every transaction even when it would wait for nothing, because `open_tx` throws `NO_FREE_CONNECTION` when `wait_ms < 1` and `wait_ms` is the lock wait itself when no connection wait happened. `settings/core-settings.schema.json` allows 0 for `storage.userLockWaitMs` and `storage.schemaLockWaitMs`, and `open-game-works-core/skills/server-core/modules/storage.md:141` and `:263` fail only when the wait exceeds the value. Reproduced on the adapter against PostgreSQL 18.6 with an idle pool: `PostgresAdapter.begin({lock_wait_ms: 1, first: null})` is ok, and `begin({lock_wait_ms: 0, first: null})` is `DbError` kind `lock` code `POOL` \"the wait for a free PostgreSQL connection left nothing of the lock wait\". `is_db_failure` makes kind `lock` the `FAILED` of a transaction, so by code path `storage.userLockWaitMs` 0 makes the rate counter `run_game_transaction` `FAILED` and each request that counts it `INTERNAL` (`routing.md:174`); SQLite does not have this path. `storage.schemaLockWaitMs` 0 goes through the same line at server start: the `core update` report `records/1793768289963-update-core-mw1nbqne990438.md` observed that message on PostgreSQL only, and `server/core/routing/tests/settings-minimum.test.ts` keeps that key at its default. The same test sets `storage.userLockWaitMs` to 0 and passes because it checks server start only",
       "foundBy": "routing round 1"
+    },
+    {
+      "id": "D3",
+      "location": "server/core/storage/tx.ts:212",
+      "problem": "In `run_user`, a function that returns a failure code makes it return that code even when the transaction is broken (`state.broken` set by `mark_broken` after a PostgreSQL lock abort in `lock_row`, `tx.ts:387`). It rolls back without returning `FAILED`. The same applies to `run_game` at `tx.ts:263`. `storage.md:151` says that after such an abort, \"When the function ends, by return or by throw, ... the operation that opened that transaction is `FAILED`\", and `routing.md:122` relies on that (\"step 13 handles that `FAILED` instead\"). Run path: the probe of R4-1 on PostgreSQL. `lock_game_row` of `coupon_coupon` is `FAILED`, coupon returns `INTERNAL`, `run_request_transaction` returns that code, and routing `finish` (`server/core/routing/pipeline.ts:701`) never takes the `FAILED` branch, so no `request transaction failed` `error` log was written. The same path also lets a content handler that catches a lock throw and returns a `GameError` respond with that `GameError` instead of `INTERNAL`",
+      "foundBy": "coupon round 4"
     }
   ]
 }
