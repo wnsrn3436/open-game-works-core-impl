@@ -141,6 +141,8 @@ function check_scalars(input: Readonly<Record<string, unknown>>, allow_no_expiry
   if (no_expiry !== undefined && typeof no_expiry !== 'boolean') return 'no_expiry is not a bool';
   if (no_expiry === true && !allow_no_expiry) return 'no_expiry is true outside grant_or_mail';
   if (once_key !== undefined && typeof once_key !== 'string') return 'once_key is not a string';
+  // A string parameter holding U+0000 fails the query in both DBs (storage), so it is refused before any query.
+  if (typeof once_key === 'string' && once_key.includes('\u0000')) return 'once_key holds U+0000';
   return null;
 }
 

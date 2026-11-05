@@ -109,6 +109,16 @@ describe('send_mail', () => {
     expect(await mail_ids(ms, user.user_id)).toEqual([first.mail_id]);
   });
 
+  test('refuses a once_key holding U+0000 before any query: no mail and no mailbox_once_key row', async () => {
+    const user = await login(ms);
+    expect(await send_mail(ms, user.user_id, plain({ once_key: 'a\u0000b' }))).toEqual({ result: 'INVALID_INPUT', mail_id: 0n });
+    expect(await mail_ids(ms, user.user_id)).toEqual([]);
+    const rows = await peek(ms, user.user_id, (ctx) => ms.storage.read_user_rows(ctx));
+    expect(rows.filter((row) => row.table === 'mailbox_once_key')).toEqual([]);
+    const refused = user_logs(ms, 'error', user.user_id).filter((line) => String(line.message).includes('send_mail input is invalid'));
+    expect(refused.map((line) => line.reason)).toEqual(['once_key holds U+0000']);
+  });
+
   test('answers INVALID_INPUT, not ALREADY_SENT, to a sent once_key with an expire_ms over mailbox.maxExpireMs', async () => {
     const user = await login(ms);
     const first = await send_mail(ms, user.user_id, plain({ once_key: 'gift' }));
