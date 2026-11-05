@@ -1,5 +1,12 @@
 {
   "target": "spec ranking",
-  "nextId": 3,
-  "items": []
+  "nextId": 4,
+  "items": [
+    {
+      "id": "D3",
+      "location": "skills/server-core/modules/ranking.md:166",
+      "problem": "This line says the job leaves an `error` log when the handling for one user is `FAILED`, with no exception. `skills/server-core/modules/server-time.md:93` says failures after `stop()` of the module has started are not logged, and line 174 only says that a `FAILED` result after `stop()` is not written. The two documents disagree about whether the `FAILED` handling of one user after `stop()` is logged. This was there before this diff.",
+      "foundBy": "spec ranking"
+    }
+  ]
 }
