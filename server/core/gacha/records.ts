@@ -25,11 +25,15 @@ const COLUMNS: readonly ColumnInput[] = [
 
 const SELECTED = 'user_id, draw_seq, drawn_at, request_id, banner_id, draw_index, kind, rate_up, items, pity_count_before, cost, data_version, expires_at';
 
-// draw_seq is the user's largest draw_seq + 1, taken in the same statement as the write (`storage` `### expiry`).
-// Rows that expired but are not swept yet still count, so the new key never meets an existing row.
+// The `SET` list of the record upsert: every column outside the key `(user_id, draw_seq)`.
+const UPSERT_SET = COLUMNS.filter((c) => c.name !== 'user_id' && c.name !== 'draw_seq').map((c) => `${c.name} = excluded.${c.name}`).join(', ');
+
+// draw_seq is the largest draw_seq of the user's rows that have not expired at clock_now + 1, taken in the same statement
+// as the write (`storage` `### expiry`). An expired row with that key that the sweep has not removed yet is written over.
 const INSERT =
   `INSERT INTO ${RECORD_TABLE} (${SELECTED}) VALUES ` +
-  `($1, (SELECT COALESCE(MAX(draw_seq), 0) + 1 FROM ${RECORD_TABLE} WHERE user_id = $1), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING draw_seq`;
+  `($1, (SELECT COALESCE(MAX(draw_seq), 0) + 1 FROM ${RECORD_TABLE} WHERE user_id = $1 AND expires_at > $13), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) ` +
+  `ON CONFLICT (user_id, draw_seq) DO UPDATE SET ${UPSERT_SET} RETURNING draw_seq`;
 
 // A banner's rows are read by RECORD_BANNER_INDEX: those queries hold the banner as a plain equality so the index applies.
 const LIST_LATEST = `SELECT ${SELECTED} FROM ${RECORD_TABLE} WHERE user_id = $1 AND expires_at > $2 ORDER BY draw_seq DESC LIMIT $3`;
@@ -155,8 +159,8 @@ function stored(row: Readonly<Record<string, unknown>>): StoredRecord {
   };
 }
 
-/** Writes one draw record and returns its `draw_seq`. */
-export function insert_record(db: DbHandle, record: NewRecord): bigint {
+/** Writes one draw record at `server-time.clock_now` `now` and returns its `draw_seq`. */
+export function insert_record(db: DbHandle, record: NewRecord, now: bigint): bigint {
   const rows = db.query(INSERT, [
     record.user_id,
     record.drawn_at,
@@ -170,6 +174,7 @@ export function insert_record(db: DbHandle, record: NewRecord): bigint {
     items_text(record.cost),
     record.data_version,
     record.expires_at,
+    now,
   ]);
   return int64(rows[0]?.draw_seq);
 }
