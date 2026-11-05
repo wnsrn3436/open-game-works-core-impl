@@ -1,12 +1,5 @@
 {
   "target": "block-report",
   "nextId": 9,
-  "items": [
-    {
-      "id": "D3",
-      "location": "server/core/block-report/index.ts:411",
-      "problem": "`efficiency`: `BlockUser` of a new target calls `public-profile.is_active_user` once per existing block row, and each call is one `storage.get_user_record` query (server/core/public-profile/index.ts:181). Measured `is_active_user` calls for six successive `BlockUser` requests: 1, 2, 3, 4, 5, 6. The growing amount is the user's block row count, up to `block-report.maxBlocks` (default 100; the settings schema sets no maximum). Existed before the range",
-      "foundBy": "block-report round 1"
-    }
-  ]
+  "items": []
 }
