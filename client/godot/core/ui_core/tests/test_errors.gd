@@ -10,6 +10,29 @@ func test_prefab_root_that_is_not_a_panel_or_popup() -> void:
 	assert_eq(await UICore.open_popup(NOT_PANEL, null, Callable()), UICore.PopupOpenResult.FAILED)
 	assert_eq(errors(), 1)
 	assert_eq(UICore.get_panel_stack().size(), 0)
+	assert_false(await UICore.open_root_panel(NOT_PANEL))
+	assert_eq(errors(), 1)
+	var request: UIPanelRequest = UIPanelRequest.new()
+	request.panel_key = NOT_PANEL
+	assert_false(await UICore.open_panels([request] as Array[UIPanelRequest]))
+	assert_eq(errors(), 1)
+	assert_eq(UICore.get_panel_stack().size(), 0)
+
+
+func test_refused_param_of_a_close_flow_destination() -> void:
+	assert_true(await start())
+	assert_true(await UICore.open_panel(PANEL_A, null, false))
+	assert_true(await UICore.open_panel(PANEL_B, null, false))
+	assert_true(await UICore.open_panel(PANEL_C, null, false))
+	LOG.refused[PANEL_B] = true
+	LOG.entries = PackedStringArray()
+	assert_false(await UICore.close_panel(), "without force")
+	assert_eq(errors(), 1)
+	assert_eq(LOG.count(PANEL_B + ":prepare"), 0, "prepare is not called")
+	assert_eq(UICore.get_panel_stack(), PackedStringArray([PANEL_A, PANEL_B, PANEL_C]))
+	assert_true(await UICore.close_panel(true), "with force")
+	assert_eq(errors(), 1)
+	assert_eq(UICore.get_panel_stack(), PackedStringArray([PANEL_A]), "continues with the item below")
 
 
 func test_refused_param() -> void:

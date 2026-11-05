@@ -42,6 +42,16 @@ const ITEM_MEASURED: String = "prefab/ui_test_item_measured"
 const ITEM_WRAPPED: String = "prefab/ui_test_item_wrapped"
 const LOADING_ITEM: String = "prefab/ui_test_loading_item"
 const TWEEN: String = "tween/ui_test_tween"
+## The test tween preset under a key that `load_resources` does not load.
+const TWEEN_LATE: String = "tween/ui_test_tween_late"
+## Open and close tween `TWEEN_LATE`.
+const PANEL_LATE_TWEEN: String = "prefab/ui_test_panel_late_tween"
+const POPUP_LATE_TWEEN: String = "prefab/ui_test_popup_late_tween"
+## `UISystemPopup` roots with the body area `Body` and the button area `Buttons` set: both, only the button area, only
+## the body area.
+const SYSTEM_AREAS: String = "prefab/ui_test_system_areas"
+const SYSTEM_BUTTON_AREA: String = "prefab/ui_test_system_button_area"
+const SYSTEM_BODY_AREA: String = "prefab/ui_test_system_body_area"
 ## The resource key of `[ui_button_click]` in the core test data.
 const CLICK: String = "sfx/ui_button_click"
 ## Not in the test key list.
@@ -66,8 +76,9 @@ var hidden_calls: PackedStringArray = PackedStringArray()
 var after_calls: PackedStringArray = PackedStringArray()
 var opened_events: PackedStringArray = PackedStringArray()
 var closed_events: PackedStringArray = PackedStringArray()
-## Opened and closed events in order, as `opened:<key>` and `closed:<key>`.
+## Opened, closed and flow finished events in order, as `opened:<key>`, `closed:<key>` and `finished`.
 var ui_events: PackedStringArray = PackedStringArray()
+## `PanelFlowFinishedEvent`s as `<is_open>:<success>`.
 var finished_events: PackedStringArray = PackedStringArray()
 ## Real elapsed time of every `PanelFlowFinishedEvent` with `is_panel_transitioning` at that time.
 var transitioning_at_finish: Array[bool] = []
@@ -150,6 +161,12 @@ func resource_keys() -> Dictionary[String, String]:
 		ITEM_WRAPPED: RESOURCES + "test_item_wrapped.tscn",
 		LOADING_ITEM: RESOURCES + "test_loading_item.tscn",
 		TWEEN: RESOURCES + "test_tween.tres",
+		TWEEN_LATE: RESOURCES + "test_tween.tres",
+		PANEL_LATE_TWEEN: RESOURCES + "test_panel_late_tween.tscn",
+		POPUP_LATE_TWEEN: RESOURCES + "test_popup_late_tween.tscn",
+		SYSTEM_AREAS: RESOURCES + "test_system_areas.tscn",
+		SYSTEM_BUTTON_AREA: RESOURCES + "test_system_button_area.tscn",
+		SYSTEM_BODY_AREA: RESOURCES + "test_system_body_area.tscn",
 	}
 	keys[CLICK] = RESOURCES + "test_click.tres"
 	return keys
@@ -194,12 +211,14 @@ func start(init_ui: bool = true, prepare: bool = true, load_all: bool = true) ->
 	return loaded and translated and prepared
 
 
-## Loads every resource of the test key list into the global scope and waits for the result. The threaded loads end
+## Loads every resource of the test key list but `TWEEN_LATE` into the global scope and waits for the result. The threaded loads end
 ## before a test flow starts, so the UICore flows take the cached resources and the frames a test waits for are the
 ## frames of those flows, not of the engine load threads.
 func load_resources() -> bool:
 	var request: PreloadRequest = PreloadRequest.new()
 	for key: String in resource_keys():
+		if key == TWEEN_LATE:
+			continue
 		var kind: int = ResourceCore.BaseKind.PACKED_SCENE
 		if key == TWEEN:
 			kind = TweenCore.get_preset_kind()
@@ -229,7 +248,8 @@ func _on_closed(event: UIClosedEvent) -> void:
 
 
 func _on_finished(event: PanelFlowFinishedEvent) -> void:
-	finished_events.append("%s:%s:%s" % [event.panel_key, event.is_open, event.success])
+	finished_events.append("%s:%s" % [event.is_open, event.success])
+	ui_events.append("finished")
 	transitioning_at_finish.append(UICore.is_panel_transitioning())
 
 

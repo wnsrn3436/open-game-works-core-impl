@@ -203,7 +203,7 @@ func test_a_failed_return_to_the_root_stops_before_opening() -> void:
 func test_a_failed_open_stops_without_a_shortcut_log() -> void:
 	assert_true(await start_at(SCENE_ROOT))
 	assert_false(await ShortcutCore.navigate(shortcut("root_f")))
-	assert_eq(flows(), PackedStringArray(["flow:open:f:false"]))
+	assert_eq(flows(), PackedStringArray(["flow:open:r:false"]), "the current panel stays r")
 	assert_eq(errors(TAG), 0)
 	assert_eq(probe.navigated_ids.size(), 0)
 	UnitTestCore.check_logs(ERROR, "UICore")

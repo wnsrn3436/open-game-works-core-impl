@@ -7,7 +7,7 @@ const _VIEW := preload("res://core/ui_core/panel_view.gd")
 enum Kind { OPEN, CLOSE }
 
 var kind: Kind = Kind.OPEN
-## Opened panel key, or the panel key a close flow closes down to. The payload of `PanelFlowFinishedEvent`.
+## Panel key an open flow opens.
 var panel_key: String = ""
 var param: UIParam = null
 var clear_stack: bool = false

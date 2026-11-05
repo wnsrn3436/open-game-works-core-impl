@@ -86,6 +86,8 @@ func _assert_initial_statics() -> void:
 	assert_null(UICore._open_record)
 	assert_eq(UICore._shown_normal.size(), 0)
 	assert_eq(UICore._shown_system.size(), 0)
+	assert_eq(UICore._loading_system.size(), 0)
+	assert_eq(UICore._system_serial, 0)
 	assert_false(UICore._closing_all)
 	assert_eq(UICore._icon_tokens.size(), 0)
 	assert_eq(UICore._icon_serial, 0)
@@ -107,6 +109,25 @@ func _assert_initial_statics() -> void:
 	assert_eq(UICore._last_click_ms, 0)
 	assert_eq(UICore._action_buttons.size(), 0)
 	assert_eq(UICore._anchors.size(), 0)
+
+
+func test_release_stops_a_system_popup_loading_its_tween_presets() -> void:
+	set_string("UICore.systemPopupResource", POPUP_LATE_TWEEN)
+	assert_true(await start())
+	var opening: CALL = CALL.new()
+	opening.open_system_popup(one_button_param(), hidden_of("system"))
+	assert_eq(UICore._loading_system.size(), 1, "it loads its tween presets")
+	var instance: Control = UICore._loading_system[0].instance
+	var scope: Scope = UICore._loading_system[0].scope
+	UICore.release()
+	assert_true(opening.done)
+	assert_false(opening.ok)
+	assert_true(scope.released)
+	assert_false(is_instance_valid(instance), "the instance is freed")
+	await UnitTestCore.wait_frames(3)
+	assert_eq(hidden_calls.size(), 0)
+	assert_false(InputBlockCore.is_blocked())
+	_assert_initial_statics()
 
 
 func test_release_stops_prepare() -> void:

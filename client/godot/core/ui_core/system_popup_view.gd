@@ -1,6 +1,8 @@
 extends Control
 ## Code made content of a system popup: the body and extra text, which scroll when they do not fit, over one to
-## three buttons spread evenly. It fills the system popup instance root with a margin.
+## three buttons spread evenly in one row. It fills the system popup instance root. The body and the buttons go into
+## the body area and button area `Control`s of a `UISystemPopup` root, or into the part of this view each takes from
+## the root: the buttons in a strip along the bottom edge, the body above the top edge of the button area.
 
 const _MARGIN: float = 16.0
 const _BUTTON_HEIGHT: float = 56.0
@@ -12,6 +14,10 @@ var scroll: ScrollContainer = null
 var body_label: Label = null
 var extra_label: Label = null
 var buttons: Array[Button] = []
+## The button row.
+var row: HBoxContainer = null
+## The button area `Control` of the root when the body area is taken from the root above it; `null` otherwise.
+var _fit_above: Control = null
 var _on_button_input_callable: Callable = Callable()
 var _on_scroll_input_callable: Callable = Callable()
 
@@ -19,29 +25,23 @@ var _on_scroll_input_callable: Callable = Callable()
 func _init() -> void:
 	_on_button_input_callable = _on_button_input
 	_on_scroll_input_callable = _on_scroll_input
+	set_process(false)
 
 
-## Builds the content. `labels` are the translated button labels.
-func build(owner_popup: Control, body: String, extra: String, labels: PackedStringArray) -> void:
+## Builds the content. `labels` are the translated button labels. `body_area` and `button_area` are the area
+## `Control`s inside the root, or `null` for an area taken from the root.
+func build(
+		owner_popup: Control, body: String, extra: String, labels: PackedStringArray, body_area: Control,
+		button_area: Control
+) -> void:
 	popup = owner_popup
 	name = "SystemPopupContent"
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	offset_left = _MARGIN
-	offset_top = _MARGIN
-	offset_right = -_MARGIN
-	offset_bottom = -_MARGIN
-	var column: VBoxContainer = VBoxContainer.new()
-	column.set_anchors_preset(Control.PRESET_FULL_RECT)
-	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_theme_constant_override("separation", _SEPARATION)
-	add_child(column)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	scroll = ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	if scroll.gui_input.connect(_on_scroll_input_callable) != OK:
 		LogCore.log_error(UICore._TAG, "system popup: gui_input connect failed")
-	column.add_child(scroll)
 	var texts: VBoxContainer = VBoxContainer.new()
 	texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	texts.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -56,10 +56,9 @@ func build(owner_popup: Control, body: String, extra: String, labels: PackedStri
 	extra_label.text = extra
 	extra_label.visible = not extra.is_empty()
 	texts.add_child(extra_label)
-	var row: HBoxContainer = HBoxContainer.new()
+	row = HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_theme_constant_override("separation", _SEPARATION)
-	column.add_child(row)
 	for i: int in labels.size():
 		var button: Button = Button.new()
 		button.text = labels[i]
@@ -73,6 +72,42 @@ func build(owner_popup: Control, body: String, extra: String, labels: PackedStri
 		button.add_child(ui_button)
 		row.add_child(button)
 		buttons.append(button)
+	if button_area != null:
+		button_area.add_child(row)
+		row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	else:
+		add_child(row)
+		row.anchor_left = 0.0
+		row.anchor_top = 1.0
+		row.anchor_right = 1.0
+		row.anchor_bottom = 1.0
+		row.offset_left = _MARGIN
+		row.offset_top = -(_MARGIN + _BUTTON_HEIGHT)
+		row.offset_right = -_MARGIN
+		row.offset_bottom = -_MARGIN
+	if body_area != null:
+		body_area.add_child(scroll)
+		scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	else:
+		add_child(scroll)
+		scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
+		scroll.offset_left = _MARGIN
+		scroll.offset_top = _MARGIN
+		scroll.offset_right = -_MARGIN
+		scroll.offset_bottom = -(_MARGIN + _BUTTON_HEIGHT + _SEPARATION)
+		if button_area != null:
+			_fit_above = button_area
+			set_process(true)
+
+
+## The body taken from the root ends above the top edge of the button area `Control`, which may move.
+func _process(_delta: float) -> void:
+	if not is_instance_valid(_fit_above):
+		return
+	var top: float = (get_global_transform().affine_inverse() * _fit_above.get_global_rect().position).y
+	var offset: float = maxf(top - _SEPARATION, _MARGIN) - size.y
+	if not is_equal_approx(scroll.offset_bottom, offset):
+		scroll.offset_bottom = offset
 
 
 ## Moves the scroll position by `step` game coordinates; the scroll container keeps it in range.
