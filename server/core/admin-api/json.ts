@@ -145,11 +145,18 @@ export function is_integer_text(text: string): boolean {
   return INTEGER.test(text);
 }
 
+/** True when the text holds no U+0000 (a DB text parameter cannot hold it) and no unpaired surrogate. */
+export function is_clean_text(text: string): boolean {
+  return !text.includes('\u0000') && text.isWellFormed();
+}
+
 /**
  * A parsed value with `JsonNumber` replaced: safe integers by `number`, other integers by `bigint`. Undefined when a
- * number anywhere in it has a fraction or an exponent, which the body rules refuse.
+ * number anywhere in it has a fraction or an exponent, or a string or member name anywhere in it is not clean text,
+ * which the body rules refuse.
  */
 export function plain_json(value: unknown): unknown {
+  if (typeof value === 'string') return is_clean_text(value) ? value : undefined;
   if (value instanceof JsonNumber) {
     if (!is_integer_text(value.source)) return undefined;
     const big = BigInt(value.source);
@@ -161,7 +168,7 @@ export function plain_json(value: unknown): unknown {
   }
   if (is_plain_object(value)) {
     const entries = Object.entries(value).map(([k, v]) => [k, plain_json(v)] as const);
-    return entries.some(([, v]) => v === undefined) ? undefined : Object.fromEntries(entries);
+    return entries.some(([k, v]) => v === undefined || !is_clean_text(k)) ? undefined : Object.fromEntries(entries);
   }
   return value;
 }

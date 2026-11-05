@@ -80,14 +80,16 @@ describe('body rules', () => {
     expect((await admin(server, 'get_user', `{"user_id":"${user_id}"}`)).status).toBe(200);
   });
 
-  it('answers 400 for grant_items whose operation_id holds U+0000, with no balance change and one audit line', async () => {
+  it('answers 400 for grant_items whose operation_id holds U+0000 or is "\\ud800", with no balance change and one audit line each', async () => {
     server = await start();
     const { user_id } = await login(server, 'nul');
-    const lines = audits(server, 'grant_items').length;
-    const reply = await admin(server, 'grant_items', `{"operation_id":"a\\u0000b","user_id":"${user_id}","items":${JSON.stringify(items(GOLD, 1n))}}`);
-    expect([reply.status, reply.json.error]).toEqual([400, 'bad_request']);
-    expect(audits(server, 'grant_items').length - lines).toBe(1);
-    expect(await balance(server, user_id, GOLD)).toBe(0n);
+    for (const operation_id of ['a\\u0000b', '\\ud800']) {
+      const lines = audits(server, 'grant_items').length;
+      const reply = await admin(server, 'grant_items', `{"operation_id":"${operation_id}","user_id":"${user_id}","items":${JSON.stringify(items(GOLD, 1n))}}`);
+      expect([operation_id, reply.status, reply.json.error]).toEqual([operation_id, 400, 'bad_request']);
+      expect(audits(server, 'grant_items').length - lines).toBe(1);
+      expect(await balance(server, user_id, GOLD)).toBe(0n);
+    }
   });
 
   it('answers 400 for send_mail whose mail has expire_ms 1e3 or 1.5, and sends no mail', async () => {
@@ -102,6 +104,22 @@ describe('body rules', () => {
     expect((await get_user(server, user_id)).json.user_state).not.toHaveProperty('mail_user_state');
     const sent = await admin(server, 'send_mail', `{"operation_id":"e","user_id":"${user_id}","mail":${mail.slice(0, -1)},"expire_ms":1000}}`);
     expect(sent.status).toBe(200);
+  });
+
+  it('answers 400 for send_mail whose mail holds U+0000 or an unpaired surrogate in a text_value or once_key, and sends no mail', async () => {
+    server = await start();
+    const { user_id } = await login(server, 'clean');
+    for (const bad of ['a\\u0000b', '\\ud800']) {
+      const text_mail = JSON.stringify(notice_mail('PLACEHOLDER')).replace('PLACEHOLDER', bad);
+      const key_mail = JSON.stringify(notice_mail('x', { once_key: 'PLACEHOLDER' })).replace('PLACEHOLDER', `k${bad}`);
+      for (const mail of [text_mail, key_mail]) {
+        const lines = audits(server, 'send_mail').length;
+        const reply = await admin(server, 'send_mail', `{"operation_id":"c","user_id":"${user_id}","mail":${mail}}`);
+        expect([mail, reply.status, reply.json.error]).toEqual([mail, 400, 'bad_request']);
+        expect(audits(server, 'send_mail').length - lines).toBe(1);
+      }
+    }
+    expect((await get_user(server, user_id)).json.user_state).not.toHaveProperty('mail_user_state');
   });
 
   it('answers get_user with JSON integer user_id 9223372036854775807 with 404 and 9223372036854775808 with 400', async () => {
