@@ -1,12 +1,5 @@
 {
   "target": "spec UICore",
   "nextId": 12,
-  "items": [
-    {
-      "id": "D11",
-      "location": "skills/client-core/modules/ui-core.md:347",
-      "problem": "The order of `UIOpenedEvent` and `PanelFlowFinishedEvent` within one panel transition is not set. Both `when` cells say \"after the panel transition ends\" (ui-core.md:347, ui-core.md:349), and the order rule at ui-core.md:352 (\"in the order closed, opened\") does not cover `PanelFlowFinishedEvent`. A subscriber that handles `PanelFlowFinishedEvent` of `open_panel` can see `UIOpenedEvent` of the new panel before or after it, depending on the implementation. This was already there before the diff and is unrelated to dropping the panel key",
-      "foundBy": "spec UICore"
-    }
-  ]
+  "items": []
 }
