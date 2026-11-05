@@ -36,6 +36,27 @@ func test_requests_a_test_host_refuses_give_the_failure_value_and_one_error_log(
 	]), "every request went to the refusing host")
 
 
+## The result file and the release signal sent to a loopback HTTP server in place of the test host, which answers 404
+## to both.
+func test_result_and_release_signal_a_test_host_refuses_give_false_and_one_error_log() -> void:
+	assert_true(LogCore.init(), "LogCore.init")
+	var refusing: String = await UnitTestCore.start_http_server()
+	assert_false(refusing.is_empty(), "a base URL")
+	var run: RunState = RunState.new()
+	run.config.run_id = "refused-result"
+	run.config.test_host = refusing
+	assert_false(await UnitTestCore._send_result_through(UnitTestCore._node, run), "PUT /result")
+	assert_eq(UnitTestCore.check_logs("error", "UnitTestCore"), 1, "PUT /result error log")
+	var config: RunConfig = RunConfig.new()
+	config.run_id = "refused-release"
+	config.test_host = refusing
+	assert_false(await UnitTestCore._send_released(config), "PUT /released")
+	assert_eq(UnitTestCore.check_logs("error", "UnitTestCore"), 1, "PUT /released error log")
+	var paths: PackedStringArray = PackedStringArray()
+	for request: UnitTestHttpRequest in await UnitTestCore.http_requests(refusing):
+		paths.append(request.path)
+	assert_eq(paths, PackedStringArray(["/result", "/released"]), "both requests went to the refusing host")
+
 func test_page_key_with_an_empty_key_is_false_with_an_error_log() -> void:
 	assert_true(LogCore.init(), "LogCore.init")
 	assert_false(await UnitTestCore.put_page_key(""))

@@ -114,6 +114,17 @@ func test_next_test_starts_after_the_deletes_of_the_servers_of_the_test_before()
 		assert_string_contains(run.run_failures[0], "DELETE /servers/999999 failed")
 
 
+func test_next_test_starts_after_the_deletes_of_the_relays_of_the_test_before() -> void:
+	var run: RunState = await run_nested(PackedStringArray(["sample_relay_delete.gd"]))
+	var first: String = RESOURCES + "sample_relay_delete.gd::test_a_leaves_relays"
+	assert_eq(status_of(run, "test_a_leaves_relays"), "pass")
+	assert_eq(status_of(run, "test_b_starts_after_the_deletes"), "pass")
+	assert_eq(run.run_failures.size(), 1, "the delete the test host refused")
+	if run.run_failures.size() == 1:
+		assert_string_contains(run.run_failures[0], "unchecked error logs after %s: " % first)
+		assert_string_contains(run.run_failures[0], "DELETE /ws-servers/999999 failed")
+
+
 func test_exit_code_is_one_for_a_failed_test_no_tests_or_a_file_that_did_not_load() -> void:
 	var passing: RunState = await run_nested(PackedStringArray(["sample_lifecycle.gd"]))
 	assert_eq(UnitTestCore._exit_code(passing), 0, "every test passed")
