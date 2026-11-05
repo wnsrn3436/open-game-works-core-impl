@@ -167,8 +167,10 @@ describe('profile build', () => {
     expect(reads.single).toBe(0);
   });
 
-  it('get_public_profiles of B, A, B gives one entry of A and then one of B and calls build_public_profile once per user', async () => {
-    const instance = await start();
+  // With public-profile.maxRequestCount 2 the sorted A, B, B would split as [A, B], [B] without the dedupe, and
+  // storage.get_user_records of each group would give B twice.
+  it('get_public_profiles of B, A, B with public-profile.maxRequestCount 2 gives one entry of A and then one of B and calls build_public_profile once per user', async () => {
+    const instance = await start({ 'public-profile.maxRequestCount': 2 });
     const [a, b] = [await new_user(instance), await new_user(instance)].sort((x, y) => (x < y ? -1 : 1)) as [bigint, bigint];
     const built: bigint[] = [];
     instance.profile.hook_slots.build_public_profile = (_ctx, user_id) => {
