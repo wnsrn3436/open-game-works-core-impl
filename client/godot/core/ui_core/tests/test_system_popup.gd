@@ -119,6 +119,38 @@ func test_one_button_at_the_center_of_its_button_area() -> void:
 	assert_true(area.grow(1.0).encloses(button), "inside the button area")
 
 
+func test_buttons_stay_inside_a_button_area_smaller_than_their_minimum_size() -> void:
+	set_string("UICore.systemPopupResource", SYSTEM_SMALL_BUTTON_AREA)
+	assert_true(await start())
+	var popup: Control = await _open_three_buttons()
+	var area: Control = popup.get_node("Buttons") as Control
+	assert_true(area.size.y < 56.0, "lower than a button row of the root strip")
+	_assert_buttons_inside(popup, area.get_global_rect(), "the buttons in the small button area")
+	for button: Button in system_buttons(popup):
+		button.text = "a button label much longer than the width of its button area"
+	await UnitTestCore.wait_frames(2)
+	_assert_buttons_inside(popup, area.get_global_rect(), "long labels in the small button area")
+	area.offset_left = -20.0
+	area.offset_right = 20.0
+	area.offset_top = -4.0
+	area.offset_bottom = 4.0
+	await UnitTestCore.wait_frames(2)
+	_assert_buttons_inside(popup, area.get_global_rect(), "the buttons in the resized button area")
+
+
+func test_long_labels_stay_inside_the_root_strip() -> void:
+	assert_true(await start())
+	var labels: PackedStringArray = PackedStringArray()
+	for i: int in 3:
+		labels.append(ReservedString.ui_exit_quit())
+	assert_true(await UICore.open_system_popup(system_param(labels), Callable()))
+	var popup: Control = system_popup()
+	for button: Button in system_buttons(popup):
+		button.text = "a button label much longer than a third of the width of the root".repeat(4)
+	await UnitTestCore.wait_frames(3)
+	_assert_buttons_along_the_bottom(popup)
+
+
 func _assert_areas_from_the_root() -> void:
 	var popup: Control = await _open_three_buttons()
 	var root: Rect2 = popup.get_global_rect()

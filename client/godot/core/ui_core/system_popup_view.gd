@@ -2,7 +2,9 @@ extends Control
 ## Code made content of a system popup: the body and extra text, which scroll when they do not fit, over one to
 ## three buttons spread evenly in one row. It fills the system popup instance root. The body and the buttons go into
 ## the body area and button area `Control`s of a `UISystemPopup` root, or into the part of this view each takes from
-## the root: the buttons in a strip along the bottom edge, the body above the top edge of the button area.
+## the root: the buttons in a strip along the bottom edge, the body above the top edge of the button area. The row
+## shrinks to fit its area: labels that do not fit end with an ellipsis, and a row whose minimum size is still larger
+## than the area is scaled down.
 
 const _MARGIN: float = 16.0
 const _BUTTON_HEIGHT: float = 56.0
@@ -16,6 +18,8 @@ var extra_label: Label = null
 var buttons: Array[Button] = []
 ## The button row.
 var row: HBoxContainer = null
+## The button area `Control`, or the strip of this view taken from the root, that the row fills.
+var _row_area: Control = null
 ## The button area `Control` of the root when the body area is taken from the root above it; `null` otherwise.
 var _fit_above: Control = null
 var _on_button_input_callable: Callable = Callable()
@@ -63,7 +67,8 @@ func build(
 		var button: Button = Button.new()
 		button.text = labels[i]
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.custom_minimum_size = Vector2(0.0, _BUTTON_HEIGHT)
+		button.clip_text = true
+		button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		button.focus_mode = Control.FOCUS_ALL
 		if button.gui_input.connect(_on_button_input_callable) != OK:
 			LogCore.log_error(UICore._TAG, "system popup: gui_input connect failed")
@@ -73,18 +78,25 @@ func build(
 		row.add_child(button)
 		buttons.append(button)
 	if button_area != null:
-		button_area.add_child(row)
-		row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		_row_area = button_area
 	else:
-		add_child(row)
-		row.anchor_left = 0.0
-		row.anchor_top = 1.0
-		row.anchor_right = 1.0
-		row.anchor_bottom = 1.0
-		row.offset_left = _MARGIN
-		row.offset_top = -(_MARGIN + _BUTTON_HEIGHT)
-		row.offset_right = -_MARGIN
-		row.offset_bottom = -_MARGIN
+		_row_area = Control.new()
+		_row_area.name = "ButtonStrip"
+		_row_area.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_row_area)
+		_row_area.anchor_left = 0.0
+		_row_area.anchor_top = 1.0
+		_row_area.anchor_right = 1.0
+		_row_area.anchor_bottom = 1.0
+		_row_area.offset_left = _MARGIN
+		_row_area.offset_top = -(_MARGIN + _BUTTON_HEIGHT)
+		_row_area.offset_right = -_MARGIN
+		_row_area.offset_bottom = -_MARGIN
+	_row_area.add_child(row)
+	row.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	if _row_area.resized.connect(_fit_row) != OK or row.minimum_size_changed.connect(_fit_row) != OK:
+		LogCore.log_error(UICore._TAG, "system popup: resize connect failed")
+	_fit_row()
 	if body_area != null:
 		body_area.add_child(scroll)
 		scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -108,6 +120,25 @@ func _process(_delta: float) -> void:
 	var offset: float = maxf(top - _SEPARATION, _MARGIN) - size.y
 	if not is_equal_approx(scroll.offset_bottom, offset):
 		scroll.offset_bottom = offset
+
+
+## Fills the row area with the row. A row whose minimum size is larger than the area is scaled down uniformly so its
+## rectangle stays the area rectangle. An area without size is left until it is resized.
+func _fit_row() -> void:
+	if not is_instance_valid(_row_area) or row == null:
+		return
+	var area: Vector2 = _row_area.size
+	if area.x <= 0.0 or area.y <= 0.0:
+		return
+	var need: Vector2 = row.get_combined_minimum_size()
+	var factor: float = 1.0
+	if need.x > area.x:
+		factor = area.x / need.x
+	if need.y > area.y:
+		factor = minf(factor, area.y / need.y)
+	row.scale = Vector2(factor, factor)
+	row.position = Vector2.ZERO
+	row.size = area / factor
 
 
 ## Moves the scroll position by `step` game coordinates; the scroll container keeps it in range.

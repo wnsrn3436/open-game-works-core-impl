@@ -52,6 +52,8 @@ const POPUP_LATE_TWEEN: String = "prefab/ui_test_popup_late_tween"
 const SYSTEM_AREAS: String = "prefab/ui_test_system_areas"
 const SYSTEM_BUTTON_AREA: String = "prefab/ui_test_system_button_area"
 const SYSTEM_BODY_AREA: String = "prefab/ui_test_system_body_area"
+## A `UISystemPopup` whose button area is lower and narrower than the minimum size of a row of three buttons.
+const SYSTEM_SMALL_BUTTON_AREA: String = "prefab/ui_test_system_small_button_area"
 ## The resource key of `[ui_button_click]` in the core test data.
 const CLICK: String = "sfx/ui_button_click"
 ## Not in the test key list.
@@ -167,6 +169,7 @@ func resource_keys() -> Dictionary[String, String]:
 		SYSTEM_AREAS: RESOURCES + "test_system_areas.tscn",
 		SYSTEM_BUTTON_AREA: RESOURCES + "test_system_button_area.tscn",
 		SYSTEM_BODY_AREA: RESOURCES + "test_system_body_area.tscn",
+		SYSTEM_SMALL_BUTTON_AREA: RESOURCES + "test_system_small_button_area.tscn",
 	}
 	keys[CLICK] = RESOURCES + "test_click.tres"
 	return keys
