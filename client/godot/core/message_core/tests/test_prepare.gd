@@ -158,6 +158,43 @@ func test_prepare_during_prepare_fails_and_first_prepare_goes_on() -> void:
 	assert_eq(toast().text, LocalizationCore.get_text(key_a()))
 
 
+func test_release_while_prepare_waits_for_the_toast_prefab_stops_prepare() -> void:
+	set_string("MessageCore.toastResource", TOAST)
+	await _check_release_during_prepare(TOAST)
+
+
+func test_release_while_prepare_waits_for_the_black_box_prefab_stops_prepare() -> void:
+	set_string("MessageCore.blackBoxResource", BLACK_BOX)
+	await _check_release_during_prepare(BLACK_BOX)
+
+
+func test_release_while_prepare_waits_for_a_tween_preset_stops_prepare() -> void:
+	set_tweens("", "", "", FADE_OUT)
+	await _check_release_during_prepare(FADE_OUT)
+
+
+func test_prepare_stopped_by_release_leaves_the_next_init_unprepared() -> void:
+	set_string("MessageCore.toastResource", TOAST)
+	assert_true(await start_modules())
+	_run_prepare()
+	assert_false(_prepare_done, "prepare waits for the toast prefab")
+	MessageCore.release()
+	assert_true(MessageCore.init())
+	if not _prepare_done:
+		await prepare_finished
+	assert_false(_prepare_result, "the prepare of the released module fails")
+	assert_eq(errors(MessageCore._TAG), 0)
+	assert_true(MessageCore.is_initialized())
+	assert_eq(MessageCore._prepare_state, MessageCore._PREPARE_NONE, "the new init is not prepared")
+	assert_null(MessageCore._toast_prefab)
+	MessageCore.show_toast(key_a())
+	assert_eq(errors(MessageCore._TAG), 1, "a request before prepare is ignored")
+	assert_nothing_shown(toast())
+	assert_true(await MessageCore.prepare())
+	MessageCore.show_toast(key_a())
+	assert_eq(toast().text, LocalizationCore.get_text(key_a()))
+
+
 func test_black_box_time_not_less_than_block_max_duration_logs_one_error() -> void:
 	set_tweens("", "", FADE_IN, FADE_OUT)
 	set_int("InputBlockCore.maxDurationMs", TWEEN_MS + BLACK_BOX_MS + TWEEN_MS)
@@ -201,6 +238,32 @@ func test_requests_without_translation_key_or_with_empty_text_are_ignored() -> v
 	assert_nothing_shown(toast())
 	assert_nothing_shown(black_box())
 	assert_false(InputBlockCore.is_blocked())
+
+
+## Starts `prepare`, releases MessageCore while `prepare` waits for the resource `waited`, and checks that the
+## stopped `prepare` fails without a log and leaves the module released, and that `init` and `prepare` work again.
+## Async.
+func _check_release_during_prepare(waited: String) -> void:
+	assert_true(await start_modules())
+	_run_prepare()
+	assert_false(_prepare_done, "prepare waits for %s" % waited)
+	assert_false(ResourceCore.get_global_scope().keys.has(waited), "%s is still loading" % waited)
+	MessageCore.release()
+	if not _prepare_done:
+		await prepare_finished
+	var loaded: bool = ResourceCore.get_global_scope().keys.has(waited)
+	assert_true(loaded, "the load of %s ended before prepare returned" % waited)
+	assert_false(_prepare_result, "the stopped prepare fails")
+	assert_eq(errors(MessageCore._TAG), 0)
+	assert_false(MessageCore.is_initialized())
+	assert_eq(MessageCore._prepare_state, MessageCore._PREPARE_NONE)
+	assert_null(MessageCore._toast)
+	assert_null(MessageCore._black_box_object)
+	assert_true(MessageCore.init())
+	assert_true(await MessageCore.prepare())
+	assert_eq(errors(MessageCore._TAG), 0)
+	MessageCore.show_toast(key_a())
+	assert_eq(toast().text, LocalizationCore.get_text(key_a()))
 
 
 func _run_prepare() -> void:
