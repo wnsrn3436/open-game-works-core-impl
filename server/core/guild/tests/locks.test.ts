@@ -13,10 +13,12 @@ import {
   guild_row,
   guild_with,
   hold_guild,
+  hold_row,
   join_guild,
   member,
   member_ids,
   on_user,
+  read_logs,
   requests,
   run_core_test,
   set_role,
@@ -28,12 +30,33 @@ import {
   users,
   withdraw,
   withdrawn_at,
+  type Kit,
+  type TestSession,
 } from './kit.ts';
 
 afterEach(stop_servers);
 
 /** `storage.userLockWaitMs` of the lock tests. */
 const WAIT_MS = 300;
+
+/** The `error` logs auth writes for a withdrawal rolled back because a `remove_user` was `CHANGED`. */
+function changed_logs(kit: Kit): number {
+  return read_logs(kit.server, 'error', 'error').filter((line) => line.message === 'withdrawal rolled back: a remove_user is CHANGED').length;
+}
+
+/** What `remove_user` of the module object returns for `session`'s user, in a request whose handler rolls back. */
+async function remove_user(kit: Kit, session: TestSession): Promise<unknown> {
+  let result: unknown = undefined;
+  await run_core_test(
+    session,
+    (ctx) => {
+      result = kit.module().remove_user(ctx);
+      return REJECTED;
+    },
+    kit,
+  );
+  return result;
+}
 
 describe('guild row lock', () => {
   it('makes another user\'s JoinGuild wait for the guild row lock lock_guild takes: past the wait limit it is INTERNAL, and after the lock ends it joins', async () => {
@@ -297,6 +320,7 @@ describe('guild row lock', () => {
     const committed = accept();
     expect(await withdraw(a)).toBe(E.CORE_ERROR_INTERNAL);
     expect(await committed).toBe('committed');
+    expect(changed_logs(kit)).toBe(1);
     expect(withdrawn_at(kit, a.user_id)).toBeNull();
     expect(member(kit, a.user_id)).toMatchObject({ guild_id, role: Role.GUILD_ROLE_MEMBER, joined_at });
     expect(member_ids(kit, guild_id)).toEqual([l.user_id, a.user_id].sort((x, y) => (x < y ? -1 : 1)));
@@ -324,11 +348,88 @@ describe('guild row lock', () => {
     const committed = move();
     expect(await withdraw(a)).toBe(E.CORE_ERROR_INTERNAL);
     expect(await committed).toBe('committed');
+    expect(changed_logs(kit)).toBe(1);
     expect(withdrawn_at(kit, a.user_id)).toBeNull();
     expect(member(kit, a.user_id)).toMatchObject({ guild_id: other, role: Role.GUILD_ROLE_MEMBER, joined_at });
     expect(member_ids(kit, other)).toEqual([h.user_id, a.user_id].sort((x, y) => (x < y ? -1 : 1)));
     expect(guild_row(kit, other)).toMatchObject({ leader_id: h.user_id, member_count: 2 });
     expect(member_ids(kit, first)).toEqual([l.user_id]);
     expect(guild_row(kit, first)).toMatchObject({ leader_id: l.user_id, member_count: 1 });
+  }, T);
+});
+
+describe('remove_user of the module object', () => {
+  it('is CHANGED when the user\'s member row read again was added to a guild after remove_user read no row (PostgreSQL)', async () => {
+    const kit = await start({ db: 'postgresql', settings: { 'storage.userLockWaitMs': 20_000 } });
+    const [l, a] = await users(kit, 2);
+    const guild_id = (await create_guild(l, 'Approval', JoinType.GUILD_JOIN_TYPE_APPROVAL)).guild_id;
+    expect((await join_guild(a, guild_id)).code).toBe(0);
+    const joined_at = guild_row(kit, guild_id)?.created_at ?? 0n;
+    // `### withdrawal` step 3: remove_user read no member row and locked only that row, so no guild row was locked in 1.
+    const accept = await commit_while_row_locked(kit, 'guild_member', [a.user_id], [
+      {
+        sql: 'INSERT INTO guild_member (user_id, guild_id, role, joined_at, active_at) VALUES ($1, $2, $3, $4, $4)',
+        params: [a.user_id, guild_id, Role.GUILD_ROLE_MEMBER, joined_at],
+      },
+      { sql: 'UPDATE guild_guild SET member_count = member_count + 1 WHERE guild_id = $1', params: [guild_id] },
+      { sql: 'DELETE FROM guild_join_request WHERE user_id = $1', params: [a.user_id] },
+    ]);
+    const committed = accept();
+    expect(await remove_user(kit, a)).toBe('CHANGED');
+    expect(await committed).toBe('committed');
+    expect(member(kit, a.user_id)).toMatchObject({ guild_id, role: Role.GUILD_ROLE_MEMBER, joined_at });
+  }, T);
+
+  it('is CHANGED when the user\'s member row read again moved to a guild other than the one locked first (PostgreSQL)', async () => {
+    const kit = await start({ db: 'postgresql', settings: { 'storage.userLockWaitMs': 20_000 } });
+    const [l, h, a] = await users(kit, 3);
+    const first = await guild_with(l, 'First', [a]);
+    const other = (await create_guild(h, 'Other')).guild_id;
+    const joined_at = guild_row(kit, other)?.created_at ?? 0n;
+    const move = await commit_while_row_locked(kit, 'guild_member', [a.user_id], [
+      { sql: 'DELETE FROM guild_member WHERE user_id = $1', params: [a.user_id] },
+      { sql: 'UPDATE guild_guild SET member_count = member_count - 1 WHERE guild_id = $1', params: [first] },
+      {
+        sql: 'INSERT INTO guild_member (user_id, guild_id, role, joined_at, active_at) VALUES ($1, $2, $3, $4, $4)',
+        params: [a.user_id, other, Role.GUILD_ROLE_MEMBER, joined_at],
+      },
+      { sql: 'UPDATE guild_guild SET member_count = member_count + 1 WHERE guild_id = $1', params: [other] },
+    ]);
+    const committed = move();
+    expect(await remove_user(kit, a)).toBe('CHANGED');
+    expect(await committed).toBe('committed');
+    expect(member(kit, a.user_id)).toMatchObject({ guild_id: other, role: Role.GUILD_ROLE_MEMBER, joined_at });
+  }, T);
+
+  it('is CHANGED and changes nothing when the guild row of the user\'s member row does not exist', async () => {
+    const kit = await start();
+    const [l, a] = await users(kit, 2);
+    const guild_id = await guild_with(l, 'Home', [a]);
+    let result: unknown = undefined;
+    let kept: unknown = undefined;
+    expect(
+      await run_core_test(
+        a,
+        (ctx) => {
+          kit.storage().db(ctx).query('DELETE FROM guild_guild WHERE guild_id = $1', [guild_id]);
+          result = kit.module().remove_user(ctx);
+          kept = kit.storage().db(ctx).query('SELECT user_id FROM guild_member WHERE guild_id = $1', [guild_id]).length;
+          return REJECTED;
+        },
+        kit,
+      ),
+    ).toBe(REJECTED);
+    expect(result).toBe('CHANGED');
+    expect(kept).toBe(2);
+    expect(member(kit, a.user_id)?.guild_id).toBe(guild_id);
+  }, T);
+
+  it('is FAILED past the lock wait limit on the user\'s member row (PostgreSQL)', async () => {
+    const kit = await start({ db: 'postgresql', settings: { 'storage.userLockWaitMs': WAIT_MS } });
+    const [l, a] = await users(kit, 2);
+    const guild_id = await guild_with(l, 'Home', [a]);
+    await hold_row(kit, 'guild_member', [a.user_id]);
+    expect(await remove_user(kit, a)).toBe('FAILED');
+    expect(member(kit, a.user_id)?.guild_id).toBe(guild_id);
   }, T);
 });

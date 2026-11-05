@@ -79,7 +79,7 @@ export interface Guild {
   register_disband_listener(listener: DisbandListener): null;
   set_guild_max_members(ctx: RequestCtx, guild_id: bigint, max_members: number | bigint): boolean;
   set_member_role(ctx: RequestCtx, guild_id: bigint, user_id: bigint, role: GuildRole): boolean;
-  remove_user(ctx: RequestCtx): LockFailed | null;
+  remove_user(ctx: RequestCtx): LockFailed | 'CHANGED' | null;
   readonly get_guild: Admin.AdminOperation;
   readonly rename_guild: Admin.AdminOperation;
   readonly set_guild_description: Admin.AdminOperation;

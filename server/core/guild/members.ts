@@ -171,9 +171,10 @@ export function leader_succession(core: GuildCore, ctx: RequestCtx, guild_id: bi
 
 /**
  * `remove_user` (`### withdrawal`): takes the user out of guild tables in the lock order the spec gives. Returns
- * `FAILED` on a lock wait limit or when the user's member row moved to another guild before it was locked.
+ * `FAILED` on a lock wait limit, and `CHANGED`, changing nothing, when the user's member row read again is not a row of
+ * the guild locked first (the row moved or was added before it was locked, or that guild row does not exist).
  */
-export function remove_user(core: GuildCore, ctx: RequestCtx): LockFailed | null {
+export function remove_user(core: GuildCore, ctx: RequestCtx): LockFailed | 'CHANGED' | null {
   const user_id = ctx.user_id;
   const db = guild_db(core, ctx);
   const first = db.member(user_id);
@@ -181,12 +182,11 @@ export function remove_user(core: GuildCore, ctx: RequestCtx): LockFailed | null
   const locked = locked_guild === null ? lock(core, ctx, null, [user_id]) : lock_with_members(core, ctx, locked_guild, [user_id]);
   if (locked === LOCK_FAILED) return LOCK_FAILED;
   const me = db.member(user_id);
-  if (me !== null && me.guild_id !== locked_guild) return LOCK_FAILED;
+  const guild = me === null ? null : db.guild(me.guild_id);
+  if (me !== null && (me.guild_id !== locked_guild || guild === null)) return 'CHANGED';
   db.delete_requests_of_user(user_id);
   db.delete_cooldown(user_id);
-  if (me === null) return null;
-  const guild = db.guild(me.guild_id);
-  if (guild === null) return LOCK_FAILED;
+  if (me === null || guild === null) return null;
   const rows = db.members(me.guild_id);
   if (rows.length <= 1) {
     disband(core, ctx, db, guild, user_id);
