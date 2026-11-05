@@ -26,6 +26,7 @@ func test_release_puts_every_static_var_back_and_takes_the_core_node_out_of_the_
 	var node: Node = LocalizationCore._node
 	assert_true(node.is_inside_tree())
 	LocalizationCoreDev.set_test_device_language("ca")
+	LocalizationCoreDev.set_test_timezone_offset(3600000)
 	assert_ne(LocalizationCore.resolve_language(), 0)
 	var none: Array[DownloadedTranslation] = []
 	assert_true(await LocalizationCore.load_translation(none))
