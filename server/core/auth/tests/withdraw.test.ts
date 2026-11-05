@@ -1,6 +1,13 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import * as GameContract from '../../../generated/contract/game_contract.ts';
-import { E, P, admin, auto_login, call, fake, guest, missing, personal_rows, probe, social, start, testing, user_record, withdraw, type TestServer, type TestSession } from './helpers.ts';
+import { E, P, T0, admin, auto_login, call, fake, guest, logs, missing, personal_rows, probe, social, start, testing, user_record, withdraw, type TestServer, type TestSession } from './helpers.ts';
+import { ERRORS_GATE, type PeerError } from './peer.ts';
+
+/** The members of the `storage` module object that a hold of a `remove_user` replaces. */
+interface LockingStorage {
+  lock_game_row(ctx: object, table: string, key: readonly unknown[]): 'FAILED' | undefined;
+  db(ctx: object): { query(sql: string, params: readonly unknown[]): unknown };
+}
 
 let server: TestServer;
 beforeAll(async () => {
@@ -130,11 +137,22 @@ describe('Withdraw', () => {
       await testing.stop_test_server(own);
     }
   });
+  /** What makes `remove_user` give up in `withdrawals_roll_back`: it starts before the withdrawals and the function it gives ends it after them. */
+  type Hold = () => Promise<() => Promise<void>>;
+
+  /** A hold of the lock that `storage.lock_game_row` takes on the row, on another connection of the server's DB. */
+  function row_lock(locked: TestServer, table: string, key: readonly unknown[]): Hold {
+    return () => testing.hold_game_row_lock(locked, table, key);
+  }
+
   /**
-   * While `locked_row` of the server holds a row lock past the lock wait, `Withdraw` and `ConfirmAge` are INTERNAL, `withdraw_user` 500,
-   * `POST /account/deletion` 500 and `auth_guest_sweep` keeps the guest, with no change and no revoke. `locked_row` also prepares what makes `remove_user` take that lock.
+   * While the hold that `prepare` gives is on, `Withdraw` and `ConfirmAge` are INTERNAL, `withdraw_user` 500, `POST /account/deletion`
+   * 500 and `auth_guest_sweep` keeps the guest and leaves its `error` log, with no change and no revoke. `prepare` also makes what
+   * makes `remove_user` hit the hold. Gives the `error` log lines written during the hold.
    */
-  async function withdrawals_roll_back(locked_row: (locked: TestServer, member: Awaited<ReturnType<typeof social>>, idle: Awaited<ReturnType<typeof guest>>) => Promise<readonly [string, readonly unknown[]]>): Promise<void> {
+  async function withdrawals_roll_back(
+    prepare: (locked: TestServer, member: Awaited<ReturnType<typeof social>>, idle: Awaited<ReturnType<typeof guest>>) => Promise<Hold>,
+  ): Promise<Record<string, unknown>[]> {
     const sweep_after = 1_000_000n;
     const locked = await start({
       settings: {
@@ -149,15 +167,16 @@ describe('Withdraw', () => {
     try {
       const member = await social(locked, P.LOGIN_PROVIDER_APPLE, 'lock_member');
       const idle = await guest(locked);
-      const [table, key] = await locked_row(locked, member, idle);
+      const hold = await prepare(locked, member, idle);
       const issued = await call<CoreContract.IssueDeletionCodeResponse>(member.session, 'core/IssueDeletionCode', new CoreContract.IssueDeletionCodeRequest());
       expect(issued.code).toBe(0);
       const member_id = member.result.user_id;
       const before = { state: await testing.read_user_state(locked, member_id), links: await personal_rows(locked, member_id, 'auth_social_link') };
       const birth_below_minimum = Object.assign(new CoreContract.ConfirmAgeRequest(), { birth_year_month: 202601 });
       const form = new URLSearchParams({ method: 'code', confirm: 'yes', public_code: member.result.public_code, code: issued.response.code }).toString();
+      const lines_before = logs(locked).length;
 
-      const release = await testing.hold_game_row_lock(locked, table, key);
+      const release = await hold();
       try {
         expect(await withdraw(member.session)).toBe(E.CORE_ERROR_INTERNAL);
         expect((await call(member.session, 'core/ConfirmAge', birth_below_minimum)).code).toBe(E.CORE_ERROR_INTERNAL);
@@ -175,6 +194,11 @@ describe('Withdraw', () => {
       expect(await testing.read_user_state(locked, member_id)).toEqual(before.state);
       expect(await personal_rows(locked, member_id, 'auth_social_link')).toEqual(before.links);
       expect(fake(locked, 'login-apple').calls().filter((c) => c.operation === 'revoke')).toEqual([]);
+      const lines = logs(locked).slice(lines_before);
+      const sweep = lines.filter((line) => line['request'] === 'auth_guest_sweep' && line['user_id'] === idle.result.user_id.toString()).map((line) => [line['kind'], line['message']]);
+      expect(sweep).not.toEqual([]);
+      expect(sweep.filter(([kind, message]) => kind !== 'error' || message !== 'inactive guest deletion failed; the next scan tries again')).toEqual([]);
+      return lines.filter((line) => line['kind'] === 'error');
     } finally {
       await testing.stop_test_server(locked);
     }
@@ -193,13 +217,98 @@ describe('Withdraw', () => {
       for (const joiner of [member, idle]) {
         expect((await call(joiner.session, 'core/JoinGuild', Object.assign(new CoreContract.JoinGuildRequest(), { guild_id }))).code).toBe(0);
       }
-      return ['guild_guild', [guild_id]];
+      return row_lock(locked, 'guild_guild', [guild_id]);
     });
   });
 
   it.skipIf(missing('block-report'))('a block-report.remove_user FAILED by a lock wait makes every withdrawal fail and roll back', async () => {
-    await withdrawals_roll_back(() => Promise.resolve(['block_report_sequence', [0n]]));
+    await withdrawals_roll_back((locked) => Promise.resolve(row_lock(locked, 'block_report_sequence', [0n])));
   });
+
+  /**
+   * A hold that makes `friend.remove_user` of each of the two users CHANGED: its lock of the user's own `friend_count` row first
+   * writes, in the same transaction, a friend link row of that user with the other one, so its second read finds a link row
+   * whose `friend_count` row it did not lock.
+   */
+  function link_before_lock(locked: TestServer, users: readonly [bigint, bigint]): Hold {
+    return () => {
+      const storage = locked.running().instance.modules().get('storage') as unknown as LockingStorage;
+      const original = storage.lock_game_row.bind(storage);
+      const spy = vi.spyOn(storage, 'lock_game_row').mockImplementation((ctx, table, key) => {
+        const user_id = 'user_id' in ctx ? ctx.user_id : null;
+        const other = users.find((u) => u !== user_id);
+        if (table === 'friend_count' && key[0] === user_id && users.includes(user_id as bigint) && other !== undefined) {
+          storage.db(ctx).query('INSERT INTO friend_link (user_id, other_id, state, created_at, updated_at) VALUES ($1, $2, $3, $4, $4)', [user_id, other, 'FRIEND_STATE_SENT', T0]);
+        }
+        return original(ctx, table, key);
+      });
+      return Promise.resolve(() => {
+        spy.mockRestore();
+        return Promise.resolve();
+      });
+    };
+  }
+
+  it.skipIf(missing('friend'))('a friend.remove_user CHANGED makes every withdrawal fail and roll back, and Withdraw and ConfirmAge leave the error log of auth', async () => {
+    let member_id = 0n;
+    const errors = await withdrawals_roll_back((locked, member, idle) => {
+      member_id = member.result.user_id;
+      return Promise.resolve(link_before_lock(locked, [member.result.user_id, idle.result.user_id]));
+    });
+    const changed = errors.filter((line) => line['message'] === 'withdrawal rolled back: a remove_user is CHANGED');
+    expect(changed.map((line) => [line['user_id'], line['request']])).toEqual([
+      [member_id.toString(), 'core/Withdraw'],
+      [member_id.toString(), 'core/ConfirmAge'],
+    ]);
+  });
+});
+
+describe.runIf(testing.default_db_kind() === 'postgresql')('Withdraw while another transaction commits a friend link row (PostgreSQL)', () => {
+  const PEER = { module: new URL('./peer.ts', import.meta.url), name: 'auth_peer' };
+  const LINK = 'INSERT INTO friend_link (user_id, other_id, state, created_at, updated_at) VALUES ($1, $2, $3, $4, $4)';
+
+  afterEach(testing.stop_peer_processes);
+
+  // The Withdraw runs on a peer process: a request of the test server's instance would block the test's thread while it waits for the lock.
+  it.skipIf(missing('friend'))(
+    'a friend link row of U and B that commits while Withdraw of U waits for the friend_count row of A makes Withdraw INTERNAL with one error log of auth',
+    async () => {
+      const own = await start({ settings: { 'storage.userLockWaitMs': 20_000 } });
+      try {
+        const peer = await testing.start_peer_process(own, PEER);
+        const u = await testing.login(peer.remote, 'changed_u');
+        const a = await testing.login(peer.remote, 'changed_a');
+        const b = await testing.login(peer.remote, 'changed_b');
+        expect((await call(u, 'core/SendFriendRequest', Object.assign(new CoreContract.SendFriendRequestRequest(), { user_id: a.user_id }))).code).toBe(0);
+        expect((await call(a, 'core/AcceptFriendRequest', Object.assign(new CoreContract.AcceptFriendRequestRequest(), { user_id: u.user_id }))).code).toBe(0);
+
+        const holder = await testing.hold_lock_key(own, testing.game_row_lock_id('friend_count', [a.user_id]));
+        const withdrawn = withdraw(u);
+        try {
+          await testing.until_blocked_by(own, holder.pid);
+          const inserted = await testing.hold_db(own, [
+            { sql: LINK, params: [u.user_id, b.user_id, 'FRIEND_STATE_SENT', T0] },
+            { sql: LINK, params: [b.user_id, u.user_id, 'FRIEND_STATE_RECEIVED', T0] },
+            { sql: 'COMMIT' },
+          ]);
+          await inserted.release();
+        } finally {
+          await holder.release();
+        }
+        expect(await withdrawn).toBe(E.CORE_ERROR_INTERNAL);
+
+        const reply = call(a, 'RunCoreTest', new GameContract.RunCoreTestRequest());
+        const errors = JSON.parse(await peer.reached(ERRORS_GATE)) as PeerError[];
+        peer.open(ERRORS_GATE);
+        expect((await reply).code).toBe(0);
+        expect(errors).toEqual([{ message: 'withdrawal rolled back: a remove_user is CHANGED', user_id: u.user_id.toString(), request: 'core/Withdraw' }]);
+        expect((await user_record(own, u.user_id))?.withdrawn_at).toBeNull();
+      } finally {
+        await testing.stop_test_server(own);
+      }
+    },
+    60_000,
+  );
 });
 
 describe('withdraw_user', () => {
