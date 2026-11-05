@@ -36,6 +36,29 @@ func test_extra_text_follows_the_text_after_one_line_break() -> void:
 	assert_eq(shown_text(toast()), LocalizationCore.format(count_key(), args) + "\ncode 42", "with FormatArgs")
 
 
+func test_toasts_with_same_wording_and_different_extra_text_both_show() -> void:
+	set_string("MessageCore.toastResource", TOAST)
+	assert_true(await start_prepared())
+	MessageCore.show_toast(key_a(), null, "code 1")
+	MessageCore.show_toast(key_a(), null, "code 2")
+	MessageCore.show_toast(key_a(), null, "code 2")
+	assert_eq(shown_text(toast()), LocalizationCore.get_text(key_a()) + "\ncode 1")
+	assert_eq(toast().waiting_count(), 1, "only the request of the same displayed text is ignored")
+	await advance(TOAST_MS)
+	assert_eq(shown_text(toast()), LocalizationCore.get_text(key_a()) + "\ncode 2")
+	await advance(TOAST_MS)
+	assert_nothing_shown(toast())
+
+
+func test_request_whose_wording_is_empty_is_ignored_even_with_extra_text() -> void:
+	assert_true(await start_prepared())
+	var args: FormatArgs = FormatArgs.new()
+	args.set_string("text", "")
+	MessageCore.show_toast(text_key(), args, "code 42")
+	assert_eq(errors(MessageCore._TAG), 1)
+	assert_nothing_shown(toast())
+
+
 func test_text_does_not_change_when_caller_changes_format_args_after_request() -> void:
 	assert_true(await start_prepared())
 	var args: FormatArgs = FormatArgs.new()

@@ -69,6 +69,13 @@ func test_prepare_fails_when_tween_preset_repeats_forever() -> void:
 	assert_eq(errors(MessageCore._TAG), 1)
 
 
+func test_prepare_succeeds_without_log_with_a_tween_preset_of_negative_repeat_count() -> void:
+	set_tweens(FADE_NEGATIVE_REPEAT, FADE_NEGATIVE_REPEAT, FADE_NEGATIVE_REPEAT, FADE_NEGATIVE_REPEAT)
+	assert_true(await start_modules())
+	assert_true(await MessageCore.prepare(), "the preset loads and does not repeat forever")
+	assert_eq(errors(MessageCore._TAG), 0)
+
+
 func test_prepare_fails_when_toast_pool_prefill_fails() -> void:
 	set_string("MessageCore.toastResource", TOAST_NOT_POOLED)
 	assert_true(await start_modules())

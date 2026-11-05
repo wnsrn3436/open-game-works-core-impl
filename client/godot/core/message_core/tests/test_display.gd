@@ -72,6 +72,23 @@ func test_black_box_after_faded_out_black_box_shows_with_prefab_opacity() -> voi
 	assert_true(MessageCore._black_box_object.visible)
 
 
+func test_toast_after_faded_out_code_made_toast_shows_with_the_opacity_it_was_made_with() -> void:
+	set_tweens("", FADE_OUT, "", "")
+	assert_true(await start_prepared())
+	var object: Control = MessageCore._code_toast_object
+	var made_alpha: float = object.modulate.a
+	MessageCore.show_toast(key_a())
+	MessageCore.show_toast(key_b())
+	await advance(TOAST_MS)
+	assert_eq(toast().phase, MessageCore._KIND_STATE.Phase.EXIT)
+	await advance(TWEEN_MS)
+	assert_eq(toast().text, LocalizationCore.get_text(key_b()))
+	assert_eq(toast().phase, MessageCore._KIND_STATE.Phase.HOLD)
+	assert_eq(toast().object, object, "the same code made toast object")
+	assert_eq(object.modulate.a, made_alpha)
+	assert_true(object.visible)
+
+
 ## Enter tween for `TWEEN_MS`, then `duration_ms` of display time before the exit tween, then lowered.
 func _assert_steps(state: MessageCore._KIND_STATE, duration_ms: int) -> void:
 	assert_eq(state.phase, MessageCore._KIND_STATE.Phase.ENTER)

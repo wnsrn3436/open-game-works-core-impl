@@ -12,6 +12,8 @@ const BLACK_BOX_NO_LABEL: String = "prefab/message_test_black_box_no_label"
 const FADE_IN: String = "tween/message_test_fade_in"
 const FADE_OUT: String = "tween/message_test_fade_out"
 const FADE_FOREVER: String = "tween/message_test_fade_forever"
+## The fade out preset with repeat count -1: it loads and fails the `TweenCore` definition check only at playback.
+const FADE_NEGATIVE_REPEAT: String = "tween/message_test_fade_negative_repeat"
 ## The resource key of `[ui_button_click]` in the core test data. `UICore.prepare` loads it.
 const CLICK: String = "sfx/ui_button_click"
 ## Not in the test key list.
@@ -64,6 +66,7 @@ func start_modules(init_message: bool = true) -> bool:
 		FADE_IN: RESOURCES + "test_fade_in.tres",
 		FADE_OUT: RESOURCES + "test_fade_out.tres",
 		FADE_FOREVER: RESOURCES + "test_fade_forever.tres",
+		FADE_NEGATIVE_REPEAT: RESOURCES + "test_fade_negative_repeat.tres",
 		CLICK: RESOURCES + "test_click.tres",
 	}
 	ResourceCoreDev.set_test_key_list(keys)

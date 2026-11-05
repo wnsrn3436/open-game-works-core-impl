@@ -74,8 +74,8 @@ func test_message_object_destroyed_while_shown_ends_with_one_error_and_next_show
 	toast().object.free()
 	black_box().object.free()
 	await UnitTestCore.wait_frames(2)
-	assert_eq(errors(MessageCore._TAG), 2)
-	assert_gt(errors("PoolCore"), 0)
+	assert_eq(errors(MessageCore._TAG), 1, "the black box object")
+	assert_eq(errors("PoolCore"), 1, "the borrowed toast object")
 	assert_eq(toast().text, LocalizationCore.get_text(key_b()))
 	assert_eq(black_box().text, LocalizationCore.get_text(key_b()))
 	assert_true(is_instance_valid(black_box().object))
@@ -88,12 +88,12 @@ func test_toast_whose_object_could_not_be_borrowed_is_dropped_and_next_toast_sho
 	assert_true(await start_prepared())
 	PoolCore.release()
 	MessageCore.show_toast(key_a())
-	assert_eq(errors(MessageCore._TAG), 1)
-	assert_gt(errors("PoolCore"), 0)
+	assert_eq(errors("PoolCore"), 1)
+	assert_eq(errors(MessageCore._TAG), 0)
 	assert_nothing_shown(toast())
 	MessageCore.show_toast(key_b())
-	assert_eq(errors(MessageCore._TAG), 1)
-	assert_gt(errors("PoolCore"), 0)
+	assert_eq(errors("PoolCore"), 1)
+	assert_eq(errors(MessageCore._TAG), 0)
 	assert_true(PoolCore.init())
 	MessageCore.show_toast(key_c())
 	assert_eq(toast().phase, MessageCore._KIND_STATE.Phase.HOLD)
@@ -122,11 +122,11 @@ func test_queued_toasts_that_could_not_be_borrowed_are_all_dropped_in_the_same_p
 	MessageCore.show_toast(key_b())
 	MessageCore.show_toast(key_c())
 	assert_eq(toast().waiting_count(), 2)
-	# PoolCore release destroys the toast object on screen and makes every later borrow fail.
+	# PoolCore release destroys the toast object on screen without a log and makes every later borrow fail.
 	PoolCore.release()
 	await UnitTestCore.wait_frames(2)
-	assert_eq(errors(MessageCore._TAG), 3, "the destroyed toast and each queued toast that could not borrow")
-	assert_gt(errors("PoolCore"), 0)
+	assert_eq(errors("PoolCore"), 2, "each queued toast that could not borrow")
+	assert_eq(errors(MessageCore._TAG), 0)
 	assert_nothing_shown(toast())
 
 
@@ -147,3 +147,112 @@ func test_queued_black_boxes_whose_blocks_could_not_be_made_are_all_dropped_in_t
 	MessageCore.show_black_box(key_a())
 	assert_eq(black_box().phase, MessageCore._KIND_STATE.Phase.HOLD)
 	assert_true(MessageCore._black_box_object.visible)
+
+
+func test_borrowed_toast_object_destroyed_during_enter_tween_gives_one_pool_error_and_next_shows() -> void:
+	set_string("MessageCore.toastResource", TOAST)
+	set_tweens(FADE_IN, "", "", "")
+	assert_true(await start_prepared())
+	MessageCore.show_toast(key_a())
+	MessageCore.show_toast(key_b())
+	assert_eq(toast().phase, MessageCore._KIND_STATE.Phase.ENTER)
+	var tween: int = toast().tween_handle
+	toast().object.free()
+	await UnitTestCore.wait_frames(2)
+	assert_eq(errors("PoolCore"), 1)
+	assert_eq(errors(MessageCore._TAG), 0)
+	assert_false(TweenCore.is_playing(tween))
+	assert_eq(toast().text, LocalizationCore.get_text(key_b()))
+	assert_eq(toast().phase, MessageCore._KIND_STATE.Phase.ENTER)
+	assert_eq(shown_text(toast()), LocalizationCore.get_text(key_b()))
+	assert_eq(PoolCore.get_pool_state(TOAST, ResourceCore.get_global_scope()).y, 1)
+
+
+func test_borrowed_toast_object_destroyed_during_display_time_gives_one_pool_error_and_next_shows() -> void:
+	set_string("MessageCore.toastResource", TOAST)
+	assert_true(await start_prepared())
+	MessageCore.show_toast(key_a())
+	MessageCore.show_toast(key_b())
+	assert_eq(toast().phase, MessageCore._KIND_STATE.Phase.HOLD)
+	toast().object.free()
+	await UnitTestCore.wait_frames(2)
+	assert_eq(errors("PoolCore"), 1)
+	assert_eq(errors(MessageCore._TAG), 0)
+	assert_eq(toast().phase, MessageCore._KIND_STATE.Phase.HOLD)
+	assert_eq(shown_text(toast()), LocalizationCore.get_text(key_b()))
+	await advance(TOAST_MS)
+	assert_nothing_shown(toast())
+	assert_eq(PoolCore.get_pool_state(TOAST, ResourceCore.get_global_scope()).y, 0)
+
+
+func test_code_made_toast_object_destroyed_during_display_time_gives_one_error_and_next_shows() -> void:
+	assert_true(await start_prepared())
+	MessageCore.show_toast(key_a())
+	MessageCore.show_toast(key_b())
+	var old: Control = toast().object
+	old.free()
+	await UnitTestCore.wait_frames(2)
+	assert_eq(errors(MessageCore._TAG), 1)
+	assert_eq(toast().phase, MessageCore._KIND_STATE.Phase.HOLD)
+	assert_true(is_instance_valid(toast().object))
+	assert_eq(toast().object, MessageCore._code_toast_object)
+	assert_eq(shown_text(toast()), LocalizationCore.get_text(key_b()))
+
+
+func test_close_all_in_the_frame_the_code_made_toast_object_is_destroyed_gives_one_error_and_shows_nothing() -> void:
+	assert_true(await start_prepared())
+	MessageCore.show_toast(key_a())
+	MessageCore.show_toast(key_b())
+	assert_eq(toast().waiting_count(), 1)
+	toast().object.free()
+	MessageCore.close_all()
+	assert_eq(errors(MessageCore._TAG), 1)
+	assert_nothing_shown(toast())
+	await UnitTestCore.wait_frames(2)
+	assert_eq(errors(MessageCore._TAG), 0)
+	assert_nothing_shown(toast())
+	assert_eq(MessageCore._toast_holder.get_child_count(), 0, "no new toast object is made")
+
+
+func test_close_all_in_the_frame_a_borrowed_toast_object_is_destroyed_does_not_give_it_back() -> void:
+	set_string("MessageCore.toastResource", TOAST)
+	set_tweens(FADE_IN, "", "", "")
+	assert_true(await start_prepared())
+	MessageCore.show_toast(key_a())
+	MessageCore.show_toast(key_b())
+	toast().object.free()
+	MessageCore.close_all()
+	assert_eq(errors("PoolCore"), 1, "the destruction only, no give_back of an invalid handle")
+	assert_eq(errors(MessageCore._TAG), 0)
+	assert_nothing_shown(toast())
+	await UnitTestCore.wait_frames(2)
+	assert_nothing_shown(toast())
+	assert_eq(PoolCore.get_pool_state(TOAST, ResourceCore.get_global_scope()).y, 0)
+
+
+func test_close_black_box_in_the_frame_the_black_box_object_is_destroyed_gives_one_error() -> void:
+	set_string("MessageCore.blackBoxResource", BLACK_BOX)
+	assert_true(await start_prepared())
+	MessageCore.show_black_box(key_a())
+	MessageCore.show_black_box(key_b())
+	black_box().object.free()
+	MessageCore.close_black_box()
+	assert_eq(errors(MessageCore._TAG), 1)
+	assert_nothing_shown(black_box())
+	assert_false(InputBlockCore.is_blocked())
+	await UnitTestCore.wait_frames(2)
+	assert_nothing_shown(black_box())
+
+
+func test_release_after_shown_objects_were_destroyed_gives_the_error_of_each_and_no_give_back() -> void:
+	set_string("MessageCore.toastResource", TOAST)
+	assert_true(await start_prepared())
+	MessageCore.show_toast(key_a())
+	MessageCore.show_black_box(key_a())
+	toast().object.free()
+	black_box().object.free()
+	MessageCore.release()
+	assert_eq(errors("PoolCore"), 1, "the destruction only, no give_back of an invalid handle")
+	assert_eq(errors(MessageCore._TAG), 1, "the black box object")
+	assert_false(InputBlockCore.is_blocked())
+	assert_eq(PoolCore.get_pool_state(TOAST, ResourceCore.get_global_scope()).y, 0)
