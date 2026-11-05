@@ -200,9 +200,13 @@ func test_a_command_over_the_time_limit_fails_and_the_next_starts() -> void:
 	await finish(second)
 	assert_true(second.result.ok, "the next command starts")
 	assert_eq(order, PackedStringArray(["first:start", "second:start"]))
+	var last: String = QACore._last_result_line
+	var lines: int = log_text().count("command qa.first")
 	gate.open()
 	await UnitTestCore.wait_frames(1)
 	assert_eq(warns(), 0, "the late handler result is dropped")
+	assert_eq(log_text().count("command qa.first"), lines, "no log of the late handler result")
+	assert_eq(QACore._last_result_line, last, "the last command result stays")
 
 
 func test_the_argument_ms_adds_to_the_time_limit() -> void:

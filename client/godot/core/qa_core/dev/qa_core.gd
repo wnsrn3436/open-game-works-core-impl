@@ -52,6 +52,7 @@ const _HEADLESS_DISPLAY: String = "headless"
 const _RELEASED: String = "QACore was released"
 ## Reason text of the commands the end of their automation channel connection ends.
 const _CHANNEL_ENDED: String = "the automation channel connection ended"
+const _TIME_LIMIT: String = "the command went over its time limit"
 ## Time scale of normal speed, permille: the time scale before TimeCore is initialized and the least
 ## `QACore.timeScaleMaxPermille`.
 const _NORMAL_TIME_SCALE: int = 1000
@@ -490,8 +491,9 @@ static func _fail(command: _COMMAND, reason: String) -> void:
 	_finish(command, false, _JSON.text(reason), PackedByteArray())
 
 
-## Ends `command` once: the logs, the response over the automation channel, then the next command.
-static func _finish(command: _COMMAND, ok: bool, result: String, bytes: PackedByteArray) -> void:
+## Ends `command` once: the logs, the response over the automation channel, then the next command. A failure leaves a
+## warn log unless `warn` is false.
+static func _finish(command: _COMMAND, ok: bool, result: String, bytes: PackedByteArray, warn: bool = true) -> void:
 	if command.done:
 		return
 	command.done = true
@@ -502,7 +504,7 @@ static func _finish(command: _COMMAND, ok: bool, result: String, bytes: PackedBy
 		_clear_input_budget(command)
 	if not ok and command.on_fail.is_valid() and command.session == _session:
 		command.on_fail.call()
-	if not ok:
+	if not ok and warn:
 		LogCore.log_warn(_TAG, "command %s failed: %s" % [command.name, _reason_of(result)])
 	LogCore.log_info(_TAG, "command %s ok=%s" % [command.name, _JSON.boolean(ok)])
 	_last_result_line = "%s ok=%s %s" % [command.name, _JSON.boolean(ok), result]
@@ -535,15 +537,44 @@ static func _reason_of(result: String) -> String:
 	return result
 
 
-## Ends a running command that went over its time limit.
+## Ends a running command that went over its time limit. A built-in input command first lets go of what it holds.
 static func _check_time_limits() -> void:
 	if not TimeCore.is_initialized():
 		return
 	var now: int = TimeCore.get_real_time()
-	if _running != null and _running.started and now - _running.started_real_ms >= _running.limit_ms:
-		_fail(_running, "the command went over its time limit")
+	if _running != null and _running.started and not _running.timed_out \
+			and now - _running.started_real_ms >= _running.limit_ms:
+		if _running.name in _BUILTINS.INPUT_COMMANDS:
+			_time_out_input(_running)
+		else:
+			_fail(_running, _TIME_LIMIT)
 	if _video != null and _video.started and now - _video.started_real_ms >= _video.limit_ms:
-		_fail(_video, "the command went over its time limit")
+		_fail(_video, _TIME_LIMIT)
+
+
+## Async. Input command `command` reached its time limit: its device inputs that wait are dropped, the next frame start
+## puts in the releases of the touches, keys, mouse buttons and gamepad buttons it holds and 0 for the gamepad axes it
+## set that are not 0, and it fails when that frame ends.
+static func _time_out_input(command: _COMMAND) -> void:
+	command.timed_out = true
+	var events: Array[InputEvent] = []
+	var event_commands: Array[_COMMAND] = []
+	for i: int in _pending_inputs.size():
+		if i < _frame_input_count or _pending_commands[i] != command:
+			events.append(_pending_inputs[i])
+			event_commands.append(_pending_commands[i])
+	_pending_inputs = events
+	_pending_commands = event_commands
+	if command.holds != null:
+		var holds: _INPUT = command.holds as _INPUT
+		holds.mouse_position = _input.mouse_position
+		for event: InputEvent in holds.release_events():
+			_put_input(command, event)
+	await _BUILTINS._frame_start()
+	if command.done:
+		return
+	await _BUILTINS._frame_end()
+	_fail(command, _TIME_LIMIT)
 
 
 # --- frame ---
@@ -579,9 +610,15 @@ static func _on_frame_start(node: _NODE) -> void:
 	while _frame_input_count < _pending_inputs.size():
 		if not _is_initialized or node != _node or not InputCore.is_initialized():
 			return
-		_add_input_budget(_pending_commands[_frame_input_count])
-		InputCoreDev.inject_device_input(_pending_inputs[_frame_input_count])
+		var command: _COMMAND = _pending_commands[_frame_input_count]
+		var event: InputEvent = _pending_inputs[_frame_input_count]
+		_add_input_budget(command)
+		InputCoreDev.inject_device_input(event)
 		_frame_input_count += 1
+		if command != null:
+			if command.holds == null:
+				command.holds = _INPUT.new()
+			(command.holds as _INPUT).apply_own(event)
 	if _is_initialized and node == _node and _frame_start_call.is_valid():
 		_frame_start_count += 1
 		_frame_start_call.call_deferred()

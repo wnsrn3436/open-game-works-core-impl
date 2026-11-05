@@ -126,6 +126,49 @@ func test_set_item_balance() -> void:
 	assert_eq(warns(), 5)
 
 
+## A request the server rejects goes through the default handling of NetworkCore, which logs it; QACore leaves no warn
+## log of its own. A check that fails before the request leaves one.
+func test_a_rejected_cheat_fails_without_a_qa_core_warn_log() -> void:
+	assert_true(await start_cheats())
+	var envelope: CoreContract.ResponseEnvelope = CoreContract.ResponseEnvelope.new()
+	envelope.server_time_at = SERVER_TIME
+	envelope.error = CoreContract.ServerError.new()
+	envelope.error.code = GameContract.GameError.GAME_ERROR_CORE_TEST
+	add_ok(SET_ITEM_BALANCE, envelope)
+	var result: RunCommandResult = await run("set_item_balance", PackedStringArray(["[gold]", "250"]))
+	assert_false(result.ok)
+	assert_eq(JSONR.text(result.result, ""), "the cheat request failed")
+	assert_eq(UnitTestCore.check_logs(ERROR, "NetworkCore"), 1, "NetworkCore logs the error response")
+	assert_eq(warns(), 0, "no warn log of QACore")
+	add_ok(SET_ITEM_BALANCE)
+	await run_ok("set_item_balance", PackedStringArray(["[gold]", "250"]))
+	assert_false((await run("set_item_balance", PackedStringArray(["[gold]", "-1"]))).ok)
+	assert_eq(warns(), 1, "a check before the request")
+	assert_eq(errors(), 0)
+
+
+## A `send_cheat` that has not ended at the command time limit: the command fails then, and the late end of the request
+## leaves no log and does not change the last command result.
+func test_a_cheat_over_the_time_limit_ends_once() -> void:
+	assert_true(await start_cheats())
+	UnitTestCore.add_pending(SET_ITEM_BALANCE)
+	var cheat: Pending = start_command("set_item_balance", PackedStringArray(["[gold]", "250"]))
+	await UnitTestCore.wait_frames(3)
+	await advance(COMMAND_TIMEOUT_MS)
+	assert_true(cheat.done, "ended at QACore.commandTimeoutMs")
+	assert_false(cheat.result.ok)
+	assert_eq(JSONR.text(cheat.result.result, ""), "the command went over its time limit")
+	assert_eq(warns(), 1)
+	var last: String = QACore._last_result_line
+	var lines: int = log_text().count("command set_item_balance")
+	assert_true(UnitTestCore.release_pending(SET_ITEM_BALANCE, NetworkCore.TransferResult.DONE, 200, ok_bytes()))
+	await UnitTestCore.wait_frames(3)
+	assert_eq(QACore._last_result_line, last, "the last command result stays")
+	assert_eq(log_text().count("command set_item_balance"), lines, "no log of the late end")
+	assert_eq(warns(), 0)
+	assert_eq(errors(), 0)
+
+
 func test_set_mission_progress_and_reset_counter() -> void:
 	assert_true(await start_cheats())
 	add_ok(SET_MISSION_PROGRESS)

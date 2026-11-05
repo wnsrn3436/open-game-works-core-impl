@@ -210,6 +210,14 @@ func apply(event: InputEvent) -> void:
 			axes[motion.axis] = motion.axis_value
 
 
+## Takes in `event`, a device input that one input command put in, as the inputs that command holds: a move moves only a
+## touch it pressed.
+func apply_own(event: InputEvent) -> void:
+	if event is InputEventScreenDrag and not touches.has((event as InputEventScreenDrag).index):
+		return
+	apply(event)
+
+
 func forget() -> void:
 	touches.clear()
 	keys.clear()
