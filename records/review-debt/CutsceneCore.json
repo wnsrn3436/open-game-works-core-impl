@@ -1,12 +1,5 @@
 {
   "target": "CutsceneCore",
   "nextId": 4,
-  "items": [
-    {
-      "id": "D2",
-      "location": "client/godot/core/cutscene_core/cutscene_core.gd:1652",
-      "problem": "`_is_advance_binding` reads `InputCore.maxKeysPerAction` and `InputCore.maxPadButtonsPerAction` (`cutscene_core.gd:32`, `cutscene_core.gd:33`, `cutscene_core.gd:1650`) with `CoreSettings.get_int` during an advance button click. Neither key is in `## settings` of `open-game-works-core/skills/client-core/modules/cutscene-core.md:197` or in `core-spec/CutsceneCore.json`, although `## settings` lists the keys a module reads (`open-game-works-core/skills/core/SKILL.md:47`) and a module reads them in `init` (`open-game-works-core/skills/client-core/engines/godot.md:115`). No wrong result was found: both keys are in `client/godot/generated/core_settings.json`, and `InputCore` is a dependency of `CutsceneCore`",
-      "foundBy": "CutsceneCore round 1"
-    }
-  ]
+  "items": []
 }
