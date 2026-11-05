@@ -1,5 +1,12 @@
 {
   "target": "spec NativeUiCore",
-  "nextId": 7,
-  "items": []
+  "nextId": 8,
+  "items": [
+    {
+      "id": "D7",
+      "location": "skills/client-core/modules/native-ui-core.md:115",
+      "problem": "The error row \"`capture_screen` failure\" has no condition anywhere in the spec, and line 86 waits for a drawn frame with no limit. skills/client-core/modules/qa-core.md:58 and skills/client-core/engines/godot.md:395 name a state in which the engine does not draw the window (a window fully covered by other windows) and handle it for `QACore` by drawing one frame (`RenderingServer.force_draw()` after 2 process frames). For `NativeUiCore`, one implementation never returns in that state, so a content flow that awaits `capture_screen` before `share` stops; another forces a draw and returns PNG bytes; another returns empty bytes with an error log. The three give different results to the caller",
+      "foundBy": "spec NativeUiCore"
+    }
+  ]
 }
