@@ -1230,9 +1230,10 @@ func test_leave_room_in_none_leaves_a_match_the_transport_read_in_the_same_poll(
 
 
 ## A `leave_room` in the event of a member's match found leaves that match, which the transport already holds.
-func test_leave_room_from_room_match_started_leaves_the_match_of_that_match_found() -> void:
+## `RoomMatchStartedEvent` of a match found in `None` comes in `Connecting`, where `leave_room` keeps the match.
+func test_leave_room_and_leave_from_room_match_started_leave_the_match_of_that_match_found() -> void:
 	await _start_room_on_p2p(PackedInt64Array([OTHER_ID, USER_ID]))
-	assert_true(EventCore.subscribe(RoomMatchStartedEvent, _leave_room_on_match_started))
+	assert_true(EventCore.subscribe(RoomMatchStartedEvent, _leave_room_and_leave_on_match_started))
 	await _deliver_to_core([server.match_found(PackedInt64Array([OTHER_ID, USER_ID]), 1, false)])
 	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, 1)
 	assert_eq(server.count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_ROOM_LEAVE), 1)
@@ -1600,8 +1601,9 @@ func _assert_one_match_leave_in_none() -> void:
 	assert_not_null(p2p._socket, "the room keeps the matchmaker connection")
 
 
-func _leave_room_on_match_started(_event: RoomMatchStartedEvent) -> void:
+func _leave_room_and_leave_on_match_started(_event: RoomMatchStartedEvent) -> void:
 	RealtimeCore.leave_room()
+	RealtimeCore.leave()
 
 
 func _leave_room_on_room_event(_event: RoomChangedEvent) -> void:

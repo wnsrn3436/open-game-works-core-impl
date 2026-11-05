@@ -612,20 +612,18 @@ static func _on_match_found(info: MatchInfo) -> void:
 		return
 	if member_start:
 		_begin_match(MatchOrigin.ROOM_MEMBER)
-	if _origin == MatchOrigin.ROOM_MEMBER and not _room_started_published:
-		var change_count: int = _change_count
-		_publish_room_match_started()
-		# A subscriber that left the room or released the module ended this match. In `None`, what `_begin_match` set stays
-		# unless it is cleared here.
-		if change_count != _change_count:
-			if _is_initialized and _state == MatchState.NONE:
-				_set_none()
-			return
 	if not _is_valid_info(info):
 		_fail_match(CoreContract.MatchFailReason.MATCH_FAIL_REASON_UNSPECIFIED, 0, "match found failed the MatchInfo check", true)
 		return
 	_info = info._copy()
 	_enter_connecting()
+	# A member that receives its match found in `None` became `Connecting` only now, so the event goes out in `Connecting`.
+	if _origin == MatchOrigin.ROOM_MEMBER and not _room_started_published:
+		var waiter: _MATCH_WAITER = _waiter
+		_publish_room_match_started()
+		# A subscriber that left the match or released the module ended it. `leave_room` in `Connecting` does not.
+		if waiter != _waiter:
+			return
 	for i: int in _peer_states.size():
 		if i != _info.my_index:
 			_transport.connect_peer(i)
@@ -1162,8 +1160,9 @@ static func _on_room_kicked() -> void:
 		return
 	_room = null
 	_change_count += 1
+	var matching: _MATCH_WAITER = _matching_waiter()
 	_publish_room_changed(RoomChangeReason.KICKED)
-	_cancel_room_matching()
+	_cancel_room_matching(matching)
 
 
 ## `leave_room` in a room.
@@ -1178,15 +1177,21 @@ static func _leave_room_now() -> void:
 	# `Matching` ends below. A match in `Connecting` or `Playing` goes on, so its other notifications stay handled.
 	if _state == MatchState.NONE or _state == MatchState.MATCHING:
 		_room_leave_none_count += 1
+	var matching: _MATCH_WAITER = _matching_waiter()
 	_publish_room_changed(RoomChangeReason.LEFT)
-	_cancel_room_matching()
+	_cancel_room_matching(matching)
 
 
-## Ends `Matching` with `close`, `None` and `Cancelled` after leaving the room.
-static func _cancel_room_matching() -> void:
-	if _state != MatchState.MATCHING:
+## The waiter of the current `Matching`; null in other states.
+static func _matching_waiter() -> _MATCH_WAITER:
+	return _waiter if _state == MatchState.MATCHING else null
+
+
+## Ends with `close`, `None` and `Cancelled` the `Matching` of `waiter` that was running when the room was left. A
+## `Matching` that a `RoomChangedEvent` subscriber started belongs to no room and goes on.
+static func _cancel_room_matching(waiter: _MATCH_WAITER) -> void:
+	if waiter == null or _state != MatchState.MATCHING or _waiter != waiter:
 		return
-	var waiter: _MATCH_WAITER = _waiter
 	_transport.close()
 	_set_none()
 	_finish(waiter, MatchJoinStatus.CANCELLED, 0)
