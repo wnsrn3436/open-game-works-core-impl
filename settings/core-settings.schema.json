@@ -519,7 +519,7 @@
     },
     "routing.bodyReadTimeoutMs": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "routing.corsPreflightMaxAgeMs": {
       "type": "integer",

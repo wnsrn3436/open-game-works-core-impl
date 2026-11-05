@@ -71,6 +71,10 @@ describe('server core settings at their schema minimum', () => {
     await stop_test_server(server);
   }, 60_000);
 
+  it('gives routing.bodyReadTimeoutMs and routing.storageSweepIntervalMs the minimum 1', () => {
+    expect([schema['routing.bodyReadTimeoutMs']?.minimum, schema['routing.storageSweepIntervalMs']?.minimum]).toEqual([1, 1]);
+  });
+
   it('names only keys that are server core settings in the list of keys left at their default', () => {
     const keys = server_integer_keys();
     expect(Object.keys(AT_DEFAULT).filter((key) => !keys.includes(key))).toEqual([]);

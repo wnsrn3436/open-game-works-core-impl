@@ -1,7 +1,9 @@
+import { request as http_request } from 'node:http';
 import { connect } from 'node:net';
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import { SetTimeOffsetRequest } from '../../../dev/generated/contract/core_cheat_contract.ts';
 import * as GameDataDev from '../../../dev/generated/data/game_data_dev.ts';
+import { storage_module, type RunningServer } from '../../storage/tests/helpers.ts';
 import {
   call_dev,
   code,
@@ -120,6 +122,58 @@ describe('client IP', () => {
     const ips = logs(server, 'security').map((line) => line.ip);
     expect(ips).toContain('5.6.7.0');
     expect(ips).toContain('127.0.0.0');
+  });
+
+  /** A server of STG with one trusted proxy. */
+  const one_proxy = (overrides: Record<string, unknown> = {}): Promise<TestServer> => server_with({ env: 'STG', overrides: { 'environments.STG.trustedProxyCount': 1, ...overrides } });
+
+  /** Sends `Echo` with a wrong access token (a security line and the IP counter) and these `X-Forwarded-For` header lines; its HTTP status. */
+  function wrong_token(server: TestServer, forwarded_for: string | string[]): Promise<number> {
+    const body = echo().encode();
+    const headers = { ...plain_headers({ Authorization: 'Bearer wrong' }), 'Content-Length': String(body.length), 'X-Forwarded-For': forwarded_for };
+    return new Promise((resolve, reject) => {
+      const req = http_request(new URL('/Echo', url_of(server)), { method: 'POST', headers }, (res) => {
+        res.resume();
+        res.on('end', () => {
+          resolve(res.statusCode ?? 0);
+        });
+      });
+      req.on('error', reject);
+      req.end(body);
+    });
+  }
+
+  /** The `ip` counter rows of `routing_rate_counter` as `target: count`. */
+  function ip_counters(server: TestServer): Record<string, number> {
+    const rows = storage_module(server as unknown as RunningServer).read_db().query("SELECT target, count FROM routing_rate_counter WHERE kind = 'ip'", []);
+    return Object.fromEntries(rows.map((row) => [String(row.target), Number(row.count as bigint | number)]));
+  }
+
+  it.each(['::ffff:203.0.113.5', '::FFFF:203.0.113.5', '::ffff:cb00:7105'])('takes X-Forwarded-For %s as client IP 203.0.113.5: adminAllowedCidrs 203.0.113.0/24 lets it in and its truncated IP is 203.0.113.0', async (value) => {
+    const server = await one_proxy({ 'environments.STG.adminAllowedCidrs': ['203.0.113.0/24'] });
+    const secret = (server as unknown as { admin_secret(name: string): string | null }).admin_secret('ogw') ?? '';
+    const reply = await raw(server, 'POST', '/admin/get_switches', { 'Content-Type': 'application/json', Authorization: `Bearer ogw.${secret}`, 'X-Forwarded-For': value }, new TextEncoder().encode('{}'));
+    expect(reply.status).toBe(200);
+    expect(logs(server, 'audit').map((line) => line.ip)).toEqual(['203.0.113.0']);
+    expect(await wrong_token(server, value)).toBe(200);
+    expect(logs(server, 'security').map((line) => line.ip)).toEqual(['203.0.113.0']);
+    expect(ip_counters(server)).toEqual({ '203.0.113.5': 1 });
+  });
+
+  it('counts IPv6 client IPs in the form of RFC 5952 Section 4, so two texts of one address count in one ip row', async () => {
+    const server = await one_proxy();
+    for (const value of ['2001:DB8::1', '2001:0db8:0:0:0:0:0:1', '::203.0.113.5', 'fe80::1%eth0']) expect(await wrong_token(server, value)).toBe(200);
+    expect(ip_counters(server)).toEqual({ '2001:db8::1': 2, '::cb00:7105': 1, 'fe80::1': 1 });
+  });
+
+  it('reads the values of every X-Forwarded-For line, trimmed, and takes the TCP peer for a value that is not an IP address', async () => {
+    const server = await one_proxy();
+    expect(await wrong_token(server, '198.51.100.7 , 203.0.113.5')).toBe(200);
+    expect(await wrong_token(server, ['198.51.100.7', '203.0.113.5'])).toBe(200);
+    for (const value of ['198.51.100.7, unknown', '198.51.100.7, 203.0.113.5:4711', '198.51.100.7, 010.0.0.1', '198.51.100.7, [2001:db8::1]', '198.51.100.7, fe80::1%']) {
+      expect(await wrong_token(server, value)).toBe(200);
+    }
+    expect(ip_counters(server)).toEqual({ '203.0.113.5': 2, '127.0.0.1': 5 });
   });
 
   it('takes the TCP peer on LOCAL whatever X-Forwarded-For says', async () => {

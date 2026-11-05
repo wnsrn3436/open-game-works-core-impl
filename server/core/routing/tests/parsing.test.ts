@@ -4,6 +4,7 @@ import {
   check_data_version,
   client_ip,
   data_version_failure,
+  ip_text,
   is_allowed_origin,
   parse_common_headers,
   preflight_headers,
@@ -81,6 +82,38 @@ describe('client IP', () => {
 
   it('is the TCP peer address with no trusted proxy (LOCAL), whatever X-Forwarded-For says', () => {
     expect(client_ip(0, '1.1.1.1, 2.2.2.2', '::ffff:127.0.0.1')).toBe('127.0.0.1');
+  });
+
+  it('takes an IPv4-mapped IPv6 address in any text form as its IPv4 address in dotted decimal', () => {
+    for (const value of ['::ffff:203.0.113.5', '::FFFF:203.0.113.5', '0:0:0:0:0:ffff:203.0.113.5', '::ffff:cb00:7105']) {
+      expect(client_ip(1, `198.51.100.7, ${value}`, '10.0.0.1')).toBe('203.0.113.5');
+    }
+  });
+
+  it('writes any other IPv6 address in the form of RFC 5952 Section 4, without a dotted-decimal part or a zone index', () => {
+    expect(client_ip(1, '2001:DB8::1', '10.0.0.1')).toBe('2001:db8::1');
+    expect(client_ip(1, '2001:0db8:0:0:0:0:0:1', '10.0.0.1')).toBe('2001:db8::1');
+    expect(client_ip(1, '::203.0.113.5', '10.0.0.1')).toBe('::cb00:7105');
+    expect(client_ip(1, 'fe80::1%eth0', '10.0.0.1')).toBe('fe80::1');
+    // The first longest run of two or more zero groups is ::, a single zero group is not.
+    expect(ip_text('2001:db8:0:0:1:0:0:1')).toBe('2001:db8::1:0:0:1');
+    expect(ip_text('2001:db8:0:1:1:1:1:1')).toBe('2001:db8:0:1:1:1:1:1');
+    expect(ip_text('0:0:0:0:0:0:0:0')).toBe('::');
+    expect(ip_text('1:0:0:0:0:0:0:0')).toBe('1::');
+  });
+
+  it('keeps an IPv4 address as written', () => {
+    expect(client_ip(1, '198.51.100.7, 203.0.113.5', '10.0.0.1')).toBe('203.0.113.5');
+  });
+
+  it('splits every header line at , and trims each part, leaving out empty parts', () => {
+    expect(client_ip(1, '198.51.100.7 , 203.0.113.5', '10.0.0.1')).toBe('203.0.113.5');
+    expect(client_ip(1, ['198.51.100.7', '203.0.113.5'], '10.0.0.1')).toBe('203.0.113.5');
+    expect(client_ip(2, ['198.51.100.7, ', ' ,203.0.113.5'], '10.0.0.1')).toBe('198.51.100.7');
+  });
+
+  it.each(['unknown', '203.0.113.5:4711', '010.0.0.1', '[2001:db8::1]', 'fe80::1%'])('is the TCP peer address when the value is %s, which net.isIP does not accept', (value) => {
+    expect(client_ip(1, `198.51.100.7, ${value}`, '10.0.0.1')).toBe('10.0.0.1');
   });
 });
 

@@ -3,7 +3,7 @@
  * reading with a byte limit and a time limit, and the data version step.
  */
 import { createHash } from 'node:crypto';
-import { isIPv4 } from 'node:net';
+import { isIP } from 'node:net';
 import type { Readable } from 'node:stream';
 import type { CommonHeaders } from './module_api.ts';
 
@@ -68,22 +68,71 @@ export function sha256_hex(text: string): string {
   return createHash('sha256').update(text, 'utf8').digest('hex');
 }
 
-/** The peer address of a TCP connection; an IPv4-mapped IPv6 address is its IPv4 address. */
-export function peer_address(remote: string | undefined): string {
-  const address = remote ?? '';
-  return address.startsWith('::ffff:') && isIPv4(address.slice(7)) ? address.slice(7) : address;
+/** The eight 16-bit groups of an IPv6 address that `net.isIP` accepts, without its zone index. */
+function ipv6_groups(address: string): number[] {
+  let text = address.split('%')[0] ?? address;
+  const tail = text.slice(text.lastIndexOf(':') + 1);
+  if (tail.includes('.')) {
+    const [a, b, c, d] = tail.split('.').map(Number) as [number, number, number, number];
+    text = `${text.slice(0, text.length - tail.length)}${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`;
+  }
+  const words = (part: string): number[] => (part === '' ? [] : part.split(':').map((w) => parseInt(w, 16)));
+  const gap = text.indexOf('::');
+  if (gap < 0) return words(text);
+  const head = words(text.slice(0, gap));
+  const rest = words(text.slice(gap + 2));
+  return [...head, ...new Array<number>(8 - head.length - rest.length).fill(0), ...rest];
+}
+
+/** The groups in the form of RFC 5952 Section 4: lower case, no leading zeros, `::` for the first longest run of two or more zero groups. */
+function rfc5952(groups: readonly number[]): string {
+  let best = { start: -1, length: 1 };
+  for (let i = 0; i < groups.length; ) {
+    let j = i;
+    while (j < groups.length && groups[j] === 0) j += 1;
+    if (j - i > best.length) best = { start: i, length: j - i };
+    i = j === i ? i + 1 : j;
+  }
+  const text = (part: readonly number[]): string => part.map((w) => w.toString(16)).join(':');
+  if (best.start < 0) return text(groups);
+  return `${text(groups.slice(0, best.start))}::${text(groups.slice(best.start + best.length))}`;
 }
 
 /**
- * The client IP: the TCP peer address when the trusted proxy count is 0, otherwise the value n-th from the
- * right of `X-Forwarded-For`, or the peer address when there is no such value.
+ * The client IP text of an address, or null when `net.isIP` does not accept it: an IPv4 address as written, an
+ * IPv4-mapped IPv6 address (`::ffff:0:0/96`, in any text form) as the dotted decimal of its last 32 bits, and any
+ * other IPv6 address in the form of RFC 5952 Section 4 without a zone index.
  */
-export function client_ip(trusted_proxy_count: number, forwarded_for: string | null, remote: string | undefined): string {
+export function ip_text(address: string): string | null {
+  const kind = isIP(address);
+  if (kind === 4) return address;
+  if (kind !== 6) return null;
+  const groups = ipv6_groups(address);
+  if (groups.slice(0, 5).every((w) => w === 0) && groups[5] === 0xffff) {
+    const [high, low] = [groups[6] ?? 0, groups[7] ?? 0];
+    return `${String(high >> 8)}.${String(high & 0xff)}.${String(low >> 8)}.${String(low & 0xff)}`;
+  }
+  return rfc5952(groups);
+}
+
+/** The peer address of a TCP connection, in the text of `ip_text`. */
+export function peer_address(remote: string | undefined): string {
+  const address = remote ?? '';
+  return ip_text(address) ?? address;
+}
+
+/**
+ * The client IP: the TCP peer address when the trusted proxy count is 0, otherwise the value n-th from the right of
+ * `X-Forwarded-For` (the parts of all its header lines, in order, split at `,`, trimmed, empty parts left out), or
+ * the peer address when there is no such value or it is not an IP address.
+ */
+export function client_ip(trusted_proxy_count: number, forwarded_for: string | readonly string[] | null | undefined, remote: string | undefined): string {
   const peer = peer_address(remote);
-  if (trusted_proxy_count <= 0 || forwarded_for === null) return peer;
-  const values = forwarded_for.split(',').map((v) => v.trim()).filter((v) => v !== '');
+  if (trusted_proxy_count <= 0 || forwarded_for === null || forwarded_for === undefined) return peer;
+  const lines = typeof forwarded_for === 'string' ? [forwarded_for] : forwarded_for;
+  const values = lines.flatMap((line) => line.split(',')).map((v) => v.trim()).filter((v) => v !== '');
   const value = values[values.length - trusted_proxy_count];
-  return value === undefined ? peer : value;
+  return (value === undefined ? null : ip_text(value)) ?? peer;
 }
 
 /** True when the origin is allowed: LOCAL allows every `localhost` and `127.0.0.1` origin. */
