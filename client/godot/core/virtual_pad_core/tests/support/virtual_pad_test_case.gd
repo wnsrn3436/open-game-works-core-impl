@@ -29,6 +29,10 @@ const BAD_VALUE_LAYOUTS: Dictionary[String, String] = {
 	"prefab/virtual_pad_test_handle_not_below": "test_layout_handle_not_below.tscn",
 }
 const POPUP: String = "prefab/virtual_pad_test_popup"
+## Popups with `VirtualPadTestPopup`: `POPUP_SIDE` is not modal and its area is (800, 0)-(1300, 400), away from the
+## element areas; `POPUP_COVER` is modal and covers the screen.
+const POPUP_SIDE: String = "prefab/virtual_pad_test_popup_side"
+const POPUP_COVER: String = "prefab/virtual_pad_test_popup_cover"
 ## Not in the test key list.
 const MISSING: String = "prefab/virtual_pad_test_missing"
 ## The resource key of `[ui_button_click]` in the core test data.
@@ -57,6 +61,8 @@ var recorder: VirtualPadTestRecorder = null
 ## Scope of the layouts the tests open.
 var scope: Scope = null
 var _nodes: Array[Node] = []
+## Touch indices that `touch` pressed and has not released, with their positions in game coordinates.
+var _held: Dictionary[int, Vector2] = {}
 
 
 func before_each() -> void:
@@ -74,6 +80,7 @@ func before_each() -> void:
 
 func after_each() -> void:
 	super()
+	_release_held_touches()
 	release_modules()
 	InputMap.load_from_project_settings()
 	for node: Node in _nodes:
@@ -108,6 +115,8 @@ func resource_keys() -> Dictionary[String, String]:
 		NOT_LAYOUT: RESOURCES + "test_not_layout.tscn",
 		BAD_CHILD: RESOURCES + "test_layout_bad_child.tscn",
 		POPUP: RESOURCES + "test_popup.tscn",
+		POPUP_SIDE: RESOURCES + "test_popup_side.tscn",
+		POPUP_COVER: RESOURCES + "test_popup_cover.tscn",
 		CLICK: RESOURCES + "test_click.tres",
 	}
 	for key: String in BAD_VALUE_LAYOUTS:
@@ -163,6 +172,16 @@ func release_modules() -> void:
 	TimeCore.release()
 	EventCore.release()
 	LogCore.release()
+
+
+## Releases and starts the modules again, with a new test scope and the recorder subscribed again, as after a settings
+## change of a module below VirtualPadCore. Async.
+func restart_modules() -> bool:
+	release_modules()
+	if not await start_modules():
+		return false
+	scope = ResourceCore.create_scope(ResourceCore.ScopeKind.SCENE, "virtual_pad_test")
+	return recorder.subscribe_all()
 
 
 ## `release` and `init` of VirtualPadCore with touch support, as after a settings change.
@@ -243,6 +262,10 @@ func center_of(element_name: String) -> Vector2:
 
 
 func touch(index: int, pressed: bool, position: Vector2) -> void:
+	if pressed:
+		_held[index] = position
+	else:
+		_held.erase(index)
 	var event: InputEventScreenTouch = InputEventScreenTouch.new()
 	event.index = index
 	event.pressed = pressed
@@ -250,9 +273,34 @@ func touch(index: int, pressed: bool, position: Vector2) -> void:
 	InputCoreDev.inject_device_input(event)
 
 
+## Releases the touches a test left pressed. The engine makes mouse input only from the first touch pressed while no
+## other touch makes it, so a touch left pressed would stop it in the next test.
+func _release_held_touches() -> void:
+	for index: int in _held.keys():
+		if InputCore.is_initialized():
+			touch(index, false, _held[index])
+		else:
+			var event: InputEventScreenTouch = InputEventScreenTouch.new()
+			event.index = index
+			event.pressed = false
+			Input.parse_input_event(event)
+			Input.flush_buffered_events()
+	_held.clear()
+
+
 func drag(index: int, position: Vector2) -> void:
 	var event: InputEventScreenDrag = InputEventScreenDrag.new()
 	event.index = index
+	event.position = position
+	InputCoreDev.inject_device_input(event)
+
+
+## A left mouse button press or release of a real mouse at `position`.
+func mouse_button(pressed: bool, position: Vector2) -> void:
+	var event: InputEventMouseButton = InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = pressed
+	event.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
 	event.position = position
 	InputCoreDev.inject_device_input(event)
 
@@ -281,6 +329,17 @@ func make_control(rect: Rect2) -> VirtualPadTestControl:
 	return control
 
 
+## A button on `rect` (canvas coordinates) on the `SceneUI` layer that counts its GUI input and its clicks.
+func make_scene_button(rect: Rect2) -> VirtualPadTestButton:
+	var button: VirtualPadTestButton = VirtualPadTestButton.new()
+	button.focus_mode = Control.FOCUS_NONE
+	button.position = rect.position
+	button.size = rect.size
+	UICore.get_layer(UICore.UILayer.SCENE_UI).add_child(button)
+	keep(button)
+	return button
+
+
 func keep(node: Node) -> Node:
 	_nodes.append(node)
 	return node
@@ -298,8 +357,16 @@ func run_frames(frames: int = 2) -> void:
 	await UnitTestCore.wait_frames(frames)
 
 
-## Opens the test popup and waits until it shows. Async.
-func open_popup() -> void:
-	var result: UICore.PopupOpenResult = await UICore.open_popup(POPUP, null, Callable())
+## Opens the test popup `key` and waits until it shows. Async.
+func open_popup(key: String = POPUP) -> void:
+	var result: UICore.PopupOpenResult = await UICore.open_popup(key, null, Callable())
 	assert_eq(result, UICore.PopupOpenResult.OPENED, "the test popup opens")
 	await run_frames()
+
+
+## The open `VirtualPadTestPopup` on the `Popup` layer, or `null`.
+func counting_popup() -> VirtualPadTestPopup:
+	for node: Node in UICore.get_layer(UICore.UILayer.POPUP).find_children("*", "", true, false):
+		if node is VirtualPadTestPopup:
+			return node as VirtualPadTestPopup
+	return null
