@@ -130,6 +130,16 @@ describe('coupon admin operations', () => {
     expect(await codes_of(s, BigInt(String(found.result.json['coupon_id'])))).toEqual(['A', 'B']);
   });
 
+  it('picks again a code that collides with a code accepted in an earlier lookup round of the same create_coupon', async () => {
+    const s = await server({ 'coupon.codeAlphabet': 'ABC', 'coupon.minCodeLength': 1, 'coupon.generatedCodeLength': 1, 'coupon.maxCodePicks': 3 });
+    await create(s, { code: 'A' });
+    // Round 1 picks A (stored) and B (accepted). Round 2 picks B for the first code again, then C.
+    const found = await create_scripted(s, [0, 1, 1, 2], 2);
+    expect(found.result.status).toBe(200);
+    expect(found.picks).toBe(4);
+    expect(await codes_of(s, BigInt(String(found.result.json['coupon_id'])))).toEqual(['B', 'C']);
+  });
+
   it('gives coupon.maxCodePicks the minimum 1 in core-settings.schema.json and the default 100', () => {
     expect(SCHEMA.properties['coupon.maxCodePicks']?.minimum).toBe(1);
     expect(CORE_SETTINGS['coupon.maxCodePicks']).toBe(100);
