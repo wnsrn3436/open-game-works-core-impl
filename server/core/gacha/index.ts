@@ -323,6 +323,7 @@ export function create_gacha(input: GachaInput): Gacha {
   const save_draws = (ctx: RequestCtx, banner: GachaBanner, draws: Draws, cost: readonly CoreContract.ItemAmount[], ticket: boolean): void => {
     write_pity(ctx, pity_owner(banner), draws.pity);
     const db = storage.db(ctx);
+    const now = time.clock_now();
     draws.results.forEach((draw, i) => {
       insert_record(db, {
         user_id: ctx.user_id,
@@ -337,7 +338,7 @@ export function create_gacha(input: GachaInput): Gacha {
         cost: i === 0 ? cost : [],
         data_version: ctx.data_version,
         expires_at: ctx.request_time + retention_ms,
-      });
+      }, now);
     });
     const params: ParamList = [
       ['banner_id', banner.id],

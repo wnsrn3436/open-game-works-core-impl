@@ -73,6 +73,25 @@ describe('ListGachaHistory', () => {
     expect(stored()).toEqual([]);
   });
 
+  it('draw_seq counts only rows that have not expired: a draw after the retention period with no sweep between gets 1 and writes over the expired row', async () => {
+    const retention = 60_000;
+    const { server } = await start({ settings: { 'gacha.historyRetentionMs': retention, 'routing.storageSweepIntervalMs': 3_600_000 } });
+    const session = await login(server, 'unswept');
+    const stored = (): [bigint, bigint][] =>
+      storage_module(server).read_db()
+        .query(`SELECT draw_seq, drawn_at FROM ${RECORD_TABLE} WHERE user_id = $1 ORDER BY draw_seq`, [session.user_id])
+        .map((row) => [BigInt(row.draw_seq as bigint | number), BigInt(row.drawn_at as bigint | number)]);
+    await set_balance(server, session.user_id, '[gacha_gem]', 100n);
+    expect(error_code(await draw(session, '[gacha_banner_main]'))).toBe(0);
+    advance_time(server, BigInt(retention));
+    await wait_background(server);
+    // the expired row is still stored: the sweep has not run
+    expect(stored()).toEqual([[1n, START_AT]]);
+    expect(error_code(await draw(session, '[gacha_banner_main]'))).toBe(0);
+    expect((await history(session, 0, 0n, 10)).entries.map((e) => [e.draw_seq, e.drawn_at])).toEqual([[1n, START_AT + BigInt(retention)]]);
+    expect(stored()).toEqual([[1n, START_AT + BigInt(retention)]]);
+  });
+
   it('banner 0 gives the own rows of every banner; a banner ID value not in gacha_banner is INVALID_REQUEST', async () => {
     const { server } = await start();
     const session = await login(server, 'banners');
