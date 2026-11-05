@@ -1,17 +1,11 @@
 {
   "target": "spec item-ledger",
-  "nextId": 5,
+  "nextId": 6,
   "items": [
     {
-      "id": "D3",
-      "location": "skills/server-core/modules/item-ledger.md:176",
-      "problem": "The `validate_item_change` and `after_item_change` lists are \"one per item\" (item-ledger.md:176-180), and an `exchange_items` item whose net change is 0 has no `ItemChange` and no history row (item-ledger.md:53). Nothing says whether that item is in the hook lists (with before = after) or whether its balance row is saved again. So whether a hook sees a net-0 item can differ per implementation. This is the same before this diff for net-0 changes at balances ≤ `max_amount`",
-      "foundBy": "spec item-ledger"
-    },
-    {
-      "id": "D4",
-      "location": "skills/server-core/modules/item-ledger.md:53",
-      "problem": "Whether the hook lists include an `exchange_items` item whose net change is 0 is not set. Lines 176 to 177 give \"one element per item\" and line 180 says each item is in the list only once, but line 53 drops such an item only from `ItemChange` and the history. Input: a content `validate_item_change` that returns a `GameError` when item X is in the list; `exchange_items` subtracts X 1 and adds X 1. One implementation passes X with `before` = `after` and the result is `REJECTED`. Another leaves X out and the result is `OK`. This was already the case before the diff (line 53 is not changed)",
+      "id": "D5",
+      "location": "skills/server-core/modules/item-ledger.md:87",
+      "problem": "Two rules give different results when content code passes source `Recovery` or `Overflow`. Line 56 says core sets `source` when content code calls (`hook_change_source` or `Request`) and that \"A source passed by content code is not used\". But line 87, the error table row at line 199 and the test at line 374 say a call whose caller passes `Recovery` or `Overflow` throws with `INTERNAL` and an `error` log, and the API table names content handlers and hooks as callers. Input: a content handler calls `add_items(ctx, [X 1], {source: Recovery})` outside any `with_hook_change_source`. One implementation ignores the passed source, records source `Request` and returns `OK`. Another throws, so the request is `INTERNAL` with an `error` log",
       "foundBy": "spec item-ledger"
     }
   ]
