@@ -1,12 +1,5 @@
 {
   "target": "spec iap",
   "nextId": 7,
-  "items": [
-    {
-      "id": "D6",
-      "location": "skills/server-core/modules/iap.md:340",
-      "problem": "The subscription status lookup of `iap-apple` and `iap-apple-sandbox` is not defined. Grant order step 2 (iap.md:127), the store notification handling (iap.md:235) and `SyncSubscriptions` (iap.md:218) call it. The spec does not define its App Store Server API call (endpoint, and production or sandbox environment for `iap-apple`), which HTTP statuses are a lookup failure, or how the Apple answer becomes the snapshot: `status` to `SubscriptionState`, expiry time, `auto_renew`, latest transaction ID, SKU, purchase time and test flag. For Google, iap.md:341 defines each of these. Implementations can therefore give different `SubscriptionUserState` values, entitlement results and HTTP 500 or 200 answers for the same Apple answer.",
-      "foundBy": "spec iap"
-    }
-  ]
+  "items": []
 }
