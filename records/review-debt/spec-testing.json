@@ -1,12 +1,5 @@
 {
   "target": "spec testing",
   "nextId": 2,
-  "items": [
-    {
-      "id": "D1",
-      "location": "skills/server-core/modules/testing.md:139",
-      "problem": "The binary body of `send_admin` is `{binary, query: object}` whose `query` holds string values keyed by input field name, and how `send_admin` writes that object into the query string (whether it percent-encodes the values, and with which encoding) is not set. The new admin-api `## test` items (admin-api.md:312) `count=%33` accepted as 3, `a+b%2Bc` received as `a b+c`, and `count=3&count=4` as 400 need raw query text: an object cannot hold `count` twice, and a `send_admin` that encodes with `URLSearchParams` turns the value `a+b%2Bc` into `a%2Bb%252Bc`, so the server receives `a+b%2Bc`. These items can be sent with `testing.send_raw` (its path carries a query, as ads-reward.md:249 uses it), but a test written with `send_admin` gives a result that depends on the unset encoding",
-      "foundBy": "spec admin-api"
-    }
-  ]
+  "items": []
 }
