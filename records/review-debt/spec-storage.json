@@ -1,18 +1,5 @@
 {
   "target": "spec storage",
   "nextId": 8,
-  "items": [
-    {
-      "id": "D6",
-      "location": "skills/server-core/modules/storage.md:306",
-      "problem": "storage claims the same semantics on SQLite and PostgreSQL (storage.md:17) but does not set what a write of a `string` column value holding U+0000 does: SQLite stores it and PostgreSQL rejects it, so any module that writes a caller-given string without its own U+0000 check (e.g. `once_key` of `mailbox.send_mail` called by content code, mailbox.md:90) answers differently per DB",
-      "foundBy": "spec admin-api"
-    },
-    {
-      "id": "D7",
-      "location": "skills/server-core/modules/storage.md:151",
-      "problem": "The rule sets the result of a PostgreSQL transaction abort only for SQLSTATE `55P03`, `40P01`, `40001` (and now for a connection failure or end). PostgreSQL aborts the transaction on any statement error, e.g. `23505` unique violation or `22003` numeric value out of range from a core module `query`. After that error, the later statements of that transaction fail with `25P02`, and `COMMIT` ends as `ROLLBACK` without an error. When the function catches that throw and returns `pass`, the spec does not say whether the operation that opened the transaction is `FAILED`. An adapter that does not read the `ROLLBACK` command tag reports a commit and calls the `on_commit` and `after_commit` functions while no write remains. On SQLite the same function commits its other writes, which breaks \"the same transaction semantics\" of :300",
-      "foundBy": "spec storage"
-    }
-  ]
+  "items": []
 }
