@@ -1,11 +1,11 @@
 {
   "target": "spec UICore",
-  "nextId": 13,
+  "nextId": 14,
   "items": [
     {
-      "id": "D12",
+      "id": "D13",
       "location": "skills/client-core/modules/ui-core.md:360",
-      "problem": "The row \"prefab root is not `UIPanel` or `UIPopup` outside a close flow → `false`, error\" also matches `open_system_popup` read literally (an open outside a close flow). But ui-core.md:217 and the test at :476 open a `UICore.systemPopupResource` system popup whose root is not a `UIPopup` (dim off, no tweens), and :336 rejects only a root that is not a UI element. An implementer of the row could fail such a system popup with `false` and an error log. This existed in the combined row before the diff",
+      "problem": "Row :360 now names `open_popup` explicitly and gives the failure value `false`, and rows :361 and :363 also apply to `open_popup` and give `false`. But `open_popup` returns `PopupOpenResult`, and its failure value is `Failed` (API table :36, type :70). Row :370 makes this distinction for other conditions (\"`Failed` for `open_popup`, `false` for `open_system_popup`\"). Test :449 (\"Each condition of the error table gives the log and failure value of the table\") cannot check `false` for `open_popup`, and an implementer can either return `Failed` or treat the row as a contradiction. The input spec changes diff is empty, so this is not a finding of this review",
       "foundBy": "spec UICore"
     }
   ]
