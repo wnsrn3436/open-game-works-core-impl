@@ -121,7 +121,7 @@ static func _run(row: GameData.ShortcutRow, shortcut_id: int, session: RefCounte
 	var at_root: bool = scene_changed or row.stack != GameData.ShortcutStack.TOP
 	var root_key: String = SceneCore.current_root_panel_key()
 	if at_root and root_key != "":
-		var closed: bool = await _wait_for(UICore.close_panels_to.bind(root_key, false))
+		var closed: bool = await _close_to_root(root_key, session)
 		if session != _session or not closed:
 			return false
 	if requests.is_empty() or (at_root and requests.size() == 1 and requests[0].panel_key == root_key):
@@ -133,6 +133,23 @@ static func _run(row: GameData.ShortcutRow, shortcut_id: int, session: RefCounte
 	else:
 		opened = await _wait_for(UICore.open_panels.bind(requests, clear_stack))
 	return session == _session and opened
+
+
+## Async. Stage 7 of `navigate`: `UICore.close_panels_to` of `root_key`. Content code can push another item with the
+## root panel key above the root item (stack R, A, R), and `close_panels_to` stops at the topmost one, so while the
+## stack bottom is a `root_key` item and other items are above it, an item with `root_key` on top is closed with
+## `UICore.close_panel` and `close_panels_to` runs again. `false` when an operation fails or the session changed.
+static func _close_to_root(root_key: String, session: RefCounted) -> bool:
+	var closed: bool = await _wait_for(UICore.close_panels_to.bind(root_key, false))
+	while closed and session == _session:
+		var keys: PackedStringArray = UICore.get_panel_stack()
+		if keys.size() <= 1 or keys[0] != root_key:
+			return true
+		if keys[keys.size() - 1] == root_key:
+			closed = await _wait_for(UICore.close_panel.bind(false))
+		else:
+			closed = await _wait_for(UICore.close_panels_to.bind(root_key, false))
+	return false
 
 
 ## Stage 4 of `navigate`: one `UIPanelRequest` for each panel of the panel path into `requests`, with the param its

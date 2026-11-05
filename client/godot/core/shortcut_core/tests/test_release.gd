@@ -35,6 +35,22 @@ func test_release_while_waiting_for_close_panels_to() -> void:
 	assert_eq(probe.navigated_ids.size(), 0)
 
 
+## The `UICore.close_panel` that stage 7 runs below a root key item above the root item (stack R, A, R).
+func test_release_while_waiting_for_close_panel_below_a_root_key_item() -> void:
+	assert_true(await start_at(SCENE_ROOT, PackedStringArray([PANEL_A, PANEL_R])))
+	TestPanel.returned_gate = Gate.new()
+	navigate_later(shortcut("root_c"))
+	await wait_trace("panel_gated:a")
+	ShortcutCore.release()
+	assert_eq(results, PackedInt32Array([0]))
+	TestPanel.returned_gate.open(true)
+	await wait_trace("flow:close:a:true")
+	await UnitTestCore.wait_frames(3)
+	assert_eq(Trace.with_prefix("flow:open:").size(), 0)
+	assert_eq(stack(), "r,a")
+	assert_eq(probe.navigated_ids.size(), 0)
+
+
 func test_release_while_waiting_for_open_panel() -> void:
 	assert_true(await start_at(SCENE_ROOT))
 	TestPanel.new_gate = Gate.new()
