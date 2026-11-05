@@ -1,5 +1,18 @@
 {
   "target": "spec RealtimeCore",
-  "nextId": 4,
-  "items": []
+  "nextId": 6,
+  "items": [
+    {
+      "id": "D4",
+      "location": "skills/client-core/modules/realtime-core.md:97",
+      "problem": "Peer connected and peer lost depend on a P2P connection being \"connected\" or \"disconnected\", and line 124 now defines both by what a read finds, but no line says which WebRTC states count. Line 121 calls the connection a data channel but gives it two channels, and godot.md:422 maps it to `WebRTCPeerConnection` plus `WebRTCDataChannel`. Run path 1: an implementation that takes peer connection `STATE_CONNECTED` as connected raises peer connected before the `Reliable` channel is open. RealtimeCore changes to `Playing`, and a `send` on `Reliable` right away gets `send_packet` `false`, so that message is lost. An implementation that waits for both channels to be open sends it. Run path 2: on a temporary ICE `STATE_DISCONNECTED`, one implementation raises peer lost (`PeerDisconnectedEvent` and a full new connection). Another waits for `STATE_FAILED` and raises nothing, but keeps a dead peer `Connected`, and the reconnect time limit has not started yet",
+      "foundBy": "spec RealtimeCore"
+    },
+    {
+      "id": "D5",
+      "location": "skills/client-core/modules/realtime-core.md:131",
+      "problem": "`p2p-signaling` sends `PEER_REJOINED` on every successful `MATCH_REJOIN` (skills/server-core/modules/p2p-signaling.md:81), and that includes in-match rejoin, where the app keeps its P2P connections. Line 131 assumes every `PEER_REJOINED` comes from an app restart (\"The restarted app does not continue the previous connection\"). So when index 1 only loses its matchmaker WebSocket and rejoins, index 0, the side that sends the offer, drops the healthy connected connection and raises peer lost (`PeerDisconnectedEvent`). Reconnection then has to succeed within the reconnect time limit, or the participant becomes `Left`. With the sides swapped, the connection is kept (line 118 and the receiving side of line 131). So whether a matchmaker-only loss breaks a working P2P link depends only on which index lost the matchmaker connection",
+      "foundBy": "spec RealtimeCore"
+    }
+  ]
 }
