@@ -42,6 +42,7 @@ import {
   type Frame,
   type Harness,
   type Hooks,
+  type Queued,
 } from './helpers.ts';
 
 /** The limits of the `randomInt` calls, and the values the next calls give instead of random ones. */
@@ -1164,6 +1165,80 @@ describe('a match being made', () => {
     await vi.waitFor(() => {
       expect(participants(h, match_id)[1]).toEqual({ left_at: 0n, disconnected_at: 0n });
     });
+  });
+
+  /** Four users queued in `BOTH` whose queue match waits in the match record save that `hold` holds. */
+  const solo_match_waiting = async <T,>(h: Harness, hold: () => T, held: (t: T) => boolean): Promise<{ users: Queued[]; save: T }> => {
+    const users: Queued[] = [];
+    for (let i = 0; i < 4; i += 1) users.push(await queued(h, BOTH.id));
+    const save = hold();
+    advance_time(h.server, TICK_MS);
+    await vi.waitFor(() => {
+      expect(held(save)).toBe(true);
+    });
+    return { users, save };
+  };
+
+  it('drops a MATCH_REQUEST that a user outside a room sends on the same connection while the match record save of its solo queue match waits: one MATCH_FOUND, and the user is not in the queue', async () => {
+    const h = await harness({ modes: MODES });
+    const { users, save } = await solo_match_waiting(h, () => hold_next_transaction(h, 'run_game_transaction'), (s) => s.calls() === 1);
+    const u = users[0];
+    if (u === undefined) throw new Error('users');
+    expect(await send_and_wait(u.conn, match_request(BOTH.id))).toEqual([]);
+    save.open();
+    await wait_background(h.server);
+    const found = await next(u.conn, K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+    expect(found.players.map((p) => p.user_id)).toEqual(users.map((q) => q.session.user_id));
+    expect(found_count(await barrier(u.conn))).toBe(0);
+    // Alone in the queue, another user times out; with that user queued, the two would match.
+    const other = await queued(h, BOTH.id);
+    await tick(h, BOTH.match_wait);
+    expect(found_count(await barrier(u.conn))).toBe(0);
+    expect((await barrier(other.conn)).map((f) => [f.kind, f.reason])).toEqual([[K.MATCHMAKER_FRAME_KIND_MATCH_FAILED, Reason.MATCH_FAIL_REASON_TIMEOUT]]);
+  });
+
+  it('drops a MATCH_REQUEST that a user outside a room sends on the same connection while its solo queue match is made, and that connection gets the MATCH_FAILED CREATE_FAILED of that match', async () => {
+    const h = await harness({ modes: MODES });
+    let open = (): void => {};
+    const gate = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    const { users, save } = await solo_match_waiting(
+      h,
+      () => vi.spyOn(storage_module(h.server), 'run_game_transaction').mockImplementationOnce(async () => {
+        await gate;
+        return 'FAILED';
+      }),
+      (spy) => spy.mock.calls.length === 1,
+    );
+    const u = users[0];
+    if (u === undefined) throw new Error('users');
+    expect(await send_and_wait(u.conn, match_request(BOTH.id))).toEqual([]);
+    open();
+    await wait_background(h.server);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect((await next(u.conn, K.MATCHMAKER_FRAME_KIND_MATCH_FAILED)).reason).toBe(Reason.MATCH_FAIL_REASON_CREATE_FAILED);
+    const other = await queued(h, BOTH.id);
+    await tick(h, BOTH.match_wait);
+    expect(found_count(await barrier(u.conn))).toBe(0);
+    expect((await barrier(other.conn)).map((f) => [f.kind, f.reason])).toEqual([[K.MATCHMAKER_FRAME_KIND_MATCH_FAILED, Reason.MATCH_FAIL_REASON_TIMEOUT]]);
+  });
+
+  it('puts a user in the queue by the MATCH_REQUEST of a new connection of that user while the match record save of its solo queue match waits', async () => {
+    const h = await harness({ modes: MODES });
+    const { users, save } = await solo_match_waiting(h, () => hold_next_transaction(h, 'run_game_transaction'), (s) => s.calls() === 1);
+    const u = users[0];
+    if (u === undefined) throw new Error('users');
+    const conn = await online(h, u.session);
+    expect(await send_and_wait(conn, match_request(BOTH.id))).toEqual([]);
+    save.open();
+    await save.done();
+    await wait_background(h.server);
+    expect(found_count(await barrier(conn))).toBe(0);
+    const other = await queued(h, BOTH.id);
+    await tick(h, BOTH.match_wait);
+    const found = await next(conn, K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+    expect(found.players.map((p) => p.user_id)).toEqual([u.session.user_id, other.session.user_id]);
   });
 
   it('takes a ROOM_START again after making the match threw', async () => {

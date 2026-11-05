@@ -52,6 +52,8 @@ class Client implements Connection {
   ws: WebSocketConnection | null = null;
   /** The frame being handled; the next frame waits for it. */
   chain: Promise<void> = Promise.resolve();
+  /** The count of matches being made that take this connection for its user (step 2 of `### match creation`). */
+  making = 0;
   readonly ip: string;
   readonly #drop: (client: Client) => void;
 
@@ -624,6 +626,8 @@ export function create_realtime(env: Env, results: Results): Realtime {
     const slot = live(client);
     if (slot === null) return;
     if (slot.room === null) {
+      // That connection gets the `MATCH_FOUND` or `MATCH_FAILED` of the match being made, so the queue is not touched.
+      if (client.making > 0) return;
       await solo_match_request(client, slot, frame);
       return;
     }
@@ -950,11 +954,15 @@ export function create_realtime(env: Env, results: Results): Realtime {
     seats: readonly Seat[],
     party_rooms: readonly Room[],
   ): Promise<void> {
-    for (const s of seats) making.set(s.user_id, (making.get(s.user_id) ?? 0) + 1);
+    for (const s of seats) {
+      making.set(s.user_id, (making.get(s.user_id) ?? 0) + 1);
+      s.client.making += 1;
+    }
     try {
       await make_match(mode, lockstep, data_version, client_version, source, seats, party_rooms);
     } finally {
       for (const s of seats) {
+        s.client.making -= 1;
         const left = (making.get(s.user_id) ?? 1) - 1;
         if (left <= 0) making.delete(s.user_id);
         else making.set(s.user_id, left);
