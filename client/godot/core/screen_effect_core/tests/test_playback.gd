@@ -225,3 +225,37 @@ func test_skip_to_end_of_a_flash_leaves_opacity_zero() -> void:
 	assert_almost_eq(state(WORLD).opacity, 0.8, OPACITY_EPSILON, "the flash holds its peak")
 	ScreenEffectCore.skip_to_end(handle)
 	assert_overlay(WORLD, Color.BLUE, 0.0, true, "skipped flash")
+
+
+func test_flash_with_all_times_zero_completes_when_the_operation_returns() -> void:
+	assert_true(await start_modules())
+	count_started()
+	var handle: ScreenEffectHandle = ScreenEffectCore.flash(CUTSCENE, make_owner(), Color.RED, 1.0, 0, 0, 0)
+	assert_overlay(CUTSCENE, Color.RED, 0.0, true, "when flash returns")
+	assert_true(is_settled(handle))
+	assert_results([COMPLETED])
+	var expected: Array[ScreenEffectCore.ScreenEffectChannel] = [CUTSCENE]
+	assert_eq(started_channels, expected, "one event of the channel")
+	await advance(100)
+	assert_true(is_settled(handle))
+	assert_results([COMPLETED, COMPLETED])
+	assert_eq(started_channels, expected, "no event after the start")
+
+
+func test_tween_core_not_starting_playback_fails_the_new_handle_and_cancels_the_replaced_one() -> void:
+	assert_true(await start_modules())
+	var owner: Node = make_owner()
+	var replaced: ScreenEffectHandle = ScreenEffectCore.fade(WORLD, owner, Color.RED, 0.0, 1.0, 1000)
+	record(replaced)
+	TweenCore.release()
+	count_started()
+	var handle: ScreenEffectHandle = ScreenEffectCore.fade(WORLD, owner, Color.BLUE, 0.0, 1.0, 1000)
+	assert_gt(UnitTestCore.check_logs(ERROR, "TweenCore"), 0, "TweenCore logged that it did not start playback")
+	assert_eq(errors(), 0)
+	assert_true(is_settled(handle))
+	assert_results([CANCELLED, FAILED])
+	assert_eq(started_channels.size(), 0, "no event for playback that did not start")
+	assert_no_effect(WORLD, "after the failed request")
+	await UnitTestCore.wait_frames(2)
+	assert_no_effect(WORLD, "the frames after the failed request")
+	assert_eq(UnitTestCore.check_logs(ERROR, "TweenCore"), 0, "the frame check asks TweenCore nothing")
