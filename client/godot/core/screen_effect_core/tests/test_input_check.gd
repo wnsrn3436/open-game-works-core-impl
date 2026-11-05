@@ -115,3 +115,37 @@ func test_channel_or_time_basis_not_a_member_fails_and_keeps_the_effect_of_every
 	assert_results([COMPLETED, COMPLETED, COMPLETED])
 	for channel: ScreenEffectCore.ScreenEffectChannel in CHANNELS:
 		assert_overlay(channel, colors[channel], 1.0, true, "the fade of channel %d reached its target" % channel)
+
+
+func test_destroyed_owner_fails_and_keeps_the_current_handle() -> void:
+	assert_true(await start_modules())
+	var owner: Node = make_owner()
+	var playing: ScreenEffectHandle = ScreenEffectCore.fade(WORLD, owner, Color.RED, 0.0, 1.0, 1000)
+	await advance(300)
+	var before: GetOverlayStateResult = state(WORLD)
+	var destroyed: Node = Node.new()
+	destroyed.free()
+	count_started()
+	var failed: Array[ScreenEffectHandle] = [
+		ScreenEffectCore.fade(WORLD, destroyed, Color.WHITE, 0.0, 1.0, 100),
+		ScreenEffectCore.fade(WORLD, destroyed, Color.WHITE, 0.0, 1.0, 0),
+		ScreenEffectCore.flash(WORLD, destroyed, Color.WHITE, 1.0, 100, 100, 100),
+		ScreenEffectCore.play_preset(WORLD, destroyed, make_definition([opacity_change(1.0, 100)])),
+	]
+	ScreenEffectCore.clear_owner(destroyed)
+	assert_eq(errors(), failed.size(), "one error per failed request and none for clear_owner")
+	for handle: ScreenEffectHandle in failed:
+		assert_true(is_settled(handle))
+	for result: ScreenEffectCore.ScreenEffectResult in results:
+		assert_eq(result, FAILED)
+	assert_eq(started_channels.size(), 0, "no event for a failed request")
+	var after: GetOverlayStateResult = state(WORLD)
+	assert_eq(after.color, before.color)
+	assert_eq(after.opacity, before.opacity)
+	assert_true(after.visible)
+	results.clear()
+	record(playing)
+	assert_eq(results.size(), 0, "the current fade still plays")
+	await advance(800)
+	assert_results([COMPLETED])
+	assert_overlay(WORLD, Color.RED, 1.0, true, "the current fade reached its target")
