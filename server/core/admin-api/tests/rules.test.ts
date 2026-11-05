@@ -99,6 +99,25 @@ describe('body rules', () => {
     expect(check_query(query, new URLSearchParams('name=ab'), LIMITS)).toEqual({ name: 'ab' });
   });
 
+  it('refuses an unpaired surrogate in a string field and U+0000 or an unpaired surrogate anywhere inside a json field', () => {
+    const fields: FieldMap = { operation_id: { type: { kind: 'string' } }, mail: { type: { kind: 'json' }, optional: true } };
+    for (const bad of ['\\ud800', '\\udfff', 'a\\udc00b', '\\ud800a']) {
+      expect([bad, body(fields, `{"operation_id":"${bad}"}`)]).toEqual([bad, null]);
+    }
+    expect(body(fields, '{"operation_id":"\\ud83d\\ude00"}')).toEqual({ operation_id: '\u{1F600}' });
+    for (const bad of ['a\\u0000b', '\\ud800', '\\udc00']) {
+      expect([bad, body(fields, `{"operation_id":"a","mail":{"args":[{"value":{"text_value":"${bad}"}}]}}`)]).toEqual([bad, null]);
+      expect([bad, body(fields, `{"operation_id":"a","mail":{"once_key":"k${bad}"}}`)]).toEqual([bad, null]);
+      expect([bad, body(fields, `{"operation_id":"a","mail":["x",["${bad}"]]}`)]).toEqual([bad, null]);
+      expect([bad, body(fields, `{"operation_id":"a","mail":{"${bad}":1}}`)]).toEqual([bad, null]);
+      expect([bad, body(fields, `{"operation_id":"a","mail":{"a":{"${bad}":"x"}}}`)]).toEqual([bad, null]);
+    }
+    expect(body(fields, '{"operation_id":"a","mail":{"\\ud83d\\ude00":"\\ud83d\\ude00\\u0001"}}')).toEqual({
+      operation_id: 'a',
+      mail: { '\u{1F600}': '\u{1F600}\u0001' },
+    });
+  });
+
   it('takes a big_amount of items that is empty or a contract big integer', () => {
     const fields: FieldMap = {
       items: {
