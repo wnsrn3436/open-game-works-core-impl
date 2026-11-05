@@ -7,7 +7,7 @@ import type { Validation } from '../validation/index.ts';
 
 export type { RequestCtx } from '../storage/index.ts';
 
-export type MissionStorage = Pick<Storage, 'get_state' | 'put_core_state' | 'with_hook_change_source' | 'check_hook_output'>;
+export type MissionStorage = Pick<Storage, 'get_state' | 'get_states' | 'put_core_state' | 'with_hook_change_source' | 'check_hook_output'>;
 export type MissionServerTime = Pick<ServerTimeApi, 'now' | 'get_next_reset'>;
 export type MissionValidation = Pick<Validation, 'evaluate_requirement'>;
 export type MissionMailbox = Pick<Mailbox, 'grant_or_mail'>;

@@ -1,6 +1,8 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import * as GameContract from '../../../generated/contract/game_contract.ts';
+import type { Storage } from '../../storage/index.ts';
 import { set_time } from '../../testing/dev/index.ts';
+import { create_mission } from '../index.ts';
 import { C, CODE, M, MAX_SAFE, REJECTED, add, add_ids, at, claim, code_of, new_user, progress, run, start, stop_all, stored } from './support.ts';
 
 afterEach(stop_all);
@@ -146,6 +148,38 @@ describe('add_progress', () => {
     for (const m of sum_missions) expect(await progress(u, m)).toEqual({ progress: 3n, claimed: false });
     expect(await add_ids(u, C.max, 4n)).toEqual([M.max]);
     expect(await progress(u, M.max)).toEqual({ progress: 4n, claimed: false });
+  });
+
+  it('reads the stored rows of the in-window missions of its counter with one get_states call and no get_state call', async () => {
+    const s = await start();
+    const u = await new_user(s);
+    const sum_missions = [M.sum_daily, M.sum_weekly, M.sum_monthly, M.sum_forever].sort(by_id);
+    expect(await add_ids(u, C.sum, 3n)).toEqual(sum_missions);
+
+    const modules = Object.fromEntries(s.server.running().instance.modules()) as Record<string, unknown>;
+    const real = modules.storage as Storage;
+    const calls = { get_state: 0, get_states: [] as bigint[][] };
+    const counted: Storage = {
+      ...real,
+      get_state: (ctx, kind, item_id) => {
+        calls.get_state += 1;
+        return real.get_state(ctx, kind, item_id);
+      },
+      get_states: (ctx, kind, item_ids) => {
+        calls.get_states.push([...item_ids].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)));
+        return real.get_states(ctx, kind, item_ids);
+      },
+    };
+    const add_counted = async (counter_id: number, amount: bigint): Promise<number[] | undefined> =>
+      (await run(u, (ctx) => create_mission({ settings: {}, modules: { ...modules, storage: counted }, server: { data: ctx.data } }).add_progress(ctx, counter_id, amount))).result;
+
+    expect(await add_counted(C.sum, 4n)).toEqual(sum_missions);
+    expect(calls).toEqual({ get_state: 0, get_states: [sum_missions.map(BigInt)] });
+    for (const m of sum_missions) expect(await progress(u, m)).toEqual({ progress: 7n, claimed: false });
+
+    calls.get_states = [];
+    expect(await add_counted(C.unused, 4n)).toEqual([]);
+    expect(calls).toEqual({ get_state: 0, get_states: [] });
   });
 
   it('reads an unknown mission as (0, false)', async () => {
