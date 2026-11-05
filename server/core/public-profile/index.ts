@@ -14,7 +14,7 @@ const MINUTE_MS = 60_000n;
 const INT64_MAX = 2n ** 63n - 1n;
 
 /** The `storage` operations public-profile calls (`storage` `## API`). */
-export type PublicProfileStorage = Pick<Storage, 'register_table' | 'run_read_only' | 'run_user_transaction' | 'db' | 'read_db' | 'get_user_record' | 'find_user_by_public_code'>;
+export type PublicProfileStorage = Pick<Storage, 'register_table' | 'run_read_only' | 'run_user_transaction' | 'db' | 'read_db' | 'get_user_record' | 'get_user_records' | 'find_user_by_public_code'>;
 
 /** The `server-time` operations public-profile calls (`server-time` `## API`). */
 export type PublicProfileServerTime = Pick<ServerTimeApi, 'clock_now' | 'get_window_start'>;
@@ -53,7 +53,7 @@ export type FindUserByPublicCodeHandler = (ctx: RequestCtx, request: CoreContrac
 export interface PublicProfileApi {
   GetPublicProfiles: GetPublicProfilesHandler;
   FindUserByPublicCode: FindUserByPublicCodeHandler;
-  /** No user ID limit: `nickname.get_nicknames` gets `public-profile.maxRequestCount` IDs at most per call. Throws when the hook fails. */
+  /** No user ID limit: `storage.get_user_records` and `nickname.get_nicknames` get `public-profile.maxRequestCount` IDs at most per call. Throws when the hook fails. */
   get_public_profiles(ctx: RequestCtx, user_ids: readonly bigint[]): CoreContract.PublicProfileEntry[];
   is_active_user(ctx: RequestCtx, user_id: bigint): boolean;
   /** Records the last active time; a failed transaction leaves an `error` log and resolves all the same. */
@@ -163,7 +163,7 @@ export function create_public_profile(input: PublicProfileInput): PublicProfile 
   const max_profile_bytes = integer_setting(settings, 'public-profile.maxProfileBytes', 1);
   const granularity_ms = BigInt(integer_setting(settings, 'public-profile.lastActiveGranularityMs', 0));
   const find_per_minute = BigInt(integer_setting(settings, 'public-profile.findPerMinute', 1));
-  const storage = required_module<PublicProfileStorage>(input.modules, 'storage', ['register_table', 'run_read_only', 'run_user_transaction', 'db', 'read_db', 'get_user_record', 'find_user_by_public_code']);
+  const storage = required_module<PublicProfileStorage>(input.modules, 'storage', ['register_table', 'run_read_only', 'run_user_transaction', 'db', 'read_db', 'get_user_record', 'get_user_records', 'find_user_by_public_code']);
   const nickname = required_module<PublicProfileNickname>(input.modules, 'nickname', ['get_nicknames']);
   const logging = required_module<PublicProfileLogging>(input.modules, 'logging', ['write']);
   const server_time = required_module<PublicProfileServerTime>(input.modules, 'server-time', ['clock_now', 'get_window_start']);
@@ -205,20 +205,21 @@ export function create_public_profile(input: PublicProfileInput): PublicProfile 
   const get_public_profiles = (ctx: RequestCtx, user_ids: readonly bigint[]): CoreContract.PublicProfileEntry[] => {
     return storage.run_read_only(ctx, () => {
       const db = storage.db(ctx);
+      const ids: bigint[] = [];
       const records = new Map<bigint, string>();
-      const ids = [...new Set(user_ids)].sort(compare).filter((id) => {
-        const record = storage.get_user_record(db, id);
-        if (record === null || record.withdrawn_at !== null) return false;
-        records.set(id, record.public_code);
-        return true;
-      });
-      const profiles = new Map(ids.map((id) => [id, build_profile(ctx, id)] as const));
+      const profiles = new Map<bigint, Uint8Array>();
       const nicknames = new Map<bigint, string>();
       const activity = new Map<bigint, bigint>();
-      for (const chunk of chunks(ids, max_request_count)) {
+      for (const chunk of chunks([...new Set(user_ids)].sort(compare), max_request_count)) {
+        for (const { user_id, record } of storage.get_user_records(db, chunk)) {
+          if (record.withdrawn_at !== null) continue;
+          ids.push(user_id);
+          records.set(user_id, record.public_code);
+          profiles.set(user_id, build_profile(ctx, user_id));
+        }
         for (const entry of nickname.get_nicknames(ctx, chunk)) nicknames.set(entry.user_id, entry.nickname);
         // `public-profile.lastActiveGranularityMs` 0: `last_active_at` is 0 even for a row written under another value.
-        if (granularity_ms !== 0n) for (const [id, at] of read_activity(storage.db(ctx), chunk)) activity.set(id, at);
+        if (granularity_ms !== 0n) for (const [id, at] of read_activity(db, chunk)) activity.set(id, at);
       }
       return ids.map((id) => {
         const entry = new CoreContract.PublicProfileEntry();
