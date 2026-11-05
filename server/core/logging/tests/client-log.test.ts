@@ -15,6 +15,7 @@ import {
   report_client_errors,
   report_errors,
   report_events,
+  request,
   request_line,
   rows,
   sent_events,
@@ -34,6 +35,18 @@ afterEach(() => {
 
 const Kind = CoreContract.AnalyticsParamKind;
 const RETENTION_MS = 2_592_000_000n;
+
+/** A param of kind `INT` whose `string_value` is set: a mismatched param. */
+function mismatched_param(key: string): CoreContract.AnalyticsParam {
+  const param = int_param(key, 0n);
+  param.string_value = 'x';
+  return param;
+}
+
+/** The `send` calls the fake adapter got, in order. */
+function send_calls(server: Server): unknown[] {
+  return (server.fake?.calls() ?? []).filter((call) => call.operation === 'send').map((call) => call.input);
+}
 
 function count_rows(server: Server, table: string, user_id: bigint): number {
   return rows(server, `SELECT seq FROM ${table} WHERE user_id = $1`, [user_id]).length;
@@ -148,7 +161,9 @@ describe('report counter', () => {
     expect((await report_client_errors(server, user_id, report_errors([error_entry('error', 2n)]))).code).toBe(0);
     const limited = await report_client_errors(server, user_id, report_errors([error_entry('error', 3n)]));
     expect(limited).toMatchObject({ code: CoreError.CORE_ERROR_RATE_LIMITED, handled: false });
-    expect(request_line(server, limited.request_id).error_code).toBe(CoreError.CORE_ERROR_RATE_LIMITED);
+    const limited_line = request_line(server, limited.request_id);
+    expect(limited_line.error_code).toBe(CoreError.CORE_ERROR_RATE_LIMITED);
+    for (const key of ['dropped_count', 'client_dropped_count', 'consent_dropped_count']) expect(limited_line).not.toHaveProperty(key);
     expect(count_rows(server, 'logging_client_error', user_id)).toBe(2);
     expect(report_count(server, user_id)).toBe(4n);
     await advance(server, 1000n);
@@ -305,6 +320,30 @@ describe('analytics adapter', () => {
     expect(sent.map((e) => Buffer.from(params_of(e.params)).toString('hex'))).toEqual(stored.map((row) => Buffer.from(row.params as Uint8Array).toString('hex')));
   });
 
+  it('gets one send per ReportAnalyticsEvents that saved an event and per track call, none for empty events, with the saved row values', async () => {
+    const server = await start();
+    const user_id = await user(server);
+    expect((await report_analytics_events(server, user_id, report_events([]))).code).toBe(0);
+    await settle(server);
+    expect(send_calls(server)).toEqual([]);
+    const params = [int_param('stage', 3n), mismatched_param('bad'), string_param('boss', 'ogre')];
+    await report_analytics_events(server, user_id, report_events([analytics_event('stage_clear', 5n, params), analytics_event('shop_open', 6n)]));
+    await request(server, user_id, 'Resync', (ctx) => {
+      server.logging.track(ctx, 'boss_down', [['stage', 3]]);
+      return new CoreContract.ResyncResponse();
+    });
+    await settle(server);
+    const calls = send_calls(server) as (readonly { user_id: bigint; name: string; time_at: bigint; params: readonly CoreContract.AnalyticsParam[] }[])[];
+    expect(calls.map((events) => events.map((e) => e.name))).toEqual([['stage_clear', 'shop_open'], ['boss_down']]);
+    const saved = [
+      ...rows(server, 'SELECT user_id, name, time_at, params FROM logging_client_event WHERE user_id = $1 ORDER BY seq', [user_id]),
+      ...rows(server, 'SELECT user_id, name, time_at, params FROM logging_server_event WHERE user_id = $1 ORDER BY seq', [user_id]),
+    ];
+    const as_row = (e: (typeof calls)[number][number]): unknown[] => [e.user_id, e.name, e.time_at, Buffer.from(params_of(e.params)).toString('hex')];
+    expect(calls.flat().map(as_row)).toEqual(saved.map((row) => [row.user_id, row.name, row.time_at, Buffer.from(row.params as Uint8Array).toString('hex')]));
+    expect(calls[0]?.[0]?.params.map((p) => p.key)).toEqual(['stage', 'boss']);
+  });
+
   it('does not change the request result when sending fails, and logs one warn per run of a failure kind', async () => {
     // `timeout` ends the fake call only when the logging.analyticsSendTimeoutMs time limit aborts.
     const server = await start({ settings: { 'logging.analyticsSendTimeoutMs': 30 } });
@@ -369,6 +408,21 @@ describe('retention and consent', () => {
     expect(sent_events(server).map((e) => e.name)).toEqual(['a', 'b', 'c']);
   });
 
+  it('gives a request without consent dropped_count 0 for a mismatched param, and client_dropped_count at warn', async () => {
+    const server = await start();
+    const user_id = await new_user(server);
+    const events = [analytics_event('a', 1n, [mismatched_param('bad'), int_param('ok', 1n)]), analytics_event('b', 2n)];
+    const quiet = await report_analytics_events(server, user_id, report_events(events));
+    expect(quiet.code).toBe(0);
+    expect(request_line(server, quiet.request_id)).toMatchObject({ level: 'info', dropped_count: 0, client_dropped_count: 0, consent_dropped_count: 2 });
+    const queued = await report_analytics_events(server, user_id, report_events(events, 3));
+    expect(queued.code).toBe(0);
+    expect(request_line(server, queued.request_id)).toMatchObject({ level: 'warn', dropped_count: 0, client_dropped_count: 3, consent_dropped_count: 2 });
+    await settle(server);
+    expect(count_rows(server, 'logging_client_event', user_id)).toBe(0);
+    expect(sent_events(server)).toEqual([]);
+  });
+
   it('stores nothing and is INVALID_REQUEST for a ReportAnalyticsEvents with an event name starting with core_', async () => {
     const server = await start();
     const user_id = await user(server);
@@ -376,6 +430,26 @@ describe('retention and consent', () => {
     expect(result).toMatchObject({ code: CoreError.CORE_ERROR_INVALID_REQUEST, handled: true });
     await settle(server);
     expect(count_rows(server, 'logging_client_event', user_id)).toBe(0);
+    expect(sent_events(server)).toEqual([]);
+  });
+
+  it('is INVALID_REQUEST for a core_ event name without consent too, with the counts of the request log and no param dropped', async () => {
+    const server = await start();
+    const none = await new_user(server);
+    const refused = await new_user(server);
+    await set_consent(server, refused, false);
+    const consented = await user(server);
+    const events = [analytics_event('stage_clear', 1n, [mismatched_param('bad')]), analytics_event('core_iap_granted', 2n)];
+    for (const user_id of [none, refused, consented]) {
+      const queued = await report_analytics_events(server, user_id, report_events(events, 3));
+      expect(queued.code).toBe(CoreError.CORE_ERROR_INVALID_REQUEST);
+      expect(request_line(server, queued.request_id)).toMatchObject({ level: 'warn', client_dropped_count: 3, dropped_count: 0, consent_dropped_count: 0 });
+      const plain = await report_analytics_events(server, user_id, report_events(events));
+      expect(plain.code).toBe(CoreError.CORE_ERROR_INVALID_REQUEST);
+      expect(request_line(server, plain.request_id)).toMatchObject({ level: 'info', client_dropped_count: 0, dropped_count: 0, consent_dropped_count: 0 });
+      expect(count_rows(server, 'logging_client_event', user_id)).toBe(0);
+    }
+    await settle(server);
     expect(sent_events(server)).toEqual([]);
   });
 });

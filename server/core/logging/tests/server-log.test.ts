@@ -1,5 +1,5 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
-import { truncate_ip } from '../index.ts';
+import { truncate_ip, type Level } from '../index.ts';
 import {
   advance,
   analytics_event,
@@ -203,6 +203,31 @@ describe('security log', () => {
     expect(logs(server, 'security').filter((line) => line.reason === 'session_replaced')).toHaveLength(2);
   });
 
+  it('writes a line at the window end before the flush job runs, after the summary of the ended window with ip null', async () => {
+    const server = await start();
+    const user_id = await new_user(server);
+    // The flush job runs at server start and every WINDOW_MS after it; this window starts 10 ms after server start.
+    await advance(server, 10n);
+    for (const ip of ['203.0.113.77', '198.51.100.9', '198.51.100.10']) security(server, user_id, ip, 'session_replaced');
+    await advance(server, WINDOW_MS - 10n);
+    expect(logs(server, 'security').map((line) => line.reason)).toEqual(['session_replaced']);
+    // The window end: the job ran 10 ms ago and is not due before WINDOW_MS - 10 ms more.
+    await advance(server, 10n);
+    server.logging.with_request_ip('192.0.2.10', () => {
+      server.logging.write({ kind: 'security', level: 'warn', message: 'refused', user_id, request_id: null, request: 'core/Resync', fields: { reason: 'session_replaced' } });
+    });
+    const lines = logs(server, 'security');
+    expect(lines.map((line) => [line.reason, line.ip])).toEqual([
+      ['session_replaced', '203.0.113.0'],
+      ['repeated', null],
+      ['session_replaced', '192.0.2.0'],
+    ]);
+    expect(lines[1]).toMatchObject({ level: 'warn', user_id: user_id.toString(), message: 'session_replaced', count: 2, ips: ['198.51.100.0'] });
+    // The new window has one line: the job writes no summary for it, and none again for the ended window.
+    await advance(server, 2n * WINDOW_MS);
+    expect(logs(server, 'security')).toHaveLength(3);
+  });
+
   it('groups lines of requests without a user by truncated IP, and a window of one line has no summary', async () => {
     const server = await start();
     security(server, null, '192.0.2.10', 'rate_limited_ip');
@@ -284,6 +309,19 @@ describe('game, core and audit log', () => {
       { time: Number(server.clock.now()), level: 'info', kind: 'game', user_id: user_id.toString(), request_id: result.request_id, request: 'core/Resync', message: 'stage cleared', stage: 3, boss: 'ogre', first: true, score: (2n ** 53n).toString(), low: (-(2n ** 62n)).toString() },
     ]);
     expect(logs(server, 'core')).toEqual([expect.objectContaining({ level: 'warn', module: 'logging', dropped_count: 4 })]);
+  });
+
+  it('writes a log of a level that is not debug, info, warn or error at info with one warn log, and the request result does not change', async () => {
+    const server = await start();
+    const user_id = await new_user(server);
+    const result = await request(server, user_id, 'Resync', (ctx) => {
+      expect(server.logging.log(ctx, 'trace' as Level, 'step done', { step: 2 })).toBeNull();
+      return new CoreContract.ResyncResponse();
+    });
+    expect(result.code).toBe(0);
+    expect(logs(server, 'game')).toEqual([expect.objectContaining({ level: 'info', message: 'step done', user_id: user_id.toString(), request: 'core/Resync', step: 2 })]);
+    expect(logs(server, 'core')).toEqual([expect.objectContaining({ level: 'warn', module: 'logging' })]);
+    expect(request_line(server, result.request_id)).toMatchObject({ level: 'info', error_code: 0 });
   });
 
   it('gives an audit log the actor of the entry, of with_audit_actor, or system', async () => {

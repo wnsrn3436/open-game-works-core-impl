@@ -10,6 +10,19 @@ describe('truncated IP', () => {
     expect(truncate_ip('::1')).toBe('0:0:0::');
     expect(truncate_ip('64:ff9b::192.0.2.33')).toBe('64:ff9b:0::');
     expect(truncate_ip('fe80::1%eth0')).toBe('fe80:0:0::');
+    expect(truncate_ip('2001:0db8:0000:abcd::1')).toBe('2001:db8:0::');
+    expect(truncate_ip('2001:DB8:A::1')).toBe('2001:db8:a::');
+  });
+
+  it('truncates an address of ::ffff:0:0/96 in any IPv6 text form as the IPv4 address of its last 32 bits', () => {
+    for (const ip of ['::ffff:203.0.113.77', '::ffff:cb00:714d', '::FFFF:CB00:714D', '0:0:0:0:0:ffff:cb00:714d', '0::ffff:203.0.113.77', '0000:0000:0000:0000:0000:ffff:203.0.113.77']) {
+      expect(truncate_ip(ip)).toBe('203.0.113.0');
+    }
+    expect(truncate_ip('::ffff:0:0')).toBe('0.0.0.0');
+    // Outside ::ffff:0:0/96: the IPv4-compatible form, a different word before the IPv4 part, and ::ffff:0:0:0/96.
+    expect(truncate_ip('::203.0.113.77')).toBe('0:0:0::');
+    expect(truncate_ip('1::ffff:cb00:714d')).toBe('1:0:0::');
+    expect(truncate_ip('::ffff:0:203.0.113.77')).toBe('0:0:0::');
   });
 
   it('is the same when truncated again, and empty for a value that is not an IP', () => {

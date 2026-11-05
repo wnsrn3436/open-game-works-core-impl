@@ -129,6 +129,33 @@ describe('analytics deletion', () => {
     expect(deletion_calls(server)).toEqual([]);
   });
 
+  it('keeps a row of a time with an analytics adapter through the job of a server instance without one, with no error log', async () => {
+    const first = await start({ settings: SETTINGS });
+    const user_id = await new_user(first);
+    await withdraw(first, user_id);
+    first.stop();
+    const second = await start({ settings: SETTINGS, analytics: null, db: first.db });
+    for (let i = 0; i < MAX_ATTEMPTS + 1; i += 1) await advance(second, INTERVAL_MS);
+    expect(deletion_rows(second, user_id)).toEqual([{ user_id, attempts: 0, created_at: START_TIME }]);
+    expect(logs(second, 'error')).toEqual([]);
+    expect(deletion_calls(second)).toEqual([]);
+  });
+
+  it('writes no row and no error log when another server instance removed the row before a failed call is counted', async () => {
+    const server = await start({ settings: { ...SETTINGS, 'logging.analyticsDeletionMaxAttempts': 1, 'logging.analyticsSendTimeoutMs': 100 } });
+    const user_id = await new_user(server);
+    await withdraw(server, user_id);
+    // The call waits for its time limit; meanwhile the row goes, as another server instance's success would remove it.
+    server.fake?.set_failure('delete_user_data', 'timeout');
+    server.clock.advance(INTERVAL_MS);
+    expect(deletion_calls(server)).toEqual([user_id]);
+    const removed = await server.storage.run_game_transaction((tx) => server.storage.db(tx).query('DELETE FROM logging_analytics_deletion WHERE user_id = $1', [user_id]));
+    expect(removed).not.toBe('FAILED');
+    await settle(server);
+    expect(deletion_rows(server, user_id)).toEqual([]);
+    expect(logs(server, 'error')).toEqual([]);
+  });
+
   it('keeps one row for a user when deletion is requested twice', async () => {
     const server = await start({ settings: SETTINGS });
     const user_id = await new_user(server);
