@@ -1,5 +1,12 @@
 {
   "target": "spec CameraCore",
-  "nextId": 8,
-  "items": []
+  "nextId": 9,
+  "items": [
+    {
+      "id": "D8",
+      "location": "skills/client-core/modules/camera-core.md:81",
+      "problem": "Step 3 applies \"the value with the shake offset and the shake rotation added\", but the spec defines only a base position, not a base rotation. For a 2D camera whose rotation is r0 ≠ 0 when it is attached, one implementation sets the rotation to the shake rotation (so r0 is overwritten with 0 on the first frame), and another adds the shake rotation to r0. What is drawn differs from the first frame after `attach_camera`, even without a shake. camera-core.md:69 says only position and zoom are taken at attach",
+      "foundBy": "spec CameraCore"
+    }
+  ]
 }
