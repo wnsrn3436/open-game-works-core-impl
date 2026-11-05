@@ -1,12 +1,5 @@
 {
   "target": "spec LocalizationCore",
   "nextId": 6,
-  "items": [
-    {
-      "id": "D5",
-      "location": "skills/client-core/modules/localization-core.md:33",
-      "problem": "`bind_text` and `unbind_text` (localization-core.md:33-34, 127) do not set the result for an element that is null, already freed, or not a UI text element (e.g. a Godot `TextureRect`; the Godot rules list text nodes only for text scale, godot.md:403). There is no `## error` row for it, so one implementation can crash on a freed object, another ignore it silently, another leave an error log",
-      "foundBy": "spec LocalizationCore"
-    }
-  ]
+  "items": []
 }
