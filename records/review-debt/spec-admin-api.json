@@ -1,6 +1,6 @@
 {
   "target": "spec admin-api",
-  "nextId": 15,
+  "nextId": 16,
   "items": [
     {
       "id": "D2",
@@ -79,6 +79,12 @@
       "location": "skills/server-core/modules/admin-api.md:239",
       "problem": "`args` of the `audit` log is \"the input that passed the check\", and in that input `int64` is `bigint` (admin-api.md:121), as are, since this change, integers outside the safe range inside `json` fields. server-core SKILL.md:211 makes a log line one JSON object, but no defining document (server-core SKILL.md `## log`, logging.md:45, logging.md:93) says whether a `bigint` in `fields` is written as a JSON integer or as a decimal string. Two implementations can write different `audit` lines for the same request. This problem existed before this diff for `int64` fields",
       "foundBy": "spec admin-api"
+    },
+    {
+      "id": "D15",
+      "location": "skills/server-core/modules/admin-api.md:291",
+      "problem": "`## settings` restates `storage.userLockWaitMs` as \"the per-user lock and the row lock of `lock_game_row`\", and skills/server-core/modules/migration.md:134 as \"a per-user lock\"; both differ from the meaning in skills/server-core/modules/storage.md:353, which also bounds the SQLite wait for another server instance's write transaction and the PostgreSQL free connection wait",
+      "foundBy": "spec storage"
     }
   ]
 }
