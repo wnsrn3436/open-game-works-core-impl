@@ -87,6 +87,33 @@ describe('BlockUser and UnblockUser', () => {
     expect(rows).toEqual([{ blocked_id: carol.user_id }]);
   });
 
+  it('reads the users of all block rows with one get_user_records call and deletes the rows of withdrawn and missing users', async () => {
+    const instance = await start();
+    const alice = await login(instance.server, 'alice');
+    const bob = await login(instance.server, 'bob');
+    const carol = await login(instance.server, 'carol');
+    const dave = await login(instance.server, 'dave');
+    // A user ID with no `user` row.
+    const ghost = 9_000_000_000n;
+    const first = await block_user(alice, bob.user_id);
+    expect(first.code).toBeNull();
+    expect((await block_user(alice, carol.user_id)).code).toBeNull();
+    await in_request(instance, alice, (ctx) =>
+      instance.storage.db(ctx).query(`INSERT INTO ${BLOCK_TABLE} (user_id, blocked_id, created_at) VALUES ($1, $2, $3)`, [alice.user_id, ghost, first.server_time_at]),
+    );
+    expect((await withdraw(carol)).code).toBeNull();
+    expect(block_row_count(instance, alice.user_id)).toBe(3);
+
+    const records = vi.spyOn(instance.storage, 'get_user_records');
+    const active = vi.spyOn(instance.profiles, 'is_active_user');
+    expect((await block_user(alice, dave.user_id)).code).toBeNull();
+    const ascending = (ids: readonly bigint[]): bigint[] => [...ids].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    expect(records.mock.calls.map(([, user_ids]) => ascending(user_ids))).toEqual([ascending([bob.user_id, carol.user_id, ghost])]);
+    expect(active.mock.calls.map(([, user_id]) => user_id)).toEqual([dave.user_id]);
+    const rows = instance.storage.read_db().query(`SELECT blocked_id FROM ${BLOCK_TABLE} WHERE user_id = $1 ORDER BY blocked_id`, [alice.user_id]);
+    expect(rows).toEqual(ascending([bob.user_id, dave.user_id]).map((blocked_id) => ({ blocked_id })));
+  });
+
   it('is USER_NOT_FOUND for a withdrawn user, and UnblockUser of a withdrawn user succeeds', async () => {
     const instance = await start();
     const alice = await login(instance.server, 'alice');

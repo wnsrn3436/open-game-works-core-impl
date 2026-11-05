@@ -19,7 +19,7 @@ type DbParam = NonNullable<Parameters<DbHandle['query']>[1]>[number];
 const SEQUENCE_ID = 0n;
 
 /** The `storage` operations block-report calls (`storage` `## API`). */
-export type BlockReportStorage = Pick<Storage, 'register_table' | 'db' | 'lock_game_row'>;
+export type BlockReportStorage = Pick<Storage, 'register_table' | 'db' | 'lock_game_row' | 'get_user_records'>;
 
 /** The `server-time` operations block-report calls (`server-time` `## API`). */
 export type BlockReportServerTime = Pick<ServerTimeApi, 'now' | 'clock_now' | 'get_window_start'>;
@@ -248,7 +248,7 @@ function report_of(row: Readonly<Record<string, unknown>>): Record<string, unkno
  */
 export function create_block_report(input: BlockReportInput): BlockReport {
   const settings = read_settings(input.settings);
-  const storage = required_module<BlockReportStorage>(input.modules, 'storage', ['register_table', 'db', 'lock_game_row']);
+  const storage = required_module<BlockReportStorage>(input.modules, 'storage', ['register_table', 'db', 'lock_game_row', 'get_user_records']);
   const time = required_module<BlockReportServerTime>(input.modules, 'server-time', ['now', 'clock_now', 'get_window_start']);
   const logging = required_module<BlockReportLogging>(input.modules, 'logging', ['write']);
   const validation = required_module<BlockReportValidation>(input.modules, 'validation', ['has_table_id', 'is_plain_text']);
@@ -289,8 +289,8 @@ export function create_block_report(input: BlockReportInput): BlockReport {
 
   /**
    * The `ReportContext` element name of a valid `add_report` input, or null for the `INVALID_INPUT` conditions. A `ref`
-   * or `evidence` holding U+0000 breaks its rule: PostgreSQL does not store U+0000 in a text value and SQLite does, so
-   * the report row write would not give the same result in both DBs (`storage` `## behavior`).
+   * or `evidence` holding U+0000 breaks its rule: a statement with a `string` parameter holding U+0000 fails in both DBs
+   * (`storage` `## behavior`), so the report row write would fail the request instead of answering `INVALID_INPUT`.
    */
   const valid_context_name = (reason_id: number, context: CoreContract.ReportContext, ref: string, comment: string, evidence: string): string | null => {
     const name = CONTEXT_NAMES.get(context);
@@ -415,10 +415,12 @@ export function create_block_report(input: BlockReportInput): BlockReport {
       if (!profiles.is_active_user(ctx, target)) return USER_NOT_FOUND;
       const db = storage.db(ctx);
       if (has_block(db, ctx.user_id, target)) return new CoreContract.BlockUserResponse();
+      const blocked_ids = blocked_rows(db, ctx.user_id).map((row) => row.blocked_id);
+      const active = new Set(storage.get_user_records(db, blocked_ids).flatMap((entry) => (entry.record.withdrawn_at === null ? [entry.user_id] : [])));
       let kept = 0;
-      for (const row of blocked_rows(db, ctx.user_id)) {
-        if (profiles.is_active_user(ctx, row.blocked_id)) kept += 1;
-        else db.query(`DELETE FROM ${BLOCK_TABLE} WHERE user_id = $1 AND blocked_id = $2`, [ctx.user_id, row.blocked_id]);
+      for (const blocked_id of blocked_ids) {
+        if (active.has(blocked_id)) kept += 1;
+        else db.query(`DELETE FROM ${BLOCK_TABLE} WHERE user_id = $1 AND blocked_id = $2`, [ctx.user_id, blocked_id]);
       }
       if (kept >= settings.max_blocks) return BLOCK_LIMIT;
       db.query(`INSERT INTO ${BLOCK_TABLE} (user_id, blocked_id, created_at) VALUES ($1, $2, $3)`, [ctx.user_id, target, time.now(ctx)]);
