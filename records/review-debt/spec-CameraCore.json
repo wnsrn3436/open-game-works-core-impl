@@ -1,11 +1,17 @@
 {
   "target": "spec CameraCore",
-  "nextId": 7,
+  "nextId": 8,
   "items": [
     {
       "id": "D6",
       "location": "skills/client-core/modules/camera-core.md:79",
       "problem": "Bounds fitting is step 2 of the per-frame position calculation, while `snap_to`, `move_to` with duration 0 (line 96, 100) and `zoom_to` with duration 0 (line 101, 104) apply their value inside the operation. It is not set whether the base position is fitted inside those operations or only in the next frame, and `get_view_center` is \"the base position after bounds fitting\" only in test line 208. Run path: `set_bounds`(B) → frame → `snap_to`(p with a view range outside B) → `get_view_center` in the same frame: one implementation returns p (fitted next frame), another returns the fitted value (fitted inside `snap_to` or on read). Test line 205 checks only after one frame, so both pass",
+      "foundBy": "spec CameraCore"
+    },
+    {
+      "id": "D7",
+      "location": "skills/client-core/modules/camera-core.md:104",
+      "problem": "\"When the zoom changes, bounds fitting is done again with the changed view range\" does not say when. Bounds fitting is step 2 of the per-frame order (line 79), and line 111 says \"the bounds fitting of the next frame\" for `GameAreaChangedEvent`, but line 104 names no frame, so it can be read as fitting inside `zoom_to` with duration 0 (which \"applies the end factor inside the operation\", line 101). Since `get_view_center` is the base position that step 2 changes (line 44, test line 205), `get_view_center` right after `zoom_to`(2, 0) with bounds, before the next frame, differs between an implementation that fits inside the operation and one that fits in the next frame. The text existed before the diff",
       "foundBy": "spec CameraCore"
     }
   ]
