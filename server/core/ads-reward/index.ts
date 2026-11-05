@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import * as CoreContract from '../../generated/contract/core_contract.ts';
 import * as GameData from '../../generated/data/game_data.ts';
 import type { RequestCtx } from '../storage/index.ts';
-import type { AdsAdapter, KeySource } from './adapter.ts';
+import { NOTIFY_ID, type AdsAdapter, type KeySource } from './adapter.ts';
 import { admob_key_source, create_admob_adapter } from './adapters/admob.ts';
 import { handle_callback, KeyCache, type RouteRequest, type RouteResponse } from './callback.ts';
 import { read_modules, read_settings, type AdsRewardInput } from './deps.ts';
@@ -101,7 +101,16 @@ function begin_ad_reward(core: AdsRewardCore, ctx: RequestCtx, request: CoreCont
   return response;
 }
 
+/**
+ * Whether a client's reward notify ID can name a ticket: `BeginAdReward` issues only `NOTIFY_ID`. Any other value is
+ * no ticket without a statement, since a statement with U+0000 in a parameter fails (`storage`).
+ */
+function is_notify_id(notify_id: string): boolean {
+  return NOTIFY_ID.test(notify_id);
+}
+
 function claim_ad_reward(core: AdsRewardCore, ctx: RequestCtx, request: CoreContract.ClaimAdRewardRequest): CoreContract.ClaimAdRewardResponse | number {
+  if (!is_notify_id(request.notify_id)) return CoreError.CORE_ERROR_AD_REWARD_NOT_FOUND;
   const ticket = read_ticket(core.m.storage.db(ctx), ctx.user_id, request.notify_id, core.m.time.clock_now());
   switch (ticket?.state) {
     case 'Granted': {
@@ -127,6 +136,7 @@ function ticket_state(core: AdsRewardCore, user_id: bigint, notify_id: string): 
 async function wait_ad_reward(core: AdsRewardCore, user_id: bigint, notify_id: string): Promise<null> {
   const { storage, time } = core.m;
   const { claim_wait_ms, claim_poll_interval_ms } = core.settings;
+  if (!is_notify_id(notify_id)) return null;
   const start = time.clock_now();
   await storage.run_user_transaction(user_id, (ctx) => {
     claim_ticket(storage.db(ctx), ctx.user_id, notify_id, time.clock_now());
@@ -142,6 +152,7 @@ async function wait_ad_reward(core: AdsRewardCore, user_id: bigint, notify_id: s
 
 function fake_callback(core: AdsRewardCore, ctx: RequestCtx, notify_id: string): FakeCallbackResult {
   const { storage, time, idempotency } = core.m;
+  if (!is_notify_id(notify_id)) return CoreError.CORE_ERROR_AD_REWARD_NOT_FOUND;
   const ticket = read_ticket(storage.db(ctx), ctx.user_id, notify_id, time.clock_now());
   if (ticket === null || (ticket.state !== 'Issued' && ticket.state !== 'Claimed')) return CoreError.CORE_ERROR_AD_REWARD_NOT_FOUND;
   if (idempotency.claim_notify(ctx, 'fake', notify_id) === 'FIRST') grant(core, ctx, notify_id, ticket.placement_id);
