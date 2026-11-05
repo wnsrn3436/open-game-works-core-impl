@@ -1,17 +1,11 @@
 {
   "target": "spec item-ledger",
-  "nextId": 7,
+  "nextId": 8,
   "items": [
     {
-      "id": "D5",
-      "location": "skills/server-core/modules/item-ledger.md:87",
-      "problem": "Two rules give different results when content code passes source `Recovery` or `Overflow`. Line 56 says core sets `source` when content code calls (`hook_change_source` or `Request`) and that \"A source passed by content code is not used\". But line 87, the error table row at line 199 and the test at line 374 say a call whose caller passes `Recovery` or `Overflow` throws with `INTERNAL` and an `error` log, and the API table names content handlers and hooks as callers. Input: a content handler calls `add_items(ctx, [X 1], {source: Recovery})` outside any `with_hook_change_source`. One implementation ignores the passed source, records source `Request` and returns `OK`. Another throws, so the request is `INTERNAL` with an `error` log",
-      "foundBy": "spec item-ledger"
-    },
-    {
-      "id": "D6",
-      "location": "skills/server-core/modules/item-ledger.md:53",
-      "problem": "The order of the `ItemChange`s that `exchange_items` adds with `storage.add_item_change` is not set. The response's `item_changes` follow that order (skills/server-core/modules/storage.md:219). An item can be in the list to subtract and the list to add, and a group member item that only a group item takes from is in neither list. So a client that reads `item_changes` gets a different order from implementations that order by the list to subtract, by the list to add, or by item ID value. Line 51 sets only the position of `Convert` replacement grants. This was already unset before the diff, which kept the per-item recording without giving an order",
+      "id": "D7",
+      "location": "skills/server-core/modules/item-ledger.md:142",
+      "problem": "The order of the `ItemChange`s, history rows and hook list elements of `subtract_items` with a group item is not set. Line 53 sets that order only for `exchange_items`, and line 51 only the position of `Convert` replacement grants; line 142 sets the calculation order (items that are not group items first, then group items) but not the recording order, and storage.md:219 and contract/SKILL.md:199 carry `item_changes` in the order `item-ledger` added them. Input: group item G with `members` M1, M2, M1 balance 5, X balance 5, `subtract_items(ctx, [G 2, X 1], source)`. An implementation that records in calculation order gives `item_changes` X, M1; one that records each list element at its position (group takes at the group item's place) gives M1, X. A client reading `item_changes` and the history `seq` order differ between them",
       "foundBy": "spec item-ledger"
     }
   ]
