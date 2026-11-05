@@ -1,12 +1,5 @@
 {
   "target": "spec mailbox",
   "nextId": 6,
-  "items": [
-    {
-      "id": "D5",
-      "location": "skills/server-core/modules/mailbox.md:78",
-      "problem": "The spec does not set which result `send_mail` returns when one input meets several results: an `INVALID_INPUT` condition (mailbox.md:79), `ALREADY_SENT` (an existing `mailbox_once_key` row) and the throw for a content `once_key` with the core prefix of `item-ledger` (mailbox.md:71). e.g. `send_mail` with `once_key` `gift`, after a mail with `once_key` `gift` was sent, and with `expire_ms` above `mailbox.maxExpireMs`, returns either `ALREADY_SENT` with the existing mail ID or `INVALID_INPUT`. `admin-api` answers 200 or 400 (admin-api.md:192), and `ranking` counts the first as success and turns the second into `REJECTED` (ranking.md:165). Before the diff, the existing conditions (e.g. `template_id` not in the table, or `expire_ms` above `mailbox.maxExpireMs`) already had this gap",
-      "foundBy": "spec mailbox"
-    }
-  ]
+  "items": []
 }
