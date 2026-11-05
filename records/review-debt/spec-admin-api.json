@@ -1,5 +1,12 @@
 {
   "target": "spec admin-api",
-  "nextId": 16,
-  "items": []
+  "nextId": 17,
+  "items": [
+    {
+      "id": "D16",
+      "location": "skills/server-core/modules/admin-api.md:241",
+      "problem": "`body_sha256` has no set place and no set requests: the bullet says the SHA-256 hex of a binary body \"is kept in `body_sha256`\" without saying whether `body_sha256` is a key inside `args` or a field of the `audit` line beside `args`, and whether a binary body request that ends in steps 4 to 6 (where `args` is `null` for steps 4 and 5) has it; line 217 (\"keeps neither the file contents nor `body_sha256`\") reads it as a line field, but nothing sets it. No item of `## test` checks `body_sha256`, so two implementations can differ",
+      "foundBy": "spec admin-api"
+    }
+  ]
 }
