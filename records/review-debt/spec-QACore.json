@@ -1,17 +1,11 @@
 {
   "target": "spec QACore",
-  "nextId": 7,
+  "nextId": 8,
   "items": [
     {
-      "id": "D5",
-      "location": "skills/client-core/modules/qa-core.md:41",
-      "problem": "For an input command that ends by its time limit (line 40) while it still has device inputs to put in, the spec does not set whether QACore stops putting them in and releases what it holds. Line 41 covers only the operation the command waits for (content command handler, operation of another module), and line 128 sets \"an ended command puts in no device input after that\" and the release of held touches, keys, mouse buttons and gamepad buttons only for a connection drop. Run path: `text` puts in one character per frame with limit `QACore.commandTimeoutMs` only (line 40, line 65), so a `text` of `QACore.textMaxChars` characters whose frames take longer than the limit (or a `drag`/`key` whose frames stall past `QACore.commandTimeoutMs` + ms) ends with `ok` = `false`; one implementation keeps putting in the remaining characters or the pending move/release after the response, another stops and leaves the touch or key pressed, so the next `tap` takes another touch index and `touch_down` of that index fails differently per implementation",
-      "foundBy": "spec QACore"
-    },
-    {
-      "id": "D6",
-      "location": "skills/client-core/modules/qa-core.md:40",
-      "problem": "What QACore's own remaining work does after a command ends by its time limit is not set, while it is set for a connection drop (qa-core.md:128) and `release` (qa-core.md:250). The new rule at qa-core.md:41 covers only a late end of the operation the command waits for (content handler, another module's operation), not QACore's own work. Reproducing input: game settings `QACore.textMaxChars` (owner content) 1000 and `QACore.commandTimeoutMs` 10000 at 60 FPS; `text` of 1000 characters puts in one text input per frame (qa-core.md:65), so it reaches the time limit after about 600 characters. One implementation stops putting in text inputs, another keeps putting them in after the `ok` = `false` response, so the text field content after the command differs. Likewise a `tap` whose release frame comes after the limit (a frame longer than `QACore.commandTimeoutMs`) can leave the touch index pressed or release it, which changes the touch index the next `tap` uses (qa-core.md:120), and a `capture_video` that reaches its limit can send frame messages after the response or stop, against qa-core.md:125. These rules predate the change range",
+      "id": "D7",
+      "location": "skills/client-core/modules/qa-core.md:42",
+      "problem": "The frame of the remaining device inputs after an input command ends by its time limit is left to the implementation, and the implementations it allows give different command results. \"That release goes in no later than the second frame start after the command ended\" allows a `key` (or `drag`) whose press already went in and whose release was not yet queued to release at the first or the second frame start after the command ended, and the test at qa-core.md:351 accepts both. Run path: `key`(k, 1000) reaches its time limit in frame F with the key held; the bot sends `key_down`(k) as soon as it gets the `ok` = `false` response, and it is received after the frame start of F+1. An implementation that releases at F+1 gives `key_down` `ok` = `true`; one that releases at F+2 gives `ok` = `false` (`key_down` fails when that key is pressed, qa-core.md:70). Likewise a `tap` received then takes touch index 0 in one and 1 in the other (qa-core.md:121), and content sees one more frame of the held key or touch. For `text`, \"the one it had queued for the next frame start\" depends on when an implementation queues the next character (end of frame F or frame start F+1), so the text field holds 2 or 3 characters in the scenario of qa-core.md:351 (\"at most one more\"). Fix direction: set the frame, e.g. the queued input goes in at the first frame start after the command ended, and the release goes in at the first frame start after the command ended, or at the frame start after its press when the press was the queued input; set whether a `text` character counts as queued only once its frame start has begun",
       "foundBy": "spec QACore"
     }
   ]
