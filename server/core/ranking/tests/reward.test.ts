@@ -31,6 +31,9 @@ import {
   type TestSession,
 } from './support.ts';
 
+/** A thrown value that is not an `Error`. */
+const THROWN_STRING: unknown = 'reward store is down';
+
 /** The day after T0: the daily season of T0 has ended. */
 const NEXT_DAY = at('2026-01-06T00:00:00Z');
 const LEASE_MS = 300_000n;
@@ -233,6 +236,76 @@ describe('ranking season reward', () => {
     const row = season_row(h, BOARD.daily(), season);
     expect([row?.status, row?.failed_count]).toEqual(['Closed', 1n]);
     expect(testing.read_logs(h.server, 'error').some((l) => l.message === 'season reward rejected')).toBe(true);
+  });
+
+  it.each([
+    ['throws an Error', (): SeasonReward => { throw new Error('reward store is down'); }],
+    ['throws a string', (): SeasonReward => { throw THROWN_STRING; }],
+    ['returns an attachment without big_amount', (): SeasonReward => ({ attachments: [{ item_id: id('[rk_gold]'), amount: 1n }], extra_id: 0 }) as unknown as SeasonReward],
+    ['returns extra_id 2^31', (): SeasonReward => ({ attachments: [], extra_id: 2 ** 31 })],
+    ['returns extra_id -2^31 - 1', (): SeasonReward => ({ attachments: [gold(1n)], extra_id: -(2 ** 31) - 1 })],
+    ['returns extra_id 0.5', (): SeasonReward => ({ attachments: [gold(1n)], extra_id: 0.5 })],
+  ])('a ranking_season_reward hook that %s makes the user FAILED: a retry row goes in, the season is Retrying, and the job does not throw', async (_case, hook) => {
+    const { sessions, season } = await ranked(1, hook);
+    await move_to(h, NEXT_DAY);
+    expect(await mail_counts(sessions)).toEqual([0]);
+    expect(retry_rows(h, BOARD.daily(), season).map((r) => [r.user_id, r.attempts])).toEqual([[sessions[0].user_id, 0]]);
+    const row = season_row(h, BOARD.daily(), season);
+    expect([row?.status, row?.failed_count]).toEqual(['Retrying', 0n]);
+    expect(ranking_errors().map(([message]) => message)).toEqual(['season reward failed']);
+  });
+
+  it('extra_id -2^31 and 2^31 - 1 of a ranking_season_reward hook are sent', async () => {
+    const { sessions, season } = await ranked(2, (_ctx, _b, _s, _e, entry) => ({ attachments: [gold(1n)], extra_id: entry.rank === 1 ? -(2 ** 31) : 2 ** 31 - 1 }));
+    await move_to(h, NEXT_DAY);
+    expect(await mail_counts(sessions)).toEqual([1, 1]);
+    expect(season_row(h, BOARD.daily(), season)?.status).toBe('Closed');
+  });
+
+  it('a FAILED game transaction of the job leaves one error log of its season and stops that season; the next run closes it', async () => {
+    const { sessions, season } = await ranked(2, null);
+    const storage = h.core().storage;
+    const run = storage.run_game_transaction.bind(storage);
+    let calls = 0;
+    storage.run_game_transaction = (async (fn: Parameters<typeof run>[0]) => {
+      calls += 1;
+      return calls === 1 ? 'FAILED' : await run(fn);
+    }) as typeof storage.run_game_transaction;
+    await move_to(h, NEXT_DAY);
+    const failed = testing.read_logs(h.server, 'error').filter((l) => l.message === 'season game transaction failed');
+    expect(failed.map((l) => [String(l.board_id), String(l.season)])).toEqual([[String(BOARD.daily()), String(season)]]);
+    expect(season_row(h, BOARD.daily(), season)?.status).toBe('Open');
+    expect(await mail_counts(sessions)).toEqual([0, 0]);
+    await move_to(h, NEXT_DAY + 60_000n);
+    expect(await mail_counts(sessions)).toEqual([1, 1]);
+    expect(season_row(h, BOARD.daily(), season)?.status).toBe('Closed');
+  });
+
+  it('on PostgreSQL, a job run while hold_db holds the ranking_season row of an ended season leaves one error log of it, sends none of its mail and handles the next ended season; after release the next run closes it', async () => {
+    h = await start({ db: 'postgresql', settings: { 'storage.userLockWaitMs': 200 } });
+    const [a] = await users(h, 1);
+    await submit(h, a.user_id, BOARD.daily(), 10n);
+    await submit(h, a.user_id, BOARD.daily_asc(), 10n);
+    const season = (await season_now(h, a.user_id, BOARD.daily())).season;
+    expect((await season_now(h, a.user_id, BOARD.daily_asc())).season).toBe(season);
+    // Seasons are handled in (board_id, season) order: the held one is the first, the other the next.
+    const held = Math.min(BOARD.daily(), BOARD.daily_asc());
+    const next = Math.max(BOARD.daily(), BOARD.daily_asc());
+    const holder = await testing.hold_db(h.server, [{ sql: 'SELECT board_id FROM ranking_season WHERE board_id = $1 AND season = $2 FOR UPDATE', params: [held, season] }]);
+    try {
+      await move_to(h, NEXT_DAY);
+    } finally {
+      await holder.release();
+    }
+    const failed = testing.read_logs(h.server, 'error').filter((l) => l.message === 'season game transaction failed');
+    expect(failed.map((l) => [String(l.board_id), String(l.season)])).toEqual([[String(held), String(season)]]);
+    expect(season_row(h, held, season)?.status).toBe('Open');
+    expect(season_row(h, next, season)?.status).toBe('Closed');
+    // Only [rk_daily] has a reward mail.
+    expect((await reward_mails(h, a.user_id)).length).toBe(held === BOARD.daily() ? 0 : 1);
+    await move_to(h, NEXT_DAY + 60_000n);
+    expect(season_row(h, held, season)?.status).toBe('Closed');
+    expect((await reward_mails(h, a.user_id)).length).toBe(1);
   });
 
   it('a server stopped before seasons end and restarted several seasons later sends each ended season with scores once per user', async () => {

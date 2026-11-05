@@ -99,6 +99,7 @@ export interface StartOptions {
   /** Called inside `register` after the base registrations. */
   readonly register?: (core: CoreView) => void;
   readonly server_modules?: readonly string[];
+  readonly db?: 'sqlite' | 'postgresql';
 }
 
 /** Starts a test server whose `register` keeps the `register` view for the test and runs `RunCoreTest` bodies. */
@@ -119,7 +120,7 @@ export async function start(options: StartOptions = {}): Promise<Harness> {
   };
   const server = await testing.start_test_server(
     options.start_at ?? T0,
-    undefined,
+    options.db,
     undefined,
     undefined,
     undefined,
