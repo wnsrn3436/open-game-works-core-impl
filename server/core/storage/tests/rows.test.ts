@@ -357,7 +357,11 @@ describe('users', () => {
       [5, 1n, 'server_state'],
       [7, 1n, 'user_state'],
     ];
-    for (const user of users) await request(storage, user, (ctx) => storage.put_state(ctx, quest(9n, 1n)));
+    for (const user of users) {
+      await request(storage, user, (ctx) => {
+        storage.put_state(ctx, quest(9n, 1n));
+      });
+    }
     for (const [i, version, table] of lower) {
       await request(storage, users[i] as bigint, (ctx) => {
         storage.replace_user_rows(ctx, rows(version, table));
@@ -389,7 +393,11 @@ describe('users', () => {
     const lock_wait = 500;
     const { db, storage } = await instance({ settings: { 'storage.userLockWaitMs': lock_wait } });
     const users = await new_users(storage, 3);
-    for (const user of users) await request(storage, user, (ctx) => storage.put_state(ctx, quest(1n, 1n)));
+    for (const user of users) {
+      await request(storage, user, (ctx) => {
+        storage.put_state(ctx, quest(1n, 1n));
+      });
+    }
     const holder = await hold_db(db.secrets.db ?? '', [{ sql: 'LOCK TABLE "user" IN ACCESS EXCLUSIVE MODE' }]);
     let page: unknown;
     const started = performance.now();
