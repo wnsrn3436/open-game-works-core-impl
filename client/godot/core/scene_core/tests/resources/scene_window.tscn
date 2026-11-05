@@ -1,0 +1,16 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/scene_core/tests/support/scene_stub.gd" id="1_scene"]
+
+[node name="SceneWindow" type="Node" node_paths=PackedStringArray("probe")]
+script = ExtResource("1_scene")
+probe = NodePath("Probe")
+
+[node name="Probe" type="Node2D" parent="."]
+
+[node name="Window" type="Window" parent="."]
+size = Vector2i(64, 64)
+
+[node name="HiddenWindow" type="Window" parent="."]
+visible = false
+size = Vector2i(64, 64)

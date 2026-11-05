@@ -52,6 +52,34 @@ func test_new_scene_reads_its_children_in_on_preload_and_runs_frames_only_after_
 	assert_gt(scene.process_count, 0)
 
 
+## A `Window` is a top visual node: the one in the scene resource and one added before stage 7 are hidden until stage
+## 7, and the one hidden in the scene resource stays hidden.
+func test_window_is_not_on_screen_from_stage_4_until_stage_7() -> void:
+	assert_true(await start_booted(SCENE_A))
+	TestScene.prepare_gate = Gate.new()
+	var results: PackedInt32Array = PackedInt32Array()
+	change_later(SCENE_WINDOW, results)
+	await wait_trace("prepare:" + SCENE_WINDOW)
+	var scene: TestScene = TestScene.last as TestScene
+	assert_not_null(scene)
+	if scene == null:
+		return
+	var window: Window = scene.get_node("Window") as Window
+	var hidden: Window = scene.get_node("HiddenWindow") as Window
+	assert_false(window.visible)
+	assert_false(hidden.visible)
+	var added: Window = Window.new()
+	added.size = Vector2i(64, 64)
+	scene.add_child(added)
+	assert_false(added.visible)
+	TestScene.prepare_gate.open(true)
+	await wait_trace("started:" + SCENE_WINDOW)
+	assert_true(window.visible)
+	assert_true(added.visible)
+	assert_false(hidden.visible)
+	assert_eq(results, PackedInt32Array([1]))
+
+
 ## An object directly under the scene root that is hidden in the scene resource stays hidden after the transition,
 ## and the other objects of the scene are on screen.
 func test_node_hidden_in_the_scene_resource_is_still_hidden_after_the_transition() -> void:

@@ -370,6 +370,7 @@ func _assert_released_state() -> void:
 	assert_eq(SceneCore._scene_key, "", _point)
 	assert_eq(SceneCore._root_panel, "", _point)
 	assert_eq(SceneCore._block_token, 0, _point)
+	assert_false(SceneCore._panel_locked, _point)
 	assert_false(SceneCore._loading_shown, _point)
 	assert_false(SceneCore._hiding, _point)
 	assert_eq(SceneCore._hidden.size(), 0, _point)
