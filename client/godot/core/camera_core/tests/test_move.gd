@@ -163,3 +163,54 @@ func test_move_to_rejects_a_bad_duration_easing_time_basis_or_position() -> void
 	assert_false(CameraCore.snap_to(Vector3(0, NAN, 0)))
 	assert_eq(errors(), 6)
 	assert_center(Vector3.ZERO)
+
+
+func test_move_by_preset_of_a_missing_preset_ends_the_follow_at_the_call() -> void:
+	assert_true(start())
+	assert_true(CameraCore.attach_camera(camera_2d()))
+	var target: Node2D = target_2d(Vector2(10, 0))
+	assert_true(follow(target))
+	await frame_end()
+	assert_center(Vector3(10, 0, 0))
+	_run_missing_preset(Vector3(300, 0, 0))
+	assert_eq(CameraCore._follow_id, 0, "the call ends the follow")
+	target.position = Vector2(500, 0)
+	if results.is_empty():
+		await frame_end()
+		assert_center(Vector3(10, 0, 0))
+	for frame: int in 30:
+		if not results.is_empty():
+			break
+		await frame_end()
+	assert_results([FAILED])
+	target.position = Vector2(-500, 0)
+	await advance(100)
+	assert_center(Vector3(10, 0, 0))
+	assert_eq(errors(), 1)
+	assert_eq(UnitTestCore.check_logs(ERROR, "ResourceCore"), 1)
+
+
+func test_a_failed_move_to_keeps_the_follow_and_the_running_move() -> void:
+	assert_true(start())
+	assert_true(CameraCore.attach_camera(camera_2d()))
+	var target: Node2D = target_2d()
+	assert_true(follow(target))
+	assert_eq(await CameraCore.move_to(Vector3(NAN, 0, 0), 0, LINEAR, GAME), FAILED)
+	target.position = Vector2(50, 0)
+	await frame_end()
+	assert_center(Vector3(50, 0, 0))
+	run_move(Vector3(100, 0, 0), 200)
+	assert_eq(await CameraCore.move_to(Vector3(0, NAN, 0), 0, LINEAR, GAME), FAILED)
+	assert_results([])
+	await advance(200)
+	assert_results([COMPLETED])
+	assert_center(Vector3(100, 0, 0))
+	assert_eq(errors(), 2)
+
+
+## Starts `move_by_preset` with the `MISSING` preset; its result is appended to `results`.
+func _run_missing_preset(position: Vector3) -> void:
+	var result: CameraCore.CameraMoveResult = await CameraCore.move_by_preset(
+		position, MISSING, ResourceCore.get_global_scope()
+	)
+	results.append(result)

@@ -109,6 +109,65 @@ func test_view_center_is_the_fitted_reference_without_the_shake_offset_in_2d_and
 	assert_eq(camera_3.global_position, CameraCore.get_view_center(), "without shake the view center is the camera")
 
 
+func test_set_bounds_fits_at_the_next_frame_and_clear_bounds_keeps_the_fitted_reference() -> void:
+	assert_true(start())
+	assert_true(CameraCore.attach_camera(camera_2d()))
+	var p: Vector3 = Vector3(3000, -2000, 0)
+	assert_true(CameraCore.snap_to(p))
+	var bounds: Rect2 = Rect2(-1000, -1000, 2000, 2000)
+	assert_true(CameraCore.set_bounds(bounds))
+	assert_center(p)
+	await frame_end()
+	var fitted: Vector3 = CameraCore.get_view_center()
+	assert_ne(fitted, p, "fitted at the next frame")
+	assert_corners_inside(bounds, "after one frame")
+	CameraCore.clear_bounds()
+	await frame_end()
+	assert_center(fitted)
+
+
+func test_snap_to_and_a_zero_duration_move_fit_the_bounds_in_the_call() -> void:
+	assert_true(start())
+	var bounds: Rect2 = Rect2(-1000, -1000, 2000, 2000)
+	var p: Vector3 = Vector3(2500, -3000, 0)
+	var cameras: Array[Camera2D] = [camera_2d(), camera_2d()]
+	cameras[1].rotation_degrees = 10.0
+	for camera: Camera2D in cameras:
+		var label: String = "rotation %s" % camera.rotation_degrees
+		assert_true(CameraCore.attach_camera(camera))
+		assert_true(CameraCore.set_bounds(bounds))
+		assert_true(CameraCore.snap_to(p))
+		assert_ne(CameraCore.get_view_center(), p, "snap_to is fitted, " + label)
+		assert_corners_inside(bounds, "snap_to, " + label)
+		assert_true(CameraCore.snap_to(Vector3.ZERO))
+		assert_eq(await CameraCore.move_to(p, 0, LINEAR, GAME), COMPLETED)
+		assert_ne(CameraCore.get_view_center(), p, "move_to is fitted, " + label)
+		assert_corners_inside(bounds, "move_to, " + label)
+	assert_eq(errors(), 0)
+
+
+func test_zooming_out_at_the_bounds_edge_keeps_the_view_inside_the_bounds() -> void:
+	assert_true(start())
+	assert_true(CameraCore.attach_camera(camera_2d()))
+	var bounds: Rect2 = Rect2(-1000, -1000, 2000, 2000)
+	assert_true(CameraCore.set_bounds(bounds))
+	# at factor 2 the view range is 640x360: this reference touches the right and bottom edges
+	var edge: Vector3 = Vector3(1000 - SCREEN.x / 4.0, 1000 - SCREEN.y / 4.0, 0)
+	assert_eq(await CameraCore.zoom_to(2.0, 0, LINEAR, GAME), COMPLETED)
+	assert_true(CameraCore.snap_to(edge))
+	assert_center(edge)
+	assert_eq(await CameraCore.zoom_to(1.0, 0, LINEAR, GAME), COMPLETED)
+	assert_corners_inside(bounds, "zero duration zoom")
+	assert_eq(await CameraCore.zoom_to(2.0, 0, LINEAR, GAME), COMPLETED)
+	assert_true(CameraCore.snap_to(edge))
+	assert_center(edge)
+	run_zoom(1.0, 500)
+	for step: int in 10:
+		await advance(50)
+		assert_corners_inside(bounds, "zoom frame %d at %s" % [step, CameraCore.get_zoom()])
+	assert_results([COMPLETED])
+
+
 func test_set_bounds_rejects_a_size_of_zero_or_less_and_keeps_the_previous_bounds() -> void:
 	assert_true(start())
 	assert_true(CameraCore.attach_camera(camera_2d()))

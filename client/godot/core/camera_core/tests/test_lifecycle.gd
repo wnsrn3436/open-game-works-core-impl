@@ -142,6 +142,7 @@ func _assert_initial_state() -> void:
 	assert_eq(CameraCore._zoom, 1.0)
 	assert_eq(CameraCore._zoom_one_2d, Vector2.ONE)
 	assert_eq(CameraCore._rotation_2d, 0.0)
+	assert_eq(CameraCore._fov_one, 0.0)
 	assert_eq(CameraCore._fov_tan_one, 0.0)
 	assert_eq(CameraCore._size_one, 0.0)
 	assert_false(CameraCore._bounds_error_logged)
