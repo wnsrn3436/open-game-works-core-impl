@@ -28,7 +28,7 @@ export interface AdminOperation {
 
 /** `withdraw_user`: the withdrawal in the target user's out-of-request change. */
 export function withdraw_user(a: AuthState, ctx: Ctx): Record<string, unknown> | AdminFailure {
-  return withdraw(a, ctx) === 'FAILED' ? 'internal' : {};
+  return withdraw(a, ctx) === 'done' ? {} : 'internal';
 }
 
 /** `find_user_by_social_account`: the linked user and `linked_at` of `(provider, provider_account_id)`. */

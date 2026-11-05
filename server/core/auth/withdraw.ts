@@ -9,14 +9,15 @@ import type { Ctx } from './deps.ts';
 import { revoke_apple } from './social.ts';
 import { apple_token } from './tables.ts';
 
-/** `FAILED` when a `remove_user` failed: nothing after it ran and the caller rolls the transaction back. */
-export function withdraw(a: AuthState, ctx: Ctx): 'done' | 'FAILED' {
+/** `FAILED` or `CHANGED`, the result of a `remove_user` that gave it: nothing after it ran and the caller rolls the transaction back. */
+export function withdraw(a: AuthState, ctx: Ctx): 'done' | 'FAILED' | 'CHANGED' {
   const m = a.modules;
   const refresh_token = apple_token(m.storage.db(ctx), ctx.user_id);
   const steps = [m.ranking, m.push, m.iap, m.chat, m.friend, m.guild, m['block-report']];
   for (const module of steps) {
     if (module === undefined) continue;
-    if (module.remove_user(ctx) === 'FAILED') return 'FAILED';
+    const removed = module.remove_user(ctx);
+    if (removed === 'FAILED' || removed === 'CHANGED') return removed;
   }
   m.logging.request_analytics_deletion(ctx);
   m.storage.delete_user(ctx);
