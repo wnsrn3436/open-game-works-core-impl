@@ -167,23 +167,33 @@ describe('iap-google receipts', () => {
   it('a subscriptionsv2 answer with testPurchase is a test transaction for the receipt and the lookup, without it not; purchases.products purchaseType 0 is one', async () => {
     const server = await start();
     const a = await testing.login(server, 'a');
-    const token = await account_token(a);
+    const b = await testing.login(server, 'b');
+    const token_a = await account_token(a);
+    const token_b = await account_token(b);
     const end = new Date(Number(START + DAY)).toISOString();
-    let answer = subscription_answer(token, { productId: 'vip_google', latestSuccessfulOrderId: 'GPA.t-1', expiryTime: end }, { testPurchase: {} });
+    const next_end = new Date(Number(START + 2n * DAY)).toISOString();
+    const answers: Record<string, Record<string, unknown>> = {
+      'sub-test': subscription_answer(token_a, { productId: 'vip_google', latestSuccessfulOrderId: 'GPA.t-1', expiryTime: end }, { testPurchase: {} }),
+      'sub-paid': subscription_answer(token_b, { productId: 'vip_google', latestSuccessfulOrderId: 'GPA.u-1', expiryTime: end }),
+    };
     as_google(server, (url) => {
-      if (url === subscription_url('sub-tok')) return json_response(200, answer);
+      for (const [token, answer] of Object.entries(answers)) if (url === subscription_url(token)) return json_response(200, answer);
       if (url === product_url('gems_google', 'p-test')) return json_response(200, product_answer({ orderId: 'GPA.p-1', purchaseType: 0 }));
       if (url === product_url('gems_google', 'p-paid')) return json_response(200, product_answer({ orderId: 'GPA.p-2' }));
       return json_response(404, {});
     });
-    expect(status_of(await verify(a, GOOGLE, google_receipt('vip_google', 'sub-tok')))).toBe(Status.PURCHASE_STATUS_GRANTED);
-    answer = subscription_answer(token, { productId: 'vip_google', latestSuccessfulOrderId: 'GPA.t-2', expiryTime: new Date(Number(START + 2n * DAY)).toISOString() });
+    expect(status_of(await verify(a, GOOGLE, google_receipt('vip_google', 'sub-test')))).toBe(Status.PURCHASE_STATUS_GRANTED);
+    expect(status_of(await verify(b, GOOGLE, google_receipt('vip_google', 'sub-paid')))).toBe(Status.PURCHASE_STATUS_GRANTED);
+    answers['sub-test'] = subscription_answer(token_a, { productId: 'vip_google', latestSuccessfulOrderId: 'GPA.t-2', expiryTime: next_end });
+    answers['sub-paid'] = subscription_answer(token_b, { productId: 'vip_google', latestSuccessfulOrderId: 'GPA.u-2', expiryTime: next_end }, { testPurchase: {} });
     testing.set_time(server, START + DAY);
     expect(code_of(await sync_subscriptions(a))).toBeNull();
+    expect(code_of(await sync_subscriptions(b))).toBeNull();
     expect(status_of(await verify(a, GOOGLE, google_receipt('gems_google', 'p-test')))).toBe(Status.PURCHASE_STATUS_GRANTED);
     expect(status_of(await verify(a, GOOGLE, google_receipt('gems_google', 'p-paid')))).toBe(Status.PURCHASE_STATUS_GRANTED);
-    const test_of = new Map((await payments_of(server, a)).map((p) => [p.transaction_id, p.test]));
-    expect(Object.fromEntries(test_of)).toEqual({ 'GPA.t-1': true, 'GPA.t-2': false, 'GPA.p-1': true, 'GPA.p-2': false });
+    const test_of = async (user: Session): Promise<Record<string, unknown>> => Object.fromEntries((await payments_of(server, user)).map((p) => [String(p.transaction_id), p.test]));
+    expect(await test_of(a)).toEqual({ 'GPA.t-1': true, 'GPA.t-2': false, 'GPA.p-1': true, 'GPA.p-2': false });
+    expect(await test_of(b)).toEqual({ 'GPA.u-1': false, 'GPA.u-2': true });
   });
 
   it('a receipt whose productId is the sku_google of a Subscription row goes to subscriptionsv2, of a Consumable row or of no row to purchases.products', async () => {
@@ -444,7 +454,7 @@ describe('fake receipts and the product of a SKU', () => {
     const a = await testing.login(server, 'a');
     const token = await account_token(a);
     fake_store(server).set_result('verify', 'VALID');
-    for (const text of [`gems_apple:fr-1:${token}`, 'fake:gems_apple:fr-2', `fake:gems_apple:fr-3:${token}:fr-3:x`]) {
+    for (const text of [`notfake:gems_apple:fr-1:${token}`, 'fake:gems_apple:fr-2', `fake:gems_apple:fr-3:${token}:fr-3:x`]) {
       expect(result_of(await verify(a, APPLE, text))).toEqual({ status: Status.PURCHASE_STATUS_INVALID, product_id: 0 });
     }
     expect(await payments_of(server, a)).toEqual([]);
