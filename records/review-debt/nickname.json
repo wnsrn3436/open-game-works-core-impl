@@ -1,5 +1,12 @@
 {
   "target": "nickname",
-  "nextId": 6,
-  "items": []
+  "nextId": 7,
+  "items": [
+    {
+      "id": "D6",
+      "location": "server/core/nickname/tests/set-nickname.test.ts:4",
+      "problem": "`structure`: the test imports `lock_key` from `../../storage/tx.ts`, an internal file of `storage` that is not its public API, and passes `lock_key('nickname_claim', [normalizeText(...)])` to `hold_lock_key` (lines 60, 92). The testing spec gives `testing.game_row_lock_id`(table name, key value) (exported from server/core/testing/dev/index.ts:32) for exactly this key. The same import is at server/core/nickname/tests/admin.test.ts:2 (used at line 65). It dates from the initial commit 301b3dd and the range does not change it",
+      "foundBy": "nickname round 3"
+    }
+  ]
 }
