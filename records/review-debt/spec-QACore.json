@@ -1,11 +1,11 @@
 {
   "target": "spec QACore",
-  "nextId": 5,
+  "nextId": 6,
   "items": [
     {
-      "id": "D4",
-      "location": "skills/client-core/modules/qa-core.md:40",
-      "problem": "A command that exceeds its time limit ends with `ok` = `false`, but for a command whose target operation is async and outlives that limit other than a cheat command (a content command handler of line 43, `go_to_scene` with `SceneCore.change_scene`, `open_panel` with `UICore.open_panel`, `leave_match` with `RealtimeCore.leave`), the spec does not set what happens when that operation ends later: whether QACore sends a second response, leaves the end info log of line 39 again, or changes the last command result of line 243. Line 128 and the test at line 347 set this only for cheat commands, and line 81 only for the lockstep branch of `step`, so two implementations can differ for the other async commands",
+      "id": "D5",
+      "location": "skills/client-core/modules/qa-core.md:41",
+      "problem": "For an input command that ends by its time limit (line 40) while it still has device inputs to put in, the spec does not set whether QACore stops putting them in and releases what it holds. Line 41 covers only the operation the command waits for (content command handler, operation of another module), and line 128 sets \"an ended command puts in no device input after that\" and the release of held touches, keys, mouse buttons and gamepad buttons only for a connection drop. Run path: `text` puts in one character per frame with limit `QACore.commandTimeoutMs` only (line 40, line 65), so a `text` of `QACore.textMaxChars` characters whose frames take longer than the limit (or a `drag`/`key` whose frames stall past `QACore.commandTimeoutMs` + ms) ends with `ok` = `false`; one implementation keeps putting in the remaining characters or the pending move/release after the response, another stops and leaves the touch or key pressed, so the next `tap` takes another touch index and `touch_down` of that index fails differently per implementation",
       "foundBy": "spec QACore"
     }
   ]
