@@ -1,3 +1,4 @@
+import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import { StorageMisuse, type GameTx, type Storage } from '../index.ts';
 import type { RequestCtx } from '../request_ctx.ts';
 import { DB_KIND, instance, lock_holder, new_user, new_users, PG_LOCK_SQL, request, stop_all, type LockHolder } from './helpers.ts';
@@ -206,6 +207,40 @@ describe('lock_game_row waits', () => {
       expect(waited).toBeGreaterThanOrEqual(lock_wait - 50);
       expect(waited).toBeLessThan(lock_wait + lock_wait / 4);
       expect(await storage.run_game_transaction((tx) => storage.lock_game_row(tx, 'test_counter', [1n]) ?? 'locked')).toBe('locked');
+    },
+  );
+
+  it.runIf(DB_KIND === 'postgresql')(
+    'PostgreSQL: a function that returns a failure code or catches the throw after a lock_game_row past the lock wait limit makes its transaction FAILED',
+    async () => {
+      const { db, storage } = await instance({ settings: { 'storage.userLockWaitMs': LOCK_WAIT_MS }, register: counter_table });
+      const user = await new_user(storage);
+      const holder = await lock_holder(db);
+      await holder.ok('BEGIN');
+      await hold_counter(holder, 1n);
+      await holder.ok(PG_LOCK_SQL, [lock_key('game_state', ['boss_game_state', 1n])]);
+      const locked = (ctx: RequestCtx | GameTx): boolean => storage.lock_game_row(ctx, 'test_counter', [1n]) !== 'FAILED';
+      const results = [
+        await request(storage, user, (ctx) => {
+          storage.put_state(ctx, quest(1n, 1n));
+          return locked(ctx) ? 'locked' : CoreContract.CoreError.CORE_ERROR_INTERNAL;
+        }),
+        await storage.run_user_transaction(user, (ctx) => (locked(ctx) ? 'pass' : CoreContract.CoreError.CORE_ERROR_INTERNAL)),
+        await storage.run_rollback_transaction(user, (ctx) => (locked(ctx) ? 'locked' : 'not locked')),
+        await storage.run_game_transaction((tx) => (locked(tx) ? 'locked' : CoreContract.CoreError.CORE_ERROR_INTERNAL)),
+        // A content handler that catches the lock throw and answers its own GameError.
+        await request(storage, user, (ctx) => {
+          try {
+            storage.content.lock_game_row(ctx, 'game_state', [BossGameState, 1n]);
+          } catch {
+            return 1001;
+          }
+          return 'locked';
+        }),
+      ];
+      await holder.ok('ROLLBACK');
+      expect(results).toEqual(['FAILED', 'FAILED', 'FAILED', 'FAILED', 'FAILED']);
+      expect(storage.read_db().query('SELECT item_id FROM user_state WHERE user_id = $1', [user])).toEqual([]);
     },
   );
 

@@ -625,6 +625,101 @@ describe('a failed statement', () => {
     expect(raw_rows(storage, 'pending_delta', user)).toEqual([]);
     expect(await storage.run_game_transaction((tx) => storage.db(tx).query(insert, [3n]).length + 100)).toBe(100);
   });
+
+  it('a function that catches it and returns a failure code, or ends a rollback transaction, is FAILED, not that value', async () => {
+    const { storage } = await instance({ register: counter_table });
+    const user = await new_user(storage);
+    const insert = 'INSERT INTO test_counter (id, n) VALUES ($1, 1)';
+    /** Runs the failing statement twice and goes on. */
+    const fail_twice = (handle: ReturnType<Storage['db']>, id: bigint): void => {
+      handle.query(insert, [id]);
+      try {
+        handle.query(insert, [id]);
+      } catch {
+        // The caller goes on after the failed statement.
+      }
+    };
+    expect(
+      await request(storage, user, (ctx) => {
+        storage.put_state(ctx, quest(1n, 1n));
+        fail_twice(storage.db(ctx), 1n);
+        return CoreContract.CoreError.CORE_ERROR_INTERNAL;
+      }),
+    ).toBe('FAILED');
+    expect(
+      await request(storage, user, (ctx) => {
+        fail_twice(storage.db(ctx), 2n);
+        return GAME_ERROR;
+      }),
+    ).toBe('FAILED');
+    expect(
+      await storage.run_user_transaction(user, (ctx) => {
+        fail_twice(storage.db(ctx), 3n);
+        return GAME_ERROR;
+      }),
+    ).toBe('FAILED');
+    expect(
+      await storage.run_rollback_transaction(user, (ctx) => {
+        fail_twice(storage.db(ctx), 4n);
+        return 'read';
+      }),
+    ).toBe('FAILED');
+    expect(
+      await storage.run_game_transaction((tx) => {
+        fail_twice(storage.db(tx), 5n);
+        return CoreContract.CoreError.CORE_ERROR_INTERNAL;
+      }),
+    ).toBe('FAILED');
+    expect(storage.read_db().query('SELECT id FROM test_counter')).toEqual([]);
+    expect(raw_rows(storage, 'user_state', user)).toEqual([]);
+    expect(raw_rows(storage, 'pending_delta', user)).toEqual([]);
+  });
+
+  it('a function that throws another value after it is FAILED; one that throws the value of the failed statement throws it', async () => {
+    const { storage } = await instance({ register: counter_table });
+    const user = await new_user(storage);
+    const insert = 'INSERT INTO test_counter (id, n) VALUES ($1, 1)';
+    const other = new Error('another failure after the failed statement');
+    expect(
+      await request(storage, user, (ctx) => {
+        storage.db(ctx).query(insert, [1n]);
+        try {
+          storage.db(ctx).query(insert, [1n]);
+        } catch {
+          // The caller goes on after the failed statement, then fails in another way.
+        }
+        throw other;
+      }),
+    ).toBe('FAILED');
+    expect(
+      await storage.run_game_transaction((tx) => {
+        storage.db(tx).query(insert, [2n]);
+        try {
+          storage.db(tx).query(insert, [2n]);
+        } catch {
+          // As above.
+        }
+        throw other;
+      }),
+    ).toBe('FAILED');
+    let thrown: unknown = null;
+    const caught = await request(storage, user, (ctx) => {
+      storage.db(ctx).query(insert, [3n]);
+      try {
+        storage.db(ctx).query(insert, [3n]);
+      } catch (error) {
+        thrown = error;
+        throw error;
+      }
+      return 'done';
+    }).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    expect(thrown).not.toBeNull();
+    expect(caught).toBe(thrown);
+    expect(storage.read_db().query('SELECT id FROM test_counter')).toEqual([]);
+  });
 });
 
 describe('statements per delta', () => {

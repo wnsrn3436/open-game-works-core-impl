@@ -135,6 +135,7 @@ describe('guild row lock', () => {
       ),
     ).toBe(REJECTED);
     await hold_guild(kit, guild_id);
+    // The FAILED lock broke the transaction, so the request is INTERNAL whatever the handler returned.
     expect(
       await run_core_test(
         l,
@@ -144,7 +145,7 @@ describe('guild row lock', () => {
         },
         kit,
       ),
-    ).toBe(REJECTED);
+    ).toBe(E.CORE_ERROR_INTERNAL);
     expect(results).toEqual([expect.objectContaining({ guild_id, member_count: 1 }), 'FAILED']);
   }, T);
 
