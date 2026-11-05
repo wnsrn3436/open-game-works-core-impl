@@ -81,13 +81,22 @@ describe('ads-reward grant', () => {
   });
 
   it('grants the query of sign_callback, and answers HTTP 403 to another key and to a key ID not in the key list', async () => {
-    const session = await user(s.server);
-    const notify_id = await notify_of(session, BASIC());
-    expect((await callback(s.server, query_with_key(notify_id, session.user_id, 1n))).status).toBe(403);
-    expect((await callback(s.server, query_with_key(notify_id, session.user_id, 99n))).status).toBe(403);
-    expect(await balance(s.server, session.user_id, GEM())).toBe(0n);
-    expect((await callback(s.server, s.ads.sign_callback(notify_id, session.user_id, 1n))).status).toBe(200);
-    expect(await balance(s.server, session.user_id, GEM())).toBe(10n);
+    // A fresh server: a signature line of an earlier test from the same IP would put the first line in its repeat window.
+    const t = await start();
+    try {
+      const session = await user(t.server);
+      const notify_id = await notify_of(session, BASIC());
+      const signature_lines = (): Record<string, unknown>[] => T.read_logs(t.server, 'security').filter((l) => l.reason === 'ad_callback_signature');
+      expect((await callback(t.server, query_with_key(notify_id, session.user_id, 1n))).status).toBe(403);
+      expect(signature_lines()).toHaveLength(1);
+      expect(signature_lines()[0]?.user_id).toBeNull();
+      expect((await callback(t.server, query_with_key(notify_id, session.user_id, 99n))).status).toBe(403);
+      expect(await balance(t.server, session.user_id, GEM())).toBe(0n);
+      expect((await callback(t.server, t.ads.sign_callback(notify_id, session.user_id, 1n))).status).toBe(200);
+      expect(await balance(t.server, session.user_id, GEM())).toBe(10n);
+    } finally {
+      await T.stop_test_server(t.server);
+    }
   });
 
   it('does not grant the callback of another user ticket, a Replaced ticket or an Expired ticket', async () => {

@@ -169,10 +169,17 @@ async function process(core: AdsRewardCore, adapter: AdsAdapter, parsed: SignedC
 }
 
 /**
- * The checks of a callback whose signature matched, before its transaction: the reward notify ID, the user ID and, for
- * `ads-admob`, the ad unit. Null when the callback ends there with HTTP 200, without a count.
+ * The checks of a callback whose signature matched, before its transaction, in the order of `### callback`: for
+ * `ads-admob`, the ad unit, then the reward notify ID and the user ID. Null when the callback ends there with HTTP 200,
+ * without a count.
  */
 function check_signed(core: AdsRewardCore, adapter: AdsAdapter, parsed: ParsedCallback, ip: string): SignedCallback | null {
+  // AdMob signs the callbacks of every publisher with the same keys: only an ad unit of this game grants. The callback
+  // values are not checked yet, so the security line is grouped by IP (user ID null).
+  if (adapter.name === 'ads-admob' && (parsed.ad_unit === '' || !core.settings.ad_units.has(parsed.ad_unit))) {
+    security_log(core, ip, 'ad_callback_ad_unit', null);
+    return null;
+  }
   // The client sets the reward notify ID and the user ID, so a bad value in a signed callback is not counted.
   if (!NOTIFY_ID.test(parsed.notify_id)) {
     warn_log(core, 'ad callback: the reward notify ID is not a lower-case UUID v4', parse_user_id(parsed.user_id));
@@ -181,11 +188,6 @@ function check_signed(core: AdsRewardCore, adapter: AdsAdapter, parsed: ParsedCa
   const user_id = parse_user_id(parsed.user_id);
   if (user_id === null) {
     warn_log(core, `ad callback ${parsed.notify_id}: the user ID is not a decimal from 1 to 2^63 - 1`, null);
-    return null;
-  }
-  // AdMob signs the callbacks of every publisher with the same keys: only an ad unit of this game grants.
-  if (adapter.name === 'ads-admob' && (parsed.ad_unit === '' || !core.settings.ad_units.has(parsed.ad_unit))) {
-    security_log(core, ip, 'ad_callback_ad_unit', user_id);
     return null;
   }
   return { notify_id: parsed.notify_id, user_id };

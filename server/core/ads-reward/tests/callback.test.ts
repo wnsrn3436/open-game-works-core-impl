@@ -454,9 +454,11 @@ describe('ads-reward ads-admob adapter', () => {
       const session = await user(server);
       const notify_id = await notify_of(session, BASIC());
       const user_id = String(session.user_id);
-      const rejected = (): number => T.read_logs(server, 'security').filter((l) => l.reason === 'ad_callback_ad_unit').length;
+      const lines = (): Record<string, unknown>[] => T.read_logs(server, 'security').filter((l) => l.reason === 'ad_callback_ad_unit');
+      const rejected = (): number => lines().length;
       expect((await callback(server, admob_query(notify_id, user_id, undefined, '333'), 'admob')).status).toBe(200);
       expect(rejected()).toBe(1);
+      expect(lines()[0]?.user_id).toBeNull();
       // The full ad unit ID and an empty ad unit are not an ad unit of adUnits either; their security lines fall in the
       // repeat window of the first one.
       expect((await callback(server, admob_query(notify_id, user_id, undefined, 'ca-app-pub-1%2F222'), 'admob')).status).toBe(200);
@@ -467,6 +469,36 @@ describe('ads-reward ads-admob adapter', () => {
       expect(await balance(server, session.user_id, GEM())).toBe(10n);
       expect(error_of(await claim(session, notify_id))).toBe(0);
       expect(rejected()).toBe(1);
+    } finally {
+      await T.stop_test_server(server);
+    }
+  });
+
+  it('answers HTTP 200 with only the ad unit security log to a first signed AdMob callback whose ad unit, custom_data and user_id are all wrong', async () => {
+    const settings = { 'environments.<ENV>.adUnits': { '[ad_rewarded_basic]': { android: 'ca-app-pub-1/222' } } };
+    const server = await T.start_test_server(T0, undefined, undefined, undefined, { ads: 'ads-admob' }, settings);
+    try {
+      T.set_key_source(server, 'ads', [{ keyId: KEY_ID, base64 }]);
+      const core = T.read_logs(server, 'core').length;
+      expect((await callback(server, admob_query('x', 'x', undefined, '333'), 'admob')).status).toBe(200);
+      const lines = T.read_logs(server, 'security').filter((l) => l.reason === 'ad_callback_ad_unit');
+      expect(lines).toHaveLength(1);
+      expect(lines[0]?.user_id).toBeNull();
+      expect(T.read_logs(server, 'core').slice(core)).toEqual([]);
+    } finally {
+      await T.stop_test_server(server);
+    }
+  });
+
+  it('groups the ad unit security lines of one IP by IP, not by the user_id of the query', async () => {
+    const settings = { 'environments.<ENV>.adUnits': { '[ad_rewarded_basic]': { android: 'ca-app-pub-1/222' } } };
+    const server = await T.start_test_server(T0, undefined, undefined, undefined, { ads: 'ads-admob' }, settings);
+    try {
+      T.set_key_source(server, 'ads', [{ keyId: KEY_ID, base64 }]);
+      expect((await callback(server, admob_query(randomUUID(), '1', undefined, '333'), 'admob')).status).toBe(200);
+      expect((await callback(server, admob_query(randomUUID(), '2', undefined, '333'), 'admob')).status).toBe(200);
+      const lines = T.read_logs(server, 'security').filter((l) => l.reason === 'ad_callback_ad_unit');
+      expect(lines.map((l) => l.user_id)).toEqual([null]);
     } finally {
       await T.stop_test_server(server);
     }
