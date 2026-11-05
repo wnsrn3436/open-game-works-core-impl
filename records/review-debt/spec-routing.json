@@ -1,11 +1,11 @@
 {
   "target": "spec routing",
-  "nextId": 5,
+  "nextId": 6,
   "items": [
     {
-      "id": "D4",
-      "location": "skills/server-core/modules/routing.md:220",
-      "problem": "\"Every request\" leaves a `request` log line, and that includes the routes that modules export (e.g. `POST /admin/<operation>`, `GET /account/deletion`, `POST /iap/notify/<store>`, `GET /update/files/<sha256>`, `GET /realtime`), as the test at routing.md:289 does. But no defining document sets the `request` log fields for a route: common field `request` is defined only as a contract request name or an admin operation name (`skills/server-core/SKILL.md:212`), and `error_code`, `client_version` and `platform` (`logging.md:90`) have no value for an HTTP-status route response or for a WebSocket route that took over the connection (handler returns `null`, routing.md:58). Implementations can differ in whether they write the line and in its field values. This existed before the diff (the \"every request\" sentence was already there)",
+      "id": "D5",
+      "location": "skills/server-core/modules/routing.md:147",
+      "problem": "The HTTP response of a route whose handler threw is not set. routing.md:147 says routing \"responds with `INTERNAL`\" on an unhandled exception of \"a handler or core\", and routing.md:221 says the `request` line of a route has `error_code` `INTERNAL` \"when the route handler threw\", so routing catches a route handler exception; but `INTERNAL` is defined only as a `ResponseEnvelope` error sent with HTTP 200 (routing.md:124), and route responses are HTTP status responses defined by the exporting module (routing.md:51, routing.md:60). One implementation sends HTTP 200 with a `ResponseEnvelope`, another HTTP 500 with no body. A caller that retries on a non-2xx status sees different results: e.g. a store or ad network calling `POST /iap/notify/<store>` or `GET /ads/callback/<network>` whose handler hits a `read_db` query that throws (storage.md:302, storage.md:350) does not resend after an HTTP 200, and the notification is lost. admin-api catches its own exceptions as 500 `internal` (admin-api.md:265), so this concerns the other routes",
       "foundBy": "spec routing"
     }
   ]
