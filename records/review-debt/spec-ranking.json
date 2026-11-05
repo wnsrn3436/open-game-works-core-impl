@@ -1,12 +1,5 @@
 {
   "target": "spec ranking",
   "nextId": 2,
-  "items": [
-    {
-      "id": "D1",
-      "location": "skills/server-core/modules/ranking.md:167",
-      "problem": "guild handling says that \"in a game transaction opened with `storage.run_game_transaction`\" it reads `guild.list_member_ids` \"and does the handling for one user for each member\", but the handling for one user is an async `storage.run_user_transaction` (ranking.md:163) and the function passed to `run_game_transaction` is synchronous and returns no promise (storage.md:95); on SQLite all write transactions are serialized on one write connection (storage.md:296), so a user transaction opened while that game transaction is open cannot start. Whether the member list is read in its own game transaction that is closed before the member handling, or the member handling runs inside it, is not settled to one behavior. Unrelated to the diff (existed before it)",
-      "foundBy": "spec ranking"
-    }
-  ]
+  "items": []
 }
