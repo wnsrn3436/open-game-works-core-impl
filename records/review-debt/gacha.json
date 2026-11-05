@@ -1,12 +1,5 @@
 {
   "target": "gacha",
   "nextId": 10,
-  "items": [
-    {
-      "id": "D9",
-      "location": "server/core/gacha/records.ts:32",
-      "problem": "`draw_seq` is given as `MAX(draw_seq) + 1` over all the user's draw records, with no `expires_at > clock_now` condition, so an expired draw record that `sweep_expired` has not deleted yet still counts. `storage` `### expiry` (storage.md:269) says such a row counts as a row that does not exist, and `gacha` `## storage` gives `draw_seq` from the largest value among that user's draw records + 1, or 1 when there is none. Probe in a temporary copy: `gacha.historyRetentionMs` 60000, `routing.storageSweepIntervalMs` 3600000, one `DrawGacha` on `[gacha_banner_main]`, `advance_time` 60000, a second `DrawGacha`: `ListGachaHistory` returns one row with `draw_seq` 2, where the documents give 1. So `draw_seq` depends on sweep timing. This existed before the range; it is the same defect that commit c9f9ab8 of this range fixed in `item-ledger` `insert_history` (MAX over live rows plus an upsert over the expired row of that key)",
-      "foundBy": "gacha round 2"
-    }
-  ]
+  "items": []
 }
