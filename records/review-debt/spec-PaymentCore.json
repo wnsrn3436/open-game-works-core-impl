@@ -1,5 +1,12 @@
 {
   "target": "spec PaymentCore",
-  "nextId": 2,
-  "items": []
+  "nextId": 3,
+  "items": [
+    {
+      "id": "D2",
+      "location": "skills/client-core/modules/payment-core.md:164",
+      "problem": "Whether `recover_purchases` and `restore_purchases` send `SyncSubscriptions` when `prepare`, `list_unfinished` or `list_owned` fails is not set. Line 164 says subscription sync runs \"after transaction processing\" and line 144/163 only set the success flag to `false`; an implementation that stops at the failure and one that still syncs are both allowed, and a core test sees one `SyncSubscriptions` request or none (test at line 300 checks the count only on the success path, test at line 282 checks only \"without verification\")",
+      "foundBy": "spec PaymentCore"
+    }
+  ]
 }
