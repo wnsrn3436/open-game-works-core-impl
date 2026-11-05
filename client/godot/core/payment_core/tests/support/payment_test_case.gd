@@ -27,6 +27,8 @@ var fake: FakeStore = null
 var social: TestSocial = null
 ## `<product ID value>@<finish calls of the fake adapter>` of each `PurchaseRecoveredEvent`, in order.
 var recovered: PackedStringArray = PackedStringArray()
+## Test resource keys that `start_modules` adds to its key list.
+var extra_resource_keys: Dictionary[String, String] = {}
 
 
 func before_each() -> void:
@@ -34,6 +36,7 @@ func before_each() -> void:
 	fake = null
 	social = null
 	recovered = PackedStringArray()
+	extra_resource_keys = {}
 
 
 # --- boot ---
@@ -77,6 +80,7 @@ func start_modules() -> bool:
 		if not UnitTestCore.set_test_settings(key, ""):
 			return false
 	var keys: Dictionary[String, String] = {CLICK: RESOURCES + "test_click.tres"}
+	keys.merge(extra_resource_keys)
 	ResourceCoreDev.set_test_key_list(keys)
 	var inits: Array[Callable] = [
 		LogCore.init,

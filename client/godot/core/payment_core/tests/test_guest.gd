@@ -1,6 +1,11 @@
 extends "res://core/payment_core/tests/support/payment_test_case.gd"
 ## The guest warning popup of `purchase`.
 
+## A popup prefab of the UICore tests whose open and close tween preset `TWEEN_LATE` UICore.prepare does not load, so
+## the system popup waits on its load before it becomes visible.
+const POPUP_LATE_TWEEN: String = "prefab/ui_test_popup_late_tween"
+const TWEEN_LATE: String = "tween/ui_test_tween_late"
+
 
 ## Starts a guest without a linked provider and with a usable social provider, and starts a purchase that waits on
 ## the guest warning popup.
@@ -101,6 +106,33 @@ func test_guest_warning_that_does_not_open_is_rejected_without_check_or_buy() ->
 	assert_eq(fake.count_calls("connect"), 0)
 	assert_eq(fake.count_calls("buy"), 0)
 	assert_eq(PaymentCore._choices.size(), 0)
+
+
+func test_guest_warning_that_does_not_open_after_the_login_session_ended_is_rejected_without_an_error_log() -> void:
+	extra_resource_keys = {
+		POPUP_LATE_TWEEN: "res://core/ui_core/tests/resources/test_popup_late_tween.tscn",
+		TWEEN_LATE: "res://core/ui_core/tests/resources/test_tween.tres",
+	}
+	assert_true(UnitTestCore.set_test_settings("UICore.systemPopupResource", POPUP_LATE_TWEEN))
+	assert_true(await start(CoreContract.IapStore.IAP_STORE_APPLE, true, false, true))
+	var gems: int = id_of("[iap_gems]")
+	for ending: String in ["login", "session end"]:
+		var running: Purchase = start_purchase(gems)
+		assert_false(UICore.is_system_popup_visible(), ending + ": the guest warning popup loads its tween presets")
+		if ending == "login":
+			assert_true(await log_in(USER_ID + 1, false), ending)
+		else:
+			var ended: SessionEndedEvent = EventCore.acquire(SessionEndedEvent) as SessionEndedEvent
+			ended.reason = AuthCore.SessionEndReason.LOGOUT
+			EventCore.publish(ended)
+		assert_false(UICore.is_system_popup_visible(), ending + ": the popup is still not visible")
+		UICore.close_all_popups()
+		assert_eq(await wait_purchase(running), PaymentCore.PurchaseResult.REJECTED, ending)
+		assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 0, ending + ": no guest warning error log")
+		assert_eq(PaymentCore._choices.size(), 0, ending)
+	assert_eq(request_count(CHECK), 0)
+	assert_eq(fake.count_calls("connect"), 0)
+	assert_eq(fake.count_calls("buy"), 0)
 
 
 func test_no_popup_with_a_linked_provider() -> void:
