@@ -15,9 +15,5 @@ func on_node_added(node: Node) -> void:
 	SceneCore._on_node_added(node)
 
 
-func on_node_removed(node: Node) -> void:
-	SceneCore._on_node_removed(node)
-
-
 func _on_safe_area_changed(_event: SafeAreaChangedEvent) -> void:
 	SceneCore._fit_new_ui_root()

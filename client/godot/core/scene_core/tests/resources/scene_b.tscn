@@ -18,3 +18,12 @@ probe = NodePath("Probe")
 [node name="Counter" type="Node" parent="."]
 process_mode = 3
 script = ExtResource("2_counter")
+
+[node name="Hidden2D" type="Node2D" parent="."]
+visible = false
+
+[node name="HiddenLayer" type="CanvasLayer" parent="."]
+visible = false
+
+[node name="Hidden3D" type="Node3D" parent="."]
+visible = false
