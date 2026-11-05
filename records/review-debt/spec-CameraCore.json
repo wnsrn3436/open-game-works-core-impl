@@ -1,6 +1,6 @@
 {
   "target": "spec CameraCore",
-  "nextId": 3,
+  "nextId": 5,
   "items": [
     {
       "id": "D1",
@@ -13,6 +13,18 @@
       "location": "skills/client-core/modules/camera-core.md:145",
       "problem": "The `CameraCore` error table sets no failure for an `Easing` of `move_to` or `zoom_to` that is not a member, and none for a `move_by_preset` preset whose first change has such an `Easing`. Line 103 calls `TweenCore.evaluate_easing` each frame. Under the changed row at tween-core.md:173, that call returns `0` with an error log every frame, so the move holds at its start value, logs an error each frame and jumps to the end value at progress 1. Whether the move fails at the start or runs this way is not set",
       "foundBy": "spec TweenCore"
+    },
+    {
+      "id": "D3",
+      "location": "skills/client-core/modules/camera-core.md:125",
+      "problem": "`release` \"cleans up the same way as `detach_camera`\", which ends a `move_to`/`zoom_to` in progress with `Cancelled` (line 70). skills/core/SKILL.md:70 says `release` stops the async operations in progress and \"a stopped operation returns a failure value\", and the failure value of `move_to`, `move_by_preset` and `zoom_to` is `Failed` (camera-core.md:33-37). The two documents give different results for `release` during a `move_to`",
+      "foundBy": "spec CameraCore"
+    },
+    {
+      "id": "D4",
+      "location": "skills/client-core/modules/camera-core.md:79",
+      "problem": "It is not set whether bounds fitting writes the fitted value back into the base position or only produces the value of step 2 (`get_view_center` is \"base position after bounds fitting\", line 44; line 108 says a 3D camera \"moves\" the base position's horizontal axes). Run path: `snap_to`(p outside the bounds) → `set_bounds` → frame → `clear_bounds` → frame. The camera either stays at the fitted position or returns to p. This also affects row 146, \"the base position keeps its value at the call\", when `set_bounds` or `zoom_to` runs while a `move_by_preset` waits for loading",
+      "foundBy": "spec CameraCore"
     }
   ]
 }
