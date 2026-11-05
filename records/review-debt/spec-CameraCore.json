@@ -1,23 +1,11 @@
 {
   "target": "spec CameraCore",
-  "nextId": 6,
+  "nextId": 7,
   "items": [
     {
-      "id": "D3",
-      "location": "skills/client-core/modules/camera-core.md:125",
-      "problem": "`release` \"cleans up the same way as `detach_camera`\", which ends a `move_to`/`zoom_to` in progress with `Cancelled` (line 70). skills/core/SKILL.md:70 says `release` stops the async operations in progress and \"a stopped operation returns a failure value\", and the failure value of `move_to`, `move_by_preset` and `zoom_to` is `Failed` (camera-core.md:33-37). The two documents give different results for `release` during a `move_to`",
-      "foundBy": "spec CameraCore"
-    },
-    {
-      "id": "D4",
+      "id": "D6",
       "location": "skills/client-core/modules/camera-core.md:79",
-      "problem": "It is not set whether bounds fitting writes the fitted value back into the base position or only produces the value of step 2 (`get_view_center` is \"base position after bounds fitting\", line 44; line 108 says a 3D camera \"moves\" the base position's horizontal axes). Run path: `snap_to`(p outside the bounds) → `set_bounds` → frame → `clear_bounds` → frame. The camera either stays at the fitted position or returns to p. This also affects row 146, \"the base position keeps its value at the call\", when `set_bounds` or `zoom_to` runs while a `move_by_preset` waits for loading",
-      "foundBy": "spec CameraCore"
-    },
-    {
-      "id": "D5",
-      "location": "skills/client-core/modules/camera-core.md:144",
-      "problem": "The failure conditions of `follow` (lines 31, 87, 144) cover a missing or destroyed target, negative smooth time and negative dead zone size, but not a target object that has no world position of the attached camera's dimension (e.g. in Godot a `Node2D` target for a `Camera3D`, or a plain `Node`). \"target object position\" (line 87) is then not defined, so one implementation can fail with `false`, another can project or pad the axes. `CutsceneCore` checks the dimension itself before calling `CameraCore` (skills/client-core/modules/cutscene-core.md:75), which shows `CameraCore` does not define it. This existed before the diff and is unrelated to the changed side effect on the `move_to` in progress",
+      "problem": "Bounds fitting is step 2 of the per-frame position calculation, while `snap_to`, `move_to` with duration 0 (line 96, 100) and `zoom_to` with duration 0 (line 101, 104) apply their value inside the operation. It is not set whether the base position is fitted inside those operations or only in the next frame, and `get_view_center` is \"the base position after bounds fitting\" only in test line 208. Run path: `set_bounds`(B) → frame → `snap_to`(p with a view range outside B) → `get_view_center` in the same frame: one implementation returns p (fitted next frame), another returns the fitted value (fitted inside `snap_to` or on read). Test line 205 checks only after one frame, so both pass",
       "foundBy": "spec CameraCore"
     }
   ]
