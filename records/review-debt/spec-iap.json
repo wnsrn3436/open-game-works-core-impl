@@ -1,11 +1,11 @@
 {
   "target": "spec iap",
-  "nextId": 5,
+  "nextId": 6,
   "items": [
     {
-      "id": "D4",
+      "id": "D5",
       "location": "skills/server-core/modules/iap.md:341",
-      "problem": "`iap-google` receipt verification does not set how the adapter decides whether a receipt (`Purchase.getOriginalJson()`, iap.md:54) is a product receipt checked with `purchases.products` or a subscription receipt checked with `purchases.subscriptionsv2`. The transaction ID, the verification result, the purchase time and the test transaction judgement (iap.md:169) all depend on which response is read, but grant order step 2 (iap.md:127) learns the product type only from the SKU the adapter returns, and no defining document gives the adapter the `iap_product` type or names a receipt field to decide by. Implementations can differ (call `purchases.products` first and fall back, read `autoRenewing` of the receipt JSON, look up `sku_google` in `iap_product`)",
+      "problem": "`iap-google` sets the original transaction ID only for a subscription receipt (\"The original transaction ID of a subscription is the purchase token\"); no defining document sets it for a product receipt (`purchases.products`), and iap.md:196 only leaves it to the adapter for subscriptions. Grant order step 4 (iap.md:129, iap.md:132) locks and binds `(store, original transaction ID)` of `iap_binding` for every product type, ownership transfer finds owner B through that binding (iap.md:175), and the value is stored in `iap_payment.original_transaction_id` that `list_payments` returns (iap.md:44, iap.md:147). Implementations can differ (the purchase token, `orderId`, or the transaction ID), which changes the stored and returned value",
       "foundBy": "spec iap"
     }
   ]
