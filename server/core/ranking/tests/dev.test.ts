@@ -1,5 +1,14 @@
+import type { DbHandle } from '../../storage/index.ts';
 import { as_user, BOARD, count_rows, reward_mails, season_now, season_row, start, submit, testing, top, users, type Harness, T0 } from './support.ts';
 import { create_ranking_dev } from '../dev/index.ts';
+import * as store from '../store.ts';
+
+const LEASE_MS = 300_000n;
+
+/** The `error` log lines of the reward handling of `close_season_now` and of job `ranking_season`. */
+function reward_errors(): Record<string, unknown>[] {
+  return testing.read_logs(h.server, 'error').filter((l) => /^(season |close_season_now|job ranking_season)/.test(String(l.message)));
+}
 
 let h: Harness;
 
@@ -60,6 +69,67 @@ describe('ranking close_season_now', () => {
     expect(await season_now(h, a.user_id, BOARD.daily())).toEqual(before);
     expect(season_row(h, BOARD.daily(), before.season)?.status).toBe('Open');
     expect((await reward_mails(h, a.user_id)).length).toBe(0);
+  });
+
+  it('a throw in the reward handling of close_season_now leaves one error log and ends that handling; the job after the lease ends closes the season', async () => {
+    h = await start();
+    const [a, b] = await users(h, 2);
+    await submit(h, a.user_id, BOARD.daily(), 10n);
+    const closed = await season_now(h, a.user_id, BOARD.daily());
+    // Every cursor write throws an error that is not a DB failure.
+    const storage = h.core().storage;
+    const db = storage.db.bind(storage);
+    const mode = { throw: true };
+    storage.db = (ctx_or_tx) => {
+      const handle = db(ctx_or_tx);
+      const wrapped = Object.create(handle) as DbHandle;
+      wrapped.query = (statement, params) => {
+        if (mode.throw && statement.startsWith(`UPDATE ${store.SEASON_TABLE} SET cursor_score`)) throw new Error('boom');
+        return handle.query(statement, params);
+      };
+      return wrapped;
+    };
+    await testing.call_dev(h.server, 'ranking', 'close_season_now', [BOARD.daily()], b.user_id);
+    await testing.wait_background(h.server);
+    expect(reward_errors().map((l) => [l.message, String(l.board_id), String(l.season)])).toEqual([['close_season_now reward: boom', String(BOARD.daily()), String(closed.season)]]);
+    const kept = season_row(h, BOARD.daily(), closed.season);
+    expect([kept?.status, kept?.cursor_rank]).toEqual(['Closing', 0]);
+    mode.throw = false;
+    testing.set_time(h.server, T0 + LEASE_MS + 1n);
+    await testing.wait_background(h.server);
+    expect((await reward_mails(h, a.user_id)).length).toBe(1);
+    expect(season_row(h, BOARD.daily(), closed.season)?.status).toBe('Closed');
+    expect(reward_errors().length).toBe(1);
+  });
+
+  it('on PostgreSQL, a FAILED step 4 game transaction of the reward handling of close_season_now leaves one error log and keeps the season Closing with its cursor; the job after the lease ends closes it with one mail per user', async () => {
+    h = await start({ db: 'postgresql', settings: { 'storage.userLockWaitMs': 2_000 } });
+    const [a, b, c] = await users(h, 3);
+    await submit(h, a.user_id, BOARD.daily(), 10n);
+    await submit(h, b.user_id, BOARD.daily(), 5n);
+    const closed = await season_now(h, a.user_id, BOARD.daily());
+    const user_row = await testing.hold_db(h.server, [{ sql: 'SELECT user_id FROM "user" WHERE user_id = $1 FOR UPDATE', params: [a.user_id] }]);
+    let season_lock: Awaited<ReturnType<typeof testing.hold_db>> | null = null;
+    try {
+      await testing.call_dev(h.server, 'ranking', 'close_season_now', [BOARD.daily()], c.user_id);
+      await testing.until_blocked_by(h.server, user_row.pid);
+      season_lock = await testing.hold_db(h.server, [{ sql: 'SELECT board_id FROM ranking_season WHERE board_id = $1 AND season = $2 FOR UPDATE', params: [BOARD.daily(), closed.season] }]);
+      await user_row.release();
+      // The handling ends after the step 4 transaction of rank 1 waits past storage.userLockWaitMs and is FAILED.
+      await testing.wait_background(h.server);
+    } finally {
+      await user_row.release();
+      await season_lock?.release();
+    }
+    expect(reward_errors().map((l) => [l.message, String(l.board_id), String(l.season)])).toEqual([['season game transaction failed', String(BOARD.daily()), String(closed.season)]]);
+    const kept = season_row(h, BOARD.daily(), closed.season);
+    expect([kept?.status, kept?.cursor_rank]).toEqual(['Closing', 0]);
+    testing.set_time(h.server, T0 + LEASE_MS + 1n);
+    await testing.wait_background(h.server);
+    expect(season_row(h, BOARD.daily(), closed.season)?.status).toBe('Closed');
+    expect((await reward_mails(h, a.user_id)).length).toBe(1);
+    expect((await reward_mails(h, b.user_id)).length).toBe(1);
+    expect(reward_errors().length).toBe(1);
   });
 
   it('close_season_now of a board without cycle, and of an event board, changes no score or season and logs warn', async () => {

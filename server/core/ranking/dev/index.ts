@@ -3,7 +3,7 @@ import type { RequestCtx } from '../../storage/index.ts';
 import { find_board, season_at } from '../board.ts';
 import { core_log } from '../core.ts';
 import type { Ranking } from '../index.ts';
-import { close_pass, new_lease_owner } from '../reward.ts';
+import { close_pass, new_lease_owner, report } from '../reward.ts';
 import { bump_shift, close_season_row, read_season, SHIFT_TABLE } from '../store.ts';
 
 /** The `## DEV` operations of `ranking` for one server instance. */
@@ -29,9 +29,14 @@ export function create_ranking_dev(ranking: Ranking): RankingDev {
       const owner = new_lease_owner();
       close_season_row(db, board.id, season, now, owner, now + core.settings.season_job_lease_ms);
       bump_shift(db, board.id);
+      // The reward handling of `close_season_now` logs its own throw, as job `ranking_season` does: `after_commit` drops it.
       storage.after_commit(ctx, async () => {
-        const row = read_season(storage.read_db(), board.id, season);
-        if (row?.lease_owner === owner && row.status === 'Closing') await close_pass(core, row, owner);
+        try {
+          const row = read_season(storage.read_db(), board.id, season);
+          if (row?.lease_owner === owner && row.status === 'Closing') await close_pass(core, row, owner);
+        } catch (error) {
+          report(core, `close_season_now reward: ${error instanceof Error ? error.message : String(error)}`, { board_id: board.id, season });
+        }
       });
       return null;
     },

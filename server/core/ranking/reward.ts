@@ -32,6 +32,9 @@ const READ_BATCH = 100;
 
 const INTERNAL: FailureCode = CoreContract.CoreError.CORE_ERROR_INTERNAL;
 
+const INT32_MIN = -(2 ** 31);
+const INT32_MAX = 2 ** 31 - 1;
+
 /** A new secure random lease owner. */
 export function new_lease_owner(): string {
   return randomBytes(16).toString('hex');
@@ -71,18 +74,22 @@ function default_reward(ctx: RequestCtx, board: Board, rank: number): SeasonRewa
 function item_amount(value: unknown): CoreContract.ItemAmount | null {
   if (value instanceof CoreContract.ItemAmount) return value;
   const v = value as Partial<CoreContract.ItemAmount> | null;
-  if (v === null || typeof v !== 'object' || typeof v.item_id !== 'number' || typeof v.amount !== 'bigint') return null;
+  if (v === null || typeof v !== 'object' || typeof v.item_id !== 'number' || typeof v.amount !== 'bigint' || typeof v.big_amount !== 'string') return null;
   const item = new CoreContract.ItemAmount();
   item.item_id = v.item_id;
   item.amount = v.amount;
-  item.big_amount = typeof v.big_amount === 'string' ? v.big_amount : '';
+  item.big_amount = v.big_amount;
   return item;
+}
+
+function is_int32(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= INT32_MIN && value <= INT32_MAX;
 }
 
 /** The hook output as a `SeasonReward`, or null when its form is wrong. */
 function reward_of(output: unknown): SeasonReward | null {
   const o = output as Partial<SeasonReward> | null;
-  if (o === null || typeof o !== 'object' || !Array.isArray(o.attachments) || typeof o.extra_id !== 'number' || !Number.isSafeInteger(o.extra_id)) return null;
+  if (o === null || typeof o !== 'object' || !Array.isArray(o.attachments) || !is_int32(o.extra_id)) return null;
   const attachments = (o.attachments as unknown[]).map(item_amount);
   const items = attachments.filter((a) => a !== null);
   return items.length === attachments.length ? { attachments: items, extra_id: o.extra_id } : null;
@@ -151,7 +158,7 @@ function outcome_fields(ref: SeasonRef, user_id: bigint, done: UserOutcome): Rec
  * An `error` log of the job, unless `ranking`'s `stop()` began: a failure after that (e.g. a DB connection closed
  * under a running transaction) is not logged.
  */
-function report(core: RankingCore, message: string, fields: Readonly<Record<string, bigint | number | string | null>>): void {
+export function report(core: RankingCore, message: string, fields: Readonly<Record<string, bigint | number | string | null>>): void {
   if (!is_stopped(core)) core_log(core, 'error', message, fields);
 }
 
@@ -177,9 +184,14 @@ function lease_end(core: RankingCore): bigint {
   return core.modules.time.clock_now() + core.settings.season_job_lease_ms;
 }
 
-async function game_tx<T>(core: RankingCore, fn: (tx: GameTx) => T): Promise<T | null> {
+/** A game transaction of the job for one season; null when it is `FAILED`, which leaves an `error` log of that season. */
+async function game_tx<T>(core: RankingCore, board_id: number, season: bigint, fn: (tx: GameTx) => T): Promise<T | null> {
   const result = await core.modules.storage.run_game_transaction(fn);
-  return result === 'FAILED' || typeof result === 'number' ? null : result;
+  if (result === 'FAILED') {
+    report(core, 'season game transaction failed', { board_id, season });
+    return null;
+  }
+  return typeof result === 'number' ? null : result;
 }
 
 /** Puts the retry row of a `FAILED` user, first tried `rewardRetryInitialMs` from now. */
@@ -189,7 +201,7 @@ function put_retry(core: RankingCore, db: DbHandle, ref: SeasonRef, user_id: big
 
 /** Writes the retry row of a `FAILED` user when the lease is still held (and extends it). False when the lease is lost. */
 async function after_member(core: RankingCore, ref: SeasonRef, owner: string, user_id: bigint, entry: CoreContract.RankingEntry, retry: boolean): Promise<boolean> {
-  const done = await game_tx(core, (tx) => {
+  const done = await game_tx(core, ref.board.id, ref.season, (tx) => {
     const db = core.modules.storage.db(tx);
     if (!extend_lease(db, ref.board.id, ref.season, owner, lease_end(core))) return { ok: false };
     if (retry) put_retry(core, db, ref, user_id, entry);
@@ -200,7 +212,7 @@ async function after_member(core: RankingCore, ref: SeasonRef, owner: string, us
 
 /** Step 4: moves the cursor past one score row, with its retry row. False when the lease is lost or the write failed. */
 async function after_row(core: RankingCore, ref: SeasonRef, owner: string, row: ScoreRow, rank: number, failed: number, retry: { user_id: bigint; entry: CoreContract.RankingEntry } | null): Promise<boolean> {
-  const done = await game_tx(core, (tx) => {
+  const done = await game_tx(core, ref.board.id, ref.season, (tx) => {
     const db = core.modules.storage.db(tx);
     if (!advance_cursor(db, ref.board.id, ref.season, owner, row, rank, failed, lease_end(core))) return { ok: false };
     if (retry !== null) put_retry(core, db, ref, retry.user_id, retry.entry);
@@ -229,7 +241,7 @@ async function process_user_row(core: RankingCore, ref: SeasonRef, owner: string
 async function process_guild_row(core: RankingCore, ref: SeasonRef, owner: string, row: ScoreRow, rank: number): Promise<boolean> {
   const entry = entry_of(ref.board, row, rank);
   const guild = core.modules.guild;
-  const members = await game_tx(core, (tx) => {
+  const members = await game_tx(core, ref.board.id, ref.season, (tx) => {
     fill_guild_names(core, tx, [entry]);
     return { ids: guild === null ? [] : [...guild.list_member_ids(tx, row.entity_id)] };
   });
@@ -255,7 +267,7 @@ function log_closed(core: RankingCore, row: SeasonRow | null): void {
 export async function close_pass(core: RankingCore, season: SeasonRow, owner: string): Promise<void> {
   const board = find_board(core.data, season.board_id);
   if (board === null || board.reward_mail === 0) {
-    await game_tx(core, (tx) => ({ row: close_season(core.modules.storage.db(tx), season.board_id, season.season, owner) }));
+    await game_tx(core, season.board_id, season.season, (tx) => ({ row: close_season(core.modules.storage.db(tx), season.board_id, season.season, owner) }));
     return;
   }
   const ref: SeasonRef = { board, season: season.season, end_at: season.end_at };
@@ -273,7 +285,7 @@ export async function close_pass(core: RankingCore, season: SeasonRow, owner: st
   }
   // A stop() that began before the first row (e.g. under the lease transaction) leaves the season to the next holder.
   if (is_stopped(core)) return;
-  const done = await game_tx(core, (tx) => ({ row: finish_pass(core.modules.storage.db(tx), board.id, season.season, owner) }));
+  const done = await game_tx(core, board.id, season.season, (tx) => ({ row: finish_pass(core.modules.storage.db(tx), board.id, season.season, owner) }));
   log_closed(core, done?.row ?? null);
 }
 
@@ -281,7 +293,7 @@ export async function close_pass(core: RankingCore, season: SeasonRow, owner: st
 async function reward_retry(core: RankingCore, season: SeasonRow, owner: string): Promise<void> {
   const board = find_board(core.data, season.board_id);
   if (board === null) {
-    await game_tx(core, (tx) => ({ row: close_season(core.modules.storage.db(tx), season.board_id, season.season, owner) }));
+    await game_tx(core, season.board_id, season.season, (tx) => ({ row: close_season(core.modules.storage.db(tx), season.board_id, season.season, owner) }));
     return;
   }
   const ref: SeasonRef = { board, season: season.season, end_at: season.end_at };
@@ -294,7 +306,7 @@ async function reward_retry(core: RankingCore, season: SeasonRow, owner: string)
     const result = tried.result;
     const attempts = retry.attempts + 1;
     const give_up = result === 'REJECTED' || (result === 'FAILED' && attempts >= core.settings.reward_retry_max_attempts);
-    const done = await game_tx(core, (tx) => {
+    const done = await game_tx(core, ref.board.id, ref.season, (tx) => {
       const db = core.modules.storage.db(tx);
       if (!extend_lease(db, board.id, season.season, owner, lease_end(core))) return { ok: false };
       if (result === 'FAILED' && !give_up) {
@@ -310,14 +322,14 @@ async function reward_retry(core: RankingCore, season: SeasonRow, owner: string)
   }
   // A stop() that began before the end of retry (e.g. under the lease transaction) leaves the season to the next holder.
   if (is_stopped(core)) return;
-  const done = await game_tx(core, (tx) => ({ row: finish_pass(core.modules.storage.db(tx), board.id, season.season, owner) }));
+  const done = await game_tx(core, board.id, season.season, (tx) => ({ row: finish_pass(core.modules.storage.db(tx), board.id, season.season, owner) }));
   log_closed(core, done?.row ?? null);
 }
 
 /** Steps 1 and 2 for one season row: takes its lease, then closes or retries it. */
 async function process_due(core: RankingCore, seen: SeasonRow): Promise<void> {
   const owner = new_lease_owner();
-  const taken = await game_tx(core, (tx) => ({ row: take_lease(core.modules.storage.db(tx), seen, owner, lease_end(core)) }));
+  const taken = await game_tx(core, seen.board_id, seen.season, (tx) => ({ row: take_lease(core.modules.storage.db(tx), seen, owner, lease_end(core)) }));
   const row = taken?.row ?? null;
   if (row === null) return;
   if (row.status === 'Retrying') await reward_retry(core, row, owner);
@@ -329,7 +341,7 @@ async function apply_retention(core: RankingCore): Promise<void> {
   const limit = core.modules.time.clock_now() - core.settings.season_retention_ms;
   for (const { board_id, season } of read_expired_seasons(core.modules.storage.read_db(), limit)) {
     if (is_stopped(core)) return;
-    await game_tx(core, (tx) => {
+    await game_tx(core, board_id, season, (tx) => {
       delete_season(core.modules.storage.db(tx), board_id, season);
       return { deleted: true };
     });
