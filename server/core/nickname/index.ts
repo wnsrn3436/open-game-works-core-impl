@@ -293,9 +293,15 @@ export function create_nickname(input: NicknameInput): Nickname {
     return nickname === '' || code_points(nickname).length > max_length;
   }
 
-  /** `### find by nickname`: the nickname lookup rows, user ID ascending, at most `max`. */
+  /**
+   * `### find by nickname`: the nickname lookup rows, user ID ascending, at most `max`. The normalized value of a saved
+   * nickname keeps the plain text condition, so a normalized input that does not (e.g. one holding U+0000, which a
+   * statement parameter cannot hold) matches no row and runs no query.
+   */
   function lookup(db: DbHandle, nickname: string, max: number): UserNickname[] {
-    return user_nicknames(db.query(LOOKUP, [validation.normalize_text(nickname), BigInt(max)]));
+    const normalized = validation.normalize_text(nickname);
+    if (!validation.is_plain_text(normalized, Number.MAX_SAFE_INTEGER)) return [];
+    return user_nicknames(db.query(LOOKUP, [normalized, BigInt(max)]));
   }
 
   function find_user_ids_by_nickname(ctx: RequestCtx, nickname: string, max: number): bigint[] {
