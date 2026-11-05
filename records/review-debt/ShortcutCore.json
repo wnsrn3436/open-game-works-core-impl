@@ -1,12 +1,5 @@
 {
   "target": "ShortcutCore",
   "nextId": 5,
-  "items": [
-    {
-      "id": "D3",
-      "location": "client/godot/core/shortcut_core/shortcut_core.gd:124",
-      "problem": "Stage 7 does not reach the root item when the root panel key is also higher on the stack, so the stack at stage 9 differs from `open-game-works-core/skills/client-core/modules/shortcut-core.md:66` (`panels` on top of the root item, or one root item). The cause is in the spec: stage 7 (`shortcut-core.md:59`) calls `UICore.close_panels_to` with the root panel key, and `open-game-works-core/skills/client-core/modules/ui-core.md:183` sets its destination to the topmost item with that key and returns `true` without a transition when that item is the current panel. `open_panel` pushes a second item with the root key when the current panel is another panel (`ui-core.md:163`, `ui-core.md:164`). A `Top` row whose `panels` has the root panel, or a `Root` row whose `panels` is R, B, makes such a stack. Reproduced on a scratch copy: from `start_at(SCENE_ROOT, [PANEL_A, PANEL_R])` the stack is r,a,r; `navigate` of `root_c` returns `true` with stack r,a,r,c (expected r,c), and `navigate` of `root_r` returns `true` with stack r,a,r (expected r). The direction of the fix needs a spec decision: a `UICore` way to return to the root item, or a rule that forbids the root panel key in `panels`",
-      "foundBy": "ShortcutCore round 1"
-    }
-  ]
+  "items": []
 }
