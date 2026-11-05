@@ -1,11 +1,17 @@
 {
   "target": "spec UICore",
-  "nextId": 14,
+  "nextId": 15,
   "items": [
     {
       "id": "D13",
       "location": "skills/client-core/modules/ui-core.md:360",
       "problem": "Row :360 now names `open_popup` explicitly and gives the failure value `false`, and rows :361 and :363 also apply to `open_popup` and give `false`. But `open_popup` returns `PopupOpenResult`, and its failure value is `Failed` (API table :36, type :70). Row :370 makes this distinction for other conditions (\"`Failed` for `open_popup`, `false` for `open_system_popup`\"). Test :449 (\"Each condition of the error table gives the log and failure value of the table\") cannot check `false` for `open_popup`, and an implementer can either return `Failed` or treat the row as a contradiction. The input spec changes diff is empty, so this is not a finding of this review",
+      "foundBy": "spec UICore"
+    },
+    {
+      "id": "D14",
+      "location": "skills/client-core/modules/ui-core.md:361",
+      "problem": "Rows :361 (`accepts_param` is `false`) and :363 (`prepare` is `false`) also apply to `open_popup` (popup open flow :191 runs `accepts_param` and `prepare`) and give the failure value `false`, while the failure value of `open_popup` is `Failed` (:36). Test :449 cannot judge `open_popup` on these rows. These lines are not in the spec changes diff",
       "foundBy": "spec UICore"
     }
   ]
