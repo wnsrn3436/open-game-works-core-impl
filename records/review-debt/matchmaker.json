@@ -1,12 +1,5 @@
 {
   "target": "matchmaker",
   "nextId": 7,
-  "items": [
-    {
-      "id": "D6",
-      "location": "server/core/matchmaker/realtime.ts:491",
-      "problem": "A solo `MATCH_REQUEST` of a participant of a match being made is put into the queue again, so a later tick can put that user into a second match while the first is still being made: the second `open_match_session` binds the connection to the new session and the first match gets the `LEFT` of that index (two `MATCH_FOUND`, `left_at` written in the first match), the result matchmaker.md:147 refuses for rooms. Run path by reading: solo user U is matched by `run_tick` (:1062-1069), `create_match` waits on `results.create` or `prepare_transport` (:982, :991); U sends `MATCH_REQUEST`, `solo_match_request` (:466-495) has no `making` check and `enqueue`s U (:495); the next `matchmaker_tick` collects U with other entries and `create_match` runs again (the `making` count goes to 2, :953). A room member reaches the same path after `ROOM_LEAVE` of a `Matching` room whose party entry became a match or of a room whose `ROOM_START` passed member rating resolution. The `MATCH_REQUEST` processing order of a user outside a room (open-game-works-core/skills/server-core/modules/matchmaker.md:117-121) does not refuse a participant of a match being made, so the code equals the spec and the repair needs a spec change; the core agent report records/1793894953465-review-fix-mw3qqku1ab5cf0.md `## spec proposals` proposes it. The path existed before this range. Not reproduced",
-      "foundBy": "matchmaker round 4"
-    }
-  ]
+  "items": []
 }
