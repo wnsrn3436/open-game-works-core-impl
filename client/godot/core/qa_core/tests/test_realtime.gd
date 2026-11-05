@@ -43,6 +43,17 @@ func test_drop_peer_index_and_drop_matchmaker() -> void:
 	assert_eq(UnitTestCore.check_logs(WARN, "RealtimeCore"), 1, "force_peer_lost of 1, no longer Connected")
 
 
+func test_drop_matchmaker_outside_playing() -> void:
+	assert_true(await start_realtime())
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	var result: RunCommandResult = await run("drop_matchmaker")
+	assert_false(result.ok, "the result of force_matchmaker_lost, false in None")
+	assert_eq(JSONR.text(result.result, ""), "force_matchmaker_lost failed")
+	assert_eq(calls_of("force_close_matchmaker").size(), 0, "the matchmaker connection was not closed")
+	assert_eq(UnitTestCore.check_logs(WARN, "RealtimeCore"), 1, "force_matchmaker_lost ran once")
+	assert_eq(warns(), 1)
+
+
 func test_leave_match_and_step_mode() -> void:
 	assert_true(await start_realtime())
 	await run_ok("leave_match")
