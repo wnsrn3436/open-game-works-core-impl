@@ -2,7 +2,7 @@ import { setTimeout as real_wait } from 'node:timers/promises';
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import { close, connect, type RealtimeConnection } from '../../testing/dev/index.ts';
 import type { RouteRequest } from '../module_api.ts';
-import { game_register, logs, new_calls, raw, start, stop, type ContentCore, type TestServer } from './support.ts';
+import { admin, game_register, logs, new_calls, raw, start, stop, type ContentCore, type TestServer } from './support.ts';
 
 vi.mock('../../../generated/contract/game_contract.ts', async (import_original) => (await import('./game_contract_mock.ts')).mock_game_contract(await import_original()));
 
@@ -104,6 +104,21 @@ describe('request logs of routes', () => {
     expect(route_lines(server, before)).toHaveLength(1);
     expect(upgrade_lines.map((line) => line.error_code)).toEqual([CoreContract.CoreError.CORE_ERROR_INTERNAL]);
     expect(logs(server, 'error').filter((line) => line.message === 'route GET /realtime failed')).toHaveLength(2);
+  });
+
+  it('writes request, user_id and request_id null and error_code 0 for POST /admin/<operation> and a GET /update/files/<sha256> of HTTP 404', async () => {
+    const server = await started();
+    let before = logs(server, 'request').length;
+    expect((await admin(server, 'get_switches', {})).status).toBe(200);
+    const admin_lines = await wait_route_lines(server, before, 1);
+    before = logs(server, 'request').length;
+    expect((await raw(server, 'GET', `/update/files/${'0'.repeat(64)}`, {})).status).toBe(404);
+    const update_lines = await wait_route_lines(server, before, 1);
+    for (const line of [...admin_lines, ...update_lines]) {
+      expect([line.request, line.user_id, line.request_id, line.error_code]).toEqual([null, null, null, 0]);
+      expect([line.client_version, line.platform, line.seed, Object.hasOwn(line, 'request_body')]).toEqual([null, null, null, false]);
+    }
+    expect([admin_lines.length, update_lines.length]).toEqual([1, 1]);
   });
 
   it('gives a security log line without ip, written by the route of a WebSocket upgrade, the truncated client IP', async () => {

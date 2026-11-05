@@ -243,7 +243,7 @@ export class Pipeline {
 
   private client_ip_of(req: IncomingMessage): string {
     const trusted = this.s.server.env === 'LOCAL' ? 0 : this.s.settings.trusted_proxy_count;
-    return client_ip(trusted, header(req.headers, 'x-forwarded-for'), req.socket.remoteAddress);
+    return client_ip(trusted, req.headersDistinct['x-forwarded-for'], req.socket.remoteAddress);
   }
 
   new_exchange(req: IncomingMessage, res: ServerResponse, name: string, origin: string | null): Exchange {

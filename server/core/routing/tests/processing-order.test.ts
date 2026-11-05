@@ -301,6 +301,50 @@ describe('idempotency inside the transaction', () => {
   });
 });
 
+describe('FAILED of the request transaction', () => {
+  /** Makes `storage.run_request_transaction` of the server run the function and then be `FAILED`, as `storage` does for an aborted transaction. */
+  function failing_transactions(server: TestServer): () => void {
+    const storage = (server as unknown as { running(): { instance: { modules(): ReadonlyMap<string, Record<string, unknown>> } } }).running().instance.modules().get('storage') as {
+      run_request_transaction: (user_id: bigint, fields: unknown, fn: (ctx: unknown) => unknown) => Promise<unknown>;
+    };
+    const run_request_transaction = storage.run_request_transaction;
+    storage.run_request_transaction = (user_id, fields, fn) =>
+      run_request_transaction.call(storage, user_id, fields, (ctx: unknown) => {
+        try {
+          fn(ctx);
+        } catch {
+          // The throw of a transaction that storage makes FAILED.
+        }
+        return CoreContract.CoreError.CORE_ERROR_INTERNAL;
+      }).then(() => 'FAILED');
+    return () => {
+      storage.run_request_transaction = run_request_transaction;
+    };
+  }
+
+  it.each([
+    ['throws', 'Crash'],
+    ['returns a response', 'Echo'],
+    ['returns a GameError', 'Fail'],
+  ])('answers INTERNAL with the error log of step 13 and no unhandled exception log when the handler %s', async (_name, rpc) => {
+    const calls = new_calls();
+    const server = await server_with(calls);
+    const session = await login(server, `failed_${rpc.toLowerCase()}`);
+    const restore = failing_transactions(server);
+    try {
+      expect(code(await send(session, rpc, echo()))).toBe(E.CORE_ERROR_INTERNAL);
+    } finally {
+      restore();
+    }
+    expect(calls.crash + calls.echo + calls.fail).toBe(1);
+    const errors = logs(server, 'error').map((line) => line.message);
+    expect(errors).toContain('request transaction failed');
+    expect(errors).not.toContain('unhandled exception');
+    const line = logs(server, 'request').filter((entry) => entry.request === rpc).at(-1);
+    expect([line?.error_code, line?.user_id]).toEqual([E.CORE_ERROR_INTERNAL, session.user_id.toString()]);
+  });
+});
+
 describe('ban', () => {
   it('lets a banned user\'s IssueDeletionCode through and answers other requests BANNED with the ban detail', async () => {
     const calls = new_calls();

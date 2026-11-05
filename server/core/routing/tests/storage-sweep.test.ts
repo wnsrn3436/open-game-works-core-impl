@@ -3,8 +3,9 @@ import type { RoutingInput } from '../routing_module.ts';
 import { create_routing } from '../routing_module.ts';
 
 /** Job `storage_sweep` of a routing module whose `storage` returns `failed` from `sweep_expired` and `user_changes` from `run_user_changes`, with the error logs it leaves. */
-function sweep_job(failed: readonly { table: string; code: string }[], user_changes: number | 'FAILED' = 0): { run: () => Promise<void>; errors: string[]; calls: string[] } {
+function sweep_job(failed: readonly { table: string; code: string }[], user_changes: number | 'FAILED' | Error = 0): { run: () => Promise<void>; errors: string[]; stacks: unknown[]; calls: string[] } {
   const errors: string[] = [];
+  const stacks: unknown[] = [];
   const calls: string[] = [];
   let job: (() => unknown) | null = null;
   const storage = {
@@ -15,7 +16,7 @@ function sweep_job(failed: readonly { table: string; code: string }[], user_chan
     },
     run_user_changes: () => {
       calls.push('run_user_changes');
-      return Promise.resolve(user_changes);
+      return user_changes instanceof Error ? Promise.reject(user_changes) : Promise.resolve(user_changes);
     },
   };
   const server_time = {
@@ -24,8 +25,10 @@ function sweep_job(failed: readonly { table: string; code: string }[], user_chan
     },
   };
   const logging = {
-    write: (entry: { level: string; message: string }) => {
-      if (entry.level === 'error') errors.push(entry.message);
+    write: (entry: { level: string; message: string; fields: { stack_trace?: unknown } }) => {
+      if (entry.level !== 'error') return;
+      errors.push(entry.message);
+      stacks.push(entry.fields.stack_trace);
     },
   };
   const input = { settings: { 'routing.storageSweepIntervalMs': 60000 }, modules: { storage, 'server-time': server_time, logging }, server: {} } as unknown as RoutingInput;
@@ -36,6 +39,7 @@ function sweep_job(failed: readonly { table: string; code: string }[], user_chan
       await job();
     },
     errors,
+    stacks,
     calls,
   };
 }
@@ -71,6 +75,16 @@ describe('job storage_sweep', () => {
     await sweep.run();
     expect(sweep.calls).toEqual(['sweep_expired', 'run_user_changes']);
     expect(sweep.errors).toEqual(['storage_sweep: run_user_changes failed']);
+  });
+
+  it('leaves one error log holding the thrown error when run_user_changes throws', async () => {
+    const thrown = new Error('run_user_changes left out rows 4, 9');
+    const sweep = sweep_job([{ table: 'item_ledger_history', code: '57014' }], thrown);
+    await sweep.run();
+    expect(sweep.calls).toEqual(['sweep_expired', 'run_user_changes']);
+    expect(sweep.errors).toEqual(["storage_sweep: sweep_expired failed on table item_ledger_history, DB error code '57014'", 'storage_sweep: run_user_changes threw']);
+    expect(sweep.stacks[1]).toBe(thrown.stack);
+    expect(String(sweep.stacks[1])).toContain('run_user_changes left out rows 4, 9');
   });
 
   it('leaves no error log when run_user_changes returns a number', async () => {
