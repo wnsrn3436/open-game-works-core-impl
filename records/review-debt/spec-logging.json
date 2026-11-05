@@ -1,12 +1,5 @@
 {
   "target": "spec logging",
   "nextId": 17,
-  "items": [
-    {
-      "id": "D16",
-      "location": "skills/server-core/modules/logging.md:105",
-      "problem": "For a `ReportAnalyticsEvents` that the handler ends with `INVALID_REQUEST` (logging.md:109), logging.md:105 says the handler passes `dropped_count` to `annotate_request_log`, but the order of the snake_case and `core_` check (logging.md:109) and the param drop check (logging.md:110) is not set, and it is not set whether a mismatched param counts as dropped in a request that saves nothing. logging.md:106 sets the order and `dropped_count` 0 only for the consent path, and the test at logging.md:291 uses no mismatched param. Input: one event named `core_x` with one param whose `kind` is `INT` and whose `string_value` is set, `dropped_event_count` 0: an implementation that checks names first logs `dropped_count` 0 at level `info`, and one that checks params in the same pass logs `dropped_count` 1 at level `warn`",
-      "foundBy": "spec logging"
-    }
-  ]
+  "items": []
 }
