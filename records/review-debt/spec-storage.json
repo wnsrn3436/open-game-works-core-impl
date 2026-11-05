@@ -1,6 +1,6 @@
 {
   "target": "spec storage",
-  "nextId": 3,
+  "nextId": 4,
   "items": [
     {
       "id": "D1",
@@ -12,6 +12,12 @@
       "id": "D2",
       "location": "skills/server-core/modules/storage.md:147",
       "problem": "When PostgreSQL aborts a transaction (`40P01`/`40001`) during a query other than `lock_game_row`, the spec says only that storage \"rolls back the transaction, and the operation that opened that transaction is `FAILED`\". It does not say what the synchronous `query` method of storage.md:97, still running inside the change, request or game function, does at that point: throw, or return. It also does not say what later queries on that aborted transaction do. An implementation in which `query` returns lets the function continue on a dead transaction. An implementation in which `query` throws lets content or core code catch the exception. Both fit the text, and they give different control flow inside handlers and hooks",
+      "foundBy": "spec storage"
+    },
+    {
+      "id": "D3",
+      "location": "skills/server-core/modules/storage.md:145",
+      "problem": "The storage spec does not say that `lock_game_row` on PostgreSQL takes a transaction advisory lock, nor how the int64 lock key is made from the table name and key value (the only advisory lock in this spec is the schema lock at :264, keyed by \"one constant of the core code\"). skills/server-core/modules/testing.md:105 `game_row_lock_id` and :134 `hold_lock_key` require that lock and key, and the tests at storage.md:421, :423, :424 and matchmaker.md:380-381 use them. Nothing sets that a game row key cannot equal the schema lock constant or the key of a row of another table, so a collision is not excluded and can serialize unrelated rows or make a game row lock wait for server start",
       "foundBy": "spec storage"
     }
   ]
