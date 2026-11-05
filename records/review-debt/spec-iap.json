@@ -3,24 +3,6 @@
   "nextId": 5,
   "items": [
     {
-      "id": "D1",
-      "location": "skills/server-core/modules/iap.md:169",
-      "problem": "A Google test transaction is defined by `purchaseType` of the purchase info, but the v3 discovery document of `SubscriptionPurchaseV2` has no `purchaseType` and marks a test purchase with `testPurchase`, so the test flag of a subscription receipt and snapshot (iap.md:197) has no defined source. A license tester subscription read as not test would count in monthly spend (iap.md:118) and in `has_granted_payment` (iap.md:45), and would skip the test grant limit (iap.md:170).",
-      "foundBy": "spec iap"
-    },
-    {
-      "id": "D2",
-      "location": "skills/server-core/modules/iap.md:313",
-      "problem": "`iap.verifyTimeoutMs` has no written range, so value 0 is allowed and an external service call reaches the throw of `network_time_limit` (skills/core/SKILL.md:134, skills/server-core/SKILL.md:224, skills/server-core/modules/server-time.md:39)",
-      "foundBy": "spec auth"
-    },
-    {
-      "id": "D3",
-      "location": "skills/server-core/modules/iap.md:315",
-      "problem": "`iap.notifyBodyReadTimeoutMs` has no written range, so value 0 is allowed and a store notification body read reaches the throw of `network_time_limit` (skills/core/SKILL.md:134, skills/server-core/modules/server-time.md:39, skills/server-core/modules/server-time.md:89)",
-      "foundBy": "spec auth"
-    },
-    {
       "id": "D4",
       "location": "skills/server-core/modules/iap.md:341",
       "problem": "`iap-google` receipt verification does not set how the adapter decides whether a receipt (`Purchase.getOriginalJson()`, iap.md:54) is a product receipt checked with `purchases.products` or a subscription receipt checked with `purchases.subscriptionsv2`. The transaction ID, the verification result, the purchase time and the test transaction judgement (iap.md:169) all depend on which response is read, but grant order step 2 (iap.md:127) learns the product type only from the SKU the adapter returns, and no defining document gives the adapter the `iap_product` type or names a receipt field to decide by. Implementations can differ (call `purchases.products` first and fall back, read `autoRenewing` of the receipt JSON, look up `sku_google` in `iap_product`)",
