@@ -1,12 +1,5 @@
 {
   "target": "spec admin-api",
   "nextId": 19,
-  "items": [
-    {
-      "id": "D18",
-      "location": "skills/server-core/modules/admin-api.md:178",
-      "problem": "The body rules do not set how a JSON string with an unpaired surrogate escape (e.g. `\"\\ud800\"`) is handled, and no defining document sets how `storage` writes such a `string` value. The contract tool writes an unpaired surrogate as U+FFFD only in proto encode (skills/contract/tool.md:14). An implementation that accepts it and passes the JavaScript string to the DB driver stores U+FFFD, so `grant_items` with `operation_id` `\"\\ud800\"` and then `\"\\udfff\"` with the same input and the same `user_id` and `items` hit the same `admin_api_operation` key `(grant_items, U+FFFD)` (admin-api.md:194 to :197), and since `input_sha256` is taken from the JavaScript input in which the two `operation_id` values differ, the second is 409 `conflict` although its `operation_id` was never used; an implementation that rejects it gives 400 `bad_request`. This existed before the change and is not caused by the added U+0000 clause",
-      "foundBy": "spec admin-api"
-    }
-  ]
+  "items": []
 }
