@@ -1,12 +1,18 @@
 {
   "target": "spec InputCore",
-  "nextId": 2,
+  "nextId": 3,
   "items": [
     {
       "id": "D1",
       "location": "skills/client-core/modules/input-core.md:255",
       "problem": "a row rule of `## data` (`input` of `Touch` and `KeyboardMouse` rows) is named static check `action reference`, while `skills/core/SKILL.md:144` says row rules written in `## data` of a spec are data checks tested with data tool tests",
       "foundBy": "spec ShortcutCore"
+    },
+    {
+      "id": "D2",
+      "location": "skills/client-content/engines/godot.md:51",
+      "problem": "The input map tool check blocks overlapping actions with the same key, mouse button, gamepad button or gamepad axis direction, but not an action whose default binding has more keys and mouse buttons than `InputCore.maxKeysPerAction` or more gamepad buttons and gamepad axis directions than `InputCore.maxPadButtonsPerAction`, which the InputCore spec now makes an `init` failure (skills/client-core/modules/input-core.md:77). Such an input map passes the check at write time and is caught only when an instance starts and InputCore `init` fails",
+      "foundBy": "spec InputCore"
     }
   ]
 }
