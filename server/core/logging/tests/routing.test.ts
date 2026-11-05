@@ -100,5 +100,9 @@ describe('client log request through routing', () => {
     const security = read_logs(h.server, 'security').filter((line) => line.user_id === session.user_id.toString());
     expect(security).toHaveLength(1);
     expect(security[0]).toMatchObject({ request: 'core/ReportClientErrors', reason: 'rate_limited_user' });
+    const requests = read_logs(h.server, 'request').filter((line) => line.user_id === session.user_id.toString() && line.request === 'core/ReportClientErrors');
+    expect(requests.map((line) => line.error_code)).toEqual([0, 0, CoreError.CORE_ERROR_RATE_LIMITED]);
+    expect(requests[0]).toMatchObject({ dropped_count: 0, client_dropped_count: 0, consent_dropped_count: 0 });
+    for (const key of ['dropped_count', 'client_dropped_count', 'consent_dropped_count']) expect(requests[2]).not.toHaveProperty(key);
   });
 });

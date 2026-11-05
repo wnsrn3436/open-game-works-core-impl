@@ -99,6 +99,34 @@ describe('analytics-ga4 adapter', () => {
     expect(await adapter(recording(() => new Response('x'.repeat(2000), { status: 200 })).fetch).send([event(1n, 'a', 0n)], signal())).toBe('communication_failure');
   });
 
+  it('makes no call after a failed call, and the send fails with the kind of that call', async () => {
+    const events = Array.from({ length: 30 }, (_, i) => event(9n, 'tap', BigInt(i)));
+    const refused = recording(() => new Response('no', { status: 500 }));
+    expect(await adapter(refused.fetch).send(events, signal())).toBe('rejected');
+    expect(refused.calls).toHaveLength(1);
+    let calls = 0;
+    const unanswered: HttpFetch = () => {
+      calls += 1;
+      return Promise.reject(new TypeError('fetch failed'));
+    };
+    expect(await adapter(unanswered).send(events, signal())).toBe('communication_failure');
+    expect(calls).toBe(1);
+  });
+
+  it('sends the events GA4 accepts in one call, and makes no call and succeeds when none is left', async () => {
+    const long = 'n'.repeat(41);
+    const events = Array.from({ length: 30 }, (_, i) => event(9n, i % 5 === 0 ? long : 'tap', BigInt(i)));
+    const http = recording(() => new Response(null, { status: 204 }));
+    expect(await adapter(http.fetch).send(events, signal())).toBeNull();
+    expect(http.calls).toHaveLength(1);
+    const sent = (JSON.parse(http.calls[0]?.init.body as string) as { events: { name: string; timestamp_micros: string }[] }).events;
+    expect(sent).toHaveLength(24);
+    expect(sent.every((e) => e.name === 'tap')).toBe(true);
+    const none = recording(() => new Response(null, { status: 500 }));
+    expect(await adapter(none.fetch).send(events.filter((e) => e.name === long), signal())).toBeNull();
+    expect(none.calls).toEqual([]);
+  });
+
   it('signs the deletion access token request with RS256 and the deletion scope', () => {
     const jwt = deletion_assertion('deleter@example.iam.gserviceaccount.com', PRIVATE_PEM, NOW / 1000n);
     const [header, claims, signature] = jwt.split('.') as [string, string, string];

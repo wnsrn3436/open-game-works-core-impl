@@ -310,11 +310,11 @@
     },
     "logging.analyticsDeletionMaxAttempts": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "logging.analyticsSendTimeoutMs": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "logging.clientLogRetentionMs": {
       "type": "integer",
@@ -330,7 +330,7 @@
     },
     "logging.maxEventParams": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 5
     },
     "logging.maxEvents": {
       "type": "integer",
@@ -346,7 +346,7 @@
     },
     "logging.maxStringLength": {
       "type": "integer",
-      "minimum": 1
+      "minimum": 23
     },
     "logging.reportRateLimitPerMinute": {
       "type": "integer",

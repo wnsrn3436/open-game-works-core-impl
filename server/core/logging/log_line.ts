@@ -82,16 +82,20 @@ function ipv6_words(ip: string): number[] {
 }
 
 /**
- * The truncated IP (`server-core` `## log`): IPv4 keeps the first 24 bits, IPv6 the first 48 bits, the other bits
- * are 0. An IPv4-mapped IPv6 address is truncated as IPv4. Anything else is the empty string.
+ * The truncated IP (`server-core` `## log`): IPv4 keeps the first 24 bits (`a.b.c.0`), IPv6 the first 48 bits (the
+ * first three words in lowercase hex, then `::`), the other bits are 0. An address in `::ffff:0:0/96`, in any IPv6
+ * text form, is truncated as the IPv4 address of its last 32 bits. Anything else is the empty string.
  */
 export function truncate_ip(ip: string): string {
-  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(ip);
-  const v4 = mapped ? (mapped[1] as string) : ip;
-  if (isIPv4(v4)) return `${v4.split('.').slice(0, 3).join('.')}.0`;
+  if (isIPv4(ip)) return `${ip.split('.').slice(0, 3).join('.')}.0`;
   const address = ip.split('%')[0] as string;
   if (!isIPv6(address)) return '';
-  return `${ipv6_words(address)
+  const words = ipv6_words(address);
+  if (words.slice(0, 5).every((w) => w === 0) && words[5] === 0xffff) {
+    const [high, low] = [words[6] as number, words[7] as number];
+    return `${String(high >> 8)}.${String(high & 0xff)}.${String(low >> 8)}.0`;
+  }
+  return `${words
     .slice(0, 3)
     .map((w) => w.toString(16))
     .join(':')}::`;
