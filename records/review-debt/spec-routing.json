@@ -1,12 +1,5 @@
 {
   "target": "spec routing",
   "nextId": 4,
-  "items": [
-    {
-      "id": "D3",
-      "location": "skills/server-core/modules/routing.md:124",
-      "problem": "Step 17 is the only place that says the `request` log line gets the fields and minimum level of `logging.take_request_log_annotation`(ctx), and line 107 says a request whose step fails \"responds with the error of that step and ends\", while line 220 says every request leaves one `request` log line. Whether the `request` log of a request that made ctx and then failed in step 14, 15 or 16 carries the annotation is not set. logging.md:50 and the changed logging.md:105 and logging.md:291 (`INVALID_REQUEST` from the handler with `client_dropped_count` 3 and level `warn`) require that it does; an implementation that writes the annotation only on the HTTP 200 success path of step 17 follows routing as written and fails that logging test",
-      "foundBy": "spec logging"
-    }
-  ]
+  "items": []
 }
