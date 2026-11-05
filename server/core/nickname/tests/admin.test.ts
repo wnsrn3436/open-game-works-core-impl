@@ -144,6 +144,18 @@ describe('find_user_by_nickname', () => {
     }
   });
 
+  it('gives an empty list without failing for input that holds a character no saved nickname holds (U+0000, a C0 control)', async () => {
+    const h = await start(true);
+    try {
+      const [a] = await users(h.server, ['a']);
+      expect((await set_nickname(a, 'Kiwi')).code).toBe(0);
+      for (const input of ['Kiwi\u0000', '\u0000', 'Ki\u0007wi']) expect(await find(h.server, input)).toEqual({ status: 200, json: { users: [] } });
+      expect(await find(h.server, 'Kiwi')).toEqual({ status: 200, json: { users: [{ user_id: a.user_id.toString(), nickname: 'Kiwi' }] } });
+    } finally {
+      await stop_test_server(h.server);
+    }
+  });
+
   it('counts the input length in code points: nickname.maxLength characters outside the BMP find the user, one more is bad_request', async () => {
     const h = await start(true, { 'nickname.maxLength': 4, 'nickname.allowedScripts': ['Han'] });
     try {

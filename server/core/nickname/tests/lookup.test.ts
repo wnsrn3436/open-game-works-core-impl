@@ -56,6 +56,20 @@ describe('find_user_ids_by_nickname', () => {
     }
   });
 
+  it('gives an empty list without failing for input that holds a character no saved nickname holds (U+0000, a C0 control, a lone surrogate)', async () => {
+    const h = await start(false);
+    try {
+      const [caller, a] = await users(h.server, ['caller', 'a']);
+      expect((await set_nickname(a, 'Kiwi')).code).toBe(0);
+      const nickname = h.nickname();
+      const find = (input: string): Promise<bigint[]> => in_user_transaction(h.core(), caller.user_id, (ctx) => nickname.find_user_ids_by_nickname(ctx, input, 10));
+      for (const input of ['Kiwi\u0000', '\u0000', 'Ki\u0007wi', 'Kiwi\ud800']) expect(await find(input)).toEqual([]);
+      expect(await find('Kiwi')).toEqual([a.user_id]);
+    } finally {
+      await stop_test_server(h.server);
+    }
+  });
+
   it('counts the input length in code points: nickname.maxLength characters outside the BMP find the user, one more gives an empty list', async () => {
     const h = await start(false, { 'nickname.maxLength': 4, 'nickname.allowedScripts': ['Han'] });
     try {
