@@ -1,6 +1,6 @@
 {
   "target": "admin-api",
-  "nextId": 6,
+  "nextId": 7,
   "items": [
     {
       "id": "D1",
@@ -25,6 +25,12 @@
       "location": "server/core/admin-api/operations.ts:228",
       "problem": "`mail_of` passes the `mail` `json` value through `output_json` before `mailbox.mail_input_from_json`, so every JSON integer outside the safe integer range becomes a decimal string. `## API` of `mailbox` (mailbox.md:64) says that in the value `mail_input_from_json` receives, a JSON integer is a safe `number` or a `bigint`, and that a value of another type is a wrong format (`INVALID_INPUT`). Repro: `send_mail` with `mail` `{\"template_id\":<id>,\"args\":[{\"name\":\"n\",\"value\":{\"text_value\":9007199254740993}}]}` gets 200 and sends a mail whose `text_value` is `\"9007199254740993\"`, while the same body with `\"text_value\":5` gets 400. Checked with node: `mail_input_from_json(output_json({template_id:1,args:[{name:'n',value:{text_value:9007199254740993n}}]}))` returns a mail input with `text_value` `\"9007199254740993\"`. The same happens for `name`, `once_key` and attachment `big_amount` given as JSON integers past 2^53. The line is unchanged since the initial commit",
       "foundBy": "admin-api round 1"
+    },
+    {
+      "id": "D6",
+      "location": "server/core/admin-api/tables.ts:118",
+      "problem": "`write_operation` writes `operation_id` as a raw `string` parameter, and the admin-api body rules (`admin-api` spec: a `string` value is at most `admin-api.maxStringBytes`, `operation_id` is not empty) let U+0000 through, so every operation with `operation_id` whose handler succeeds answers 500 `internal` for an `operation_id` holding U+0000 on both DBs (on SQLite since `server/core/storage/db/sqlite.ts:49` of this range), which the admin-api spec does not define",
+      "foundBy": "remote-config round 1"
     }
   ]
 }
