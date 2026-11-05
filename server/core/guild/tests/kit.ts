@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { Worker } from 'node:worker_threads';
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import * as GameContract from '../../../generated/contract/game_contract.ts';
+import * as CoreCheatContract from '../../../dev/generated/contract/core_cheat_contract.ts';
 import { create_server, type ServerInstance } from '../../routing/index.ts';
 import type { RequestCtx, Storage } from '../../storage/index.ts';
 import { lock_key } from '../../storage/tx.ts';
@@ -23,6 +24,7 @@ import {
   read_user_state,
   send,
   send_admin,
+  send_cheat,
   start_test_server,
   stop_test_server,
   type AdminResponse,
@@ -379,6 +381,14 @@ export async function cancel_request(session: TestSession, guild_id: bigint): Pr
 
 export async function leave(session: TestSession): Promise<number> {
   return (await rpc(session, 'LeaveGuild', new CoreContract.LeaveGuildRequest())).code;
+}
+
+/** Sets the cheat time offset of the session's user (`core/cheat/SetTimeOffset`) and returns the error code. */
+export async function set_time_offset(session: TestSession, offset_ms: bigint): Promise<number> {
+  const request = new CoreCheatContract.SetTimeOffsetRequest();
+  request.offset_ms = offset_ms;
+  const { envelope } = (await send_cheat(session, 'core/cheat/SetTimeOffset', request)) as { envelope: CoreContract.ResponseEnvelope };
+  return envelope.error === null ? 0 : envelope.error.code;
 }
 
 export async function withdraw(session: TestSession): Promise<number> {

@@ -7,6 +7,7 @@ import {
   START_AT,
   advance_time,
   cancel_request,
+  cooldown,
   create_guild,
   get_my_guild,
   guild_row,
@@ -18,6 +19,7 @@ import {
   on_user,
   requests,
   set_role,
+  set_time_offset,
   start,
   stop_servers,
   update_guild,
@@ -143,11 +145,30 @@ describe('JoinGuild', () => {
     expect((await join_guild(a, other.guild_id)).code).toBe(E.CORE_ERROR_GUILD_COOLDOWN);
     expect((await join_guild(b, guild_id)).code).toBe(E.CORE_ERROR_GUILD_COOLDOWN);
     expect((await create_guild(a, 'Mine')).code).toBe(E.CORE_ERROR_GUILD_COOLDOWN);
+    expect((await get_my_guild(a)).response?.cooldown_ends_at).toBe(START_AT + 1000n);
     expect((await get_my_guild(b)).response?.cooldown_ends_at).toBe(START_AT + 1000n);
     advance_time(kit.server, 1n);
+    expect((await get_my_guild(a)).response?.cooldown_ends_at).toBe(0n);
+    expect(cooldown(kit, a.user_id)).toBe(START_AT + 1000n);
     expect((await join_guild(a, other.guild_id)).code).toBe(0);
     expect((await join_guild(b, guild_id)).code).toBe(0);
     expect((await get_my_guild(b)).response?.cooldown_ends_at).toBe(0n);
+  }, T);
+
+  it('in DEV keeps GUILD_COOLDOWN for a user with a time offset of -2 x guild.rejoinCooldownMs after the storage expiry cleanup, and passes at offset -guild.rejoinCooldownMs', async () => {
+    const kit = await start({ settings: { 'guild.rejoinCooldownMs': 1000 } });
+    const [l, a, l2] = await users(kit, 3);
+    await guild_with(l, 'Home', [a]);
+    const other = await create_guild(l2, 'Other');
+    expect(await set_time_offset(a, -2000n)).toBe(0);
+    expect(await leave(a)).toBe(0);
+    expect(cooldown(kit, a.user_id)).toBe(START_AT - 1000n);
+    expect((await join_guild(a, other.guild_id)).code).toBe(E.CORE_ERROR_GUILD_COOLDOWN);
+    await kit.storage().sweep_expired();
+    expect(cooldown(kit, a.user_id)).toBe(START_AT - 1000n);
+    expect((await join_guild(a, other.guild_id)).code).toBe(E.CORE_ERROR_GUILD_COOLDOWN);
+    expect(await set_time_offset(a, -1000n)).toBe(0);
+    expect((await join_guild(a, other.guild_id)).code).toBe(0);
   }, T);
 
   it('is GUILD_ALREADY_MEMBER for a member and GUILD_NOT_FOUND for a guild that does not exist', async () => {
