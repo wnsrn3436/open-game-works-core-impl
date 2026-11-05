@@ -1,12 +1,12 @@
 {
   "target": "PaymentCore",
-  "nextId": 13,
+  "nextId": 14,
   "items": [
     {
-      "id": "D12",
-      "location": "client/godot/core/payment_core/payment_core.gd:597",
-      "problem": "When `list_unfinished` fails or times out after the login session at the start of `recover_purchases` has ended, `_run_recovery` checks only `life` (`:593`) and writes the error log `recover_purchases: list_unfinished failed`. `open-game-works-core/skills/client-core/modules/payment-core.md:219` says the log is none when the login session at the start of an async operation other than `prepare` has ended when that operation ends, and `:160` discards the result. The same path is at `:640` for `list_owned` in `_run_restore`. Run path read in the code (not run): `holding_list_store_adapter.gd` holding `list_unfinished`, `log_in(USER_ID + 1)`, the held list released with a failure → one PaymentCore error log. The list failure log has no row in the error table of `payment-core.md` for the same-session case either. This existed before the range",
-      "foundBy": "PaymentCore round 5"
+      "id": "D13",
+      "location": "open-game-works-core/skills/client-core/modules/payment-core.md:201",
+      "problem": "The error table has no row for a `list_unfinished` or `list_owned` failure or timeout in the same login session, and `:281` says only that `restore_purchases` is `false` without verification when `list_owned` fails. The log level of that failure is not settled, but the code logs `error` (`client/godot/core/payment_core/payment_core.gd:597`, `:640`) and `client/godot/core/payment_core/tests/test_recovery.gd:499` asserts one PaymentCore error log after `fake_set_fail(\"list_owned\", true)`. An implementation with a `warn` or no log also meets the spec and fails that test. This existed before the range; the core agent report proposes the row `false`, log `error`",
+      "foundBy": "PaymentCore round 8"
     }
   ]
 }
