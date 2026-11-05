@@ -1,5 +1,5 @@
 extends "res://core/ui_core/tests/support/ui_test_case.gd"
-## System popups: buttons, back button, layout, open result and scroll.
+## System popups: buttons, back button, system popup areas and layout, open result and scroll.
 
 var _order: PackedStringArray = PackedStringArray()
 
@@ -66,6 +66,112 @@ func test_button_layout() -> void:
 			for i: int in range(1, count):
 				assert_almost_eq(rects[i].position.x - rects[i - 1].end.x, gap, 1.0, "even spacing")
 		UICore.close_all_popups()
+
+
+func test_areas_taken_from_the_root_of_the_code_made_screen() -> void:
+	assert_true(await start())
+	await _assert_areas_from_the_root()
+
+
+func test_areas_taken_from_a_root_that_is_not_a_system_popup_class() -> void:
+	set_string("UICore.systemPopupResource", FRAME)
+	assert_true(await start())
+	await _assert_areas_from_the_root()
+
+
+func test_both_areas_set() -> void:
+	set_string("UICore.systemPopupResource", SYSTEM_AREAS)
+	assert_true(await start())
+	var popup: Control = await _open_three_buttons()
+	_assert_inside(_body_rect(popup), _child_rect(popup, "Body"), "the body in the body area")
+	_assert_buttons_inside(popup, _child_rect(popup, "Buttons"), "the buttons in the button area")
+
+
+func test_only_the_button_area_set() -> void:
+	set_string("UICore.systemPopupResource", SYSTEM_BUTTON_AREA)
+	assert_true(await start())
+	var popup: Control = await _open_three_buttons()
+	var buttons_area: Rect2 = _child_rect(popup, "Buttons")
+	_assert_buttons_inside(popup, buttons_area, "the buttons in the button area")
+	var above: Rect2 = popup.get_global_rect()
+	above.size.y = buttons_area.position.y - above.position.y
+	_assert_inside(_body_rect(popup), above, "the body in the root above the button area")
+	assert_true(_body_rect(popup).size.y > 0.0, "the body has a height")
+
+
+func test_only_the_body_area_set() -> void:
+	set_string("UICore.systemPopupResource", SYSTEM_BODY_AREA)
+	assert_true(await start())
+	var popup: Control = await _open_three_buttons()
+	_assert_inside(_body_rect(popup), _child_rect(popup, "Body"), "the body in the body area")
+	_assert_buttons_along_the_bottom(popup)
+
+
+func test_one_button_at_the_center_of_its_button_area() -> void:
+	set_string("UICore.systemPopupResource", SYSTEM_AREAS)
+	assert_true(await start())
+	assert_true(await UICore.open_system_popup(one_button_param(), Callable()))
+	await UnitTestCore.wait_frames(2)
+	var popup: Control = system_popup()
+	var area: Rect2 = _child_rect(popup, "Buttons")
+	var button: Rect2 = system_buttons(popup)[0].get_global_rect()
+	assert_almost_eq(button.get_center().x, area.get_center().x, 1.0, "horizontal center of the button area")
+	assert_true(area.grow(1.0).encloses(button), "inside the button area")
+
+
+func _assert_areas_from_the_root() -> void:
+	var popup: Control = await _open_three_buttons()
+	var root: Rect2 = popup.get_global_rect()
+	_assert_inside(_body_rect(popup), root, "the body in the root")
+	_assert_buttons_along_the_bottom(popup)
+
+
+## The buttons in one row inside the root, along its bottom edge and below the body.
+func _assert_buttons_along_the_bottom(popup: Control) -> void:
+	var root: Rect2 = popup.get_global_rect()
+	_assert_buttons_inside(popup, root, "the buttons in the root")
+	var body: Rect2 = _body_rect(popup)
+	for button: Button in system_buttons(popup):
+		var rect: Rect2 = button.get_global_rect()
+		assert_true(rect.position.y >= body.end.y - 1.0, "the buttons below the body")
+		assert_true(root.end.y - rect.end.y < rect.size.y, "the buttons along the bottom edge")
+
+
+## The buttons inside `area`, in one row, evenly spaced and without overlap.
+func _assert_buttons_inside(popup: Control, area: Rect2, message: String) -> void:
+	var buttons: Array[Button] = system_buttons(popup)
+	assert_eq(buttons.size(), 3)
+	for i: int in buttons.size():
+		var rect: Rect2 = buttons[i].get_global_rect()
+		_assert_inside(rect, area, message)
+		assert_almost_eq(rect.position.y, buttons[0].get_global_rect().position.y, 1.0, "one row")
+	var gap: float = buttons[1].get_global_rect().position.x - buttons[0].get_global_rect().end.x
+	assert_true(gap > 0.0, "no overlap")
+	assert_almost_eq(buttons[2].get_global_rect().position.x - buttons[1].get_global_rect().end.x, gap, 1.0,
+			"even spacing")
+
+
+func _assert_inside(inner: Rect2, outer: Rect2, message: String) -> void:
+	assert_true(outer.grow(1.0).encloses(inner), "%s: %s in %s" % [message, inner, outer])
+
+
+func _open_three_buttons() -> Control:
+	var labels: PackedStringArray = PackedStringArray()
+	for i: int in 3:
+		labels.append(ReservedString.ui_exit_quit())
+	assert_true(await UICore.open_system_popup(system_param(labels), Callable()))
+	await UnitTestCore.wait_frames(3)
+	return system_popup()
+
+
+## The scroll area of the body and extra text.
+func _body_rect(popup: Control) -> Rect2:
+	var record: UICore._POPUP = UICore._shown_record_of(popup)
+	return (record.system_view as UICore._SYSTEM_VIEW).scroll.get_global_rect()
+
+
+func _child_rect(popup: Control, child: String) -> Rect2:
+	return (popup.get_node(child) as Control).get_global_rect()
 
 
 func test_scroll_with_direction_input() -> void:

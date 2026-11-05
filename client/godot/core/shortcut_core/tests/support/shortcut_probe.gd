@@ -30,8 +30,10 @@ func _on_scene_started(event: SceneStartedEvent) -> void:
 	Trace.add("scene_started:" + Trace.short(event.scene_key))
 
 
+## The panel key in the trace is the current panel when the transition ended.
 func _on_flow(event: PanelFlowFinishedEvent) -> void:
-	Trace.add("flow:%s:%s:%s" % ["open" if event.is_open else "close", Trace.short(event.panel_key), event.success])
+	var key: String = UICore.get_current_panel_key()
+	Trace.add("flow:%s:%s:%s" % ["open" if event.is_open else "close", Trace.short(key), event.success])
 
 
 func _on_opened(event: UIOpenedEvent) -> void:

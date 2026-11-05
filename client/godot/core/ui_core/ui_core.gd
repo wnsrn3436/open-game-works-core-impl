@@ -119,6 +119,10 @@ static var _open_record: _POPUP = null
 ## Shown popups, bottom first. Normal popups are under the system popup root, system popups in it.
 static var _shown_normal: Array[_POPUP] = []
 static var _shown_system: Array[_POPUP] = []
+## System popups that load their tween presets before they show, out of the tree.
+static var _loading_system: Array[_POPUP] = []
+## Number of the last `open_system_popup` call: the stacking order of system popups.
+static var _system_serial: int = 0
 static var _closing_all: bool = false
 
 # Loading icon.
@@ -356,7 +360,6 @@ static func close_panel(force: bool = false) -> bool:
 	flow.kind = _FLOW.Kind.CLOSE
 	flow.force = force
 	flow.destination = _stack.size() - 2
-	flow.panel_key = _stack[flow.destination].key if flow.destination >= 0 else ""
 	return await _transition(flow)
 
 
@@ -378,7 +381,6 @@ static func close_panels_to(panel_key: String, force: bool = false) -> bool:
 	flow.kind = _FLOW.Kind.CLOSE
 	flow.force = force
 	flow.destination = index
-	flow.panel_key = panel_key
 	return await _transition(flow)
 
 
@@ -520,12 +522,26 @@ static func open_system_popup(param: SystemPopupParam, hidden_callback: Callable
 	record.scope = ResourceCore.create_scope(
 			ResourceCore.ScopeKind.POPUP, _system_popup_resource if not _system_popup_resource.is_empty()
 			else _SYSTEM_POPUP_SCOPE)
+	_system_serial += 1
+	record.order = _system_serial
 	var instance: Control = _build_system_popup(record)
 	record.instance = instance
+	var tween_keys: PackedStringArray = _tween_keys(record.open_tween, record.close_tween)
+	if not tween_keys.is_empty():
+		record.state = _POPUP.State.PREPARING
+		_loading_system.append(record)
+		var tweens: _WAITER = _WAITER.new()
+		record.waiter = tweens
+		tweens.start_loads(tween_keys, TweenCore.get_preset_kind(), record.scope)
+		if not tweens.finished and not tweens.cancelled:
+			await tweens.done
+		record.waiter = null
+		if session != _session or record.state != _POPUP.State.PREPARING:
+			return false
+		_loading_system.erase(record)
 	_instance_state[instance.get_instance_id()] = _SHOWN
-	_system_root.add_child(instance)
 	record.state = _POPUP.State.OPENING
-	_shown_system.append(record)
+	_show_system_record(record)
 	_refresh_popup_layer()
 	if not record.open_tween.is_empty():
 		record.tween_handle = TweenCore.play_preset(record.open_tween, record.scope, instance, _tween_options)
@@ -605,6 +621,10 @@ static func close_all_popups() -> void:
 		_fail_open(preparing, false)
 		if session != _session:
 			return
+	for record: _POPUP in _loading_system.duplicate():
+		_fail_open(record, false)
+		if session != _session:
+			return
 	var opening: Array[_POPUP] = []
 	for record: _POPUP in _shown_normal:
 		if record.state == _POPUP.State.OPENING:
@@ -654,7 +674,7 @@ static func is_system_popup_visible() -> bool:
 static func is_flow_in_progress() -> bool:
 	if not _check_initialized("is_flow_in_progress"):
 		return false
-	if _flow != null or _open_record != null or not _queue.is_empty():
+	if _flow != null or _open_record != null or not _queue.is_empty() or not _loading_system.is_empty():
 		return true
 	for record: _POPUP in _shown_normal:
 		if record.state == _POPUP.State.OPENING or record.state == _POPUP.State.CLOSING:
@@ -1039,6 +1059,10 @@ static func _end_state() -> void:
 		records.append(_open_record)
 	records.append_array(_shown_normal)
 	records.append_array(_shown_system)
+	records.append_array(_loading_system)
+	var loading_nodes: Array[Control] = []
+	for record: _POPUP in _loading_system:
+		loading_nodes.append(record.instance)
 	var waiters: Array[_WAITER] = []
 	if _licenses_waiter != null:
 		waiters.append(_licenses_waiter)
@@ -1070,6 +1094,9 @@ static func _end_state() -> void:
 			if view.scope != null and not view.scope.released:
 				ResourceCore.release_scope(view.scope)
 	_reset_statics()
+	for loading_node: Control in loading_nodes:
+		if is_instance_valid(loading_node):
+			loading_node.free()
 	for waiter: _WAITER in waiters:
 		waiter.cancel()
 	if flow != null:
@@ -1121,6 +1148,8 @@ static func _reset_statics() -> void:
 	_open_record = null
 	_shown_normal = []
 	_shown_system = []
+	_loading_system = []
+	_system_serial = 0
 	_closing_all = false
 	_icon_tokens = {}
 	_icon_serial = 0
@@ -1182,7 +1211,6 @@ static func _publish_finished(flow: _FLOW) -> void:
 		return
 	_finished_flow = null
 	var finished: PanelFlowFinishedEvent = EventCore.acquire(PanelFlowFinishedEvent) as PanelFlowFinishedEvent
-	finished.panel_key = flow.panel_key
 	finished.is_open = flow.kind == _FLOW.Kind.OPEN
 	finished.success = _finished_ok
 	EventCore.publish(finished)
@@ -1272,6 +1300,7 @@ static func _open_flow(flow: _FLOW) -> bool:
 		return false
 	if not view.panel.open_tween.is_empty():
 		var handle: int = TweenCore.play_preset(view.panel.open_tween, view.scope, view.panel, _tween_options)
+		view.tween_handle = handle
 		var waiter: _WAITER = _WAITER.new()
 		flow.waiter = waiter
 		waiter.start_tween(handle)
@@ -1326,6 +1355,7 @@ static func _close_flow(flow: _FLOW) -> bool:
 		return false
 	if not current.panel.close_tween.is_empty():
 		var handle: int = TweenCore.play_preset(current.panel.close_tween, current.scope, current.panel, _tween_options)
+		current.tween_handle = handle
 		var waiter: _WAITER = _WAITER.new()
 		flow.waiter = waiter
 		waiter.start_tween(handle)
@@ -1353,8 +1383,9 @@ static func _close_flow(flow: _FLOW) -> bool:
 	return true
 
 
-## Async. Makes an invisible panel instance of `key` with `param` and `cache` in a new panel scope. `below` puts it
-## under the current panel. `null` when it failed or `flow` stopped.
+## Async. Makes an invisible panel instance of `key` with `param` and `cache` in a new panel scope and loads its open
+## and close tween presets into that scope. `below` puts it under the current panel. `null` when it failed or UICore
+## was released; a cancelled `flow` gets the instance as `flow.preparing`, which `_flow_stopped` destroys.
 static func _make_view(flow: _FLOW, key: String, param: UIParam, cache: UIPanelCache, below: bool) -> _VIEW:
 	var session: RefCounted = _session
 	_make_failed_not_panel = false
@@ -1396,6 +1427,14 @@ static func _make_view(flow: _FLOW, key: String, param: UIParam, cache: UIPanelC
 	_panel_root.add_child(panel)
 	if below and _current != null and is_instance_valid(_current.panel):
 		_panel_root.move_child(panel, _current.panel.get_index())
+	var tweens: _WAITER = _WAITER.new()
+	flow.waiter = tweens
+	tweens.start_loads(_tween_keys(panel.open_tween, panel.close_tween), TweenCore.get_preset_kind(), scope)
+	if not tweens.finished and not tweens.cancelled:
+		await tweens.done
+	flow.waiter = null
+	if session != _session:
+		return null
 	return view
 
 
@@ -1429,9 +1468,15 @@ static func _show_view(flow: _FLOW, view: _VIEW, entry: _ENTRY, reason: PanelOpe
 	view.panel.on_opened(reason)
 
 
-## `on_closed(reason)` unless it was called, then destroys the instance and publishes `UIClosedEvent`.
+## Stops its open or close tween, `on_closed(reason)` unless it was called, then destroys the instance and publishes
+## `UIClosedEvent`.
 static func _close_view_now(view: _VIEW, reason: PanelCloseReason) -> void:
 	var session: RefCounted = _session
+	if view.tween_handle != 0:
+		TweenCore.stop(view.tween_handle)
+		view.tween_handle = 0
+		if session != _session:
+			return
 	if not view.closed_called:
 		view.closed_called = true
 		view.panel.on_closed(reason)
@@ -1501,6 +1546,16 @@ static func _place_below(node: Control, target: Control) -> void:
 		parent.move_child(node, target_index - 1)
 	else:
 		parent.move_child(node, target_index)
+
+
+## The open and close tween preset keys that are not none.
+static func _tween_keys(open_tween: String, close_tween: String) -> PackedStringArray:
+	var keys: PackedStringArray = PackedStringArray()
+	if not open_tween.is_empty():
+		keys.append(open_tween)
+	if not close_tween.is_empty() and close_tween != open_tween:
+		keys.append(close_tween)
+	return keys
 
 
 static func _publish_opened(key: String, is_panel: bool, reason: PanelOpenReason) -> void:
@@ -1586,6 +1641,14 @@ static func _popup_open_flow(record: _POPUP) -> void:
 	record.initial_focus = popup.initial_focus
 	_instance_state[popup.get_instance_id()] = _PREPARING
 	_place_below(popup, _system_root)
+	var tweens: _WAITER = _WAITER.new()
+	record.waiter = tweens
+	tweens.start_loads(_tween_keys(record.open_tween, record.close_tween), TweenCore.get_preset_kind(), record.scope)
+	if not tweens.finished and not tweens.cancelled:
+		await tweens.done
+	record.waiter = null
+	if session != _session or record.state != _POPUP.State.PREPARING:
+		return
 	if not popup.accepts_param(record.param):
 		LogCore.log_error(_TAG, "open_popup: %s does not take its param" % record.key)
 		_fail_open(record, true)
@@ -1663,6 +1726,7 @@ static func _fail_open(record: _POPUP, pump: bool) -> void:
 	record.open_block = 0
 	if _open_record == record:
 		_open_record = null
+	_loading_system.erase(record)
 	record.resolve(PopupOpenResult.FAILED)
 	if pump:
 		_pump_popups()
@@ -1781,6 +1845,7 @@ static func _check_system_param(param: SystemPopupParam) -> bool:
 
 
 ## Makes the system popup instance: the system popup prefab or a code made frame, with the code made content in it.
+## A `UISystemPopup` root sets the body area and button area of that content.
 static func _build_system_popup(record: _POPUP) -> Control:
 	var param: SystemPopupParam = record.system_param
 	var frame: Control = null
@@ -1801,6 +1866,12 @@ static func _build_system_popup(record: _POPUP) -> Control:
 			record.dim = prefab_popup.dim
 			record.open_tween = prefab_popup.open_tween
 			record.close_tween = prefab_popup.close_tween
+	var body_area: Control = null
+	var button_area: Control = null
+	var areas: UISystemPopup = frame as UISystemPopup
+	if areas != null:
+		body_area = _area_in(frame, areas.body_area)
+		button_area = _area_in(frame, areas.button_area)
 	frame.name = "SystemPopup"
 	record.modal = true
 	var body: String = ""
@@ -1812,10 +1883,31 @@ static func _build_system_popup(record: _POPUP) -> Control:
 	for button: SystemPopupButton in param.buttons:
 		labels.append(LocalizationCore.get_text(button.label))
 	var content: Control = _SYSTEM_VIEW.new()
-	(content as _SYSTEM_VIEW).build(frame, body, param.extra_text, labels)
+	(content as _SYSTEM_VIEW).build(frame, body, param.extra_text, labels, body_area, button_area)
 	frame.add_child(content)
 	record.system_view = content
 	return frame
+
+
+## `area` when it is a `Control` inside the prefab whose root is `root`, otherwise `null`: none.
+static func _area_in(root: Control, area: Control) -> Control:
+	if area != null and is_instance_valid(area) and (area == root or root.is_ancestor_of(area)):
+		return area
+	return null
+
+
+## Puts a system popup on the screen in `open_system_popup` call order: above the ones called before it, below the
+## ones called after it whose tween presets loaded first.
+static func _show_system_record(record: _POPUP) -> void:
+	var at: int = _shown_system.size()
+	while at > 0 and _shown_system[at - 1].order > record.order:
+		at -= 1
+	_shown_system.insert(at, record)
+	_system_root.add_child(record.instance)
+	if at + 1 < _shown_system.size():
+		var above: Control = _shown_system[at + 1].instance
+		if is_instance_valid(above) and above.get_parent() == _system_root:
+			_system_root.move_child(record.instance, above.get_index())
 
 
 ## A system popup button was clicked: closes the popup with that button's callback as the after-close callback.
@@ -1989,6 +2081,8 @@ static func _license_ids(expression: String) -> PackedStringArray:
 static func _handle_back() -> bool:
 	if not _is_initialized or not _prepared:
 		return false
+	if not _loading_system.is_empty():
+		return true
 	for record: _POPUP in _shown_system:
 		if record.state == _POPUP.State.OPENING or record.state == _POPUP.State.CLOSING:
 			return true
@@ -1998,7 +2092,8 @@ static func _handle_back() -> bool:
 	if not _back_override.is_null():
 		_call_callback(_back_override)
 		return true
-	if _flow != null or _open_record != null:
+	# A queued popup is in a popup flow: the open flow that ended starts it in the same call, after its result.
+	if _flow != null or _open_record != null or not _queue.is_empty():
 		return true
 	for record: _POPUP in _shown_normal:
 		if record.state == _POPUP.State.OPENING or record.state == _POPUP.State.CLOSING:

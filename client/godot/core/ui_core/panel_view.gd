@@ -11,3 +11,5 @@ var scope: Scope = null
 var opened_event: bool = false
 ## `on_closed` was called.
 var closed_called: bool = false
+## Handle of its open or close tween; 0 before one played.
+var tween_handle: int = 0

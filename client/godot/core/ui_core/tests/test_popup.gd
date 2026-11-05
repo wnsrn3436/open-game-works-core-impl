@@ -369,3 +369,130 @@ func test_flow_in_progress_follows_the_flows() -> void:
 	await finish(system_closing)
 	assert_null(system_popup())
 	assert_false(UICore.is_flow_in_progress(), "only open popups remain")
+
+
+func test_back_between_two_queued_popups_is_ignored() -> void:
+	assert_true(await start())
+	var gate: GATE = LOG.add_gate(POPUP_A)
+	var first: CALL = CALL.new()
+	var second: CALL = CALL.new()
+	first.finished.connect(_back_at_first_opened.bind(second))
+	first.open_popup(POPUP_A)
+	second.open_popup(POPUP_B)
+	await UnitTestCore.wait_frames(2)
+	gate.open()
+	await finish(second)
+	assert_true(first.ok and second.ok)
+	assert_eq(_back_consumed, [true] as Array[bool], "one back input between the two results, consumed")
+	assert_eq(LOG.count(POPUP_A + ":on_closed"), 0, "the first stays open")
+	assert_eq(UICore.get_open_popups(), PackedStringArray([POPUP_A, POPUP_B]))
+
+
+## Back handler results of `test_back_between_two_queued_popups_is_ignored`.
+var _back_consumed: Array[bool] = []
+
+
+func _back_at_first_opened(second: CALL) -> void:
+	if not second.done:
+		_back_consumed.append(handle_back_on("android"))
+
+
+var _closed_at_after: int = -1
+
+
+func test_closed_event_before_the_after_close_callback() -> void:
+	assert_true(await start())
+	assert_eq(await UICore.open_popup(POPUP_A, null, hidden_of("hidden")), UICore.PopupOpenResult.OPENED)
+	await UICore.close_popup(popup_of(POPUP_A), _after_with_closed_count)
+	assert_eq(hidden_calls, PackedStringArray(["hidden"]))
+	assert_eq(_closed_at_after, 1, "UIClosedEvent before the after-close callback")
+
+
+func _after_with_closed_count() -> void:
+	_closed_at_after = closed_events.size()
+
+
+func test_tween_presets_are_loaded_when_prepare_is_called() -> void:
+	assert_true(await start())
+	var kind: int = TweenCore.get_preset_kind()
+	assert_false(ResourceCore.is_loaded(TWEEN_LATE, kind), "not loaded before")
+	var panel_gate: GATE = LOG.add_gate(PANEL_LATE_TWEEN)
+	var panel: CALL = CALL.new()
+	panel.open_panel(PANEL_LATE_TWEEN)
+	await _wait_log(PANEL_LATE_TWEEN + ":prepare")
+	assert_true(ResourceCore.is_loaded(TWEEN_LATE, kind), "loaded at the panel prepare")
+	panel_gate.open()
+	await finish(panel)
+	assert_true(panel.ok)
+	UICore.reset_panel_stack()
+	await UnitTestCore.wait_frames(2)
+	assert_false(ResourceCore.is_loaded(TWEEN_LATE, kind), "released with the panel scope")
+	var popup_gate: GATE = LOG.add_gate(POPUP_LATE_TWEEN)
+	var popup: CALL = CALL.new()
+	popup.open_popup(POPUP_LATE_TWEEN)
+	await _wait_log(POPUP_LATE_TWEEN + ":prepare")
+	assert_true(ResourceCore.is_loaded(TWEEN_LATE, kind), "loaded at the popup prepare")
+	popup_gate.open()
+	await finish(popup)
+	assert_true(popup.ok)
+
+
+func test_system_popup_tween_presets_are_loaded_when_it_shows() -> void:
+	set_string("UICore.systemPopupResource", POPUP_LATE_TWEEN)
+	assert_true(await start())
+	var kind: int = TweenCore.get_preset_kind()
+	assert_false(ResourceCore.is_loaded(TWEEN_LATE, kind), "not loaded before")
+	var opening: CALL = CALL.new()
+	opening.open_system_popup(one_button_param())
+	assert_false(UICore.is_system_popup_visible(), "not visible while its tween presets load")
+	assert_true(UICore.is_flow_in_progress(), "the open flow runs")
+	for i: int in 200:
+		if UICore.is_system_popup_visible():
+			break
+		await UnitTestCore.wait_frames(1)
+	assert_true(UICore.is_system_popup_visible())
+	assert_true(ResourceCore.is_loaded(TWEEN_LATE, kind), "loaded when it shows")
+	await finish(opening)
+	assert_true(opening.ok)
+
+
+func test_system_popups_opened_in_one_frame_stack_in_call_order() -> void:
+	set_string("UICore.systemPopupResource", POPUP_LATE_TWEEN)
+	assert_true(await start())
+	assert_false(ResourceCore.is_loaded(TWEEN_LATE, TweenCore.get_preset_kind()), "not loaded before")
+	var first: CALL = CALL.new()
+	first.open_system_popup(one_button_param("first"))
+	var second: CALL = CALL.new()
+	second.open_system_popup(one_button_param("second"))
+	await finish(first)
+	await finish(second)
+	assert_true(first.ok and second.ok)
+	var records: Array[UICore._POPUP] = UICore._shown_system
+	assert_eq(records.size(), 2)
+	assert_true(records[0].order < records[1].order, "the earlier call is below")
+	assert_true(records[1].instance.is_greater_than(records[0].instance), "the later call is above")
+
+
+func test_close_all_popups_cancels_a_system_popup_loading_its_tween_presets() -> void:
+	set_string("UICore.systemPopupResource", POPUP_LATE_TWEEN)
+	assert_true(await start())
+	var opening: CALL = CALL.new()
+	opening.open_system_popup(one_button_param(), hidden_of("hidden"))
+	assert_false(opening.done)
+	UICore.close_all_popups()
+	assert_true(opening.done)
+	assert_false(opening.ok)
+	await UnitTestCore.wait_frames(3)
+	assert_false(UICore.is_system_popup_visible())
+	assert_false(UICore.is_flow_in_progress())
+	assert_eq(hidden_calls.size(), 0, "no hidden callback")
+	assert_false(InputBlockCore.is_blocked())
+
+
+## Waits until the test log has `entry`, at most 200 frames.
+func _wait_log(entry: String) -> void:
+	for i: int in 200:
+		if LOG.count(entry) > 0:
+			return
+		await UnitTestCore.wait_frames(1)
+	assert_true(LOG.count(entry) > 0, entry)

@@ -14,6 +14,8 @@ var suppress: PopupSuppress = null
 var hidden_callback: Callable = Callable()
 var is_system: bool = false
 var system_param: SystemPopupParam = null
+## Number of the `open_system_popup` call of a system popup. A higher one stacks above.
+var order: int = 0
 ## The code made content of a system popup: body, extra text and buttons.
 var system_view: Control = null
 var scope: Scope = null

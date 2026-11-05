@@ -65,6 +65,37 @@ func test_newer_set_items_wins() -> void:
 	assert_true(binds.size() > 0)
 
 
+func test_items_added_while_set_items_waits() -> void:
+	# The item prefab is not loaded yet, so `set_items` waits for its prefill.
+	var list: UIScrollList = await _open_list(VIEW, 1, UICore.UIScrollSizeMode.FIXED, ITEM, false)
+	var call: CALL = CALL.new()
+	call.set_items(list, 10, _bind, current().scope)
+	assert_false(call.done, "set_items waits")
+	assert_true(list.append_items(2))
+	assert_true(list.prepend_items(1))
+	assert_eq(binds.size(), 0, "nothing bound")
+	assert_eq(errors(), 0)
+	await wait_result(call)
+	assert_true(call.ok)
+	assert_eq(list._count, 13)
+	assert_eq(binds.size(), _visible_count(list), "only the items over the visible area are bound")
+	_assert_bound(list)
+
+
+func test_items_added_to_a_set_items_that_ends_with_false_are_dropped() -> void:
+	var list: UIScrollList = await _open_list(VIEW, 1, UICore.UIScrollSizeMode.FIXED, ITEM, false)
+	var first: CALL = CALL.new()
+	first.set_items(list, 10, _other_bind, current().scope)
+	assert_true(list.append_items(5))
+	var second: CALL = CALL.new()
+	second.set_items(list, 20, _bind, current().scope)
+	await wait_result(first)
+	await wait_result(second)
+	assert_false(first.ok)
+	assert_true(second.ok)
+	assert_eq(list._count, 20, "the items added to the first call are discarded")
+
+
 func test_scroll_to_index_and_offset_range() -> void:
 	var list: UIScrollList = await _open_list()
 	assert_true(await _fill(list, 30))

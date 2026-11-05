@@ -30,6 +30,15 @@ func start_load(key: String, kind: int, scope: Scope) -> void:
 	_finish()
 
 
+## Loads `keys` of `kind` into `scope` one after another. A cached key loads without a wait.
+func start_loads(keys: PackedStringArray, kind: int, scope: Scope) -> void:
+	for key: String in keys:
+		await ResourceCore.load(key, kind, scope)
+		if cancelled:
+			return
+	_finish()
+
+
 func start_tween(handle: int) -> void:
 	await TweenCore.wait_end(handle)
 	if cancelled:

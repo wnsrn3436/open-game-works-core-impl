@@ -260,6 +260,74 @@ func test_reset_during_prepare_cancels_the_open() -> void:
 	assert_false(InputBlockCore.is_blocked())
 
 
+func test_close_skips_a_destination_that_is_not_a_panel() -> void:
+	assert_true(await start())
+	assert_true(await UICore.open_panel(PANEL_A, null, false))
+	assert_true(await UICore.open_panels(_requests([NOT_PANEL, PANEL_C])))
+	assert_eq(UICore.get_panel_stack(), PackedStringArray([PANEL_A, NOT_PANEL, PANEL_C]))
+	assert_true(await UICore.close_panel(), "without force")
+	assert_eq(errors(), 1)
+	assert_eq(UICore.get_panel_stack(), PackedStringArray([PANEL_A]))
+	assert_eq(UICore.get_current_panel_key(), PANEL_A)
+	assert_true(current().visible)
+
+
+func test_close_skips_a_root_item_that_is_not_a_panel() -> void:
+	assert_true(await start())
+	assert_true(await UICore.open_panels(_requests([NOT_PANEL, PANEL_C])))
+	UICore._stack[0].root = true
+	assert_true(await UICore.close_panel())
+	assert_eq(errors(), 1)
+	assert_eq(UICore.get_panel_stack().size(), 0, "the stack is empty")
+	assert_null(current())
+	assert_eq(LOG.count(PANEL_C + ":on_closed:CLOSED"), 1)
+
+
+func test_open_panels_replacing_an_item_that_is_not_the_root_item() -> void:
+	assert_true(await start())
+	assert_true(await UICore.open_root_panel(PANEL_R))
+	assert_true(await UICore.open_panel(PANEL_B, null, false))
+	var old_b: UIPanel = current()
+	LOG.entries = PackedStringArray()
+	assert_true(await UICore.open_panels(_requests([PANEL_A, PANEL_B])))
+	assert_eq(UICore.get_panel_stack(), PackedStringArray([PANEL_R, PANEL_A, PANEL_B]))
+	assert_false(UICore._stack[1].root or UICore._stack[2].root, "only R is the root item")
+	assert_eq(LOG.count(PANEL_B + ":on_closed:CLOSED"), 1, "the previous B is closed")
+	assert_ne(current(), old_b, "the new B is the panel object")
+	assert_eq(LOG.count(PANEL_A + ":"), 0, "A has no panel object")
+
+
+func test_reset_during_the_close_tween() -> void:
+	assert_true(await start())
+	assert_true(await UICore.open_panel(PANEL_A, null, false))
+	var opening: CALL = CALL.new()
+	opening.open_panel(PANEL_TWEEN)
+	await finish(opening)
+	assert_true(opening.ok)
+	LOG.entries = PackedStringArray()
+	closed_events = PackedStringArray()
+	opened_events = PackedStringArray()
+	var started: int = tweens_started
+	var closing: CALL = CALL.new()
+	closing.close_panel()
+	await UnitTestCore.wait_frames(2)
+	assert_eq(tweens_started, started + 1, "the close tween plays")
+	assert_false(closing.done)
+	UICore.reset_panel_stack()
+	assert_true(closing.done)
+	assert_false(closing.ok)
+	assert_eq(TweenCore.get_finite_playing_count(), 0, "the close tween stopped")
+	await advance(TWEEN_MS)
+	assert_eq(LOG.count(PANEL_TWEEN + ":on_closed"), 1, "on_closed once")
+	assert_eq(LOG.count(PANEL_TWEEN + ":on_closed:CLOSED"), 1)
+	assert_eq(closed_events, PackedStringArray([PANEL_TWEEN + ":CLOSED"]), "one UIClosedEvent")
+	assert_eq(LOG.count(PANEL_A + ":on_opened"), 0, "the destination is never visible")
+	assert_eq(opened_events.size(), 0)
+	assert_eq(UICore.get_panel_stack().size(), 0)
+	assert_null(current())
+	assert_false(InputBlockCore.is_blocked())
+
+
 func _requests(keys: Array[String]) -> Array[UIPanelRequest]:
 	var requests: Array[UIPanelRequest] = []
 	for key: String in keys:

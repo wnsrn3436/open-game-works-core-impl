@@ -28,6 +28,10 @@ const _MEASURE_LATER: int = 2
 
 var _has_items: bool = false
 var _set_serial: int = 0
+## A `set_items` waits for its prefill.
+var _set_waiting: bool = false
+## Items that `append_items` and `prepend_items` added to the waiting `set_items`.
+var _waiting_added: int = 0
 var _count: int = 0
 var _bind: Callable = Callable()
 var _end_near: Callable = Callable()
@@ -87,7 +91,7 @@ func _notification(what: int) -> void:
 
 
 ## Async. Sets the item count and binds the items over the visible area with `bind`(item UI, index). The pools are
-## filled first. A newer `set_items` ends a waiting one with `false` and no bind.
+## filled first. A newer `set_items` ends a waiting one with `false` and no bind, and drops the items added to it.
 func set_items(
 		count: int, bind: Callable, pool_scope: Scope, end_near: Callable = Callable(), start_near: Callable = Callable(),
 		from_end: bool = false
@@ -96,6 +100,8 @@ func set_items(
 		return false
 	_set_serial += 1
 	var serial: int = _set_serial
+	_set_waiting = true
+	_waiting_added = 0
 	var items: Array[PrefillItem] = []
 	var item: PrefillItem = PrefillItem.new()
 	item.resource_key = item_prefab
@@ -109,8 +115,14 @@ func set_items(
 		loading.count = 1
 		items.append(loading)
 	await PoolCore.prefill(items)
-	if serial != _set_serial or not is_inside_tree():
+	if serial != _set_serial:
 		return false
+	_set_waiting = false
+	var added: int = _waiting_added
+	_waiting_added = 0
+	if not is_inside_tree():
+		return false
+	count += added
 	_return_all()
 	_return_loading()
 	_loading_on = false
@@ -135,14 +147,17 @@ func set_items(
 	return true
 
 
-## Adds `count` items at the end. Does not wait.
+## Adds `count` items at the end. Does not wait. While a `set_items` waits, adds them to its item count.
 func append_items(count: int) -> bool:
-	if not _has_items:
+	if not _has_items and not _set_waiting:
 		LogCore.log_error(UICore._TAG, "append_items: no set_items before")
 		return false
 	if count < 1:
 		LogCore.log_error(UICore._TAG, "append_items: count %d is below 1" % count)
 		return false
+	if _set_waiting:
+		_waiting_added += count
+		return true
 	var at_end: bool = _offset >= _max_offset()
 	_count += count
 	if size_mode == UICore.UIScrollSizeMode.MEASURED:
@@ -161,9 +176,9 @@ func append_items(count: int) -> bool:
 
 
 ## Adds `count` items in front of a list of cross axis count 1. Does not wait. The items on screen keep their screen
-## position and item UI.
+## position and item UI. While a `set_items` waits, adds them to its item count.
 func prepend_items(count: int) -> bool:
-	if not _has_items:
+	if not _has_items and not _set_waiting:
 		LogCore.log_error(UICore._TAG, "prepend_items: no set_items before")
 		return false
 	if count < 1:
@@ -172,6 +187,9 @@ func prepend_items(count: int) -> bool:
 	if cross_axis_count != 1:
 		LogCore.log_error(UICore._TAG, "prepend_items: cross axis count is not 1")
 		return false
+	if _set_waiting:
+		_waiting_added += count
+		return true
 	for slot: int in _slot_used:
 		_slot_indices[slot] += count
 	if size_mode == UICore.UIScrollSizeMode.MEASURED:
