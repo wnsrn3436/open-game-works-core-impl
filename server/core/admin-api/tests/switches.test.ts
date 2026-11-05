@@ -1,4 +1,5 @@
 // Ban, maintenance and kill switch: their effect on game requests, the switch cache, and persistence.
+import * as testing from '../../testing/dev/index.ts';
 import { admin, advance, claim_all, CoreError, get_user, login, read_mail, restart, peer, start, stop, wait_background, type Server } from './helpers.ts';
 
 describe('ban, maintenance and kill switch', () => {
@@ -61,6 +62,65 @@ describe('ban, maintenance and kill switch', () => {
       advance(server, 1000n);
       await wait_background(other);
       expect((await claim_all(there.session)).code).toBe(0);
+    } finally {
+      await stop(other);
+    }
+  });
+
+  it('has a server instance started after set_maintenance answer MAINTENANCE to its first game request before the test clock moves', async () => {
+    server = await start({ settings: { 'admin-api.switchCacheMs': 60000 } });
+    const { session } = await login(server, 'first');
+    await admin(server, 'set_maintenance', { enabled: true });
+    await admin(server, 'set_kill_switch', { request_name: 'core/ReadMail', enabled: true });
+    const other = await peer(server);
+    try {
+      const there = { ...session, server: other };
+      expect((await claim_all(there)).code).toBe(CoreError.CORE_ERROR_MAINTENANCE);
+      await admin(server, 'set_maintenance', { enabled: false });
+      const later = await peer(server);
+      try {
+        expect((await read_mail({ ...session, server: later }, 1n)).code).toBe(CoreError.CORE_ERROR_FEATURE_DISABLED);
+        expect((await claim_all({ ...session, server: later })).code).toBe(0);
+      } finally {
+        await stop(later);
+      }
+    } finally {
+      await stop(other);
+    }
+  });
+
+  it('does not start a server instance while the maintenance and kill switch state cannot be read, and starts it after', async () => {
+    server = await start({ settings: { 'storage.userLockWaitMs': 300 } });
+    if (testing.db_kind_of(server) !== 'postgresql') return;
+    const holder = await testing.hold_db(server, [{ sql: 'LOCK TABLE admin_api_switch IN ACCESS EXCLUSIVE MODE' }]);
+    try {
+      const failure: unknown = await peer(server).then(
+        async (started) => {
+          await stop(started);
+          return null;
+        },
+        (error: unknown) => error,
+      );
+      expect(failure).toBeInstanceOf(testing.StartFailure);
+      expect((failure as Error).message).toContain('maintenance and kill switch state cannot be read');
+    } finally {
+      await holder.release();
+    }
+    const other = await peer(server);
+    await stop(other);
+  });
+
+  it('answers get_switches from the committed rows, also right after another server instance changed them', async () => {
+    server = await start({ settings: { 'admin-api.switchCacheMs': 60000 } });
+    expect((await admin(server, 'get_switches')).json).toEqual({ maintenance: false, kill_switches: [] });
+    const other = await peer(server);
+    try {
+      expect((await admin(other, 'set_maintenance', { enabled: true })).status).toBe(200);
+      expect((await admin(other, 'set_kill_switch', { request_name: 'MATCH_REQUEST', enabled: true })).status).toBe(200);
+      expect((await admin(server, 'get_switches')).json).toEqual({ maintenance: true, kill_switches: ['MATCH_REQUEST'] });
+      // This instance's cache has not been read again yet.
+      const { session } = await login(server, 'cached');
+      expect((await claim_all(session)).code).toBe(0);
     } finally {
       await stop(other);
     }

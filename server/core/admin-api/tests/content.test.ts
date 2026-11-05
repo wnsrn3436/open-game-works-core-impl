@@ -242,6 +242,23 @@ describe('role read', () => {
     server = await start();
   });
 
+  it('does not start with a user_target that is not a required int64 input field, or a binary body operation without a byte limit or with a bool field', async () => {
+    const base = { role: 'ops' as const, handler: () => ({}) };
+    const refused: (() => AdminOperation)[] = [
+      () => ({ ...base, name: 'game_t1', body: 'json', input: { user_id: { type: { kind: 'int32' } } }, user_target: 'user_id' }),
+      () => ({ ...base, name: 'game_t2', body: 'json', input: { user_id: { type: { kind: 'int64' }, optional: true } }, user_target: 'user_id' }),
+      () => ({ ...base, name: 'game_b1', body: 'binary', input: { name: { type: { kind: 'string' } } }, user_target: null }),
+      () => ({ ...base, name: 'game_b2', body: 'binary', max_body_bytes: 16, input: { flag: { type: { kind: 'bool' } } }, user_target: null }),
+    ];
+    for (const make of refused) await expect(start({ register: registering(make) })).rejects.toThrow(make().name);
+    server = await start({
+      register: registering(
+        () => ({ ...base, name: 'game_t3', body: 'json', input: { user_id: { type: { kind: 'int64' } } }, user_target: 'user_id' }),
+        () => ({ ...base, name: 'game_b3', body: 'binary', max_body_bytes: 16, input: { size: { type: { kind: 'int32' } } }, user_target: null }),
+      ),
+    });
+  });
+
   it('does not start with a content admin operation whose name does not start with game_, or with a name another operation has', async () => {
     const plain = (name: string) => () => ({ name, role: 'ops' as const, body: 'json' as const, input: {}, user_target: null, handler: () => ({}) });
     await expect(start({ register: registering(plain('reset_all')) })).rejects.toThrow();

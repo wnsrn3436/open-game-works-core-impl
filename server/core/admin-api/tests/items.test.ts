@@ -1,7 +1,9 @@
 // grant_items, revoke_items and the `operation_id` rule.
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
+import * as testing from '../../testing/dev/index.ts';
 import {
   admin,
+  audits,
   balance,
   BIG_GOLD,
   claim_all,
@@ -128,6 +130,32 @@ describe('grant_items and revoke_items', () => {
     expect(not_big.status).toBe(409);
     expect(not_big.json).toEqual({ error: 'conflict', result: 'INVALID_AMOUNT' });
     expect(await balance(server, user_id, GOLD)).toBe(0n);
+  });
+
+  it('keeps user_id and the item amounts as decimal strings in the audit args of grant_items', async () => {
+    const { user_id } = await login(server, 'audit_items');
+    expect((await admin(server, 'grant_items', `{"operation_id":"a","user_id":${user_id},"items":[{"item_id":${String(id_value(GOLD))},"amount":7}]}`)).status).toBe(200);
+    expect(audits(server, 'grant_items')[0]?.args).toEqual({ operation_id: 'a', user_id, items: [{ item_id: id_value(GOLD), amount: '7' }] });
+  });
+
+  it('answers 500 internal with an error log and no balance change when the operation_id row stays locked past storage.userLockWaitMs', async () => {
+    await stop(server);
+    server = await start({ settings: { 'storage.userLockWaitMs': 200 } });
+    const { user_id } = await login(server, 'locked');
+    const release = await testing.hold_game_row_lock(server, 'admin_api_operation', ['grant_items', 'held']);
+    let reply;
+    try {
+      reply = await grant(server, user_id, 'held', items(GOLD, 3n));
+    } finally {
+      await release();
+    }
+    expect([reply.status, reply.json.error]).toEqual([500, 'internal']);
+    expect(logs(server, 'error').filter((line) => line.request === 'grant_items')).toHaveLength(1);
+    expect(audits(server, 'grant_items').map((line) => line.status)).toEqual([500]);
+    expect(await balance(server, user_id, GOLD)).toBe(0n);
+    // Nothing was recorded for the operation_id: a retry applies.
+    expect((await grant(server, user_id, 'held', items(GOLD, 3n))).status).toBe(200);
+    expect(await balance(server, user_id, GOLD)).toBe(3n);
   });
 
   it('answers a retry of revoke_items with the same operation_id with the stored output and revokes once', async () => {
