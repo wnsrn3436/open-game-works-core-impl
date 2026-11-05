@@ -47,12 +47,67 @@ func test_bound_element_text_follows_get_text_at_binding_and_after_load_translat
 	assert_eq(_SUPPORT.errors(), 0)
 
 
+func test_bind_text_again_with_another_key_writes_the_later_key_also_after_load_translation() -> void:
+	assert_ne(await _SUPPORT.start_language("en"), 0)
+	var first: String = _SUPPORT.language_name_key("[lang_en]")
+	var later: String = _SUPPORT.language_name_key("[lang_ca]")
+	var label: Label = Label.new()
+	add_child_autofree(label)
+	LocalizationCore.bind_text(label, first)
+	assert_eq(label.text, "English")
+	LocalizationCore.bind_text(label, later)
+	assert_eq(label.text, "Català")
+	assert_eq(label.text, LocalizationCore.get_text(later))
+	assert_eq(LocalizationCore._bindings.size(), 1)
+	var bytes: PackedByteArray = _SUPPORT.translation_binary(PackedStringArray([first, "English (downloaded)", later, "Català (downloaded)"]))
+	var list: Array[DownloadedTranslation] = [_SUPPORT.write_downloaded(_PATH, bytes, "en")]
+	assert_true(await LocalizationCore.load_translation(list))
+	assert_eq(label.text, "Català (downloaded)")
+	assert_eq(label.text, LocalizationCore.get_text(later))
+	assert_eq(_SUPPORT.errors(), 0)
+
+
+func test_unbind_text_of_an_element_that_is_not_bound_leaves_no_log_and_keeps_its_text() -> void:
+	assert_ne(await _SUPPORT.start_language("en"), 0)
+	var bound: Label = Label.new()
+	var label: Label = Label.new()
+	add_child_autofree(bound)
+	add_child_autofree(label)
+	LocalizationCore.bind_text(bound, _SUPPORT.language_name_key("[lang_en]"))
+	label.text = "before"
+	LocalizationCore.unbind_text(label)
+	assert_eq(label.text, "before")
+	assert_eq(_SUPPORT.errors(), 0)
+	assert_eq(LocalizationCore._bindings.size(), 1)
+	assert_true(LocalizationCore._bindings.has(bound.get_instance_id()))
+
+
+func test_bind_and_unbind_of_a_missing_element_each_log_once_and_change_no_binding() -> void:
+	assert_ne(await _SUPPORT.start_language("en"), 0)
+	var key: String = _SUPPORT.language_name_key("[lang_en]")
+	var bound: Label = Label.new()
+	add_child_autofree(bound)
+	LocalizationCore.bind_text(bound, key)
+	LocalizationCore.bind_text(null, key)
+	assert_eq(_SUPPORT.errors(), 1)
+	LocalizationCore.unbind_text(null)
+	assert_eq(_SUPPORT.errors(), 1)
+	assert_eq(LocalizationCore._bindings.size(), 1)
+	assert_eq(LocalizationCore._bindings[bound.get_instance_id()], key)
+
+
 func test_unbind_text_of_an_element_that_is_not_a_ui_text_element_is_an_error() -> void:
 	assert_ne(await _SUPPORT.start_language("en"), 0)
+	var key: String = _SUPPORT.language_name_key("[lang_en]")
+	var bound: Label = Label.new()
+	add_child_autofree(bound)
+	LocalizationCore.bind_text(bound, key)
 	var panel: Panel = Panel.new()
 	add_child_autofree(panel)
 	LocalizationCore.unbind_text(panel)
 	assert_eq(_SUPPORT.errors(), 1)
+	assert_eq(LocalizationCore._bindings.size(), 1)
+	assert_eq(LocalizationCore._bindings[bound.get_instance_id()], key)
 
 
 func test_every_ui_text_element_kind_takes_the_text() -> void:
@@ -80,6 +135,13 @@ func test_bind_text_of_an_element_that_is_not_a_ui_text_element_is_an_error() ->
 	var panel: Panel = Panel.new()
 	add_child_autofree(panel)
 	LocalizationCore.bind_text(panel, _SUPPORT.language_name_key("[lang_en]"))
+	assert_eq(_SUPPORT.errors(), 1)
+	assert_true(LocalizationCore._bindings.is_empty())
+	# A `Control` that only holds a UI text element is not one either.
+	var holder: Control = Control.new()
+	holder.add_child(Label.new())
+	add_child_autofree(holder)
+	LocalizationCore.bind_text(holder, _SUPPORT.language_name_key("[lang_en]"))
 	assert_eq(_SUPPORT.errors(), 1)
 	assert_true(LocalizationCore._bindings.is_empty())
 

@@ -15,8 +15,7 @@ func after_each() -> void:
 func _start_text(code: String, text: String) -> void:
 	assert_ne(await _SUPPORT.start_language("en"), 0)
 	LocalizationCore._language_code = code
-	LocalizationCore._test_timezone_offset_set = true
-	LocalizationCore._test_timezone_offset_ms = 0
+	LocalizationCoreDev.set_test_timezone_offset(0)
 	_SUPPORT.put_text(_KEY, text)
 
 
@@ -79,13 +78,34 @@ func test_date_with_a_9_hour_timezone_offset_is_the_date_9_hours_later_at_offset
 	var time: int = 1704442140000
 	args.set_int("v", time + 9 * _HOUR_MS)
 	var later_at_zero: String = LocalizationCore.format(_KEY, args)
-	LocalizationCore._test_timezone_offset_ms = 9 * _HOUR_MS
+	LocalizationCoreDev.set_test_timezone_offset(9 * _HOUR_MS)
 	args.set_int("v", time)
 	assert_eq(LocalizationCore.format(_KEY, args), later_at_zero)
 	assert_eq(later_at_zero, "2024/01/05 17:09")
 	_SUPPORT.put_text(_KEY, "{v:date}")
 	args.set_int("v", 1704495540000)
 	assert_eq(LocalizationCore.format(_KEY, args), "2024/01/06")
+
+
+func test_timezone_offset_outside_one_day_is_an_error_and_leaves_the_offset_in_use() -> void:
+	await _start_text("en", "{v:datetime}")
+	LocalizationCoreDev.set_test_timezone_offset(9 * _HOUR_MS)
+	var args: FormatArgs = FormatArgs.new()
+	args.set_int("v", 1704442140000)
+	var before: String = LocalizationCore.format(_KEY, args)
+	LocalizationCoreDev.set_test_timezone_offset(86400000)
+	assert_eq(_SUPPORT.errors(), 1)
+	assert_eq(LocalizationCore.format(_KEY, args), before)
+	LocalizationCoreDev.set_test_timezone_offset(-86400000)
+	assert_eq(_SUPPORT.errors(), 1)
+	assert_eq(LocalizationCore.format(_KEY, args), before)
+	# The ends of the range are taken.
+	LocalizationCoreDev.set_test_timezone_offset(86399999)
+	LocalizationCoreDev.set_test_timezone_offset(-86399999)
+	assert_eq(_SUPPORT.errors(), 0)
+	assert_eq(LocalizationCore._test_timezone_offset_ms, -86399999)
+	_SUPPORT.put_text(_KEY, "{v:date}")
+	assert_eq(LocalizationCore.format(_KEY, args), "01/04/2024")
 
 
 func test_format_keeps_the_format_args() -> void:
