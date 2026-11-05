@@ -314,6 +314,24 @@ describe('game state snapshot', () => {
     expect(Object.keys(args)).not.toContain('records');
   });
 
+  it('import_game_state audit args of a body that breaks check 2 without target_key are null with empty keys', async () => {
+    await put(server, core, [boss(1n, 100n)]);
+    const snapshot = await exportGameState(server, BOSS, [1n]);
+    for (const body of [encodeJson('{'), withFields(snapshot, { format: '1' })]) {
+      const before = dumpDb(core);
+      expect((await importGameState(server, body)).status).toBe(400);
+      expect(dumpDb(core)).toEqual(before);
+      const lines = read_logs(server, 'audit').filter((l) => l['request'] === 'import_game_state' && l['status'] === 400);
+      const args = lines[lines.length - 1]?.['args'] as Record<string, unknown> | undefined;
+      if (args === undefined) throw new Error('no import_game_state audit line');
+      expect(Object.keys(args).sort()).toEqual(['keys', 'sha256', 'source_environment', 'target_key']);
+      expect(args['source_environment']).toBeNull();
+      expect(args['keys']).toEqual([]);
+      expect(args['sha256']).toBeNull();
+      expect(args['target_key']).toBeNull();
+    }
+  });
+
   it('import_game_state parses a body once for audit_args and prepare', async () => {
     await put(server, core, [boss(1n, 100n)]);
     const body = encodeJson(await exportGameState(server, BOSS, [1n]));
