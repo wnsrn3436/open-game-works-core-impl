@@ -20,6 +20,7 @@ import {
   type TestServer,
   type TestSession,
 } from '../../testing/dev/index.ts';
+import type { Validation } from '../../validation/index.ts';
 import type { AdminOperation, Nickname } from '../index.ts';
 
 /** The server build data folder of this run, from `core_test_server_paths`. */
@@ -30,6 +31,7 @@ export interface Core {
   readonly nickname: Nickname;
   /** The `storage` module object; content `register(core)` gets only its member `content`. */
   readonly storage: Storage;
+  readonly validation: Pick<Validation, 'normalize_text'>;
   readonly 'item-ledger': {
     add_items(ctx: RequestCtx, items: readonly CoreContract.ItemAmount[], source: { source?: number; ref?: string; once_key?: string }): unknown;
   };

@@ -1,7 +1,5 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
-import { lock_key } from '../../storage/tx.ts';
-import { advance_time, hold_lock_key, read_logs, send_admin, set_time, stop_test_server, type TestServer } from '../../testing/dev/index.ts';
-import { normalizeText } from '../../validation/text.ts';
+import { advance_time, game_row_lock_id, hold_lock_key, read_logs, send_admin, set_time, stop_test_server, type TestServer } from '../../testing/dev/index.ts';
 import { gems, in_user_transaction, nickname_state, set_gems, set_nickname, start, users, withdraw } from './helpers.ts';
 
 async function rename(server: TestServer, operation_id: string, user_id: bigint, nickname: string): Promise<{ status: number; json: unknown }> {
@@ -62,7 +60,7 @@ describe('rename_user', () => {
       const before = await nickname_state(h.server, a.user_id);
       const name_rows = (): unknown[] => h.core().storage.read_db().query('SELECT user_id, normalized, nickname FROM nickname_name ORDER BY user_id, normalized', []);
       const rows = name_rows();
-      const claim = await hold_lock_key(h.server, lock_key('nickname_claim', [normalizeText('Forced')]));
+      const claim = await hold_lock_key(h.server, game_row_lock_id('nickname_claim', [h.core().validation.normalize_text('Forced')]));
       try {
         expect(await rename(h.server, 'op-1', a.user_id, 'Forced')).toEqual({ status: 500, json: { error: 'internal' } });
       } finally {
@@ -144,12 +142,13 @@ describe('find_user_by_nickname', () => {
     }
   });
 
-  it('gives an empty list without failing for input that holds a character no saved nickname holds (U+0000, a C0 control)', async () => {
+  it('gives an empty list without failing for input that holds a C0 control no saved nickname holds; input that holds U+0000 is 400 by the admin-api string rule', async () => {
     const h = await start(true);
     try {
       const [a] = await users(h.server, ['a']);
       expect((await set_nickname(a, 'Kiwi')).code).toBe(0);
-      for (const input of ['Kiwi\u0000', '\u0000', 'Ki\u0007wi']) expect(await find(h.server, input)).toEqual({ status: 200, json: { users: [] } });
+      for (const input of ['Ki\u0007wi', 'Kiwi\u001f']) expect(await find(h.server, input)).toEqual({ status: 200, json: { users: [] } });
+      for (const input of ['Kiwi\u0000', '\u0000']) expect((await find(h.server, input)).status).toBe(400);
       expect(await find(h.server, 'Kiwi')).toEqual({ status: 200, json: { users: [{ user_id: a.user_id.toString(), nickname: 'Kiwi' }] } });
     } finally {
       await stop_test_server(h.server);
