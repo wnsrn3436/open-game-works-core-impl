@@ -1,5 +1,12 @@
 {
   "target": "GameUpdateCore",
-  "nextId": 4,
-  "items": []
+  "nextId": 5,
+  "items": [
+    {
+      "id": "D4",
+      "location": "client/godot/core/game_update_core/tests/test_web_downloader.gd:35",
+      "problem": "`test_redirect_and_size_limit_over_real_http`, `test_cancel_ends_the_download_once` (line 74) and `test_stall_timeout_over_the_fetch_downloader` (line 95) call `require_platform([\"web\"])` and do not return after it, so in a native run the web-only body runs (e.g. `_page_eval` of `window.ogwGameUpdateFetch` and the fetch downloader asserts against the `HTTPRequest` downloader). Today the skip hides the failures (R3-1). Under the changed `open-game-works-core/skills/client-core/modules/unit-test-core.md:135` these tests fail in native runs. This is a GameUpdateCore test, outside this target",
+      "foundBy": "UnitTestCore round 3"
+    }
+  ]
 }
