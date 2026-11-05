@@ -267,19 +267,19 @@ export function create_live_event(input: LiveEventInput): LiveEventModule {
     return 'pass';
   }
 
-  /** Runs one settlement change of `on_request_start`; false when the user is withdrawn or the transaction failed. */
+  /**
+   * Runs one settlement change of `on_request_start`; false only when the user is withdrawn. A change that threw or
+   * whose transaction failed is logged and leaves that participation to the next request, so the others still settle.
+   */
   async function settlement_change(user_id: bigint, fn: (ctx: RequestCtx) => Pass | FailureCode): Promise<boolean> {
     let result;
     try {
       result = await storage.run_user_transaction(user_id, fn);
     } catch (error) {
       log_error(null, user_id, 'live event settlement threw', error instanceof Error ? (error.stack ?? error.message) : String(error));
-      return false;
+      return true;
     }
-    if (result === 'FAILED') {
-      log_error(null, user_id, 'live event settlement transaction failed');
-      return false;
-    }
+    if (result === 'FAILED') log_error(null, user_id, 'live event settlement transaction failed');
     return result !== 'WITHDRAWN';
   }
 

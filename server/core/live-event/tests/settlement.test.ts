@@ -105,6 +105,31 @@ describe('settlement', () => {
     expect(settled_of(await entries(env, alice.user_id))).toEqual([[once, 1, false]]);
   });
 
+  it('settles the other participations in the same request when the hook of one breaks its transaction', async () => {
+    const env = await start(S);
+    const alice = await T.login(env.server, 'alice');
+    const [first, second] = [id_of(EVENT.once), id_of(EVENT.weekly)].sort((a, b) => a - b) as [number, number];
+    for (const event_id of [first, second]) expect(await env.run(alice, (ctx) => env.live.join_event(ctx, event_id))).toBe('OK');
+    T.set_time(env.server, S + DAY);
+    env.settle.impl = (ctx, event_id) => {
+      if (event_id === first) env.storage.db(ctx).query('SELECT * FROM no_such_table');
+      return 'pass';
+    };
+    const envelope = await resync(alice);
+    expect(envelope.error).toBeNull();
+    expect(env.settle.calls.map((c) => c.event_id)).toEqual([first, second]);
+    expect(settled_of(envelope_entries(envelope))).toEqual([[BigInt(second), 1, true]]);
+    const after = settled_of(await entries(env, alice.user_id)).sort((a, b) => Number(a[0] - b[0]));
+    expect(after).toEqual([
+      [BigInt(first), 1, false],
+      [BigInt(second), 1, true],
+    ]);
+
+    env.settle.impl = null;
+    const again = await resync(alice);
+    expect(settled_of(envelope_entries(again))).toEqual([[BigInt(first), 1, true]]);
+  });
+
   it('judges the hook output with storage.check_hook_output: a number under 1000 or another value is a wrong output form that rolls the settlement back', async () => {
     const env = await start(S);
     const alice = await T.login(env.server, 'alice');
