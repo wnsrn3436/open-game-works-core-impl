@@ -366,13 +366,20 @@ export function create_coupon(input: CouponInput): CouponModule {
     return coupon;
   };
 
+  /** The step 4 row lock. False, with the `error` log, when `lock_game_row` is `FAILED`. */
+  const lock_use_row = (ctx: RequestCtx, table: string, key: readonly unknown[]): boolean => {
+    if (storage.lock_game_row(ctx, table, key) !== 'FAILED') return true;
+    write_error(`coupon ${table} row lock failed`, ctx.user_id, ctx.request_id, null);
+    return false;
+  };
+
   /** Step 4: locks the coupon row (`shared`) or the code row (`unique`) and reads the use limit again. Null when it is free. */
   const check_use_limit = (ctx: RequestCtx, db: DbHandle, coupon: CouponRow, code: string): CoreContract.CoreError | null => {
     if (coupon.kind === 'unique') {
-      if (storage.lock_game_row(ctx, CODE_TABLE, [code]) === 'FAILED') return CoreContract.CoreError.CORE_ERROR_INTERNAL;
+      if (!lock_use_row(ctx, CODE_TABLE, [code])) return CoreContract.CoreError.CORE_ERROR_INTERNAL;
       return find_code(db, code)?.redeemed_by === null ? null : CoreContract.CoreError.CORE_ERROR_COUPON_USED_UP;
     }
-    if (storage.lock_game_row(ctx, COUPON_TABLE, [coupon.coupon_id]) === 'FAILED') return CoreContract.CoreError.CORE_ERROR_INTERNAL;
+    if (!lock_use_row(ctx, COUPON_TABLE, [coupon.coupon_id])) return CoreContract.CoreError.CORE_ERROR_INTERNAL;
     const locked = find_coupon(db, coupon.coupon_id);
     if (locked === null) return CoreContract.CoreError.CORE_ERROR_COUPON_INVALID;
     return locked.max_uses !== 0 && locked.used_count >= BigInt(locked.max_uses) ? CoreContract.CoreError.CORE_ERROR_COUPON_USED_UP : null;
