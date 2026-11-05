@@ -92,7 +92,19 @@ describe('mail input checks', () => {
   });
 
   it('refuses fields of the wrong type', () => {
-    for (const input of [null, [], { template_id: 1.5 }, { template_id: 1, extra_id: '2' }, { template_id: 1, once_key: 3 }, { template_id: 1, args: {} }]) {
+    for (const input of [
+      null,
+      [],
+      { template_id: 1.5 },
+      { template_id: 1, extra_id: '2' },
+      { template_id: 1, once_key: 3 },
+      { template_id: 1, args: {} },
+      { template_id: 1, args: null },
+      { template_id: 1, attachments: null },
+      { template_id: 1, expire_ms: null },
+      { template_id: 1, expire_ms: 2 ** 53 },
+      { template_id: 1, no_expiry: null },
+    ]) {
       expect(check(input).ok).toBe(false);
     }
   });
@@ -147,6 +159,36 @@ describe('mail input JSON', () => {
       { template_id: 1, expire_ms: '-0x1' },
       { template_id: 1, no_expiry: 1 },
       { template_id: '1' },
+    ]) {
+      expect(mail_input_from_json(json)).toBeNull();
+    }
+  });
+
+  it('reads expire_ms given as an integer, a decimal string and a bigint as the same value, and int32 values as numbers', () => {
+    for (const expire_ms of [86400000, '86400000', 86400000n]) expect(mail_input_from_json({ template_id: 1, expire_ms })?.expire_ms).toBe(86400000n);
+    expect(mail_input_from_json({ template_id: 2n, extra_id: 3n, attachments: [{ item_id: 4n, amount: 5n }] })).toMatchObject({
+      template_id: 2,
+      extra_id: 3,
+      attachments: [{ item_id: 4, amount: 5n, big_amount: '' }],
+    });
+  });
+
+  it('refuses a missing required field, a key outside the type, a null and an integer outside its range', () => {
+    for (const json of [
+      { template_id: '1' },
+      { template_id: 1, attachments: [{ item_id: 2, amount: 1, count: 1 }] },
+      { template_id: 1, extra: true },
+      { expire_ms: 1 },
+      { template_id: 1, args: [{ name: 'a' }] },
+      { template_id: 1, attachments: [{ amount: 1 }] },
+      { template_id: 1, args: null },
+      { template_id: 1, expire_ms: null },
+      { template_id: 1, extra_id: null },
+      { template_id: 1, attachments: [{ item_id: 2, amount: null }] },
+      { template_id: 1, attachments: [{ item_id: 2, big_amount: null }] },
+      { template_id: 2n ** 31n },
+      { template_id: 1, expire_ms: 2n ** 63n },
+      { template_id: 1, args: [{ name: 'a', value: { int_value: -(2n ** 63n) - 1n } }] },
     ]) {
       expect(mail_input_from_json(json)).toBeNull();
     }

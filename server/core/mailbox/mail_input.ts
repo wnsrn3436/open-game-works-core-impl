@@ -17,13 +17,14 @@ export interface ItemAmountInput {
   readonly big_amount: string;
 }
 
-/** Mail input: the object `send_mail` and `broadcast_mail` take. Fields left out take their default. */
+/** Mail input: the object `send_mail` and `broadcast_mail` take. Fields left out or `undefined` take their default. */
 export interface MailInput {
   readonly template_id: number;
   readonly args?: readonly MailArgInput[];
   readonly attachments?: readonly ItemAmountInput[];
   readonly extra_id?: number;
-  readonly expire_ms?: bigint;
+  /** A `bigint`, or an integer `number` within the safe integer range. */
+  readonly expire_ms?: bigint | number;
   readonly no_expiry?: boolean;
   readonly once_key?: string;
 }
@@ -173,11 +174,12 @@ export function check_mail_input(
   if (scalar !== null) return fail(scalar);
   const template_id = input.template_id as number;
   if (!data.MailTemplateTable.has_row(template_id)) return fail(`template ${String(template_id)} is not in the mail_template table`);
-  const args = check_args(input.args ?? [], limits);
+  // Only `undefined` is a left-out field: `null` is a value of another type.
+  const args = check_args(input.args === undefined ? [] : input.args, limits);
   if (typeof args === 'string') return fail(args);
-  const attachments = check_attachments(input.attachments ?? [], limits, items);
+  const attachments = check_attachments(input.attachments === undefined ? [] : input.attachments, limits, items);
   if (typeof attachments === 'string') return fail(attachments);
-  const expire_ms = check_expire_ms(input.expire_ms ?? 0n, limits);
+  const expire_ms = check_expire_ms(input.expire_ms === undefined ? 0n : input.expire_ms, limits);
   if (typeof expire_ms === 'string') return fail(expire_ms);
   return {
     ok: true,
@@ -193,11 +195,27 @@ export function check_mail_input(
   };
 }
 
+/** A JSON integer as JavaScript gives it: an integer `number` within the safe integer range or a `bigint`. */
+function json_integer(value: unknown): bigint | null {
+  if (typeof value === 'bigint') return value;
+  return typeof value === 'number' && Number.isSafeInteger(value) ? BigInt(value) : null;
+}
+
+/** An `int64` of the JSON form: a JSON integer or a decimal integer string, within the int64 range. */
 function int64_json(value: unknown): bigint | null {
-  if (typeof value === 'number' && Number.isSafeInteger(value)) return BigInt(value);
-  if (typeof value !== 'string' || !DECIMAL_INTEGER.test(value)) return null;
-  const parsed = BigInt(value);
-  return parsed >= INT64_MIN && parsed <= INT64_MAX ? parsed : null;
+  const parsed = typeof value === 'string' && DECIMAL_INTEGER.test(value) ? BigInt(value) : json_integer(value);
+  return parsed !== null && parsed >= INT64_MIN && parsed <= INT64_MAX ? parsed : null;
+}
+
+/** An `int32` of the JSON form: a JSON integer within the int32 range. */
+function int32_json(value: unknown): number | null {
+  const parsed = json_integer(value);
+  return parsed !== null && parsed >= BigInt(-INT32_MAX - 1) && parsed <= BigInt(INT32_MAX) ? Number(parsed) : null;
+}
+
+/** A missing optional field of the JSON form is its empty value; a `null` stays and fails the type check. */
+function or_empty(value: unknown, empty: unknown): unknown {
+  return value === undefined ? empty : value;
 }
 
 function only_keys(value: Readonly<Record<string, unknown>>, keys: readonly string[]): boolean {
@@ -218,11 +236,12 @@ function arg_from_json(json: unknown): MailArgInput | null {
 }
 
 function item_from_json(json: unknown): ItemAmountInput | null {
-  if (!is_record(json) || !only_keys(json, ['item_id', 'amount', 'big_amount']) || !is_int32(json.item_id)) return null;
-  const amount = int64_json(json.amount ?? 0);
-  const big_amount = json.big_amount ?? '';
-  if (amount === null || typeof big_amount !== 'string') return null;
-  return { item_id: json.item_id, amount, big_amount };
+  if (!is_record(json) || !only_keys(json, ['item_id', 'amount', 'big_amount'])) return null;
+  const item_id = int32_json(json.item_id);
+  const amount = int64_json(or_empty(json.amount, 0));
+  const big_amount = or_empty(json.big_amount, '');
+  if (item_id === null || amount === null || typeof big_amount !== 'string') return null;
+  return { item_id, amount, big_amount };
 }
 
 function list_from_json<T>(json: unknown, read: (item: unknown) => T | null): T[] | null {
@@ -240,23 +259,25 @@ function list_from_json<T>(json: unknown, read: (item: unknown) => T | null): T[
 const MAIL_JSON_KEYS = ['template_id', 'args', 'attachments', 'extra_id', 'expire_ms', 'no_expiry', 'once_key'];
 
 /**
- * A mail input from its JSON form: `args` is `array<object{name: string, value: object union{int_value: int64,
- * text_value: string}}>`, `int64` values are JSON integers or decimal strings. null when the JSON is not that form.
- * Limits and data are checked later by `check_mail_input`.
+ * A mail input from its JSON form (`mailbox` `## API`): `int64` values are JSON integers or decimal strings, `int32`
+ * values JSON integers, and a JSON integer is a safe integer `number` or a `bigint`. null when the JSON is not that
+ * form. Limits and data are checked later by `check_mail_input`.
  */
 export function mail_input_from_json(json: unknown): MailInput | null {
   if (!is_record(json) || !only_keys(json, MAIL_JSON_KEYS)) return null;
   const args = list_from_json(json.args, arg_from_json);
   const attachments = list_from_json(json.attachments, item_from_json);
-  const expire_ms = int64_json(json.expire_ms ?? 0);
+  const expire_ms = int64_json(or_empty(json.expire_ms, 0));
   const scalars = scalars_from_json(json);
   if (args === null || attachments === null || expire_ms === null || scalars === null) return null;
   return { ...scalars, args, attachments, expire_ms };
 }
 
 function scalars_from_json(json: Readonly<Record<string, unknown>>): Pick<Required<MailInput>, 'template_id' | 'extra_id' | 'no_expiry' | 'once_key'> | null {
-  const { template_id, extra_id = 0, no_expiry = false, once_key = '' } = json;
-  if (!is_int32(template_id) || !is_int32(extra_id) || typeof no_expiry !== 'boolean' || typeof once_key !== 'string') return null;
+  const { no_expiry = false, once_key = '' } = json;
+  const template_id = int32_json(json.template_id);
+  const extra_id = int32_json(or_empty(json.extra_id, 0));
+  if (template_id === null || extra_id === null || typeof no_expiry !== 'boolean' || typeof once_key !== 'string') return null;
   return { template_id, extra_id, no_expiry, once_key };
 }
 
