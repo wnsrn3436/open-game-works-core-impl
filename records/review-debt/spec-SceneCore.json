@@ -1,5 +1,12 @@
 {
   "target": "spec SceneCore",
-  "nextId": 2,
-  "items": []
+  "nextId": 3,
+  "items": [
+    {
+      "id": "D2",
+      "location": "skills/client-core/modules/scene-core.md:113",
+      "problem": "`### lifecycle` does not set whether `release` during a transition releases the transition block and turns off the panel lock. skills/core/SKILL.md:70 covers only hooks, callbacks, subscriptions, engine objects and async operations, and the transition block's owner object is not set (skills/client-core/modules/input-block-core.md:29). Run: `release` of SceneCore while waiting on stage 6, with `InputBlockCore` and `UICore` still in `init`. One implementation leaves the `scene` block active, and that block is never released by forced release (skills/client-core/modules/input-block-core.md:117). Another releases it. A core test can see the difference with `InputBlockCore.is_blocked` and with `UICore` panel opens after `init` and `boot_change_scene` again",
+      "foundBy": "spec SceneCore"
+    }
+  ]
 }
