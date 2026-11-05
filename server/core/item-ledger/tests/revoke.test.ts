@@ -1,4 +1,4 @@
-import { advance_time, balance, CoreError, history, id, items, logs, row, Source, start, stop, set_balance, tx, user, wait_background, type Env } from './helpers.ts';
+import { advance_time, balance, change_rows, CoreError, history, id, items, logs, request, row, Source, start, stop, set_balance, tx, user, wait_background, type Env } from './helpers.ts';
 
 const MINUTE = 60_000n;
 
@@ -42,6 +42,19 @@ describe('revoke_items', () => {
       [id('[gold]'), '30', '20', 'ITEM_CHANGE_SOURCE_IAP_REFUND', 'tx-1', 'iap:refund:tx-1', 'system'],
       [id('[potion]'), '1', '0', 'ITEM_CHANGE_SOURCE_IAP_REFUND', 'tx-1', 'iap:refund:tx-1', 'system'],
     ]);
+  });
+
+  test('revoke_items of X 3 and Y 1 with X at 0 and Y at 1: item_changes Y only, history rows X and Y, one audit line for Y', async () => {
+    const { user_id } = await user(env);
+    await set_balance(env, user_id, '[ticket]', 1);
+    const r = await request(env, user_id, (ctx) => env.module.revoke_items(ctx, items(['[potion]', 3], ['[ticket]', 1]), {
+      source: Source.ITEM_CHANGE_SOURCE_IAP_REFUND, ref: 'tx-2', once_key: 'iap:refund:tx-2',
+    }));
+    expect(r.out).toEqual([{ item_id: id('[potion]'), shortfall: 3n }, { item_id: id('[ticket]'), shortfall: 0n }]);
+    expect(change_rows(r.delta.item_changes)).toEqual([[id('[ticket]'), -1n, 0n, Source.ITEM_CHANGE_SOURCE_IAP_REFUND, 'tx-2']]);
+    expect(history(env, user_id).slice(-2).map((h) => [h.item_id, h.delta, h.shortfall])).toEqual([[id('[potion]'), 0n, 3n], [id('[ticket]'), -1n, 0n]]);
+    await wait_background(env);
+    expect(audits(logs(env, 'audit'), user_id).map((l) => [l['item_id'], l['revoked'], l['shortfall']])).toEqual([[id('[ticket]'), '1', '0']]);
   });
 
   test('admin-api revoke_items: the audit actor is the operator name', async () => {

@@ -105,6 +105,24 @@ describe('big item', () => {
     expect(await set_balance(env, user_id, '[big_gold]', LIMIT_20 + 1n)).toBe('INVALID_AMOUNT');
   });
 
+  test('an ItemAmount pair that is not the big encoding of an integer is INVALID_AMOUNT for max_digits 20 and changes nothing', async () => {
+    const { user_id } = await user(env);
+    const bad: [bigint, string][] = [[10n ** 19n, ''], [MAX + 1n, ''], [1n, (MAX + 2n).toString()], [0n, MAX.toString()], [0n, '0']];
+    for (const [small, big] of bad) {
+      const a = new CoreContract.ItemAmount();
+      a.item_id = id('[big_gold]');
+      a.amount = small;
+      a.big_amount = big;
+      expect([small, big, await tx(env, user_id, (ctx) => env.ledger.add_items(ctx, [a]))]).toEqual([small, big, 'INVALID_AMOUNT']);
+      expect(env.module.read_amount(a)).toBeNull();
+      expect(env.module.check_add_items([a])).toBe('INVALID_AMOUNT');
+    }
+    expect(await balance(env, user_id, '[big_gold]')).toBe(0n);
+    expect(history(env, user_id)).toEqual([]);
+    expect(await tx(env, user_id, (ctx) => env.ledger.add_items(ctx, items(['[big_gold]', MAX + 2n])))).toBe('OK');
+    expect(await balance(env, user_id, '[big_gold]')).toBe(MAX + 2n);
+  });
+
   test('amount_limit, read_amount and make_item_amount on the module object read and write the big encoding pair', () => {
     expect(env.module.amount_limit(id('[big_gold]'))).toBe(LIMIT_20);
     expect(env.module.amount_limit(id('[gold]'))).toBe(MAX);

@@ -24,6 +24,24 @@ describe('group item', () => {
     expect(await balance(env, user_id, '[gem]')).toBe(8n);
   });
 
+  test('subtracting group G 1 and adding its member F 1 at max_amount with P at 0: Reject is LIMIT_EXCEEDED; Discard is OK, F ends at 9 with one ItemChange delta -1 overflow 1', async () => {
+    const { user_id } = await user(env);
+    await set_balance(env, user_id, '[ledger_free_r]', 10);
+    const before = history(env, user_id).length;
+    expect(await tx(env, user_id, (ctx) => env.ledger.exchange_items(ctx, items(['[ledger_group_r]', 1]), items(['[ledger_free_r]', 1])))).toBe('LIMIT_EXCEEDED');
+    expect(await balance(env, user_id, '[ledger_free_r]')).toBe(10n);
+    expect(history(env, user_id).length).toBe(before);
+
+    await set_balance(env, user_id, '[ledger_free_d]', 10);
+    const after_set = history(env, user_id).length;
+    const r = await request(env, user_id, (ctx) => env.ledger.exchange_items(ctx, items(['[ledger_group_d]', 1]), items(['[ledger_free_d]', 1])));
+    expect(r.out).toBe('OK');
+    expect(change_rows(r.delta.item_changes)).toEqual([[id('[ledger_free_d]'), -1n, 1n, Source.ITEM_CHANGE_SOURCE_REQUEST, 'core/Test']]);
+    expect(history(env, user_id).slice(after_set).map((h) => [h.item_id, h.delta, h.overflow, h.balance_after])).toEqual([[id('[ledger_free_d]'), -1n, 1n, 9n]]);
+    expect(await balance(env, user_id, '[ledger_free_d]')).toBe(9n);
+    expect(await balance(env, user_id, '[ledger_paid_d]')).toBe(0n);
+  });
+
   test('a cost of another module from a group item takes from the members', async () => {
     const { user_id } = await user(env);
     await set_balance(env, user_id, '[gem_paid]', 2);

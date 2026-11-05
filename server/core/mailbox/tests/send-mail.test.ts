@@ -146,6 +146,20 @@ describe('send_mail', () => {
     expect((await send_mail(ms, user.user_id, plain({ expire_ms: 10n * DAY_MS }))).result).toBe('OK');
   });
 
+  test('refuses an attachment of a max_digits 20 big item whose amount, big_amount is not the big encoding of an integer', async () => {
+    const user = await login(ms);
+    const pairs: [bigint, string][] = [[10n ** 19n, ''], [2n ** 53n, ''], [1n, '9007199254740993']];
+    for (const [small, big] of pairs) {
+      const item = amount('[big_gold]', small);
+      item.big_amount = big;
+      expect([small, big, (await send_mail(ms, user.user_id, plain({ attachments: [item] }))).result]).toEqual([small, big, 'INVALID_INPUT']);
+    }
+    expect(await read_mails(ms, user.user_id)).toHaveLength(0);
+    const item = amount('[big_gold]', 0n);
+    item.big_amount = '9007199254740993';
+    expect((await send_mail(ms, user.user_id, plain({ attachments: [item] }))).result).toBe('OK');
+  });
+
   test('refuses no_expiry from content send_mail and from the admin send_mail and broadcast_mail', async () => {
     const user = await login(ms);
     expect((await send_mail(ms, user.user_id, plain({ no_expiry: true }))).result).toBe('INVALID_INPUT');

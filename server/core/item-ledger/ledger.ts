@@ -722,7 +722,7 @@ export class Change {
       const dur = (c.info.timed as GameData.ItemTimedRow).duration;
       const cap = c.info.max_amount * dur;
       let k = d;
-      if (c.value + d * dur > cap) {
+      if (d > 0n && c.value + d * dur > cap) {
         if (c.info.overflow !== GameData.ItemOverflow.Discard) throw new Failure(ItemChangeResult.LIMIT_EXCEEDED);
         k = max(0n, floor_div(cap - c.value, dur));
       }
@@ -734,7 +734,7 @@ export class Change {
     }
     const next = c.value + d;
     if (d < 0n && next < 0n) throw new Failure(ItemChangeResult.NOT_ENOUGH);
-    if (d < 0n || next <= c.info.balance_limit) {
+    if (d <= 0n || next <= c.info.balance_limit) {
       c.value = next;
       return;
     }
@@ -742,7 +742,7 @@ export class Change {
     const applied = min(d, max(0n, c.info.balance_limit - c.value));
     c.value += applied;
     work.overflow.set(id, d - applied);
-    if (c.info.overflow === GameData.ItemOverflow.Convert) work.convert.push({ id, n: d - applied });
+    if (c.info.overflow === GameData.ItemOverflow.Convert && d > applied) work.convert.push({ id, n: d - applied });
   }
 
   /** Subtracts a group item's amount from its members in `members` order. */
