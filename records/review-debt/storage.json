@@ -1,6 +1,6 @@
 {
   "target": "storage",
-  "nextId": 5,
+  "nextId": 6,
   "items": [
     {
       "id": "D1",
@@ -25,6 +25,12 @@
       "location": "server/core/storage/tx.ts:201",
       "problem": "A transaction function can let out a `lock` or `connection` DbError that did not come from a statement of its own transaction, for example a `read_db` query inside the function that waits past `storage.userLockWaitMs`. `read_db` statements run with `owner` null (`server/core/storage/core.ts:196-205`), so `mark_broken` never runs and `state.broken` stays false. `body` still returns `FAILED` through `is_db_failure(error)`. `open-game-works-core/skills/server-core/modules/storage.md:348` (error table: a throw of the function on a transaction that PostgreSQL did not abort rolls back and throws) and `open-game-works-core/skills/server-core/modules/storage.md:155` (a `read_db` statement failure throws) say the operation should roll back and throw that value. This line existed before the range.",
       "foundBy": "storage round 1"
+    },
+    {
+      "id": "D5",
+      "location": "server/core/storage/db/sqlite.ts:49",
+      "problem": "open-game-works-core/skills/server-core/modules/storage.md:307 (changed in this range) says a statement with a `string` parameter that holds an unpaired surrogate fails in both DBs, but the SQLite adapter refuses only U+0000; in the scratch copy `grant_items` with `operation_id` `\"\\ud800\"` committed on SQLite, and a mail `text_value` `\"\\ud800\"` was kept as U+FFFD",
+      "foundBy": "admin-api round 4"
     }
   ]
 }
