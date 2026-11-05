@@ -65,15 +65,36 @@ func test_subtitle_on_screen_takes_the_font_size_of_set_test_text_scale() -> voi
 	assert_eq(subtitle_font_size(), floori(SUBTITLE_FONT_SIZE * 1500 / 1000.0))
 
 
-func test_release_after_set_test_text_scale_puts_the_saved_text_scale_back() -> void:
+func test_release_keeps_the_test_text_scale_and_init_with_apply_saved_settings_puts_the_option_value_back() -> void:
 	assert_true(await start_modules())
 	AccessibilityCore.apply_saved_settings()
 	assert_true(AccessibilityCore.set_text_scale(1250))
 	AccessibilityCoreDev.set_test_text_scale(1500)
 	assert_eq(LocalizationCore.get_text_scale(), 1500)
 	AccessibilityCore.release()
-	assert_eq(LocalizationCore.get_text_scale(), 1250, "the saved value")
+	assert_eq(LocalizationCore.get_text_scale(), 1500, "release does not set the test text scale back")
 	assert_eq(LocalDataCore.get_value_int(DEVICE, KEY_TEXT_SCALE, 0), 1250, "the saved value is unchanged")
+	assert_true(AccessibilityCore.init())
+	assert_eq(LocalizationCore.get_text_scale(), 1500, "init passes no text scale")
+	AccessibilityCore.apply_saved_settings()
+	assert_eq(LocalizationCore.get_text_scale(), 1250, "apply_saved_settings applies the saved value")
+	assert_eq(errors(), 0)
+
+
+func test_set_text_scale_after_set_test_text_scale_applies_only_a_changed_option_value() -> void:
+	assert_true(await start_modules())
+	AccessibilityCore.apply_saved_settings()
+	assert_true(AccessibilityCore.set_text_scale(1250))
+	AccessibilityCoreDev.set_test_text_scale(1500)
+	assert_eq(AccessibilityCore.get_settings().text_scale_permille, 1250, "the option value")
+	count_changes()
+	assert_true(AccessibilityCore.set_text_scale(1250))
+	assert_eq(LocalizationCore.get_text_scale(), 1500, "the same option value keeps the test text scale")
+	assert_eq(changes, 0, "the same option value publishes no event")
+	assert_true(AccessibilityCore.set_text_scale(1000))
+	assert_eq(LocalizationCore.get_text_scale(), 1000, "a changed option value ends the test text scale")
+	assert_eq(changes, 1)
+	assert_eq(AccessibilityCore.get_settings().text_scale_permille, 1000)
 	assert_eq(errors(), 0)
 
 

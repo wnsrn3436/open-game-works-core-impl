@@ -80,6 +80,32 @@ func test_second_play_voice_replaces_the_subtitle() -> void:
 	assert_eq(subtitle_text(), LocalizationCore.get_text(other_subtitle_key()))
 
 
+func test_second_play_voice_with_an_empty_key_or_an_invalid_handle_leaves_the_subtitle_on_screen() -> void:
+	assert_true(await start_modules())
+	AccessibilityCore.apply_saved_settings()
+	await load_voice(VOICE_LOOP)
+	var first: int = AccessibilityCore.play_voice(VOICE_LOOP, scope, subtitle_key())
+	var shown: String = LocalizationCore.get_text(subtitle_key())
+	var empty_key: int = AccessibilityCore.play_voice(VOICE_LOOP, scope, "")
+	assert_ne(empty_key, SoundCore.INVALID_HANDLE, "the voice of the empty key plays")
+	assert_eq(errors(), 1, "the empty key is logged")
+	var gone: Scope = ResourceCore.create_scope(ResourceCore.ScopeKind.PANEL, "accessibility_test_gone")
+	ResourceCore.release_scope(gone)
+	var invalid: int = AccessibilityCore.play_voice(VOICE_LOOP, gone, other_subtitle_key())
+	assert_eq(invalid, SoundCore.INVALID_HANDLE)
+	assert_eq(UnitTestCore.check_logs(ERROR, "SoundCore"), 1, "SoundCore logs the released scope")
+	assert_true(subtitle_visible())
+	assert_eq(subtitle_text(), shown)
+	assert_eq(AccessibilityCore._subtitle_handle, first)
+	SoundCore.stop(empty_key)
+	await UnitTestCore.wait_frames(2)
+	assert_true(subtitle_visible(), "the subtitle stays until the end of its own voice")
+	assert_eq(subtitle_text(), shown)
+	SoundCore.stop(first)
+	await UnitTestCore.wait_frames(1)
+	assert_false(subtitle_visible(), "hidden in the frame after its voice ends")
+
+
 func test_subtitle_with_format_args_is_the_format_result() -> void:
 	assert_true(await start_modules())
 	AccessibilityCore.apply_saved_settings()
