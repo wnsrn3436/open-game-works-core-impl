@@ -1,6 +1,6 @@
 {
   "target": "spec logging",
-  "nextId": 15,
+  "nextId": 16,
   "items": [
     {
       "id": "D3",
@@ -72,6 +72,12 @@
       "id": "D14",
       "location": "skills/server-core/modules/logging.md:178",
       "problem": "The failure path of the job `logging_analytics_deletion` does not set the case where the row no longer exists. Line 179 says two server instances may send the same row at the same time, and line 178 increments `attempts` \"the same way\" in one `storage.run_game_transaction` and, at `logging.analyticsDeletionMaxAttempts`, deletes the row and writes an `error` log. Run path: instance A succeeds and deletes the row, instance B's call fails and then increments `attempts` of the missing row. One implementation upserts the row back with `attempts` 1 and requests the deletion again, another updates no row; when the increment would reach the max, one writes the `error` log for a row already deleted, another writes nothing",
+      "foundBy": "spec logging"
+    },
+    {
+      "id": "D15",
+      "location": "skills/server-core/modules/logging.md:113",
+      "problem": "For a client log request that ends with `INVALID_REQUEST` in the handler (event `name` or param `key` not snake_case, or `core_` name, logging.md:109), it is not set whether the handler still passes `client_dropped_count` (and minimum level `warn` when it is more than 0) with `annotate_request_log` before failing. logging.md:113 adds `dropped_event_count` to \"that request's `request` log\" with no exception, logging.md:110 to logging.md:112 apply only to saved requests, and logging.md:50 keeps annotations after rollback, so both behaviors fit the text. Input: `ReportAnalyticsEvents` with one event named `core_x` and `dropped_event_count` 3 can log level `info` with no count fields, or level `warn` with `client_dropped_count` 3. In the same way, logging.md:90 lists `dropped_count`, `client_dropped_count`, `consent_dropped_count` as fields of the client log `rpc` `request` log, but it is not set whether they are absent, `null` or 0 when `routing` ends the request before the handler runs (no session, `RATE_LIMITED` at logging.md:278, field validation `INVALID_REQUEST` at logging.md:108)",
       "foundBy": "spec logging"
     }
   ]
