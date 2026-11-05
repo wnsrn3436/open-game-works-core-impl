@@ -58,6 +58,18 @@
       "type": "integer",
       "source": "core",
       "owner": "content"
+    },
+    {
+      "key": "InputCore.maxKeysPerAction",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "InputCore.maxPadButtonsPerAction",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
     }
   ],
   "settingsConstraints": [],
