@@ -68,6 +68,11 @@ func test_a_press_after_16_consumed_pointers_allocates_nothing() -> void:
 	await _press_after_consumed(16)
 
 
+## The tracked consumed pointers fill every slot, so the measured press finds the slots full.
+func test_a_press_with_every_consumed_slot_in_use_allocates_nothing() -> void:
+	await _press_after_consumed(VirtualPadCore._CONSUMED_CAPACITY)
+
+
 func test_a_press_beyond_the_tracked_consumed_pointers_allocates_nothing() -> void:
 	await _press_after_consumed(VirtualPadCore._CONSUMED_CAPACITY + 4)
 
