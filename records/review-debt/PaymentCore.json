@@ -1,12 +1,5 @@
 {
   "target": "PaymentCore",
   "nextId": 14,
-  "items": [
-    {
-      "id": "D13",
-      "location": "open-game-works-core/skills/client-core/modules/payment-core.md:201",
-      "problem": "The error table has no row for a `list_unfinished` or `list_owned` failure or timeout in the same login session, and `:281` says only that `restore_purchases` is `false` without verification when `list_owned` fails. The log level of that failure is not settled, but the code logs `error` (`client/godot/core/payment_core/payment_core.gd:597`, `:640`) and `client/godot/core/payment_core/tests/test_recovery.gd:499` asserts one PaymentCore error log after `fake_set_fail(\"list_owned\", true)`. An implementation with a `warn` or no log also meets the spec and fails that test. This existed before the range; the core agent report proposes the row `false`, log `error`",
-      "foundBy": "PaymentCore round 8"
-    }
-  ]
+  "items": []
 }
