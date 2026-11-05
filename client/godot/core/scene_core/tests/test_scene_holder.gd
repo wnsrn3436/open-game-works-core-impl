@@ -52,39 +52,76 @@ func test_new_scene_reads_its_children_in_on_preload_and_runs_frames_only_after_
 	assert_gt(scene.process_count, 0)
 
 
-## A node with a `process_mode` of its own does not inherit the disabled scene holder: the one in the scene resource,
-## one `on_preload` adds, one `on_preload` gives a mode after adding it and one the test gives a mode during stage 6.
+## An object directly under the scene root that is hidden in the scene resource stays hidden after the transition,
+## and the other objects of the scene are on screen.
+func test_node_hidden_in_the_scene_resource_is_still_hidden_after_the_transition() -> void:
+	assert_true(await start_booted(SCENE_A))
+	TestScene.prepare_gate = Gate.new()
+	var results: PackedInt32Array = PackedInt32Array()
+	change_later(SCENE_B, results)
+	await wait_trace("prepare:" + SCENE_B)
+	var scene: TestScene = TestScene.last as TestScene
+	assert_not_null(scene)
+	if scene == null:
+		return
+	TestScene.prepare_gate.open(true)
+	await wait_trace("started:" + SCENE_B)
+	assert_false((scene.get_node("Hidden2D") as Node2D).visible)
+	assert_false((scene.get_node("HiddenLayer") as CanvasLayer).visible)
+	assert_false((scene.get_node("Hidden3D") as Node3D).visible)
+	assert_true(scene.probe.is_visible_in_tree())
+	assert_true((scene.get_node("Layer") as CanvasLayer).visible)
+	assert_true((scene.get_node("Spatial") as Node3D).is_visible_in_tree())
+	assert_eq(results, PackedInt32Array([1]))
+
+
+## Stage 7 makes every object SceneCore hid visible again, also one that scene code hid before stage 7.
+func test_node_that_on_prepare_hides_is_visible_after_stage_7() -> void:
+	assert_true(await start_booted(SCENE_A))
+	TestScene.prepare_hook = func(scene: SceneBase) -> void:
+		(scene as TestScene).probe.visible = false
+		(scene.get_node("Layer") as CanvasLayer).visible = false
+		(scene.get_node("Spatial") as Node3D).visible = false
+	var results: PackedInt32Array = PackedInt32Array()
+	change_later(SCENE_B, results)
+	await wait_trace("started:" + SCENE_B)
+	var scene: TestScene = TestScene.last as TestScene
+	assert_not_null(scene)
+	if scene == null:
+		return
+	assert_true(scene.probe.is_visible_in_tree())
+	assert_true((scene.get_node("Layer") as CanvasLayer).visible)
+	assert_true((scene.get_node("Spatial") as Node3D).is_visible_in_tree())
+	assert_false((scene.get_node("Hidden2D") as Node2D).visible)
+	assert_eq(results, PackedInt32Array([1]))
+
+
+## A node with a `process_mode` of its own does not inherit the disabled scene holder: the one in the scene resource
+## and one `on_preload` adds with its mode.
 func test_nodes_with_a_process_mode_of_their_own_run_frames_only_after_stage_7() -> void:
 	assert_true(await start_booted(SCENE_A))
 	var counters: Array[Counter] = []
 	TestScene.preload_hook = func(scene: SceneBase) -> void:
 		var added: Counter = Counter.new()
-		added.process_mode = Node.PROCESS_MODE_ALWAYS
+		added.process_mode = Node.PROCESS_MODE_PAUSABLE
 		scene.add_child(added)
-		var given: Counter = Counter.new()
-		scene.add_child(given)
-		given.process_mode = Node.PROCESS_MODE_PAUSABLE
-		var later: Counter = Counter.new()
-		scene.add_child(later)
-		counters.append_array([scene.get_node("Counter") as Counter, added, given, later])
+		counters.append_array([scene.get_node("Counter") as Counter, added])
 	TestScene.prepare_gate = Gate.new()
 	var results: PackedInt32Array = PackedInt32Array()
 	change_later(SCENE_B, results)
 	await wait_trace("prepare:" + SCENE_B)
-	assert_eq(counters.size(), 4)
-	if counters.size() != 4:
+	assert_eq(counters.size(), 2)
+	if counters.size() != 2:
 		return
-	counters[3].process_mode = Node.PROCESS_MODE_ALWAYS
 	await _wait_frames_and_physics(3)
 	for i: int in counters.size():
+		assert_eq(counters[i].process_mode, Node.PROCESS_MODE_DISABLED, "mode of counter %d before stage 7" % i)
 		assert_eq(counters[i].process_count, 0, "process of counter %d before stage 7" % i)
 		assert_eq(counters[i].physics_count, 0, "physics process of counter %d before stage 7" % i)
 	TestScene.prepare_gate.open(true)
 	await wait_trace("started:" + SCENE_B)
 	await _wait_frames_and_physics(2)
-	var modes: PackedInt32Array = [
-		Node.PROCESS_MODE_ALWAYS, Node.PROCESS_MODE_ALWAYS, Node.PROCESS_MODE_PAUSABLE, Node.PROCESS_MODE_ALWAYS,
-	]
+	var modes: PackedInt32Array = [Node.PROCESS_MODE_ALWAYS, Node.PROCESS_MODE_PAUSABLE]
 	for i: int in counters.size():
 		assert_eq(counters[i].process_mode as int, modes[i], "mode of counter %d after stage 7" % i)
 		assert_gt(counters[i].process_count, 0, "process of counter %d after stage 7" % i)
@@ -92,60 +129,71 @@ func test_nodes_with_a_process_mode_of_their_own_run_frames_only_after_stage_7()
 	assert_eq(results, PackedInt32Array([1]))
 
 
-## A node that processes before the core nodes is disabled before its own callback when scene code gives it a mode of
-## its own: at the start of a frame and at the start of a physics frame.
-func test_nodes_that_process_first_and_get_a_mode_during_stage_6_run_frames_only_after_stage_7() -> void:
+## Stage 7 gives each remembered node that is not freed the one mode read when it was disabled, without reading its
+## mode: also when scene code gave it another mode before stage 7. A node added again with a mode of its own is
+## remembered with the mode read then.
+func test_remembered_node_gets_its_remembered_mode_back_at_stage_7() -> void:
 	assert_true(await start_booted(SCENE_A))
 	var counters: Array[Counter] = []
 	TestScene.preload_hook = func(scene: SceneBase) -> void:
-		for priority: int in [-1, -2000000]:
-			for i: int in 2:
-				var counter: Counter = Counter.new()
-				counter.process_priority = priority
-				counter.process_physics_priority = priority
-				scene.add_child(counter)
-				counters.append(counter)
+		for mode: int in [Node.PROCESS_MODE_PAUSABLE, Node.PROCESS_MODE_ALWAYS, Node.PROCESS_MODE_ALWAYS]:
+			var counter: Counter = Counter.new()
+			counter.process_mode = mode as Node.ProcessMode
+			scene.add_child(counter)
+			counters.append(counter)
 	TestScene.prepare_gate = Gate.new()
 	var results: PackedInt32Array = PackedInt32Array()
 	change_later(SCENE_B, results)
 	await wait_trace("prepare:" + SCENE_B)
-	assert_eq(counters.size(), 4)
-	if counters.size() != 4:
+	var scene: TestScene = TestScene.last as TestScene
+	assert_not_null(scene)
+	if scene == null or counters.size() != 3:
+		assert_eq(counters.size(), 3)
 		return
-	var tree: SceneTree = Engine.get_main_loop() as SceneTree
-	# goes on at the start of a frame
+	var in_resource: Counter = scene.get_node("Counter") as Counter
+	# scene code gives remembered nodes other modes
+	in_resource.process_mode = Node.PROCESS_MODE_PAUSABLE
 	counters[0].process_mode = Node.PROCESS_MODE_ALWAYS
-	counters[2].process_mode = Node.PROCESS_MODE_ALWAYS
-	await tree.physics_frame
-	# goes on at the start of a physics frame
-	counters[1].process_mode = Node.PROCESS_MODE_ALWAYS
-	counters[3].process_mode = Node.PROCESS_MODE_ALWAYS
-	await _wait_frames_and_physics(3)
-	for i: int in counters.size():
-		assert_eq(counters[i].process_count, 0, "process of counter %d before stage 7" % i)
-		assert_eq(counters[i].physics_count, 0, "physics process of counter %d before stage 7" % i)
+	counters[1].process_mode = Node.PROCESS_MODE_INHERIT
+	# added again with a mode of its own: remembered with that mode
+	scene.remove_child(counters[2])
+	counters[2].process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	scene.add_child(counters[2])
+	assert_eq(counters[2].process_mode, Node.PROCESS_MODE_DISABLED, "disabled when added again")
+	# a remembered node freed before stage 7
+	var freed: Counter = Counter.new()
+	freed.process_mode = Node.PROCESS_MODE_ALWAYS
+	scene.add_child(freed)
+	freed.free()
+	await UnitTestCore.wait_frames(2)
 	TestScene.prepare_gate.open(true)
 	await wait_trace("started:" + SCENE_B)
-	await _wait_frames_and_physics(2)
-	for i: int in counters.size():
-		assert_eq(counters[i].process_mode, Node.PROCESS_MODE_ALWAYS, "mode of counter %d after stage 7" % i)
-		assert_gt(counters[i].process_count, 0, "process of counter %d after stage 7" % i)
-		assert_gt(counters[i].physics_count, 0, "physics process of counter %d after stage 7" % i)
+	assert_eq(in_resource.process_mode, Node.PROCESS_MODE_ALWAYS, "remembered mode of the resource node")
+	assert_eq(counters[0].process_mode, Node.PROCESS_MODE_PAUSABLE, "remembered mode after another mode")
+	assert_eq(counters[1].process_mode, Node.PROCESS_MODE_ALWAYS, "remembered mode after inherit")
+	assert_eq(counters[2].process_mode, Node.PROCESS_MODE_WHEN_PAUSED, "mode read when added again")
+	assert_eq(SceneCore._stopped.size(), 0)
+	assert_eq(errors(TAG), 0)
 	assert_eq(results, PackedInt32Array([1]))
 
 
 ## A node that scene code adds while the stage 4 hiding notifies it, to a node whose children the hiding already went
-## through, is checked too: a mode scene code gives it later is stopped until stage 7.
+## through, is hidden and disabled through `node_added` until stage 7.
 func test_node_added_by_a_handler_of_the_stage_4_hiding_runs_frames_only_after_stage_7() -> void:
 	assert_true(await start_booted(SCENE_A))
 	var counters: Array[Counter] = []
+	var sprites: Array[Node2D] = []
 	TestScene.ready_hook = func(scene: SceneBase) -> void:
 		var probe: Node2D = (scene as TestScene).probe
 		probe.visibility_changed.connect(func() -> void:
 			if counters.is_empty():
 				var counter: Counter = Counter.new()
+				counter.process_mode = Node.PROCESS_MODE_ALWAYS
 				scene.add_child(counter)
-				counters.append(counter))
+				counters.append(counter)
+				var sprite: Node2D = Node2D.new()
+				scene.add_child(sprite)
+				sprites.append(sprite))
 	TestScene.prepare_gate = Gate.new()
 	var results: PackedInt32Array = PackedInt32Array()
 	change_later(SCENE_B, results)
@@ -153,14 +201,14 @@ func test_node_added_by_a_handler_of_the_stage_4_hiding_runs_frames_only_after_s
 	assert_eq(counters.size(), 1, "the hiding of stage 4 ran the handler")
 	if counters.size() != 1:
 		return
-	assert_true(SceneCore._watched.has(counters[0]), "the added node is in the set")
-	counters[0].process_mode = Node.PROCESS_MODE_ALWAYS
+	assert_false(sprites[0].visible, "hidden before stage 7")
 	await _wait_frames_and_physics(3)
 	assert_eq(counters[0].process_count, 0, "process before stage 7")
 	assert_eq(counters[0].physics_count, 0, "physics process before stage 7")
 	TestScene.prepare_gate.open(true)
 	await wait_trace("started:" + SCENE_B)
 	await _wait_frames_and_physics(2)
+	assert_true(sprites[0].visible, "visible after stage 7")
 	assert_eq(counters[0].process_mode, Node.PROCESS_MODE_ALWAYS)
 	assert_gt(counters[0].process_count, 0, "process after stage 7")
 	assert_gt(counters[0].physics_count, 0, "physics process after stage 7")
@@ -168,12 +216,12 @@ func test_node_added_by_a_handler_of_the_stage_4_hiding_runs_frames_only_after_s
 
 
 ## A node that scene code removes from the scene, or frees, while the stage 4 hiding notifies it, before the hiding
-## reached that node, is not put into the set: the stop check keeps stopping the other nodes after it is freed.
-func test_node_removed_by_a_handler_of_the_stage_4_hiding_is_not_checked() -> void:
+## reached that node, is skipped by the hiding, and the nodes added later are still hidden and disabled.
+func test_node_removed_by_a_handler_of_the_stage_4_hiding_is_skipped() -> void:
 	await _check_node_left_during_the_stage_4_hiding(false)
 
 
-func test_node_freed_by_a_handler_of_the_stage_4_hiding_is_not_checked() -> void:
+func test_node_freed_by_a_handler_of_the_stage_4_hiding_is_skipped() -> void:
 	await _check_node_left_during_the_stage_4_hiding(true)
 
 
@@ -200,12 +248,11 @@ func _check_node_left_during_the_stage_4_hiding(frees: bool) -> void:
 		assert_eq(taken.size(), 1, "the hiding of stage 4 ran the handler (%s)" % label)
 		return
 	if not frees:
-		assert_false(SceneCore._watched.has(taken[0]), "the removed node is not in the set")
+		assert_true((taken[0] as Node3D).visible, "the removed node is not hidden")
 		taken[0].free()
-	assert_eq(SceneCore._watched.size(), _count_under(SceneCore._holder), "the set holds only nodes under the holder (%s)" % label)
 	var counter: Counter = Counter.new()
-	scene.add_child(counter)
 	counter.process_mode = Node.PROCESS_MODE_ALWAYS
+	scene.add_child(counter)
 	await _wait_frames_and_physics(3)
 	assert_eq(counter.process_count, 0, "process before stage 7 (%s)" % label)
 	assert_eq(counter.physics_count, 0, "physics process before stage 7 (%s)" % label)
@@ -213,87 +260,8 @@ func _check_node_left_during_the_stage_4_hiding(frees: bool) -> void:
 	await wait_trace("started:" + SCENE_B)
 	await _wait_frames_and_physics(2)
 	assert_gt(counter.process_count, 0, "process after stage 7 (%s)" % label)
+	assert_eq(errors(TAG), 0)
 	assert_eq(results, PackedInt32Array([1]))
-
-
-## The stop check runs only while the new scene is hidden and reads the nodes under the scene holder from the set that
-## `node_added` and `node_removed` keep, without walking the tree.
-func test_stop_check_runs_only_from_stage_4_until_stage_7_on_the_nodes_under_the_holder() -> void:
-	assert_true(await start_booted(SCENE_A))
-	var stop_check: Node = SceneCore._stop_check_node
-	assert_false(stop_check.is_processing(), "after the boot transition")
-	assert_false(stop_check.is_physics_processing(), "after the boot transition")
-	TestScene.prepare_gate = Gate.new()
-	var results: PackedInt32Array = PackedInt32Array()
-	change_later(SCENE_B, results)
-	await wait_trace("prepare:" + SCENE_B)
-	var scene: TestScene = TestScene.last as TestScene
-	assert_not_null(scene)
-	if scene == null:
-		return
-	assert_true(stop_check.is_processing(), "during stage 6")
-	assert_true(stop_check.is_physics_processing(), "during stage 6")
-	assert_eq(SceneCore._watched.size(), _count_under(SceneCore._holder))
-	var added: Node2D = Node2D.new()
-	var child: Node = Node.new()
-	added.add_child(child)
-	scene.add_child(added)
-	assert_true(SceneCore._watched.has(added))
-	assert_true(SceneCore._watched.has(child))
-	# a node that leaves the scene holder leaves the set, and its mode is not checked any more
-	var taken: Counter = Counter.new()
-	scene.add_child(taken)
-	scene.remove_child(taken)
-	assert_false(SceneCore._watched.has(taken))
-	add_child_autofree(taken)
-	taken.process_mode = Node.PROCESS_MODE_ALWAYS
-	var watched_before_free: int = SceneCore._watched.size()
-	added.queue_free()
-	await _wait_frames_and_physics(2)
-	assert_false(is_instance_valid(added))
-	assert_eq(SceneCore._watched.size(), watched_before_free - 2, "a freed node and its child left the set")
-	assert_eq(SceneCore._watched.size(), _count_under(SceneCore._holder))
-	assert_eq(taken.process_mode, Node.PROCESS_MODE_ALWAYS)
-	assert_gt(taken.process_count, 0)
-	TestScene.prepare_gate.open(true)
-	await wait_trace("started:" + SCENE_B)
-	assert_false(stop_check.is_processing(), "after stage 7")
-	assert_false(stop_check.is_physics_processing(), "after stage 7")
-	assert_eq(SceneCore._watched.size(), 0)
-	assert_eq(results, PackedInt32Array([1]))
-
-
-## A transition that ends with `false` in stage 6 and stays in transition until `release` ends the stop check.
-func test_stop_check_ends_when_the_transition_ends_with_false() -> void:
-	assert_true(await start_booted(SCENE_A))
-	var stop_check: Node = SceneCore._stop_check_node
-	# restart through the retry popup
-	TestScene.prepare_results = [false]
-	var results: PackedInt32Array = PackedInt32Array()
-	change_later(SCENE_B, results)
-	await wait_trace("prepare:" + SCENE_B)
-	await wait_popup_layout()
-	assert_true(stop_check.is_processing(), "while the retry popup is open")
-	UICore.close_all_popups()
-	await wait_trace("restart")
-	await UnitTestCore.wait_frames(2)
-	assert_eq(results, PackedInt32Array([0]))
-	assert_true(SceneCore.is_transitioning())
-	assert_false(stop_check.is_processing(), "after the restart")
-	assert_false(stop_check.is_physics_processing(), "after the restart")
-	assert_eq(SceneCore._watched.size(), 0)
-	# unrecoverable failure of the boot transition
-	SceneCore.release()
-	assert_true(SceneCore.init())
-	stop_check = SceneCore._stop_check_node
-	TestScene.prepare_results = [false]
-	var failed: bool = await SceneCore.boot_change_scene(SCENE_B, null)
-	assert_false(failed)
-	assert_eq(errors(TAG), 1)
-	assert_true(SceneCore.is_transitioning())
-	assert_false(stop_check.is_processing(), "after the fatal failure")
-	assert_false(stop_check.is_physics_processing(), "after the fatal failure")
-	assert_eq(SceneCore._watched.size(), 0)
 
 
 func test_scene_ui_root_is_under_the_scene_ui_safe_area_root() -> void:
@@ -401,10 +369,3 @@ func _wait_frames_and_physics(count: int) -> void:
 func _rect_of(control: Control) -> Rect2:
 	return Rect2(control.global_position, control.size)
 
-
-## Count of the nodes under `node`.
-func _count_under(node: Node) -> int:
-	var count: int = 0
-	for child: Node in node.get_children():
-		count += 1 + _count_under(child)
-	return count
