@@ -5,9 +5,10 @@
  */
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import * as GameContract from '../../../generated/contract/game_contract.ts';
+import * as CoreCheatContract from '../../../dev/generated/contract/core_cheat_contract.ts';
 import type { RequestCtx, Storage } from '../../storage/index.ts';
 import { storage_module } from '../../storage/tests/helpers.ts';
-import { core_test_register, load_data, send, send_admin, start_test_server, stop_test_server, type TestServer, type TestSession } from '../../testing/dev/index.ts';
+import { core_test_register, load_data, send, send_admin, send_cheat, start_test_server, stop_test_server, type TestServer, type TestSession } from '../../testing/dev/index.ts';
 import type { BlockListener, BlockReport, BlockReportPublicProfile } from '../index.ts';
 
 /** The first clock time of every test server here. */
@@ -221,4 +222,17 @@ export function list_body(input: ListInput): Record<string, unknown> {
 /** The report rows in the DB, committed, by `report_id`. */
 export function report_rows(instance: Instance): Record<string, unknown>[] {
   return instance.storage.read_db().query('SELECT report_id, target_id, status, evidence FROM block_report_report ORDER BY report_id');
+}
+
+/** The `block_report_count` rows in the DB, committed. */
+export function count_rows(instance: Instance): Record<string, unknown>[] {
+  return instance.storage.read_db().query('SELECT user_id, window_start, count, expires_at FROM block_report_count ORDER BY user_id');
+}
+
+/** Sets the cheat time offset of the session's user with `core/cheat/SetTimeOffset`; it must succeed. */
+export async function set_time_offset(session: TestSession, offset_ms: bigint): Promise<void> {
+  const request = new CoreCheatContract.SetTimeOffsetRequest();
+  request.offset_ms = offset_ms;
+  const { envelope } = await send_cheat(session, 'core/cheat/SetTimeOffset', request);
+  if (envelope.error !== null) throw new Error(`SetTimeOffset: error code ${String(envelope.error.code)}`);
 }

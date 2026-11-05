@@ -1,7 +1,7 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import { advance_time, login } from '../../testing/dev/index.ts';
 import { BLOCK_TABLE } from '../index.ts';
-import { block_user, get_blocked_users, in_request, start, stop_all, unblock_user, withdraw, type Instance } from './kit.ts';
+import { block_user, get_blocked_users, in_request, set_time_offset, START, start, stop_all, unblock_user, withdraw, type Instance } from './kit.ts';
 
 const INVALID_REQUEST = CoreContract.CoreError.CORE_ERROR_INVALID_REQUEST;
 const USER_NOT_FOUND = CoreContract.CoreError.CORE_ERROR_USER_NOT_FOUND;
@@ -195,6 +195,16 @@ describe('GetBlockedUsers', () => {
     expect(ids).toEqual([bob.user_id, carol.user_id, dave.user_id].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)));
     // block-report hands every blocked user to one get_public_profiles call, which chunks by public-profile.maxRequestCount itself.
     expect(lookups.mock.calls.map(([, user_ids]) => user_ids.length)).toEqual([3]);
+  });
+
+  it('gives blocked_at of the request time, which holds the cheat time offset', async () => {
+    const instance = await start();
+    const alice = await login(instance.server, 'alice');
+    const bob = await login(instance.server, 'bob');
+    await set_time_offset(alice, 5_000n);
+    expect((await block_user(alice, bob.user_id)).code).toBeNull();
+    const { response } = await get_blocked_users(alice);
+    expect(response?.blocked.map((entry) => entry.blocked_at)).toEqual([START + 5_000n]);
   });
 
   it('is an empty list for a user who blocked nobody', async () => {

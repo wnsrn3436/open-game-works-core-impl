@@ -1,4 +1,4 @@
-import { login } from '../../testing/dev/index.ts';
+import { login, StartFailure } from '../../testing/dev/index.ts';
 import { block_user, start, stop_all } from './kit.ts';
 
 afterEach(async () => {
@@ -6,9 +6,18 @@ afterEach(async () => {
 });
 
 describe('register_block_listener', () => {
-  it('fails server start when the same function is registered twice', async () => {
+  it('fails server start with an error log when the same function is registered twice', async () => {
     const listener = (): void => {};
-    await expect(start({ listeners: [listener, listener] })).rejects.toThrow();
+    const failure: unknown = await start({ listeners: [listener, listener] }).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    expect(failure).toBeInstanceOf(StartFailure);
+    const { message, logs } = failure as StartFailure;
+    expect(message).toMatch(/register_block_listener got the same function twice/);
+    // block-report's own error log line; routing logs the start failure reason as another line.
+    const errors = logs.filter((line) => line.kind === 'error' && line.level === 'error' && line.message === 'register_block_listener got the same function twice');
+    expect(errors).toHaveLength(1);
   });
 
   it('throws for a function given after server start and does not register it', async () => {
