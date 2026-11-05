@@ -1,12 +1,5 @@
 {
   "target": "mailbox",
   "nextId": 3,
-  "items": [
-    {
-      "id": "D2",
-      "location": "server/core/mailbox/mail_input.ts:143",
-      "problem": "open-game-works-core/skills/server-core/modules/mailbox.md:79 (changed in this range) makes a `once_key` that holds U+0000 `INVALID_INPUT`, but the mail input check accepts any string `once_key`; in the scratch copy `send_mail` through admin-api with `once_key` `\"k\\u0000\"` ends as 500 `internal` (the storage statement fails) instead of `INVALID_INPUT`",
-      "foundBy": "admin-api round 4"
-    }
-  ]
+  "items": []
 }
