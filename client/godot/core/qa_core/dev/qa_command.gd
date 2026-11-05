@@ -25,6 +25,12 @@ var added_budget: bool = false
 var done: bool = false
 ## Whether the end of its automation channel connection ended the command: it puts in no more device input.
 var cut: bool = false
+## Whether the input command reached its time limit: it puts in no more device input of its own, only the releases of
+## what it holds, and fails when the frame of those releases ends.
+var timed_out: bool = false
+## The device inputs of the command that went in: the touches, keys, mouse buttons and gamepad buttons it pressed and
+## the gamepad axes it set. `qa_input.gd`. Made with its first device input.
+var holds: RefCounted = null
 var ok: bool = false
 ## JSON text of `result`. Empty for none.
 var result: String = ""

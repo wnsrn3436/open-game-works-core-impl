@@ -10,6 +10,11 @@ const _QUERY := preload("res://core/qa_core/dev/qa_query.gd")
 const _NODE := preload("res://core/qa_core/dev/qa_core_node.gd")
 
 const CAPTURE_VIDEO: String = "capture_video"
+## The commands marked input in the built-in command table.
+const INPUT_COMMANDS: PackedStringArray = [
+	"tap", "tap_anchor", "drag", "key", "text", "touch_down", "touch_move", "touch_up", "key_down", "key_up",
+	"mouse_move", "mouse_down", "mouse_up", "pad_button_down", "pad_button_up", "pad_axis",
+]
 ## Image formats of `capture_screen` and `capture_video`, by format argument.
 const _PNG: String = "png"
 const _JPG: String = "jpg"
@@ -366,10 +371,10 @@ static func _frame() -> void:
 	await (Engine.get_main_loop() as SceneTree).process_frame
 
 
-## Whether `command` puts in no more device input: the end of its automation channel connection ended it, or `QACore`
-## was released.
+## Whether `command` puts in no more device input: the end of its automation channel connection ended it, it reached its
+## time limit, or `QACore` was released.
 static func _cut(command: _COMMAND) -> bool:
-	return command.cut or command.session != QACore._session
+	return command.cut or command.timed_out or command.session != QACore._session
 
 
 ## Async. Ends at the start of the next frame, once the device inputs put before it are in, before the process
@@ -395,6 +400,8 @@ static func _end_after_input(command: _COMMAND) -> void:
 	if _cut(command):
 		return
 	await _frame_end()
+	if _cut(command):
+		return
 	_ok(command)
 
 
@@ -500,7 +507,7 @@ static func _drag(command: _COMMAND) -> void:
 		if _cut(command):
 			return
 		var elapsed: int = _real_now() - started
-		var last: bool = elapsed >= duration or command.done
+		var last: bool = elapsed >= duration
 		var next: Vector2 = to if last else from.lerp(to, clampf(float(elapsed) / float(duration), 0.0, 1.0))
 		if next != position:
 			_put(command, _INPUT.drag_event(index, next, next - position))
@@ -531,7 +538,7 @@ static func _key(command: _COMMAND) -> void:
 		await _frame_end()
 		if _cut(command):
 			return
-		if command.done or _real_now() - started >= ms:
+		if _real_now() - started >= ms:
 			break
 	_put(command, _INPUT.key_event(code, false))
 	await _end_after_input(command)
@@ -548,9 +555,11 @@ static func _text(command: _COMMAND) -> void:
 	for i: int in text.length():
 		_put(command, _INPUT.text_event(text[i]))
 		await _frame_start()
-		if _gone(command):
+		if _cut(command):
 			return
 	await _frame_end()
+	if _cut(command):
+		return
 	_ok(command)
 
 
@@ -953,7 +962,11 @@ static func _send_cheat(command: _COMMAND, request: ContractRequest) -> void:
 	var ok: bool = await NetworkCoreDev.send_cheat(request)
 	if _gone(command):
 		return
-	_result(command, ok, "the cheat request failed")
+	if ok:
+		_ok(command)
+		return
+	# The `Interaction` default handling of NetworkCore logged the failed request: no warn log of QACore.
+	QACore._finish(command, false, _JSON.text("the cheat request failed"), PackedByteArray(), false)
 
 
 static func _set_server_time_offset(command: _COMMAND) -> void:

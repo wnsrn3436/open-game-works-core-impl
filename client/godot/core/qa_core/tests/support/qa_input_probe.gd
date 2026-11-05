@@ -1,13 +1,14 @@
 extends Node
 ## Records the process frame of every device input the root viewport passes down, and the process frames whose
-## process callbacks see `watched` just pressed.
+## process callbacks see `watched` just pressed and just released.
 
-## Action whose just pressed frames are recorded. Empty: none.
+## Action whose just pressed and just released frames are recorded. Empty: none.
 var watched: StringName = &""
 ## `<frame>:<kind>:<detail>` of every input: `touch_down`, `touch_up` and `drag` with the touch index, `key_down` and
 ## `key_up` with the keycode, `text` with the code point, `mouse_down` and `mouse_up` with the button index.
 var inputs: PackedStringArray = PackedStringArray()
 var just_pressed_frames: PackedInt64Array = PackedInt64Array()
+var just_released_frames: PackedInt64Array = PackedInt64Array()
 
 
 func _input(event: InputEvent) -> void:
@@ -31,6 +32,8 @@ func _input(event: InputEvent) -> void:
 func _process(_delta: float) -> void:
 	if watched != &"" and InputCore.is_just_pressed(watched):
 		just_pressed_frames.append(Engine.get_process_frames())
+	if watched != &"" and InputCore.is_just_released(watched):
+		just_released_frames.append(Engine.get_process_frames())
 
 
 ## The frame of the first input `<kind>:<detail>`; -1 when there is none.

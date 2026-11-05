@@ -546,3 +546,94 @@ func test_an_input_in_step_mode_clears_the_budget_it_left() -> void:
 	await run_ok("set_time_scale", PackedStringArray(["1000"]))
 	await run_ok("set_step_mode", PackedStringArray(["off"]))
 	assert_eq(warns(), 0)
+
+
+## `key` and `drag` that still hold their input at the time limit let go of it at the next frame start, put in no other
+## device input and fail when that frame ends. The key and the touch index can be pressed again right after.
+func test_an_input_command_over_its_time_limit_lets_go_and_fails() -> void:
+	assert_true(await start_input())
+	var key: Pending = start_command("key", PackedStringArray(["Space", "1000"]))
+	await UnitTestCore.wait_frames(3)
+	assert_true(InputCore.is_pressed(ADVANCE), "the key holds the action")
+	var key_ends: Array[int] = []
+	key.finished.connect(func() -> void: key_ends.append(Engine.get_process_frames()))
+	var from: int = probe.inputs.size()
+	UnitTestCore.advance_clock(COMMAND_TIMEOUT_MS + 1000, false)
+	await wait_done(key)
+	assert_false(key.result.ok)
+	assert_eq(JSONR.text(key.result.result, ""), "the command went over its time limit")
+	assert_eq(warns(), 1)
+	assert_eq(probe.frames_of("key_up", from), PackedInt64Array(key_ends), "the release goes in, in the frame whose end fails it")
+	assert_false(InputCore.is_pressed(ADVANCE))
+	await UnitTestCore.wait_frames(3)
+	assert_eq(probe.inputs.size() - from, 1, "only the release")
+	await run_ok("key_down", PackedStringArray(["Space"]))
+	await run_ok("key_up", PackedStringArray(["Space"]))
+	var drag_args: PackedStringArray = window_args(100, 400) + window_args(500, 400)
+	drag_args.append("1000")
+	var drag: Pending = start_command("drag", drag_args)
+	await UnitTestCore.wait_frames(3)
+	assert_true(QACore._input.touches.has(0), "the drag holds touch 0")
+	var drag_ends_at: Array[int] = []
+	drag.finished.connect(func() -> void: drag_ends_at.append(Engine.get_process_frames()))
+	from = probe.inputs.size()
+	UnitTestCore.advance_clock(COMMAND_TIMEOUT_MS + 1000, false)
+	await wait_done(drag)
+	assert_false(drag.result.ok)
+	assert_eq(warns(), 1)
+	assert_eq(probe.frames_of("touch_up", from), PackedInt64Array(drag_ends_at),
+		"the release goes in, in the frame whose end fails it")
+	await UnitTestCore.wait_frames(3)
+	# The engine also makes a mouse input of the touch release, so only the touch inputs are counted.
+	assert_eq(probe.count_of("touch_up", from), 1, "the release")
+	assert_eq(probe.count_of("drag", from) + probe.count_of("touch_down", from), 0, "no move to the end position")
+	assert_true(QACore._input.touches.is_empty())
+	await run_ok("touch_down", PackedStringArray(["0"]) + window_args(100, 400))
+	await run_ok("touch_up", PackedStringArray(["0"]))
+	assert_eq(warns(), 0)
+
+
+## In step mode with budget 0 at a time scale too low to use 1 ms in a frame, the release of a `key` over its time limit
+## runs its frame with 1 ms like any device input, and the budget is 0 when the response comes.
+func test_an_input_command_over_its_time_limit_in_step_mode() -> void:
+	assert_true(await start_input())
+	var stopped: PROBE = PROBE.new()
+	stopped.process_mode = Node.PROCESS_MODE_PAUSABLE
+	stopped.watched = ADVANCE
+	add_child_autofree(stopped)
+	probe.process_mode = Node.PROCESS_MODE_ALWAYS
+	await run_ok("set_step_mode", PackedStringArray(["on"]))
+	await run_ok("set_time_scale", PackedStringArray(["50"]))
+	var clock: ClockDriver = ClockDriver.new()
+	add_child_autofree(clock)
+	clock.step_ms = 16
+	await UnitTestCore.wait_frames(2)
+	var key: Pending = start_command("key", PackedStringArray(["Space", "1000"]))
+	for i: int in 10:
+		if probe.count_of("key_down") > 0:
+			break
+		await UnitTestCore.wait_frames(1)
+	assert_eq(probe.count_of("key_down"), 1, "the key is pressed")
+	var ends: Array[int] = []
+	key.finished.connect(func() -> void: ends.append(Engine.get_process_frames()))
+	UnitTestCore.advance_clock(COMMAND_TIMEOUT_MS + 1000, false)
+	await wait_done(key)
+	assert_false(key.result.ok)
+	assert_eq(warns(), 1)
+	var releases: PackedInt64Array = probe.frames_of("key_up")
+	assert_eq(releases, PackedInt64Array(ends), "the release goes in, in the frame whose end fails it")
+	assert_eq(stopped.just_released_frames, releases, "the stopped node sees the action just released in that frame")
+	assert_eq(JSONR.integer(await state(), "step_budget_ms"), 0, "the budget left is 0")
+	clock.step_ms = 0
+	await run_ok("set_time_scale", PackedStringArray(["1000"]))
+	await run_ok("set_step_mode", PackedStringArray(["off"]))
+	assert_eq(warns(), 0)
+
+
+## Waits for `pending` a frame at a time without moving the test clock.
+func wait_done(pending: Pending, frames: int = 20) -> void:
+	for i: int in frames:
+		if pending.done:
+			return
+		await UnitTestCore.wait_frames(1)
+	assert_true(pending.done, "the command ended")

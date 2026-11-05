@@ -12,6 +12,9 @@ const PHASES: PackedStringArray = ["Start", "Move", "End", "Cancel"]
 ## Outbound room the channel test gives the connection: smaller than the big response.
 const OUTBOUND_LIMIT: int = 1024
 
+## Emitted when the test lets `_slow` return.
+signal slow_opened
+
 var server: SERVER = null
 ## `<phase>:<pointer id>` of every `DragEvent`.
 var drags: PackedStringArray = PackedStringArray()
@@ -252,6 +255,33 @@ func test_a_disconnect_ends_the_running_and_waiting_commands() -> void:
 	assert_true(QACore._input.touches.is_empty())
 
 
+## A command that ended by its time limit answers once: the late return of its content command handler and the late
+## end of its `send_cheat` send no second response.
+func test_a_command_ended_by_its_time_limit_answers_once() -> void:
+	if not await start_channel():
+		return
+	assert_true(QACore.register_command("qa.slow", "Waits for the test.", PackedStringArray(), _slow))
+	UnitTestCore.add_pending("core/cheat/SetItemBalance")
+	assert_true(server.send(request(1, "qa.slow")))
+	assert_true(server.send(request(2, "set_item_balance", PackedStringArray(["[gold]", "1"]))))
+	for id: int in [1, 2]:
+		await UnitTestCore.wait_frames(3)
+		await advance(COMMAND_TIMEOUT_MS)
+		assert_true(await pump_until(1 + id))
+		assert_eq(JSONR.integer(server.messages[id], "id"), id)
+		assert_false(JSONR.boolean(server.messages[id], "ok"))
+		assert_eq(JSONR.text(server.messages[id], "result"), "the command went over its time limit")
+	assert_eq(warns(), 2)
+	slow_opened.emit()
+	assert_true(UnitTestCore.release_pending("core/cheat/SetItemBalance", NetworkCore.TransferResult.DONE, 200,
+		ok_bytes()))
+	for i: int in 5:
+		await UnitTestCore.wait_frames(1)
+		server.poll()
+	assert_eq(server.messages.size(), 3, "no second response")
+	assert_eq(warns(), 0)
+
+
 func test_release_disconnects_and_init_connects_again() -> void:
 	if not await start_channel():
 		return
@@ -271,6 +301,11 @@ func _big(_args: PackedStringArray) -> RunCommandResult:
 	result.ok = true
 	result.result = JSON.stringify("x".repeat(OUTBOUND_LIMIT * 2))
 	return result
+
+
+func _slow(_args: PackedStringArray) -> RunCommandResult:
+	await slow_opened
+	return _plain(PackedStringArray())
 
 
 func _plain(_args: PackedStringArray) -> RunCommandResult:
