@@ -3,12 +3,6 @@
   "nextId": 5,
   "items": [
     {
-      "id": "D1",
-      "location": "client/godot/core/unit_test_core/dev/unit_test_core.gd:1540",
-      "problem": "`require_platform` does not end the test, although `open-game-works-core/skills/client-core/modules/unit-test-core.md:228` says that it \"ends that test as skip\". It only sets `skip_reason` and returns, so the test function goes on. Run path: a core test calls `require_platform([\"no_such_platform\"])` and then awaits a signal that never fires. `_on_test_not_returned` then calls `_end_run_early`, which adds a run failure and gives exit code 1, instead of one skip and the next test. The test callers avoid this only with their own guard after the call (e.g. `client/godot/core/unit_test_core/tests/test_page_input.gd:45`, `client/godot/core/auth_core/tests/test_plugin_waits.gd:121`), and no defining document names that guard. `client/godot/core/unit_test_core/tests/resources/sample_platform.gd:7` has only `assert_true(true)` after the call, so no test checks that the rest of the body does not run. This existed before the range.",
-      "foundBy": "UnitTestCore round 1"
-    },
-    {
       "id": "D4",
       "location": "client/godot/core/unit_test_core/dev/unit_test_core.gd:943",
       "problem": "The `## error` row \"a test host request fails\" (`open-game-works-core/skills/client-core/modules/unit-test-core.md:177`, failure value and an error log) has no test for the failure branches of `PUT /result` (line 943), `PUT /released` (line 989) and the `DELETE` of a WebSocket relay at test end (line 1050). Evidence: in a temporary worktree at `716f069`, deleting those three `_host_failure` calls (the last two replaced with `pass`) and running `ogw core test godot UnitTestCore` (whole module) gives `UnitTestCore pass`. No test under `client/godot/core/unit_test_core/tests` calls `_send_result` with a refusing test host, `_send_released` with one (`test_run.gd:441` checks only the success), or ends a test whose relay delete fails (only the server `DELETE` failure is tested, `test_run.gd:113`). These branches existed before the range and were not in input D3",
