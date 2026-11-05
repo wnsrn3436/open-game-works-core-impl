@@ -424,6 +424,61 @@ describe('member rating resolution', () => {
     expect(calls_of(h, 'prepare_match_request').map((x) => x.user_id)).toEqual([a.user_id]);
   });
 
+  it('sends every member ROOM_FAILED ROOM_BUSY when a member leaves and joins again while resolution waits on the first member\'s transaction, so the member list is the same, and creates no match', async () => {
+    const h = await harness({ modes: MODES, hooks: { prepare: () => 0n } });
+    const { members, code } = await room(h, ROOM4.id, 2);
+    const [a, b] = members;
+    if (a === undefined || b === undefined) throw new Error('room');
+    const held = hold_next_transaction(h, 'run_rollback_transaction');
+    send_frame(a.conn, start_frame());
+    await vi.waitFor(() => {
+      expect(held.calls()).toBe(1);
+    });
+    await send_and_wait(b.conn, frame(K.MATCHMAKER_FRAME_KIND_ROOM_LEAVE));
+    expect((await join(code, b)).find((f) => f.kind === K.MATCHMAKER_FRAME_KIND_ROOM_STATE)?.room_members).toEqual([a.user_id, b.user_id]);
+    held.open();
+    const out = await barrier(a.conn);
+    expect(failures(out)).toEqual([[CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_ROOM_START]]);
+    expect(failures(await barrier(b.conn))).toEqual([[CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_ROOM_START]]);
+    expect(out.some((f) => f.kind === K.MATCHMAKER_FRAME_KIND_MATCH_FOUND)).toBe(false);
+    expect(calls_of(h, 'prepare_match_request').map((x) => x.user_id)).toEqual([a.user_id]);
+  });
+
+  it('sends every member ROOM_FAILED ROOM_BUSY when a member reconnects and joins again on the new connection while resolution waits on that member\'s transaction, and a later ROOM_START gives that new connection MATCH_FOUND', async () => {
+    const h = await harness({ modes: MODES, hooks: { prepare: () => 0n } });
+    const { members, code } = await room(h, ROOM4.id, 2);
+    const [a, b] = members;
+    if (a === undefined || b === undefined) throw new Error('room');
+    // The first hold is a's transaction and the second b's.
+    const held_a = hold_next_transaction(h, 'run_rollback_transaction');
+    const held_b = hold_next_transaction(h, 'run_rollback_transaction');
+    send_frame(a.conn, start_frame());
+    await vi.waitFor(() => {
+      expect(held_a.calls()).toBe(1);
+    });
+    held_a.open();
+    await vi.waitFor(() => {
+      expect(held_b.calls()).toBe(2);
+    });
+    const b_conn = await online(h, b.session);
+    expect(await close_code(b.conn)).toBe(CoreError.CORE_ERROR_SESSION_REPLACED);
+    const b_again: Member = { ...b, conn: b_conn };
+    expect((await join(code, b_again)).find((f) => f.kind === K.MATCHMAKER_FRAME_KIND_ROOM_STATE)?.room_members).toEqual([a.user_id, b.user_id]);
+    held_b.open();
+    const out = await barrier(a.conn);
+    expect(failures(out)).toEqual([[CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_ROOM_START]]);
+    expect(failures(await barrier(b_again.conn))).toEqual([[CoreError.CORE_ERROR_ROOM_BUSY, K.MATCHMAKER_FRAME_KIND_ROOM_START]]);
+    expect(out.some((f) => f.kind === K.MATCHMAKER_FRAME_KIND_MATCH_FOUND)).toBe(false);
+    // The room is Open with b on the new connection, so the next ROOM_START seats that connection.
+    const started = await send_and_wait(a.conn, start_frame());
+    const found = started.find((f) => f.kind === K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+    expect(found).toBeDefined();
+    const b_found = await next(b_conn, K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
+    expect(b_found.match_id).toBe(found?.match_id);
+    expect(b_found.my_index).toBe(1);
+    expect(participants(h, found?.match_id ?? '').map((p) => p.disconnected_at)).toEqual([0n, 0n]);
+  });
+
   it('sends every member ROOM_FAILED INTERNAL when a member prepare_match_request transaction is WITHDRAWN', async () => {
     const h = await harness({ modes: MODES, hooks: { prepare: () => 0n } });
     const { members } = await room(h, BOTH.id, 2);

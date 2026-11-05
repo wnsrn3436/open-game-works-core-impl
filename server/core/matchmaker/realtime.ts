@@ -99,6 +99,8 @@ interface Room {
   entry: Entry | null;
   /** A `ROOM_START` of this room is making its match: from member rating resolution until `create_match` ends, also through a host change. */
   making_match: boolean;
+  /** Raised by every join and leave, so a leave and a join of the same user between two reads is a member change. */
+  generation: number;
 }
 
 interface UserSlot {
@@ -286,6 +288,7 @@ export function create_realtime(env: Env, results: Results): Realtime {
     if (room.status === 'Matching' && room.entry !== null) remove_entry(room.entry, false);
     const at = room.members.indexOf(user_id);
     if (at >= 0) room.members.splice(at, 1);
+    room.generation += 1;
     slot.room = null;
     if (room.members.length === 0) rooms.delete(room.code);
     else send_room_state(room);
@@ -510,21 +513,23 @@ export function create_realtime(env: Env, results: Results): Realtime {
     return true;
   };
 
-  /** True when the room still exists, `Open`, with the same members in the same order. */
-  const room_unchanged = (room: Room, ids: readonly bigint[]): boolean =>
-    rooms.get(room.code) === room && room.status === 'Open' && room.members.length === ids.length && room.members.every((id, i) => id === ids[i]);
+  /** True when the room still exists, `Open`, with no join or leave since `generation` was read. */
+  const room_unchanged = (room: Room, generation: number): boolean => rooms.get(room.code) === room && room.status === 'Open' && room.generation === generation;
 
   /**
    * `prepare_match_request` of each member in room order: the members, or the failure code of the first failure.
-   * A member change while a transaction is awaited is `ROOM_BUSY`, before any failure of that member.
+   * A member change while a transaction is awaited is `ROOM_BUSY`, before any failure of that member. A member's
+   * connection is read after its transaction, the connection it is a member on then.
    */
-  const prepare_members = async (room: Room, ids: readonly bigint[], mode: GameData.MatchModeRow): Promise<Member[] | number> => {
+  const prepare_members = async (room: Room, mode: GameData.MatchModeRow): Promise<Member[] | number> => {
+    const ids = [...room.members];
+    const generation = room.generation;
     const members: Member[] = [];
     for (const id of ids) {
-      const client = client_of(id);
-      if (client === null || !room_unchanged(room, ids)) return CoreError.CORE_ERROR_ROOM_BUSY;
+      if (!room_unchanged(room, generation)) return CoreError.CORE_ERROR_ROOM_BUSY;
       const prepared = await prepare(id, mode, ids);
-      if (!room_unchanged(room, ids)) return CoreError.CORE_ERROR_ROOM_BUSY;
+      const client = client_of(id);
+      if (client === null || !room_unchanged(room, generation)) return CoreError.CORE_ERROR_ROOM_BUSY;
       if (prepared.kind === 'game_error') return prepared.code;
       if (prepared.kind === 'failed') return CoreError.CORE_ERROR_INTERNAL;
       members.push({ user_id: id, rating: prepared.rating, blocked: new Set(prepared.blocked), client });
@@ -558,7 +563,7 @@ export function create_realtime(env: Env, results: Results): Realtime {
    */
   const resolve_members = async (room: Room, mode: GameData.MatchModeRow, request: CoreContract.MatchmakerFrameKind): Promise<Member[] | null> => {
     if (refuse_banned(room, request)) return null;
-    const members = await prepare_members(room, [...room.members], mode);
+    const members = await prepare_members(room, mode);
     const failure = typeof members === 'number' ? members : party_failure(mode, members, request);
     if (failure !== null || typeof members === 'number') {
       fail_room(room, failure ?? CoreError.CORE_ERROR_INTERNAL, request);
@@ -664,6 +669,7 @@ export function create_realtime(env: Env, results: Results): Realtime {
       client_version: client.client_version,
       entry: null,
       making_match: false,
+      generation: 0,
     };
     rooms.set(room.code, room);
     slot.room = room;
@@ -691,6 +697,7 @@ export function create_realtime(env: Env, results: Results): Realtime {
       return;
     }
     room.members.push(client.user_id);
+    room.generation += 1;
     slot.room = room;
     send_room_state(room);
   };
