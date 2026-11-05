@@ -4,6 +4,7 @@ extends "res://core/payment_core/tests/support/payment_test_case.gd"
 
 const HoldingFinish := preload("res://core/payment_core/tests/support/holding_finish_store_adapter.gd")
 const HoldingBuy := preload("res://core/payment_core/tests/support/holding_buy_store_adapter.gd")
+const Hanging := preload("res://core/payment_core/tests/support/hanging_store_adapter.gd")
 
 
 func test_purchase_checks_buys_with_the_account_token_and_verifies_in_order() -> void:
@@ -175,6 +176,80 @@ func test_login_session_change_during_verify_purchase_rejects_without_finish() -
 	assert_eq(fake.count_calls("finish"), 0)
 	assert_eq(PaymentCore._finished.size(), 0)
 	assert_eq(recovered.size(), 0)
+
+
+func test_login_session_change_during_a_held_fake_buy_rejects_and_a_later_recovery_verifies_it() -> void:
+	assert_true(await start())
+	var gems: int = id_of("[iap_gems]")
+	respond_check()
+	PaymentCoreDev.fake_hold_buy(true)
+	var running: Purchase = start_purchase(gems)
+	await settle()
+	assert_eq(fake.transactions.size(), 1, "the held buy made its transaction")
+	assert_false(running.done)
+	assert_true(await log_in(USER_ID + 1))
+	PaymentCoreDev.fake_hold_buy(false)
+	assert_eq(await wait_purchase(running), PaymentCore.PurchaseResult.REJECTED)
+	assert_eq(request_count(VERIFY), 0)
+	assert_eq(fake.count_calls("finish"), 0)
+	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 0)
+	assert_eq(UnitTestCore.check_logs("warn", "PaymentCore"), 0)
+	respond_recover(CoreContract.PurchaseStatus.PURCHASE_STATUS_GRANTED, gems)
+	assert_true((await PaymentCore.recover_purchases()).ok)
+	assert_eq(request_count(RECOVER), 1, "one RecoverPurchase for the transaction of the rejected purchase")
+	assert_eq(recovered_receipt(0), fake.transactions[0].receipt.data)
+	assert_eq(fake.count_calls("finish"), 1)
+
+
+func test_login_session_change_during_verify_purchase_rejects_invalid_and_other_user_without_finish_or_log() -> void:
+	assert_true(await start())
+	var gems: int = id_of("[iap_gems]")
+	var statuses: Array[CoreContract.PurchaseStatus] = [
+		CoreContract.PurchaseStatus.PURCHASE_STATUS_INVALID,
+		CoreContract.PurchaseStatus.PURCHASE_STATUS_OTHER_USER,
+	]
+	for i: int in statuses.size():
+		var label: String = "status %d" % statuses[i]
+		respond_check()
+		UnitTestCore.add_pending(VERIFY)
+		var running: Purchase = start_purchase(gems)
+		await settle()
+		assert_eq(request_count(VERIFY), i + 1, label)
+		assert_true(await log_in(USER_ID + 1 + i), label)
+		assert_true(UnitTestCore.release_pending(
+			VERIFY, NetworkCore.TransferResult.DONE, 200, envelope(verify_response(statuses[i], gems))
+		), label)
+		assert_eq(await wait_purchase(running), PaymentCore.PurchaseResult.REJECTED, label)
+	assert_eq(fake.count_calls("finish"), 0)
+	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 0)
+	assert_eq(UnitTestCore.check_logs("warn", "PaymentCore"), 0)
+
+
+func test_login_session_change_during_prepare_rejects_without_check_purchase() -> void:
+	var hanging: Hanging = Hanging.new(CoreContract.IapStore.IAP_STORE_APPLE)
+	assert_true(await start_with(hanging))
+	var gems: int = id_of("[iap_gems]")
+	var running: Purchase = start_purchase(gems)
+	await settle()
+	assert_eq(hanging.count_calls("connect"), 1, "connect waits")
+	assert_false(running.done)
+	assert_true(await log_in(USER_ID + 1))
+	hanging.release_hang()
+	assert_eq(await wait_purchase(running), PaymentCore.PurchaseResult.REJECTED, "prepare succeeded")
+	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 0)
+	# A failed `prepare` that ends after the login session ended is `Rejected`, not `StoreFailed`.
+	hanging.notify_disconnected()
+	hanging.hang = true
+	PaymentCoreDev.fake_set_fail("connect", true)
+	running = start_purchase(gems)
+	await settle()
+	assert_eq(hanging.count_calls("connect"), 2, "connect waits")
+	assert_true(await log_in(USER_ID + 2))
+	hanging.release_hang()
+	assert_eq(await wait_purchase(running), PaymentCore.PurchaseResult.REJECTED, "prepare failed")
+	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 1, "the connect failure of prepare")
+	assert_eq(request_count(CHECK), 0)
+	assert_eq(hanging.count_calls("buy"), 0)
 
 
 func test_verify_failure_is_delivery_pending_and_the_retry_verifies_and_finishes() -> void:

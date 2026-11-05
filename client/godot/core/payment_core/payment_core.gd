@@ -46,7 +46,8 @@ static var _store: CoreContract.IapStore = CoreContract.IapStore.IAP_STORE_UNSPE
 static var _is_ready: bool = false
 ## Count of connection loss notifications. A `prepare` that sees it change while running fails.
 static var _disconnects: int = 0
-## Running `prepare`, `recover_purchases` and `restore_purchases` that later calls share. `null`: none runs.
+## Running `prepare`, and `recover_purchases` and `restore_purchases` of the login session, that later calls share.
+## `null`: none runs. A change of the login session lets go of the last two: the next call starts its own run.
 static var _prepare_wait: _WAIT = null
 static var _recover_wait: _WAIT = null
 static var _restore_wait: _WAIT = null
@@ -61,8 +62,8 @@ static var _purchasing: bool = false
 static var _buying_sku: String = ""
 ## Transaction key of the receipt the running `purchase` verifies. Empty when there is none.
 static var _purchase_key: String = ""
-## Transaction keys whose transaction processing runs.
-static var _in_flight: Dictionary[String, bool] = {}
+## Transaction keys whose transaction processing runs, started in the login session, → `_login_epoch` at the start.
+static var _in_flight: Dictionary[String, int] = {}
 ## `finish` success list of the login session: transaction keys.
 static var _finished: Dictionary[String, bool] = {}
 static var _recover_called: bool = false
@@ -385,7 +386,7 @@ static func _run_purchase(product: GameData.IapProductRow, sku: String) -> Purch
 	var epoch: int = _login_epoch
 	if _needs_guest_warning():
 		var choice: _GUEST_CHOICE.Choice = await _guest_warning()
-		if life != _life:
+		if life != _life or epoch != _login_epoch:
 			return PurchaseResult.REJECTED
 		match choice:
 			_GUEST_CHOICE.Choice.LINK:
@@ -396,7 +397,7 @@ static func _run_purchase(product: GameData.IapProductRow, sku: String) -> Purch
 				return PurchaseResult.REJECTED
 	if not _is_ready:
 		var prepared: bool = await _prepare()
-		if life != _life:
+		if life != _life or epoch != _login_epoch:
 			return PurchaseResult.REJECTED
 		if not prepared:
 			return PurchaseResult.STORE_FAILED
@@ -536,7 +537,8 @@ static func recover_purchases() -> RecoverPurchasesResult:
 	if life != _life:
 		wait.finish(false)
 		return RecoverPurchasesResult.new()
-	_recover_wait = null
+	if _recover_wait == wait:
+		_recover_wait = null
 	var same_session: bool = epoch == _login_epoch
 	if same_session:
 		wait.finish(ok, summary)
@@ -581,7 +583,8 @@ static func _recover_result(wait: _WAIT) -> RecoverPurchasesResult:
 ## subscription sync. Whether `prepare` and `list_unfinished` succeeded.
 static func _run_recovery(summary: RecoverySummary, epoch: int) -> bool:
 	var life: RefCounted = _life
-	if not await _prepare() or life != _life:
+	var prepared: bool = await _prepare()
+	if not prepared or life != _life or epoch != _login_epoch:
 		return false
 	var adapter: StoreAdapter = _adapter
 	var listed: _WAIT = await _await_job(
@@ -612,7 +615,8 @@ static func _restore() -> _WAIT:
 	if life != _life:
 		wait.finish(false)
 		return wait
-	_restore_wait = null
+	if _restore_wait == wait:
+		_restore_wait = null
 	if epoch == _login_epoch:
 		wait.finish(ok, summary)
 	else:
@@ -622,7 +626,8 @@ static func _restore() -> _WAIT:
 
 static func _run_restore(summary: RecoverySummary, epoch: int) -> bool:
 	var life: RefCounted = _life
-	if not await _prepare() or life != _life:
+	var prepared: bool = await _prepare()
+	if not prepared or life != _life or epoch != _login_epoch:
 		return false
 	var adapter: StoreAdapter = _adapter
 	var listed: _WAIT = await _await_job(
@@ -645,6 +650,8 @@ static func _process_all(receipts: Array[StoreAdapter.Receipt], summary: Recover
 		var processed: _OUTCOME.Processed = await _process_transaction(receipt, summary, epoch)
 		if life != _life or processed == _OUTCOME.Processed.DISCARDED:
 			return false
+	if epoch != _login_epoch:
+		return false
 	if UserStateCore.count(CoreContract.SubscriptionUserState) > 0:
 		var synced: _REQUEST = _REQUEST.new()
 		synced.handles_all = true
@@ -666,7 +673,7 @@ static func _process_transaction(receipt: StoreAdapter.Receipt, summary: Recover
 		return _OUTCOME.Processed.SKIPPED
 	var life: RefCounted = _life
 	var product: GameData.IapProductRow = GameData.IapProductTable.get_row(_sku_products[receipt.sku])
-	_in_flight[key] = true
+	_in_flight[key] = epoch
 	var request: CoreContract.RecoverPurchaseRequest = CoreContract.RecoverPurchaseRequest.new()
 	request.store = _store
 	request.receipt = receipt.data
@@ -678,7 +685,6 @@ static func _process_transaction(receipt: StoreAdapter.Receipt, summary: Recover
 	if life != _life:
 		return _OUTCOME.Processed.DISCARDED
 	if epoch != _login_epoch:
-		_in_flight.erase(key)
 		return _OUTCOME.Processed.DISCARDED
 	var verify: _OUTCOME.Verify = _verify_of(recovered)
 	_count(summary, verify)
@@ -694,10 +700,10 @@ static func _process_transaction(receipt: StoreAdapter.Receipt, summary: Recover
 		_OUTCOME.Verify.INVALID:
 			LogCore.log_error(_TAG, "recovery: verify result Invalid for %s" % _describe(receipt))
 			await _finish_transaction(receipt, product.type, epoch)
-	if life != _life:
+	if life != _life or epoch != _login_epoch:
 		return _OUTCOME.Processed.DISCARDED
 	_in_flight.erase(key)
-	return _OUTCOME.Processed.COUNTED if epoch == _login_epoch else _OUTCOME.Processed.DISCARDED
+	return _OUTCOME.Processed.COUNTED
 
 
 static func _is_in_flight(receipt: StoreAdapter.Receipt, key: String) -> bool:
@@ -790,6 +796,11 @@ static func _on_login_session_changed() -> void:
 	_login_epoch += 1
 	_finished = {}
 	_google_restored = false
+	# The runs of the ended login session go on alone: their transactions are no longer in flight, and the next
+	# `recover_purchases` and `restore_purchases` start their own runs.
+	_in_flight = {}
+	_recover_wait = null
+	_restore_wait = null
 
 
 # --- subscription, pass and ownership ---

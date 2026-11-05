@@ -65,6 +65,29 @@ func test_continue_button_goes_on_with_the_purchase() -> void:
 	assert_eq(fake.count_calls("buy"), 1)
 
 
+func test_login_session_change_during_the_guest_warning_rejects_every_choice_without_prepare_or_check() -> void:
+	var running: Purchase = await _start_guest_purchase()
+	var gems: int = id_of("[iap_gems]")
+	var buttons: PackedStringArray = [
+		ReservedString.payment_guest_continue(),
+		ReservedString.payment_guest_link(),
+		ReservedString.payment_guest_cancel(),
+	]
+	for i: int in buttons.size():
+		var label: String = buttons[i]
+		if i > 0:
+			running = start_purchase(gems)
+			await settle()
+		assert_true(UICore.is_system_popup_visible(), label + ": the guest warning popup is open")
+		assert_true(await log_in(USER_ID + 1 + i, false), label)
+		assert_true(await press(buttons[i]), label)
+		assert_eq(await wait_purchase(running), PaymentCore.PurchaseResult.REJECTED, label)
+	assert_eq(request_count(CHECK), 0)
+	assert_eq(fake.count_calls("connect"), 0, "no prepare")
+	assert_eq(fake.count_calls("buy"), 0)
+	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 0)
+
+
 func test_guest_warning_that_does_not_open_is_rejected_without_check_or_buy() -> void:
 	assert_true(start_modules())
 	assert_true(await prepare_modules(false))
