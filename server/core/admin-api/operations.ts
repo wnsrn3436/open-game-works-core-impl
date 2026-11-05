@@ -224,8 +224,8 @@ function item_operations(c: OperationContext): OwnOperation[] {
 /** `send_mail`, `broadcast_mail`, `cancel_broadcast`. */
 function mail_operations(c: OperationContext): OwnOperation[] {
   const { mailbox } = c.modules;
-  // `json` values keep integers past 2^53 as `bigint`; the mail input JSON takes them as decimal strings.
-  const mail_of = (value: unknown) => mailbox.mail_input_from_json(output_json(value));
+  // `json` values keep integers past 2^53 as `bigint`, which `mail_input_from_json` takes as JSON integers.
+  const mail_of = (value: unknown) => mailbox.mail_input_from_json(value);
 
   return [
     {
