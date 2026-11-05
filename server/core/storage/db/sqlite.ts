@@ -41,8 +41,12 @@ function db_error(error: unknown): DbError {
   return new DbError('sql', String(errcode), message);
 }
 
+/** The SQLSTATE PostgreSQL gives a text parameter that holds U+0000; SQLite fails such a statement the same way. */
+const NUL_IN_TEXT = '22021';
+
 function param(value: DbValue): SQLInputValue {
   if (typeof value === 'boolean') return value ? 1 : 0;
+  if (typeof value === 'string' && value.includes('\u0000')) throw new DbError('sql', NUL_IN_TEXT, 'a string parameter holds U+0000');
   return value;
 }
 

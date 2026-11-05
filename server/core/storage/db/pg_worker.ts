@@ -9,9 +9,12 @@
  * user lock, a row lock, the statement of an `autocommit`) ends with the connection wait within the limit, and the run
  * of a statement past its lock wait does not count against it.
  *
- * Every connect and statement has an answer limit: past it the connection is closed and the call fails as a connection
- * failure, so a PostgreSQL that does not answer (a network partition) does not hold the main thread. A connection that
- * failed or closed is dropped, and the read connection is opened again on its next statement.
+ * PostgreSQL aborts a statement (`statement_timeout`) the answer wait after its lock wait limit. Every connect and
+ * statement has an answer limit, the answer wait past that abort time: past it the connection is closed and the call
+ * fails as a connection failure, so a PostgreSQL that does not answer (a network partition) does not hold the main
+ * thread. A connection that failed or that PostgreSQL ended is not used again: the read connection is opened again on
+ * its next statement, and a statement that met that end on a read connection opened before it runs once more on a new
+ * one.
  *
  * Fail fast (`storage` `### DB adapter`): once a connect or statement went over its answer limit, every statement,
  * `BEGIN` and connect fails at once as a connection failure, until a connect in the background succeeds. Each
@@ -24,6 +27,7 @@
 import { workerData } from 'node:worker_threads';
 import { network_time_limit } from '../../server-time/network_time_limit.ts';
 import {
+  abort_after_ms,
   NO_FREE_CONNECTION,
   READ_CONN,
   ROLLED_BACK_AT_COMMIT,
@@ -36,7 +40,7 @@ import {
   type WorkerRequest,
   type WorkerResult,
 } from './pg_messages.ts';
-import { PgConnection, PgError, tag_count, type PgResult, type PgValue } from './pg_protocol.ts';
+import { PgConnection, PgError, tag_count, type PgResult, type PgRow, type PgValue } from './pg_protocol.ts';
 import { TimedQueue } from './timed_queue.ts';
 
 const input = workerData as WorkerInput;
@@ -72,9 +76,20 @@ const committing = new Set<Promise<void>>();
 /** Why PostgreSQL is taken as not answering (fail fast), or null while it answers. */
 let unanswered: string | null = null;
 
-/** The `SET` of `lock_timeout` to `ms`, for the transaction (`LOCAL`) or the session (`SESSION`). */
-function lock_timeout(scope: 'LOCAL' | 'SESSION', ms: number): string {
-  return `SET ${scope} lock_timeout = '${String(ms_limit(ms))}ms'`;
+/**
+ * The statement that sets `lock_timeout` to the lock wait limit `wait_ms` and `statement_timeout` to the abort time
+ * past it, for the transaction (`local`) or the session.
+ */
+function timeouts(wait_ms: number, answer_wait_ms: number, local: boolean): { sql: string; params: PgValue[] } {
+  return {
+    sql: `SELECT set_config('lock_timeout', $1, ${String(local)}) AS lock_timeout, set_config('statement_timeout', $2, ${String(local)}) AS statement_timeout`,
+    params: [`${String(ms_limit(wait_ms))}ms`, `${String(ms_limit(abort_after_ms(limits, wait_ms, answer_wait_ms)))}ms`],
+  };
+}
+
+/** True for the failure of a connection: a DB connection failure, or PostgreSQL ending the connection. */
+function connection_ended(error: unknown): boolean {
+  return error instanceof PgError && (error.code === 'CONN' || error.code.startsWith('08') || error.code.startsWith('57P'));
 }
 
 function ms_limit(ms: number): bigint {
@@ -284,7 +299,7 @@ async function open_tx(lock_wait_ms: number, answer_wait_ms: number, first: { sq
     waited = taken.waited;
     // What the wait for the connection left of the lock wait: the lock wait limit of each of the transaction's locks.
     const wait_ms = waited === null ? lock_wait_ms : waited.left_ms();
-    if (wait_ms < 1) {
+    if (waited !== null && wait_ms < 1) {
       release(conn);
       throw new PgError(NO_FREE_CONNECTION, 'the wait for a free PostgreSQL connection left nothing of the lock wait');
     }
@@ -297,12 +312,13 @@ async function open_tx(lock_wait_ms: number, answer_wait_ms: number, first: { sq
     } catch (error) {
       conns.delete(id);
       discard(conn);
-      // A pooled connection the server closed while it was idle: take another one.
-      if (!fresh && error instanceof PgError && error.code === 'CONN') continue;
+      // A pooled connection that failed or that PostgreSQL ended while it was idle: take another one.
+      if (!fresh && connection_ended(error)) continue;
       throw error;
     }
     try {
-      await statement(open, lock_timeout('LOCAL', wait_ms));
+      const limits_of = timeouts(wait_ms, answer_wait_ms, true);
+      await statement(open, limits_of.sql, limits_of.params);
       if (first === null) return { id, first: { rows: [], tag: '' } };
       return { id, first: await statement(open, first.sql, first.params) };
     } catch (error) {
@@ -366,13 +382,14 @@ async function autocommit(lock_wait_ms: number, sql: string, params: readonly Pg
 
 /**
  * The read connection: a read-only session whose `lock_timeout` is `read_wait_ms`, so a read's lock wait ends there as
- * a lock failure and only the answer past it counts against the answer wait.
+ * a lock failure, and whose `statement_timeout` is the abort time past it.
  */
 async function open_read(): Promise<PgConnection> {
   const conn = await connect();
+  const session = timeouts(limits.read_wait_ms, limits.answer_wait_ms, false);
   try {
     await within(conn, answer_limit_ms(limits.read_wait_ms), () => conn.query('SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY'));
-    await within(conn, answer_limit_ms(limits.read_wait_ms), () => conn.query(lock_timeout('SESSION', limits.read_wait_ms)));
+    await within(conn, answer_limit_ms(limits.read_wait_ms), () => conn.query(session.sql, session.params));
   } catch (error) {
     conn.close();
     throw error;
@@ -394,11 +411,27 @@ async function read_conn(): Promise<PgConnection> {
   return conn;
 }
 
-async function query(id: number, sql: string, params: readonly PgValue[]): Promise<WorkerResult> {
-  if (id !== READ_CONN) return { ok: true, conn: id, rows: (await statement(open_of(id), sql, params)).rows, count: 0 };
+/** One statement on the read connection within its answer limit; while failing fast it rejects at once. */
+async function read_statement(sql: string, params: readonly PgValue[]): Promise<PgRow[]> {
   answering();
   const conn = await read_conn();
-  const rows = await within(conn, answer_limit_ms(limits.read_wait_ms), () => conn.query(sql, params));
+  return await within(conn, answer_limit_ms(limits.read_wait_ms), () => conn.query(sql, params));
+}
+
+/**
+ * A statement of a transaction, or of the read connection. A read that met a connection failure, or PostgreSQL ending
+ * the connection, on a read connection that was open before it runs once more on a new connection.
+ */
+async function query(id: number, sql: string, params: readonly PgValue[]): Promise<WorkerResult> {
+  if (id !== READ_CONN) return { ok: true, conn: id, rows: (await statement(open_of(id), sql, params)).rows, count: 0 };
+  const opened_before = read !== null && !read.failed;
+  let rows: PgRow[];
+  try {
+    rows = await read_statement(sql, params);
+  } catch (error) {
+    if (!opened_before || !connection_ended(error)) throw error;
+    rows = await read_statement(sql, params);
+  }
   return { ok: true, conn: id, rows, count: 0 };
 }
 

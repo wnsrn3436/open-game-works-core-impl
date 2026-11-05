@@ -4,7 +4,7 @@
  */
 import { network_time_limit } from '../server-time/network_time_limit.ts';
 import { is_db_failure, type DbError, type DbValue, type Dialect, type Row } from './db/types.ts';
-import { adapter_of, any_state_of, big, bytes, DbHandle, q, StorageMisuse, user_state_of, writable, type StorageCore, type TxState } from './core.ts';
+import { adapter_of, any_state_of, ascending_ids, big, bytes, DbHandle, in_id_list, q, StorageMisuse, user_state_of, writable, type StorageCore, type TxState } from './core.ts';
 import { ConversionFailed, read_value } from './state.ts';
 import { from_json_value, json_value, quote, type TableDef } from './schema.ts';
 import { delete_item, write_item } from './state.ts';
@@ -24,6 +24,12 @@ export interface UserRecord {
   readonly public_code: string;
   readonly created_at: bigint;
   readonly withdrawn_at: bigint | null;
+}
+
+/** An element of the `get_user_records` output. */
+export interface UserRecordEntry {
+  readonly user_id: bigint;
+  readonly record: UserRecord;
 }
 
 const STATE_TABLES = ['server_state', 'user_state'] as const;
@@ -83,11 +89,26 @@ export function delete_user(core: StorageCore, ctx: unknown): void {
   state.item_mails = [];
 }
 
+function user_record(row: Row): UserRecord {
+  return { public_code: typeof row.public_code === 'string' ? row.public_code : '', created_at: big(row.created_at), withdrawn_at: row.withdrawn_at === null ? null : big(row.withdrawn_at) };
+}
+
 export function get_user_record(db: unknown, user_id: unknown): UserRecord | null {
   if (typeof user_id !== 'bigint') throw new StorageMisuse('storage: the user ID is not a bigint');
   const row = handle(db).query('SELECT public_code, created_at, withdrawn_at FROM "user" WHERE user_id = $1', [user_id])[0];
-  if (row === undefined) return null;
-  return { public_code: typeof row.public_code === 'string' ? row.public_code : '', created_at: big(row.created_at), withdrawn_at: row.withdrawn_at === null ? null : big(row.withdrawn_at) };
+  return row === undefined ? null : user_record(row);
+}
+
+/** `get_user_records`: the `get_user_record` output of each listed user that has a `user` row, read with one query. */
+export function get_user_records(core: StorageCore, db: unknown, user_ids: unknown): UserRecordEntry[] {
+  const db_handle = handle(db);
+  if (!Array.isArray(user_ids) || !(user_ids as unknown[]).every((id) => typeof id === 'bigint')) throw new StorageMisuse('storage: get_user_records user IDs are not a list of bigints');
+  const ids = ascending_ids(user_ids as bigint[]);
+  if (ids.length === 0) return [];
+  const list = in_id_list(core, 'user_id', ids, 1);
+  return db_handle
+    .query(`SELECT user_id, public_code, created_at, withdrawn_at FROM "user" WHERE ${list.sql} ORDER BY user_id`, [list.param])
+    .map((row) => ({ user_id: big(row.user_id), record: user_record(row) }));
 }
 
 /** The user ID of the row whose public code is the code of that public code input (a withdrawn user's included). */

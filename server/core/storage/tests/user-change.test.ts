@@ -379,6 +379,45 @@ describe('user change', () => {
     await settle();
   });
 
+  it.runIf(DB_KIND === 'postgresql')(
+    'PostgreSQL: a run that left out a row throws the error naming it also when the phase read of a later row fails, and that later row is not left out',
+    async () => {
+      const log = new_log();
+      const { db, storage } = await instance({ settings: { 'storage.userLockWaitMs': 300, 'storage.dbAnswerWaitMs': 3000 }, register: gift(log, { apply: 'reject' }) });
+      const sender = await new_user(storage);
+      const target = await new_user(storage);
+      const holder = await lock_holder(db);
+      // Moving row 1 to phase fail throws after a second, while the other session queues for a lock of the whole table.
+      await holder.ok(`CREATE FUNCTION stop_update() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_sleep(1); RAISE EXCEPTION 'stop'; END $$`);
+      await holder.ok('CREATE TRIGGER stop_update BEFORE UPDATE ON user_change FOR EACH ROW WHEN (OLD.change_id = 1) EXECUTE FUNCTION stop_update()');
+      const hold = gate();
+      await request(storage, sender, (ctx) => {
+        storage.after_commit(ctx, () => hold.promise);
+        storage.send_user_change(ctx, target, 'gift', Uint8Array.from([1]));
+        storage.send_user_change(ctx, target, 'gift', Uint8Array.from([2]));
+      });
+      await holder.ok('BEGIN');
+      // Granted when the transaction of row 1 rolls back, so the phase read of row 2 waits past its lock wait limit.
+      const locked = holder.run('LOCK TABLE user_change IN ACCESS EXCLUSIVE MODE', [], 300);
+      const first = await storage.run_user_changes().then(
+        () => null,
+        (error: unknown) => error,
+      );
+      expect(await locked).toEqual({ ok: true, rows: [] });
+      await holder.ok('ROLLBACK');
+      expect(first).toBeInstanceOf(Error);
+      expect((first as Error).message).toContain('change_id 1 ');
+      expect(log.failed).toEqual([]);
+      // Row 2 is selected and processed by the next run; row 1 stays left out.
+      expect(await storage.run_user_changes()).toBe(1);
+      expect(log.failed.map((f) => f.failure)).toEqual([{ reason: 'rejected', code: GAME_ERROR }]);
+      expect(change_rows(storage).map((r) => [r.change_id, r.phase])).toEqual([[1n, 'apply']]);
+      hold.open();
+      await storage.wait_after_commit();
+      await settle();
+    },
+  );
+
   it('with a cheat time offset the row is due at clock_now, and after a FAILED apply at clock_now plus the first retry interval', async () => {
     const log = new_log();
     const initial = BigInt(Number(core_settings()['storage.userChangeRetryInitialMs']));

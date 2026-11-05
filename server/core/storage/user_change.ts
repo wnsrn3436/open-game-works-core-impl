@@ -223,8 +223,16 @@ async function retry(core: StorageCore, row: ChangeRow): Promise<'fail' | 'end'>
   return 'end';
 }
 
+/** A failed read of a selected row's `phase` on the `read_db` handle: the run is `FAILED`, and the row is not left out. */
+class PhaseReadFailed extends Error {}
+
 function read_row(core: StorageCore, change_id: bigint): ChangeRow | null {
-  const row = adapter_of(core).read.query(`SELECT ${COLUMNS} FROM user_change WHERE change_id = $1`, [change_id])[0];
+  let row;
+  try {
+    row = adapter_of(core).read.query(`SELECT ${COLUMNS} FROM user_change WHERE change_id = $1`, [change_id])[0];
+  } catch (error) {
+    throw new PhaseReadFailed(`storage: the read of user change change_id ${String(change_id)} failed`, { cause: error });
+  }
   return row === undefined ? null : change_row(row);
 }
 
@@ -268,21 +276,20 @@ export async function run_user_changes(core: StorageCore): Promise<number | 'FAI
       `SELECT change_id FROM user_change WHERE next_attempt_at <= $1 AND name IN (${names.map((_, i) => `$${String(i + 3)}`).join(', ')})${skip} ORDER BY next_attempt_at, change_id LIMIT $2`,
       [core.time.clock_now(), core.settings.user_change_batch_size, ...names, ...skipped],
     );
-  } catch (error) {
-    if (is_db_failure(error)) return 'FAILED';
-    throw error;
+  } catch {
+    return 'FAILED';
   }
-  // A DB failure past the first read (a `read_row` on a lost read connection) ends the run as `FAILED`. Any other
-  // throw of one row is outside the apply and fail functions, which run inside transactions that catch their throws:
-  // the row is left out of later runs, the rows after it still run, and one error naming every such row is thrown
-  // after the batch.
+  // A failed `phase` read of a selected row ends the run as `FAILED`, and that row is not left out. Any other throw of
+  // one row is outside the apply and fail functions, which run inside transactions that catch their throws: the row is
+  // left out of later runs, the rows after it still run, and one error naming every such row is thrown after the run,
+  // also when a later `phase` read failed.
   const outcome: { failed: boolean; thrown: { change_id: bigint; error: unknown }[] } = { failed: false, thrown: [] };
   for (const row of rows) {
     const change_id = big(row.change_id);
     await track(
       core,
       process_row(core, change_id).catch((error: unknown) => {
-        if (is_db_failure(error)) outcome.failed = true;
+        if (error instanceof PhaseReadFailed) outcome.failed = true;
         else {
           core.skipped_changes.add(change_id);
           outcome.thrown.push({ change_id, error });

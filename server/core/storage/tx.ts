@@ -297,6 +297,11 @@ export function run_savepoint(core: StorageCore, ctx: unknown, fn: () => Pass | 
     state.unmark(false);
     throw error;
   }
+  if (state.broken) {
+    // An aborted transaction keeps its abort: no revert and no release, and the operation that opened it is `FAILED`.
+    state.unmark(false);
+    throw new DbError('lock', 'broken', 'storage: the transaction has failed inside run_savepoint');
+  }
   if (result === 'pass') {
     state.unmark(false);
     q(state, `RELEASE SAVEPOINT ${name}`);
@@ -387,10 +392,11 @@ export function row_lock_key(core: Pick<StorageCore, 'kinds'>, table: string, ke
 
 /** Locks the row `(table, values)` until the transaction ends; `FAILED` on a lock wait over the limit or a deadlock. */
 export function lock_row(state: TxState, table: string, values: readonly unknown[]): 'FAILED' | undefined {
+  // An aborted transaction makes every later lock `FAILED`, also of a row it locked before the abort.
+  if (state.broken) return 'FAILED';
   const id = lock_key(table, values);
   if (state.locked.has(id)) return undefined;
   try {
-    if (state.broken) throw new DbError('lock', 'broken', 'storage: the transaction has failed');
     state.conn.lock_key(id);
   } catch (error) {
     mark_broken(state, error);

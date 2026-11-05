@@ -51,8 +51,8 @@ async function pg_proxy(target: DbTarget): Promise<{ db: DbTarget; freeze(): Pro
 const FAULT_WORKER = new URL('./pg_fault_worker.ts', import.meta.url);
 // A connect under the load of a parallel test run takes over a second: the answer wait leaves room for it.
 const FAULT_LIMITS = { max_connections: 2, read_wait_ms: 300, answer_wait_ms: 2000, keepalive_ms: 2000 };
-/** `answer_bound_ms` of `FAULT_LIMITS` for `read_wait_ms`, plus one `answer_wait_ms`. */
-const FAULT_BOUND_MS = 4 * (300 + 2000) + 2000;
+/** `answer_bound_ms` of `FAULT_LIMITS` for `read_wait_ms` (five steps of its abort time plus one answer wait), plus one `answer_wait_ms`. */
+const FAULT_BOUND_MS = 5 * (300 + 2000 + 2000) + 2000;
 
 /** A PostgreSQL adapter whose worker runs `pg_fault_worker.ts`. */
 async function fault_adapter(): Promise<PostgresAdapter> {
@@ -300,7 +300,8 @@ describe('DB adapter', () => {
       const started = performance.now();
       const error = thrown(() => storage.read_db().query('SELECT 1 AS one'));
       expect(kind_of(error)).toBe('connection');
-      expect(performance.now() - started).toBeLessThan(300 + answer_wait + 1000);
+      // The abort time of the read (its lock wait limit plus the answer wait), then the answer wait for its answer.
+      expect(performance.now() - started).toBeLessThan(300 + 2 * answer_wait + 1000);
       const failed_at = performance.now();
       expect(await request(storage, user, () => 'ran')).toBe('FAILED');
       // Fail fast: the transaction does not wait for PostgreSQL.
@@ -381,7 +382,7 @@ describe('DB adapter', () => {
   );
 
   it.runIf(DB_KIND === 'postgresql')(
-    'PostgreSQL: after a statement went over its lock wait plus the answer wait, reads, transaction statements, begin and autocommit fail at once as connection failures, so the event loop stalls for one answer wait in all',
+    'PostgreSQL: after a statement got no answer within its abort time plus the answer wait, reads, transaction statements, begin and autocommit fail at once as connection failures, so the event loop stalls for that one wait in all',
     async () => {
       const limits = { max_connections: 2, read_wait_ms: 300, answer_wait_ms: 2000, keepalive_ms: 2000 };
       const proxy = await pg_proxy(await new_db('postgresql'));
@@ -393,8 +394,8 @@ describe('DB adapter', () => {
         await proxy.freeze();
         const first = await loop_stall(() => adapter.read.query('SELECT 1 AS one'));
         expect(kind_of(first.error)).toBe('connection');
-        expect(first.stall).toBeGreaterThanOrEqual(limits.read_wait_ms + limits.answer_wait_ms - 50);
-        expect(first.stall).toBeLessThan(limits.read_wait_ms + limits.answer_wait_ms + 1000);
+        expect(first.stall).toBeGreaterThanOrEqual(limits.read_wait_ms + 2 * limits.answer_wait_ms - 50);
+        expect(first.stall).toBeLessThan(limits.read_wait_ms + 2 * limits.answer_wait_ms + 1000);
         const kinds: (string | null)[] = [];
         const later = await loop_stall(async () => {
           for (let i = 0; i < 5; i += 1) kinds.push(kind_of(thrown(() => adapter.read.query('SELECT 1 AS one'))));
