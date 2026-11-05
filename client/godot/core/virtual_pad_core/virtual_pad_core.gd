@@ -38,8 +38,9 @@ const _LOWER_Z: int = 122
 const _DIGIT_0: int = 48
 const _DIGIT_9: int = 57
 const _UNDERSCORE: int = 95
-## Room for the touch indices of `_consumed_ids` made in `init`; more pointers at once grow it.
-const _CONSUMED_CAPACITY: int = 16
+## Room for the touch indices of `_consumed_ids`, made once in `init` so that the pointer path allocates nothing. It is
+## above the touch points a device reports at once; a consumed press beyond it is not tracked.
+const _CONSUMED_CAPACITY: int = 64
 
 static var _is_initialized: bool = false
 static var _node: Node = null
@@ -557,7 +558,7 @@ static func _add_consumed(pointer_id: int) -> void:
 		if _consumed_ids[i] == pointer_id:
 			return
 	if _consumed_count == _consumed_ids.size():
-		_consumed_ids.resize(maxi(_CONSUMED_CAPACITY, _consumed_count * 2))
+		return
 	_consumed_ids[_consumed_count] = pointer_id
 	_consumed_count += 1
 
