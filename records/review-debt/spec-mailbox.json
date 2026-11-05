@@ -1,12 +1,5 @@
 {
   "target": "spec mailbox",
   "nextId": 4,
-  "items": [
-    {
-      "id": "D3",
-      "location": "skills/server-core/modules/mailbox.md:62",
-      "problem": "`mailbox` sets `kind` of a passed TypeScript `MailArg`, but the spec does not set how when the object has both `int_value` and `text_value` (the TypeScript union `{ name; int_value: bigint } | { name; text_value: string }` accepts an object literal with both keys, because excess property checking of a non-discriminated union allows keys of any member). For `send_mail` with `args` `[{ name: 'n', int_value: 5n, text_value: '' }]`, an implementation that picks `Text` when `text_value` is present gives `INVALID_INPUT` (line 79: non-default `int_value` in a field that `Text` does not select), and one that picks `Int` when `int_value` is present sends the mail. The two give the caller different results",
-      "foundBy": "spec mailbox"
-    }
-  ]
+  "items": []
 }
