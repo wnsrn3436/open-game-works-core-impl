@@ -1,12 +1,5 @@
 {
   "target": "iap",
   "nextId": 4,
-  "items": [
-    {
-      "id": "D3",
-      "location": "server/core/iap/adapters/apple.ts:185",
-      "problem": "`verification_of` compares only `bundleId`, while `open-game-works-core/skills/server-core/modules/iap.md:324` and `iap.md:340` also require the receipt verification result `INVALID` when `appAppleId` of production store transaction info differs from `iapApple.appAppleId`. Reproduced in a temporary copy: signed transaction info with `environment` `Production` and `appAppleId` 9 on an adapter with `app_apple_id` 1234 gave `VALID`. Only the notification check has this comparison and a test (`server/core/iap/tests/adapters.test.ts:316`). `bundleId` is still checked, so this was not shown to let a transaction of another app through. Whether Apple's transaction info holds `appAppleId` at all was not checked; when it does not, the fix is to change those spec lines, not the code",
-      "foundBy": "iap round 1"
-    }
-  ]
+  "items": []
 }
