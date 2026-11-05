@@ -1,12 +1,5 @@
 {
   "target": "MessageCore",
   "nextId": 4,
-  "items": [
-    {
-      "id": "D2",
-      "location": "client/godot/core/message_core/message_core.gd:114",
-      "problem": "`release` during a `prepare` in progress has no test. `open-game-works-core/skills/core/SKILL.md:90` says that `release` stops the async operations in progress and that a stopped operation returns a failure value. No test under `client/godot/core/message_core/tests/` calls `MessageCore.release` while a `prepare` waits: the calls at `test_lifecycle.gd:10`, `test_lifecycle.gd:23`, `test_lifecycle.gd:70` and `test_input.gd:84` all run with no `prepare` pending. Removing the session checks at `message_core.gd:114`, `message_core.gd:379`, `message_core.gd:384`, `message_core.gd:422` or `message_core.gd:448` is not exercised by any assert, although without them the resumed `_load_all` reads `_toast` after `_reset_state` set it to `null`.",
-      "foundBy": "MessageCore round 1"
-    }
-  ]
+  "items": []
 }
