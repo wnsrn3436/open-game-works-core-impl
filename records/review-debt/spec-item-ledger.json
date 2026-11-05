@@ -1,12 +1,18 @@
 {
   "target": "spec item-ledger",
-  "nextId": 2,
+  "nextId": 3,
   "items": [
     {
       "id": "D1",
       "location": "skills/server-core/modules/item-ledger.md:34",
       "problem": "For a big item, `read_amount` and the `add_items` input check accept an `ItemAmount` whose `amount` is outside int64 when `big_amount` is the empty string. `max_digits` can be up to `item-ledger.bigMaxDigits`, which is 16 or more (item-ledger.md:211, :289), so with `max_digits` 20 the amount 10^19 in `amount` with `big_amount` `\"\"` is within the amount limit. `mailbox.send_mail` then saves it in the `int64 amount` field of `ItemAmount` in `MailUserState` (skills/server-core/modules/mailbox.md:87), and no defining document sets what happens when an `int64` field gets a value outside the int64 range on encode (skills/server-core/SKILL.md:161, skills/contract/SKILL.md:136). The pair is also not canonical, because the contract carries a value above 2^53−1 in `big_amount` with `amount` 0. Any content caller of `send_mail` or `add_items` can reach this, and so can a `ranking_season_reward` output that passes the new format check",
       "foundBy": "spec ranking"
+    },
+    {
+      "id": "D2",
+      "location": "skills/server-core/modules/item-ledger.md:104",
+      "problem": "The change order and the timed item rules assume the saved balance is at most the balance limit (item-ledger.md:93), but `## data` of item-ledger does not forbid lowering `max_amount` of an item that users already hold, and `prod_change` only blocks values that a core spec `## data` says cannot change (skills/data/SKILL.md:353). After `max_amount` is lowered below a saved balance B, an `add_items` of 1 to a `Discard` item gives a balance more than `max_amount`, so step 3 \"sets the balance to `max_amount`\", which lowers the balance on an add with a negative `delta`, and the `overflow` value is not set for this case. For a timed item with `Discard`, k = ⌊(`max_amount` × `duration` − R) ÷ `duration`⌋ (item-ledger.md:150) is negative when R > `max_amount` × `duration`, so E moves earlier on an add. The spec sets this case for `recovery_cap` (item-ledger.md:362) but not for `max_amount`, so implementations can differ",
+      "foundBy": "spec item-ledger"
     }
   ]
 }
