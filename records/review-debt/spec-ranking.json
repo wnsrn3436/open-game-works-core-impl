@@ -1,5 +1,12 @@
 {
   "target": "spec ranking",
-  "nextId": 2,
-  "items": []
+  "nextId": 3,
+  "items": [
+    {
+      "id": "D2",
+      "location": "skills/server-core/modules/ranking.md:158",
+      "problem": "The other game transactions of job `ranking_season` do not set their `FAILED` or throw result: the lease transaction of step 2 (:158), the per-row write transaction of step 4 (:160) and of guild member handling (:167), the `Closed`/`Retrying` transition of step 5 (:161), the retention transaction of step 6 (:162) and the per-row write of reward retry (:169). Only the user handling (:166) and the stop() case (:174) are set. Whether such a failure skips that season, stops the job run or is retried within the run, and its log, can differ per implementation; e.g. when the step 4 write is `FAILED` after the mail of that user committed, one implementation stops the season (the next lease holder redoes that user and `ALREADY_SENT` absorbs it) and another moves on to the next row without the cursor written",
+      "foundBy": "spec ranking"
+    }
+  ]
 }
