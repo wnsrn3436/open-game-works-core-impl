@@ -1,12 +1,5 @@
 {
   "target": "spec RealtimeCore",
   "nextId": 4,
-  "items": [
-    {
-      "id": "D3",
-      "location": "skills/client-core/modules/realtime-core.md:130",
-      "problem": "When the side that receives the offer is collecting the `PEER_SIGNAL`s of an index after the peer lost of line 127 (a larger offer arrived while connected) and receives `PEER_REJOINED` of that index before the `connect_peer` that RealtimeCore calls on that peer lost (e.g. read in the same `poll`), the text does not settle which rule applies. \"an index for which RealtimeCore has not called `connect_peer` in the match the transport holds\" is false when read as \"ever in the match\" (RealtimeCore called it at match found), so the next rule applies: there is no connected P2P connection, so the transport \"starts a new connection the same as `connect_peer`\" and handles the collected offer of the app before the rejoin, sending an answer that the restarted app discards with a warn log. Read as \"since that peer lost\", the collected offer is discarded and no answer is sent. The two implementations differ in the sent `PEER_SIGNAL`s and the warn log of the other participant, and the text does not set what the later `connect_peer` on that peer lost does while a connection is already being made. The error row at line 300 (\"`PEER_SIGNAL`s collected before `connect_peer` that `PEER_REJOINED` ... discard\") inherits the same ambiguity. Fix direction: state that the first rule applies to an index with no `connect_peer` since match found or since its last peer lost",
-      "foundBy": "spec RealtimeCore"
-    }
-  ]
+  "items": []
 }
