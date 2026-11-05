@@ -1,5 +1,12 @@
 {
   "target": "spec storage",
-  "nextId": 8,
-  "items": []
+  "nextId": 9,
+  "items": [
+    {
+      "id": "D8",
+      "location": "skills/server-core/modules/storage.md:307",
+      "problem": "The storage spec says what a `string` parameter holding U+0000 does, but not what a parameter holding an unpaired surrogate does. The Node drivers of both DBs encode such a string as UTF-8, and that turns each unpaired surrogate into U+FFFD. So two different `once_key` values that content code passes, e.g. `\"\\ud800\"` and `\"\\ud801\"`, are saved as the same key. The second `send_mail` is then `ALREADY_SENT` (skills/server-core/modules/mailbox.md:78), and a second `item-ledger.add_items` is `ALREADY_APPLIED` (skills/server-core/modules/item-ledger.md:102). By the spec text, neither user has a row with that same `once_key`. admin-api refuses these strings before they reach these modules (skills/server-core/modules/admin-api.md:179), but content code calls `send_mail`, `grant_or_mail` and `add_items` directly. The mailbox input rule (skills/server-core/modules/mailbox.md:79) refuses only U+0000",
+      "foundBy": "spec mailbox"
+    }
+  ]
 }
