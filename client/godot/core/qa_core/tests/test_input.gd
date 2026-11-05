@@ -593,6 +593,85 @@ func test_an_input_command_over_its_time_limit_lets_go_and_fails() -> void:
 	assert_eq(warns(), 0)
 
 
+## `mouse_down`, `pad_button_down` and `pad_axis` over the time limit in the frame their input goes in let go of the
+## mouse button and the gamepad button and put 0 in the axis at the next frame start, put in no other device input and
+## fail when that frame ends. The button can be pressed again right after.
+func test_mouse_and_gamepad_inputs_over_the_time_limit_are_let_go() -> void:
+	assert_true(await start_input())
+	assert_true(InputCore.set_pad_buttons(SKIP, PackedStringArray(["left_x+"])))
+	# command, its argument, the release it puts in at the time limit
+	var cases: Array[PackedStringArray] = [
+		PackedStringArray(["mouse_down", "left", "mouse_up:%d" % MOUSE_BUTTON_LEFT]),
+		PackedStringArray(["pad_button_down", "a", "pad_up:%d" % JOY_BUTTON_A]),
+		PackedStringArray(["pad_axis", "left_x", "axis:%d=0.00" % JOY_AXIS_LEFT_X]),
+	]
+	for item: PackedStringArray in cases:
+		var args: PackedStringArray = PackedStringArray([item[1]])
+		if item[0] == "mouse_down":
+			args += window_args(100, 300)
+		elif item[0] == "pad_axis":
+			args.append("0.5")
+		var from: int = probe.inputs.size()
+		var ends: Array[int] = []
+		var pending: Pending = start_over_time_limit(item[0], args)
+		pending.finished.connect(func() -> void: ends.append(Engine.get_process_frames()))
+		await wait_done(pending)
+		assert_false(pending.result.ok, item[0])
+		assert_eq(JSONR.text(pending.result.result, ""), "the command went over its time limit", item[0])
+		assert_eq(warns(), 1, item[0])
+		if item[0] == "pad_axis":
+			assert_eq(probe.count_of("axis", from), 2, "the axis value and 0")
+		else:
+			assert_eq(probe.inputs.size() - from, 2, "%s: the press and the release" % item[0])
+		await UnitTestCore.wait_frames(3)
+		assert_eq(probe.frames_of_input(item[2], from), PackedInt64Array(ends),
+			"%s: one release, in the frame whose end fails it" % item[0])
+		assert_eq(probe.inputs.size() - from, 2, "%s: no other device input" % item[0])
+	assert_true(QACore._input.mouse_buttons.is_empty() and QACore._input.pad_buttons.is_empty())
+	assert_true(QACore._input.axes.is_empty())
+	assert_almost_eq(InputCore.get_strength(SKIP), 0.0, 0.001, "the axis is back at 0")
+	await run_ok("mouse_down", PackedStringArray(["left"]) + window_args(100, 300))
+	await run_ok("mouse_up", PackedStringArray(["left"]) + window_args(100, 300))
+	await run_ok("pad_button_down", PackedStringArray(["a"]))
+	await run_ok("pad_button_up", PackedStringArray(["a"]))
+	assert_eq(warns(), 0)
+
+
+## A `touch_move` over the time limit holds no touch: the touch an earlier `touch_down` pressed stays pressed.
+func test_a_touch_move_over_the_time_limit_leaves_the_touch_pressed() -> void:
+	assert_true(await start_input())
+	await run_ok("touch_down", PackedStringArray(["0"]) + window_args(100, 300))
+	var from: int = probe.inputs.size()
+	var pending: Pending = start_over_time_limit("touch_move", PackedStringArray(["0"]) + window_args(400, 300))
+	await wait_done(pending)
+	assert_false(pending.result.ok)
+	assert_eq(warns(), 1)
+	await UnitTestCore.wait_frames(3)
+	assert_eq(probe.count_of("drag", from), 1, "the move")
+	assert_eq(probe.count_of("touch_up", from), 0, "no release")
+	assert_true(QACore._input.touches.has(0), "touch 0 stays pressed")
+	await run_ok("touch_up", PackedStringArray(["0"]))
+	assert_true(QACore._input.touches.is_empty())
+	assert_eq(warns(), 0)
+
+
+## Starts `command_name` and moves the test clock past the time limit in the frame its device inputs go in, after they
+## are in and before the frame end that would end it.
+func start_over_time_limit(command_name: String, args: PackedStringArray) -> Pending:
+	var pending: Pending = start_command(command_name, args)
+	var moved: Array[bool] = []
+	var started: Signal = QACore._node.frame_started
+	var on_start: Callable = func() -> void:
+		if moved.is_empty() and QACore._running != null and QACore._running.holds != null:
+			moved.append(true)
+			UnitTestCore.advance_clock(COMMAND_TIMEOUT_MS + 1000, false)
+	started.connect(on_start)
+	pending.finished.connect(func() -> void:
+		if started.get_object() != null and started.is_connected(on_start):
+			started.disconnect(on_start))
+	return pending
+
+
 ## In step mode with budget 0 at a time scale too low to use 1 ms in a frame, the release of a `key` over its time limit
 ## runs its frame with 1 ms like any device input, and the budget is 0 when the response comes.
 func test_an_input_command_over_its_time_limit_in_step_mode() -> void:
