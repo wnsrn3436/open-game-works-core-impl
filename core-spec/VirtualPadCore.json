@@ -25,6 +25,12 @@
       "type": "integer",
       "source": "core",
       "owner": "content"
+    },
+    {
+      "key": "InputCore.maxJudgePointers",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
     }
   ],
   "settingsConstraints": [],
