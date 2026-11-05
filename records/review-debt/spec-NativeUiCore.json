@@ -1,29 +1,11 @@
 {
   "target": "spec NativeUiCore",
-  "nextId": 5,
+  "nextId": 6,
   "items": [
     {
-      "id": "D1",
-      "location": "skills/client-core/modules/native-ui-core.md:92",
-      "problem": "`copy_text` of an empty string in a headless run of `QACore` (or on a platform without a clipboard) matches two rows of `## error` (lines 117 and 118) with different log levels (error and warn), and `## behavior` lists the three conditions without an order, so the log level of that call differs per implementation",
-      "foundBy": "spec NativeUiCore"
-    },
-    {
-      "id": "D2",
-      "location": "skills/client-core/modules/native-ui-core.md:61",
-      "problem": "The condition under which `request_review` of the adapter reports a failure is set only for `android` (line 62). For `ios` and `macos` (`SKStoreReviewController`, line 52-53), whether the adapter reports a failure (e.g. no foreground window scene for the scene-taking request call) or always reports success is not set, so the `Failed` row of `## error` (line 111) can differ per implementation on those platforms",
-      "foundBy": "spec NativeUiCore"
-    },
-    {
-      "id": "D3",
-      "location": "skills/client-core/modules/native-ui-core.md:65",
-      "problem": "`Throttled` is set by \"its difference from the current device time is less than `NativeUiCore.reviewMinIntervalMs`\", but the sign of the difference is not set. Device time can be changed by the user (time-core.md:58). When the device clock is set back so that `last_review_at` is later than the current device time by more than `reviewMinIntervalMs`, a signed difference (now − `last_review_at`, negative) gives `Throttled`, while an absolute difference gives `Requested`; with `last_review_at` − now (the literal reading of \"its difference from\") every call would be `Throttled`. Existed before this change; the spec changes diff is empty",
-      "foundBy": "spec NativeUiCore"
-    },
-    {
-      "id": "D4",
-      "location": "skills/client-core/engines/godot.md:411",
-      "problem": "The browser runtime `share` calls `navigator.share` through `JavaScriptBridge`, but which promise rejections become `Closed` and which become `Failed` (`AbortError` when the user dismisses the sheet, `NotAllowedError` without transient user activation, `DataError`) is not set, and neither is whether `supports_share(true)` (image) on `web` depends on `navigator.canShare({files})`. native-ui-core.md:54 says only that share is none when the browser does not provide the API, so `ShareResult` for the same browser action differs per implementation. Existed before this change; the spec changes diff is empty",
+      "id": "D5",
+      "location": "skills/client-core/modules/native-ui-core.md:98",
+      "problem": "`release` ends a `share` in progress with `Failed`, but no row of `## error` (lines 110-119) covers that condition: the `Failed` row of line 112 is for a failure that the adapter reports, and in this case the module ends the wait itself (godot.md:59 `stop()`, `cancel_share`). Test line 159 checks only the result. So whether a `share` that `release` ends leaves an error log, a warn log or no log differs per implementation",
       "foundBy": "spec NativeUiCore"
     }
   ]
