@@ -323,16 +323,44 @@ describe('audit log', () => {
     for (const line of lines) expect(line.ip).toBe('127.0.0.0');
   });
 
-  it('keeps null args for a request that ended in steps 1 to 4, and the operator as actor once step 2 passed', async () => {
-    server = await start({ settings: { 'admin-api.maxBodyBytes': 16 } });
-    await admin(server, 'get_user', { user_id: '1234567890', padding: 'xxxxxxxxxxxxxxxx' });
+  it('keeps null args for a request that ended in steps 1 to 5, and the operator as actor once step 2 passed', async () => {
+    server = await start({ settings: { 'admin-api.maxBodyBytes': 32 } });
+    await admin(server, 'get_user', { user_id: '1234567890', padding: 'xxxxxxxxxxxxxxxxxxxxxxxx' });
     await admin(server, 'get_user', { user_id: '1' }, 'ogw', 'wrong');
     await admin(server, 'get_user', { user_id: '1' }, 'ops');
+    await admin(server, 'get_user', { user_id: '1', other: 1 });
+    await admin(server, 'get_user', '{"user_id":1,"user_id":2}');
     const lines = audits(server, 'get_user');
     expect(lines.map((line) => [line.status, line.error, line.args, line.actor])).toEqual([
       [400, 'bad_request', null, 'ogw'],
       [401, 'unauthorized', null, null],
       [403, 'forbidden', null, 'ops'],
+      [400, 'bad_request', null, 'ogw'],
+      [400, 'bad_request', null, 'ogw'],
+    ]);
+  });
+
+  it('keeps the query input with int64 as decimal strings and body_sha256 as args of a binary body operation without an audit args function', async () => {
+    const register: Register = (core) => {
+      core.routing.register_admin_operation({
+        name: 'game_put',
+        role: 'release',
+        body: 'binary',
+        max_body_bytes: 64,
+        input: { size: { type: { kind: 'int64' } }, body_sha256: { type: { kind: 'string' }, optional: true } },
+        user_target: null,
+        handler: (input) => (input.size === 0n ? 'not_found' : {}),
+        prepare: null,
+        audit_args: null,
+      });
+    };
+    server = await start({ register });
+    const body = new Uint8Array([7, 8, 9]);
+    expect((await admin_binary(server, 'game_put', body, { size: '9007199254740993', body_sha256: 'given' })).status).toBe(200);
+    expect((await admin_binary(server, 'game_put', body, { size: '0' })).status).toBe(404);
+    expect(audits(server, 'game_put').map((line) => line.args)).toEqual([
+      { size: '9007199254740993', body_sha256: sha256_hex(body) },
+      { size: '0', body_sha256: sha256_hex(body) },
     ]);
   });
 

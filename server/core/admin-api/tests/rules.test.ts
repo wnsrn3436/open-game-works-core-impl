@@ -124,6 +124,43 @@ describe('body rules', () => {
     expect(body({ request_name: { type: { kind: 'string' } } }, '{"request_name":"x/Login"}')).toBeNull();
   });
 
+  it('refuses an object with the same member name twice anywhere in the body, also inside a json field', () => {
+    const mail: FieldMap = { user_id: { type: { kind: 'int64' } }, mail: { type: { kind: 'json' } } };
+    expect(body(USER, '{"user_id":1,"user_id":2}')).toBeNull();
+    expect(body(mail, '{"user_id":1,"mail":{"template_id":1,"template_id":2}}')).toBeNull();
+    expect(body(mail, '{"user_id":1,"mail":{"args":[{"name":"a","name":"b"}]}}')).toBeNull();
+    expect(body(mail, '{"user_id":1,"mail":{"a":{"b":1},"c":{"b":1}}}')).toEqual({ user_id: 1n, mail: { a: { b: 1 }, c: { b: 1 } } });
+    // `__proto__` is a member name like any other: unknown to the fields, and kept as an own key inside json.
+    expect(body(USER, '{"user_id":1,"__proto__":{}}')).toBeNull();
+    expect(body(mail, '{"user_id":1,"mail":{"__proto__":1}}')).toEqual({ user_id: 1n, mail: JSON.parse('{"__proto__":1}') as unknown });
+  });
+
+  it('refuses fractions and exponents inside a json field, and reads its integers exactly past 2^53', () => {
+    const mail: FieldMap = { mail: { type: { kind: 'json' } } };
+    for (const bad of ['1e999', '1e3', '1.5', '1.0', '-0.0', '1E2']) {
+      expect([bad, body(mail, `{"mail":{"expire_ms":${bad}}}`)]).toEqual([bad, null]);
+      expect([bad, body(mail, `{"mail":[1,[${bad}]]}`)]).toEqual([bad, null]);
+    }
+    expect(body(mail, '{"mail":{"a":9007199254740991,"b":9007199254740993,"c":-9007199254740993,"d":[0,"1.5"]}}')).toEqual({
+      mail: { a: 9007199254740991, b: 9007199254740993n, c: -9007199254740993n, d: [0, '1.5'] },
+    });
+  });
+
+  it('reads int32 and string query fields as URLSearchParams decodes them', () => {
+    const fields: FieldMap = { count: { type: { kind: 'int32' } }, name: { type: { kind: 'string' }, optional: true } };
+    const query = (text: string): unknown => check_query(fields, new URLSearchParams(text), LIMITS);
+    expect(query('count=3')).toEqual({ count: 3 });
+    expect(query('count=%33')).toEqual({ count: 3 });
+    for (const bad of ['count=3.0', 'count=abc', 'count=2147483648', 'count=03', 'count=+3', 'count=3&count=4', 'count=', 'count=1e1']) {
+      expect([bad, query(bad)]).toEqual([bad, null]);
+    }
+    expect(query('count=-2147483648')).toEqual({ count: -2147483648 });
+    expect(query('count=1&name=a+b%2Bc')).toEqual({ count: 1, name: 'a b+c' });
+    // A key that a plain object would take as its prototype is still an unknown field.
+    expect(query('count=1&__proto__=x')).toBeNull();
+    expect(query('count=1&constructor=x')).toBeNull();
+  });
+
   it('reads the query string of a binary body operation and refuses a field given twice', () => {
     const fields: FieldMap = { target_user_id: { type: { kind: 'int64' } }, note: { type: { kind: 'string' }, optional: true } };
     expect(check_query(fields, new URLSearchParams('target_user_id=12'), LIMITS)).toEqual({ target_user_id: 12n });
@@ -228,5 +265,19 @@ describe('admin operation definitions', () => {
     expect(errors('game', operation({ handler: undefined }))).toHaveLength(1);
     expect(errors('game', operation({ body: 'binary' }))).toHaveLength(1);
     expect(errors('game', operation({ user_target: 'other' }))).toHaveLength(1);
+    expect(errors('game', operation({ user_target: 'toString' }))).toHaveLength(1);
+  });
+
+  it('refuses a user_target that is optional or not int64, and a binary body operation with a field outside int64, int32, string', () => {
+    expect(errors('game', operation({ user_target: 'user_id', input: { user_id: { type: { kind: 'int64' }, optional: true } } }))).toHaveLength(1);
+    expect(errors('game', operation({ user_target: 'user_id', input: { user_id: { type: { kind: 'int32' } } } }))).toHaveLength(1);
+    expect(errors('game', operation({ user_target: 'user_id', input: { user_id: { type: { kind: 'int64' } } } }))).toEqual([]);
+    const binary = (input: Record<string, unknown>, max_body_bytes: unknown = 10): Record<string, unknown> => operation({ body: 'binary', max_body_bytes, input });
+    expect(errors('game', binary({ flag: { type: { kind: 'bool' } } }))).toHaveLength(1);
+    expect(errors('game', binary({ data: { type: { kind: 'json' } } }))).toHaveLength(1);
+    expect(errors('game', binary({ a: { type: { kind: 'int64' } }, b: { type: { kind: 'int32' } }, c: { type: { kind: 'string' } } }))).toEqual([]);
+    expect(errors('game', binary({}, 0))).toHaveLength(1);
+    expect(errors('game', binary({}, 1.5))).toHaveLength(1);
+    expect(errors('game', binary({}, 1))).toEqual([]);
   });
 });

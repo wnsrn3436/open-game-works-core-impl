@@ -178,12 +178,17 @@ export function create_admin_api(input: AdminApiInput): AdminApi {
     else kill_switches.delete(target);
   }
 
-  /** Job `admin_switch_cache`. */
+  /** Reads the switch cache from committed rows; throws when the read fails. */
+  function read_switch_cache(): void {
+    const state = read_switches(storage.read_db());
+    maintenance = state.maintenance;
+    kill_switches = new Set(state.kill_switches);
+  }
+
+  /** Job `admin_switch_cache`: a failed read keeps the cache as it was. */
   function reload_switches(): void {
     try {
-      const state = read_switches(storage.read_db());
-      maintenance = state.maintenance;
-      kill_switches = new Set(state.kill_switches);
+      read_switch_cache();
     } catch (error) {
       log_error(null, null, 'admin switch cache reload failed', stack_of(error));
     }
@@ -408,10 +413,13 @@ export function create_admin_api(input: AdminApiInput): AdminApi {
     const body = entry.body === 'binary' ? admitted.body : null;
     const operation_id = Object.hasOwn(entry.input, 'operation_id') && typeof input_.operation_id === 'string' ? input_.operation_id : null;
     const input_sha256 = operation_id === null ? '' : sha256_hex(canonical_json(input_));
-    const box: { reply: Reply } = { reply: fail('internal') };
+    const box: { reply: Reply; lock_failed: boolean } = { reply: fail('internal'), lock_failed: false };
     const work = (transaction: AdminTransaction): 'pass' | number => {
       if (operation_id !== null) {
-        if (storage.lock_game_row(transaction, OPERATION, [entry.name, operation_id]) === 'FAILED') return ROLLBACK;
+        if (storage.lock_game_row(transaction, OPERATION, [entry.name, operation_id]) === 'FAILED') {
+          box.lock_failed = true;
+          return ROLLBACK;
+        }
         const row = read_operation(storage.db(transaction), entry.name, operation_id, server_time.clock_now());
         if (row !== null) {
           box.reply = row.input_sha256 === input_sha256 ? ok_text(row.output) : fail('conflict');
@@ -429,8 +437,9 @@ export function create_admin_api(input: AdminApiInput): AdminApi {
     };
     const status = target !== null ? await storage.run_user_transaction(target, work) : await storage.run_game_transaction(work);
     if (status === 'WITHDRAWN') return fail('not_found');
-    if (status === 'FAILED') {
-      log_error(entry.name, target, `admin operation ${entry.name}: the transaction failed`);
+    if (status === 'FAILED' || box.lock_failed) {
+      const failed = box.lock_failed ? 'the lock of its operation_id row failed' : 'the transaction failed';
+      log_error(entry.name, target, `admin operation ${entry.name}: ${failed}`);
       return fail('internal');
     }
     if (box.reply.status === 200) entry.on_committed?.(input_);
@@ -491,6 +500,11 @@ export function create_admin_api(input: AdminApiInput): AdminApi {
 
     complete_start() {
       operators = load_operators();
+      try {
+        read_switch_cache();
+      } catch (error) {
+        start_errors.push(`the maintenance and kill switch state cannot be read: ${error instanceof Error ? error.message : String(error)}`);
+      }
       if (start_errors.length > 0) return `admin-api: ${start_errors.join('; ')}`;
       started = true;
       return null;

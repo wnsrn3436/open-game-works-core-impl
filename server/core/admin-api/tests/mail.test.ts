@@ -1,5 +1,5 @@
 // send_mail, broadcast_mail and cancel_broadcast.
-import { admin, claim_all, GOLD, items, login, notice_mail, start, stop, type Server } from './helpers.ts';
+import { admin, audits, claim_all, get_user, GOLD, id_value, items, login, notice_mail, start, stop, type Server } from './helpers.ts';
 
 describe('mail operations', () => {
   let server: Server;
@@ -31,6 +31,20 @@ describe('mail operations', () => {
     expect((await admin(server, 'broadcast_mail', { operation_id: 'b', mail: notice_mail('x', { attachments }), start_at: '0' })).status).toBe(400);
     expect((await admin(server, 'send_mail', { operation_id: 's', user_id, mail: notice_mail('x', { no_expiry: true }) })).status).toBe(400);
     expect((await admin(server, 'send_mail', { operation_id: 's', user_id, mail: { template_id: 'x' } })).status).toBe(400);
+  });
+
+  it('sends a JSON integer int_value past 2^53 exactly, and keeps it in the audit args as a decimal string', async () => {
+    server = await start();
+    const { user_id } = await login(server, 'exact');
+    const template = String(id_value('[mail_admin_notice]'));
+    const text = `{"operation_id":"x","user_id":${user_id},"mail":{"template_id":${template},"args":[{"name":"n","value":{"int_value":9007199254740993}}]}}`;
+    const sent = await admin(server, 'send_mail', text);
+    expect(sent.status).toBe(200);
+    const mails = (await get_user(server, user_id)).json.user_state as Record<string, Record<string, unknown>[]>;
+    expect(mails.mail_user_state?.[0]?.args).toEqual([{ name: 'n', kind: 'MAIL_ARG_KIND_INT', int_value: '9007199254740993' }]);
+    const args = audits(server, 'send_mail')[0]?.args as Record<string, unknown>;
+    expect(args.user_id).toBe(user_id);
+    expect(args.mail).toEqual({ template_id: Number(template), args: [{ name: 'n', value: { int_value: '9007199254740993' } }] });
   });
 
   it('answers the first mail ID to a second send_mail with another operation_id and the same once_key', async () => {

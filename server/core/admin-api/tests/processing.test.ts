@@ -1,5 +1,6 @@
 // Processing order: each step's failure, the body rules, and `object union` and `enum` fields.
-import { admin, audits, balance, claim_all, GOLD, grant, items, login, MISSING_USER, restart, start, stop, type Register, type Server } from './helpers.ts';
+import * as testing from '../../testing/dev/index.ts';
+import { admin, audits, balance, claim_all, get_user, GOLD, grant, id_value, items, login, MISSING_USER, notice_mail, restart, start, stop, type Register, type Server } from './helpers.ts';
 
 describe('processing order', () => {
   let server: Server;
@@ -77,6 +78,77 @@ describe('body rules', () => {
     expect((await admin(server, 'list_item_history', history(11))).status).toBe(400);
     expect((await admin(server, 'list_item_history', history(10))).status).toBe(200);
     expect((await admin(server, 'get_user', `{"user_id":"${user_id}"}`)).status).toBe(200);
+  });
+
+  it('answers 400 for send_mail whose mail has expire_ms 1e3 or 1.5, and sends no mail', async () => {
+    server = await start();
+    const { user_id } = await login(server, 'expire');
+    const mail = JSON.stringify(notice_mail('x'));
+    for (const expire of ['1e3', '1.5']) {
+      const text = `{"operation_id":"e${expire}","user_id":"${user_id}","mail":${mail.slice(0, -1)},"expire_ms":${expire}}}`;
+      const reply = await admin(server, 'send_mail', text);
+      expect([expire, reply.status, reply.json.error]).toEqual([expire, 400, 'bad_request']);
+    }
+    expect((await get_user(server, user_id)).json.user_state).not.toHaveProperty('mail_user_state');
+    const sent = await admin(server, 'send_mail', `{"operation_id":"e","user_id":"${user_id}","mail":${mail.slice(0, -1)},"expire_ms":1000}}`);
+    expect(sent.status).toBe(200);
+  });
+
+  it('answers get_user with JSON integer user_id 9223372036854775807 with 404 and 9223372036854775808 with 400', async () => {
+    server = await start();
+    expect((await admin(server, 'get_user', '{"user_id":9223372036854775807}')).status).toBe(404);
+    const over = await admin(server, 'get_user', '{"user_id":9223372036854775808}');
+    expect([over.status, over.json.error]).toEqual([400, 'bad_request']);
+  });
+
+  it('answers 400 and changes nothing for grant_items with user_id twice and send_mail whose mail has template_id twice', async () => {
+    server = await start();
+    const { user_id } = await login(server, 'twice');
+    const { user_id: other } = await login(server, 'twice_other');
+    const list = JSON.stringify(items(GOLD, 5n));
+    const grant_twice = await admin(server, 'grant_items', `{"operation_id":"t","user_id":"${user_id}","user_id":"${other}","items":${list}}`);
+    expect([grant_twice.status, grant_twice.json.error]).toEqual([400, 'bad_request']);
+    const template = id_value('[mail_admin_notice]');
+    const mail_twice = await admin(server, 'send_mail', `{"operation_id":"m","user_id":"${user_id}","mail":{"template_id":${String(template)},"template_id":${String(template)},"args":[{"name":"text","value":{"text_value":"x"}}]}}`);
+    expect([mail_twice.status, mail_twice.json.error]).toEqual([400, 'bad_request']);
+    for (const id of [user_id, other]) {
+      expect(await balance(server, id, GOLD)).toBe(0n);
+      expect((await get_user(server, id)).json.user_state).not.toHaveProperty('mail_user_state');
+    }
+    // The same operation_id is free: nothing was recorded for it.
+    expect((await admin(server, 'grant_items', `{"operation_id":"t","user_id":"${user_id}","items":${list}}`)).status).toBe(200);
+    expect(await balance(server, user_id, GOLD)).toBe(5n);
+  });
+
+  it('reads the int32 and string query fields of a binary body operation as URLSearchParams decodes them', async () => {
+    const got: unknown[] = [];
+    const register: Register = (core) => {
+      core.routing.register_admin_operation({
+        name: 'game_counted',
+        role: 'release',
+        body: 'binary',
+        max_body_bytes: 64,
+        input: { count: { type: { kind: 'int32' } }, name: { type: { kind: 'string' }, optional: true } },
+        user_target: null,
+        handler: (input) => {
+          got.push(input);
+          return {};
+        },
+        prepare: null,
+        audit_args: null,
+      });
+    };
+    server = await start({ register });
+    const secret = server.admin_secret('ogw') ?? '';
+    const send = async (query: string): Promise<number> => {
+      const headers = { Authorization: `Bearer ogw.${secret}`, 'Content-Type': 'application/octet-stream' };
+      return (await testing.send_raw(server, 'POST', `/admin/game_counted?${query}`, headers, new Uint8Array([1, 2]))).status;
+    };
+    expect(await send('count=3')).toBe(200);
+    expect(await send('count=%33')).toBe(200);
+    for (const bad of ['count=3.0', 'count=abc', 'count=2147483648', 'count=03', 'count=+3', 'count=3&count=4']) expect([bad, await send(bad)]).toEqual([bad, 400]);
+    expect(await send('count=1&name=a+b%2Bc')).toBe(200);
+    expect(got).toEqual([{ count: 3 }, { count: 3 }, { count: 1, name: 'a b+c' }]);
   });
 
   it('answers 400 for an object union with two keys or none and for a value outside an enum', async () => {

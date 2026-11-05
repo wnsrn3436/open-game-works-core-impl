@@ -129,7 +129,10 @@ function user_reads(c: OperationContext): OwnOperation[] {
           ban: read_ban(storage.db(ctx), user_id),
         }))
       : null;
-    if (read === 'FAILED') return fail('internal');
+    if (read === 'FAILED') {
+      c.log_error('get_user', user_id, 'admin operation get_user: the transaction failed');
+      return fail('internal');
+    }
     if (read !== null) return ok({ user_id, created_at: record.created_at, withdrawn_at: null, ...read.value, ban: ban_json(read.value.ban, server_time.clock_now()) });
     // A withdrawn user: no state, the record as it is now.
     const now = storage.get_user_record(storage.read_db(), user_id) ?? record;
@@ -147,7 +150,10 @@ function user_reads(c: OperationContext): OwnOperation[] {
           exported_at: server_time.now(ctx),
         }))
       : null;
-    if (read === 'FAILED') return fail('internal');
+    if (read === 'FAILED') {
+      c.log_error('export_personal_data', user_id, 'admin operation export_personal_data: the transaction failed');
+      return fail('internal');
+    }
     const data = read?.value ?? { user_state: {}, tables: storage.export_user_rows(storage.read_db(), user_id), exported_at: server_time.clock_now() };
     const text = JSON.stringify(output_json({ user_id, created_at: record.created_at, exported_at: data.exported_at, user_state: data.user_state, tables: data.tables }));
     if (utf8_length(text) > c.max_export_bytes) {

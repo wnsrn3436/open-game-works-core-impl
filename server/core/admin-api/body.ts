@@ -123,8 +123,10 @@ function value_of(type: FieldType, raw: unknown, limits: BodyLimits, query: bool
       return check_object(type.fields, raw, limits, query) ?? INVALID;
     case 'object_union':
       return union_of(type.fields, raw, limits, query);
-    case 'json':
-      return plain_json(raw);
+    case 'json': {
+      const value = plain_json(raw);
+      return value === undefined ? INVALID : value;
+    }
   }
 }
 
@@ -164,9 +166,13 @@ export function check_json_body(fields: FieldMap, body: unknown, limits: BodyLim
   return input !== null && range_rule(input, limits) ? input : null;
 }
 
-/** Checks the query string of a binary body operation. A field given twice breaks the body rules. */
+/**
+ * Checks the query string of a binary body operation, parsed as `URLSearchParams` parses it. A field given twice
+ * breaks the body rules.
+ */
 export function check_query(fields: FieldMap, search: URLSearchParams, limits: BodyLimits): AdminInput | null {
-  const raw: Record<string, unknown> = {};
+  // No prototype: a key such as `__proto__` stays an own key and is refused as an unknown field.
+  const raw: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
   for (const [key, value] of search) {
     if (Object.hasOwn(raw, key)) return null;
     raw[key] = value;

@@ -1,7 +1,8 @@
 // get_user: its JSON, a withdrawn user, and rows of a lower contract version.
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import * as GameContract from '../../../generated/contract/game_contract.ts';
-import { admin, claim_all, get_user, GOLD, grant, id_value, items, login, MISSING_USER, notice_mail, start, stop, withdraw, type Register, type Server } from './helpers.ts';
+import * as testing from '../../testing/dev/index.ts';
+import { admin, audits, claim_all, get_user, GOLD, grant, id_value, items, login, logs, MISSING_USER, notice_mail, start, stop, withdraw, type Register, type Server } from './helpers.ts';
 
 const COLUMNS = new Set([...CoreContract.KINDS, ...GameContract.KINDS].map((kind) => kind.column));
 const DECIMAL = /^(0|-?[1-9][0-9]*)$/;
@@ -36,6 +37,25 @@ describe('get_user', () => {
     expect(mails[0]?.sent_at).toMatch(DECIMAL);
     expect(mails[0]?.args).toEqual([{ name: 'text', kind: 'MAIL_ARG_KIND_TEXT', text_value: 'hi' }]);
     expect(typeof json.server_state).toBe('object');
+  });
+
+  it('answers 500 internal with an error log when the transaction of get_user or export_personal_data is FAILED', async () => {
+    server = await start({ settings: { 'storage.userLockWaitMs': 200 } });
+    // On SQLite the held lock is the DB write lock, which every user transaction waits for; PostgreSQL has none.
+    if (testing.db_kind_of(server) !== 'sqlite') return;
+    const { user_id } = await login(server, 'unread');
+    const release = await testing.hold_game_row_lock(server, 'admin_api_operation', ['any', 'any']);
+    try {
+      for (const operation of ['get_user', 'export_personal_data']) {
+        const reply = await admin(server, operation, { user_id });
+        expect([operation, reply.status, reply.json.error]).toEqual([operation, 500, 'internal']);
+        expect([operation, logs(server, 'error').filter((line) => line.request === operation).length]).toEqual([operation, 1]);
+        expect([operation, audits(server, operation).map((line) => line.status)]).toEqual([operation, [500]]);
+      }
+    } finally {
+      await release();
+    }
+    expect((await get_user(server, user_id)).status).toBe(200);
   });
 
   it('answers 200 with withdrawn_at and empty user_state and server_state for a withdrawn user, and 404 for a user that does not exist', async () => {

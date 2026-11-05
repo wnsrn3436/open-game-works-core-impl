@@ -1,6 +1,7 @@
 /**
  * The checks of an admin operation object handed to `register_admin_operation` (`## error`): its form, its role,
- * a role `read` operation with `operation_id`, a content admin operation name without `game_`.
+ * a role `read` operation with `operation_id`, a content admin operation name without `game_`, a binary body
+ * operation's byte limit and query field types, a `user_target` that is not a required `int64` input field.
  */
 import { EXPORTED_ROLES, type AdminOperation, type FieldMap, type FieldType } from './types.ts';
 
@@ -50,18 +51,29 @@ function form_errors(raw: Record<string, unknown>, label: string): string[] {
   return errors;
 }
 
+/** Errors of a binary body operation: its byte limit and its query field types. */
+function binary_errors(operation: AdminOperation, label: string): string[] {
+  const errors: string[] = [];
+  const limit = operation.max_body_bytes;
+  if (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 1) errors.push(`${label} is a binary body operation without a byte limit`);
+  if (!Object.values(operation.input).every((spec) => QUERY_KINDS.has(spec.type.kind))) errors.push(`${label} is a binary body operation with a query field that is not int64, int32 or string`);
+  return errors;
+}
+
+/** True when `user_target` names a required `int64` input field. */
+function is_user_target(operation: AdminOperation, name: string): boolean {
+  const target = Object.hasOwn(operation.input, name) ? operation.input[name] : undefined;
+  return target?.type.kind === 'int64' && target.optional !== true;
+}
+
 /** Rule errors of an operation whose form is right. */
 function rule_errors(module: string, operation: AdminOperation, label: string): string[] {
   const errors: string[] = [];
   if (!(EXPORTED_ROLES as readonly string[]).includes(operation.role)) errors.push(`${label} has no role or a role outside ${EXPORTED_ROLES.join(', ')}`);
   if (operation.role === 'read' && Object.hasOwn(operation.input, 'operation_id')) errors.push(`${label} has role read and an operation_id input field`);
   if (module === CONTENT_MODULE && !operation.name.startsWith('game_')) errors.push(`content ${label} does not start with game_`);
-  if (operation.body === 'binary') {
-    const limit = operation.max_body_bytes;
-    if (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 1) errors.push(`${label} is a binary body operation without a byte limit`);
-    if (!Object.values(operation.input).every((spec) => QUERY_KINDS.has(spec.type.kind))) errors.push(`${label} is a binary body operation with a query field that is not int64, int32 or string`);
-  }
-  if (operation.user_target !== null && operation.input[operation.user_target]?.type.kind !== 'int64') errors.push(`${label} has a user_target that is not an int64 input field`);
+  if (operation.body === 'binary') errors.push(...binary_errors(operation, label));
+  if (operation.user_target !== null && !is_user_target(operation, operation.user_target)) errors.push(`${label} has a user_target that is not a required int64 input field`);
   return errors;
 }
 
