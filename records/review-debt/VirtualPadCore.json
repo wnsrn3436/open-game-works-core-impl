@@ -1,5 +1,12 @@
 {
   "target": "VirtualPadCore",
-  "nextId": 2,
-  "items": []
+  "nextId": 3,
+  "items": [
+    {
+      "id": "D2",
+      "location": "open-game-works-core/skills/client-core/modules/qa-core.md:135",
+      "problem": "Since this range, a `Hidden` virtual pad is hidden only in the rendering server (client/godot/core/virtual_pad_core/virtual_pad_core.gd:445), so its element `Control`s stay `is_visible_in_tree()`. Engine-visibility users outside the VirtualPadCore definitions now treat elements that are not drawn as visible: `QACore.list_ui` (qa-core.md:135 and :342, mapped to `is_visible_in_tree()` by godot.md:398) lists them with their rects on a desktop run where the pad is `Hidden`, and the `InputBlockCore` pass list (input-block-core.md:106, client/godot/core/input_block_core/input_block_core.gd:485) lets a touch press on a passed element pass the block stage while `Hidden` (before, it was discarded). The definitions do not say whether a `Hidden` element (virtual-pad-core.md:38, \"does not draw\") counts as visible for these modules. Keeping the element focus that R4-1 needs requires the element `Control`s to stay visible in the tree, so this needs a spec decision (the core agent report of round 4 proposes one for the pass list)",
+      "foundBy": "VirtualPadCore round 5"
+    }
+  ]
 }
