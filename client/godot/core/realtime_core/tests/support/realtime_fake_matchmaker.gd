@@ -19,6 +19,8 @@ var remotes: Dictionary[int, RealtimeRemotePeer] = {}
 var relay_url: String = "turn:127.0.0.1:3478"
 ## Frame sent for each `MATCH_REQUEST`; `null` to send nothing.
 var match_reply: CoreContract.MatchmakerFrame = null
+## While `false`, `HELLO` gets no `HELLO_ACK`.
+var ack_hello: bool = true
 ## Client connections the relay told of.
 var accepted_count: int = 0
 ## Client connections that closed.
@@ -205,7 +207,8 @@ func _on_frame(frame: CoreContract.MatchmakerFrame) -> void:
 	received.append(frame)
 	match frame.kind:
 		CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_HELLO:
-			send(new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_HELLO_ACK))
+			if ack_hello:
+				send(new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_HELLO_ACK))
 		CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_REQUEST:
 			if match_reply != null:
 				send(match_reply)

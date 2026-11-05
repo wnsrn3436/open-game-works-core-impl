@@ -40,7 +40,8 @@ var _my_index: int = -1
 var _ice_servers: Array[_ICE_SERVER] = []
 ## Connection of each participant index; `null` when none.
 var _peers: Array[_PEER] = []
-## 1 for a participant index `connect_peer` was called for.
+## 1 for a participant index `connect_peer` was called for since the match started or since the last peer lost of
+## that index.
 var _opened: PackedByteArray = PackedByteArray()
 ## 1 for a participant index `close_peer` closed.
 var _closed: PackedByteArray = PackedByteArray()
@@ -446,13 +447,14 @@ func _new_peer() -> _PEER:
 	return _PEER.new()
 
 
-## After a rejoin into the same match, starts a new connection with each participant this side offers to whose
-## connection is not connected: the signals of that connection sent while the matchmaker connection was gone were
-## dropped, and the other side waits for an offer. A participant in `left_indices` gets no offer.
+## After a rejoin into the same match, drops without peer lost each connection being made with a participant this side
+## offers to and starts a new one: the signals of that connection sent while the matchmaker connection was gone were
+## dropped, and the other side waits for an offer. A failed connection is being made too. A participant in
+## `left_indices` gets no offer, and a connected one is left to the next read.
 func _restart_offers(left_indices: PackedInt32Array) -> void:
 	for index: int in _peers.size():
 		var peer: _PEER = _peers[index]
-		if peer == null or not peer.is_offerer or peer.status == _PEER.Status.CONNECTED or left_indices.has(index):
+		if peer == null or _my_index > index or peer.status == _PEER.Status.CONNECTED or left_indices.has(index):
 			continue
 		_start_peer(index)
 		_send_signals(_peers[index])
@@ -494,7 +496,7 @@ func _poll_peer(index: int) -> void:
 			LogCore.log_warn(_TAG, "connect_peer failed")
 		peer.close()
 		_peers[index] = null
-		add_notice(RealtimeNotice.Kind.PEER_LOST).participant = index
+		_add_peer_lost(index)
 		return
 	if peer.status == _PEER.Status.CONNECTED:
 		if before != _PEER.Status.CONNECTED:
@@ -560,7 +562,7 @@ func _apply_signal(peer: _PEER, received: _SIGNAL) -> void:
 		if peer.status == _PEER.Status.CONNECTED:
 			_drop_peer(index)
 			_queue_signal(index, received)
-			add_notice(RealtimeNotice.Kind.PEER_LOST).participant = index
+			_add_peer_lost(index)
 			return
 		_rejoined[index] = 0
 		if peer.attempt != 0:
@@ -576,20 +578,31 @@ func _apply_signal(peer: _PEER, received: _SIGNAL) -> void:
 
 
 func _on_peer_rejoined(index: int) -> void:
-	if index < 0 or index >= _peers.size() or index == _my_index or _closed[index] == 1 or _opened[index] == 0:
+	if index < 0 or index >= _peers.size() or index == _my_index or _closed[index] == 1:
 		return
 	_rejoined[index] = 1
+	# Before `connect_peer` the signals collected so far came from the app of that participant before it rejoined, which
+	# does not continue that connection. The ones after it are collected until `connect_peer`.
+	if _opened[index] == 0:
+		_drop_queued(index)
+		return
 	var peer: _PEER = _peers[index]
-	# A restarted app does not continue its earlier connection: the offering side drops a connected one, and the
+	# The participant does not continue its earlier connection: the offering side drops a connected one, and the
 	# `connect_peer` that RealtimeCore calls on the peer lost offers the next number. The answering side only takes the
 	# next offer whatever its number.
 	if peer != null and peer.status == _PEER.Status.CONNECTED:
 		if _my_index < index:
 			_drop_peer(index)
-			add_notice(RealtimeNotice.Kind.PEER_LOST).participant = index
+			_add_peer_lost(index)
 		return
 	_start_peer(index)
 	_send_signals(_peers[index])
+
+
+## Adds a peer lost of `index`. Until the `connect_peer` that RealtimeCore calls on it, the index has no connection.
+func _add_peer_lost(index: int) -> void:
+	_opened[index] = 0
+	add_notice(RealtimeNotice.Kind.PEER_LOST).participant = index
 
 
 # --- helpers ---
