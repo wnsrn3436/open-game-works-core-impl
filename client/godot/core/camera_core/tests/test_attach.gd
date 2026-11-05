@@ -167,6 +167,61 @@ func test_operations_without_a_camera_log_an_error_and_return_their_failure_valu
 	assert_eq(errors(), 0, "no log from the operations without a failure log")
 
 
+func test_2d_base_rotation_stays_and_detach_and_release_leave_the_camera_at_the_view_center_without_shake() -> void:
+	assert_true(start())
+	var r0: float = deg_to_rad(10.0)
+	var camera: Camera2D = camera_2d(Vector2(30, 40))
+	camera.rotation = r0
+	assert_true(CameraCore.attach_camera(camera))
+	await advance(16)
+	assert_almost_eq(camera.rotation, r0, 0.000001, "no shake")
+	CameraCoreDev.set_shake_seed(SEED)
+	CameraCore.shake(1.0)
+	var largest: float = 0.0
+	for frame: int in 20:
+		await advance(16)
+		var limit: float = deg_to_rad(SHAKE_MAX_ROTATION_DEG) * CameraCore._trauma * CameraCore._trauma + 0.000001
+		var turned: float = absf(camera.rotation - r0)
+		assert_true(turned <= limit, "frame %d rotation %f" % [frame, turned])
+		largest = maxf(largest, turned)
+	assert_gt(largest, 0.0, "the shake rotated the camera")
+	CameraCore.stop_shake()
+	assert_almost_eq(camera.rotation, r0, 0.000001, "after stop_shake")
+	for detach_by_release: bool in [false, true]:
+		var label: String = "release" if detach_by_release else "detach_camera"
+		CameraCore.shake(1.0)
+		await advance(16)
+		var center: Vector3 = CameraCore.get_view_center()
+		assert_ne(camera.global_position, Vector2(center.x, center.y), "shaken before " + label)
+		if detach_by_release:
+			CameraCore.release()
+		else:
+			CameraCore.detach_camera()
+		assert_almost_eq(camera.global_position.x, center.x, 0.01, label + " x")
+		assert_almost_eq(camera.global_position.y, center.y, 0.01, label + " y")
+		assert_almost_eq(camera.rotation, r0, 0.000001, label + " rotation")
+		if detach_by_release:
+			assert_true(CameraCore.init())
+		assert_true(CameraCore.attach_camera(camera))
+		CameraCoreDev.set_shake_seed(SEED)
+	var camera_3: Camera3D = camera_3d()
+	for detach_by_release: bool in [false, true]:
+		var label_3: String = "3D release" if detach_by_release else "3D detach_camera"
+		assert_true(CameraCore.attach_camera(camera_3))
+		CameraCoreDev.set_shake_seed(SEED)
+		CameraCore.shake(1.0)
+		await advance(16)
+		var center_3: Vector3 = CameraCore.get_view_center()
+		assert_gt(camera_3.global_position.distance_to(center_3), 0.0, "shaken before " + label_3)
+		if detach_by_release:
+			CameraCore.release()
+			assert_true(CameraCore.init())
+		else:
+			CameraCore.detach_camera()
+		assert_lt(camera_3.global_position.distance_to(center_3), 0.01, label_3)
+	assert_eq(errors(), 0)
+
+
 ## Starts `move_to`, appends its result to `results` and then attaches `camera`.
 func _move_then_attach(camera: Camera3D) -> void:
 	var result: CameraCore.CameraMoveResult = await CameraCore.move_to(Vector3(1000, 0, 0), 1000, LINEAR, GAME)

@@ -205,6 +205,25 @@ func view_range() -> Rect2:
 	return range_rect
 
 
+## The distance between the world positions of the top left and bottom right corners of the visible game area.
+func view_diagonal() -> float:
+	var area: Rect2 = ResolutionCore.get_visible_game_area()
+	return CameraCore.screen_to_world(area.position).distance_to(CameraCore.screen_to_world(area.end))
+
+
+## Checks that the world positions of the four visible game area corners are inside `bounds` (x, y for a 2D camera,
+## x, z for a 3D camera).
+func assert_corners_inside(bounds: Rect2, label: String, tolerance: float = 0.01) -> void:
+	for corner: Vector2 in screen_corners():
+		var world: Vector3 = CameraCore.screen_to_world(corner)
+		var point: Vector2 = Vector2(world.x, world.z) if CameraCore._camera_3d != null else Vector2(world.x, world.y)
+		assert_true(
+			point.x >= bounds.position.x - tolerance and point.x <= bounds.end.x + tolerance
+			and point.y >= bounds.position.y - tolerance and point.y <= bounds.end.y + tolerance,
+			"%s: corner %s at %s" % [label, corner, point]
+		)
+
+
 ## The shake offset now applied: the camera position minus the view center.
 func shake_offset() -> Vector3:
 	var center: Vector3 = CameraCore.get_view_center()

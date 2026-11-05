@@ -61,6 +61,7 @@ static var _zoom: float = 1.0
 ## Camera values at zoom factor 1 and without shake rotation, taken when the camera was attached.
 static var _zoom_one_2d: Vector2 = Vector2.ONE
 static var _rotation_2d: float = 0.0
+static var _fov_one: float = 0.0
 static var _fov_tan_one: float = 0.0
 static var _size_one: float = 0.0
 ## The bounds fitting error of a 3D camera corner without an intersection is logged once per attached camera.
@@ -154,7 +155,8 @@ static func is_initialized() -> bool:
 
 
 ## Attaches `camera` (a `Camera2D` or `Camera3D`) as the game camera after detaching the attached one. The camera
-## position becomes the reference position and the zoom factor 1. A `Camera2D` gets the settings the camera control
+## position becomes the reference position, the rotation of a `Camera2D` the base rotation, and the camera's zoom
+## (field of view or orthographic size) zoom factor 1, unchanged. A `Camera2D` gets the settings the camera control
 ## needs: center anchor, rotation, no offset, smoothing, drag margins or engine limits.
 # ogw:input_boundary
 static func attach_camera(camera: Variant) -> bool:
@@ -190,6 +192,7 @@ static func attach_camera(camera: Variant) -> bool:
 		var camera_3d: Camera3D = object as Camera3D
 		_camera_3d = camera_3d
 		if camera_3d.projection == Camera3D.PROJECTION_PERSPECTIVE:
+			_fov_one = camera_3d.fov
 			_fov_tan_one = tan(deg_to_rad(camera_3d.fov) / 2.0)
 		else:
 			_size_one = camera_3d.size
@@ -199,7 +202,8 @@ static func attach_camera(camera: Variant) -> bool:
 
 
 ## Detaches the game camera: follow, `move_to`, `zoom_to`, shake and bounds end. A running `move_to` and `zoom_to`
-## end with `CANCELLED`. The camera keeps the reference position without the shake offset.
+## end with `CANCELLED`. The camera is left at the reference position and base rotation without the shake, with its
+## zoom as it is.
 static func detach_camera() -> void:
 	if not _is_initialized:
 		LogCore.log_error(_TAG, "detach_camera: not initialized")
@@ -561,6 +565,7 @@ static func _clear_camera() -> void:
 	_zoom = 1.0
 	_zoom_one_2d = Vector2.ONE
 	_rotation_2d = 0.0
+	_fov_one = 0.0
 	_fov_tan_one = 0.0
 	_size_one = 0.0
 	_bounds_error_logged = false
@@ -597,7 +602,7 @@ static func _half_view() -> Vector2:
 	return viewport.get_visible_rect().size * 0.5
 
 
-## Fits the reference position to the bounds, applies the zoom factor and puts the camera at the reference position
+## Applies the zoom factor, fits the reference position to the bounds and puts the camera at the reference position
 ## plus the shake offset, now.
 static func _apply_now() -> void:
 	if not _camera_inside_tree():
@@ -607,11 +612,12 @@ static func _apply_now() -> void:
 	_apply_transform()
 
 
+## Factor 1 is the zoom the camera had when it was attached.
 static func _apply_zoom() -> void:
 	if _camera_2d != null:
 		_camera_2d.zoom = _zoom_one_2d * _zoom
 	elif _camera_3d.projection == Camera3D.PROJECTION_PERSPECTIVE:
-		_camera_3d.fov = rad_to_deg(2.0 * atan(_fov_tan_one / _zoom))
+		_camera_3d.fov = _fov_one if _zoom == 1.0 else rad_to_deg(2.0 * atan(_fov_tan_one / _zoom))
 	else:
 		_camera_3d.size = _size_one / _zoom
 

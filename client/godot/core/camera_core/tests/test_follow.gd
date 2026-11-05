@@ -93,3 +93,28 @@ func test_follow_rejects_a_bad_target_or_options_and_keeps_the_previous_follow()
 	target.position = Vector2(40, 0)
 	await frame_end()
 	assert_center(Vector3(40, 0, 0))
+
+
+func test_follow_of_a_destroyed_target_during_a_move_fails_and_the_move_completes() -> void:
+	assert_true(start())
+	assert_true(CameraCore.attach_camera(camera_2d()))
+	run_move(Vector3(100, 0, 0), 200)
+	var freed: Node2D = Node2D.new()
+	freed.free()
+	assert_false(CameraCore.follow(freed, FollowOptions.new()))
+	assert_eq(errors(), 1)
+	await advance(200)
+	assert_results([COMPLETED])
+	assert_center(Vector3(100, 0, 0))
+
+
+func test_follow_of_a_target_without_a_world_position_for_the_camera_keeps_the_previous_follow() -> void:
+	assert_true(start())
+	assert_true(CameraCore.attach_camera(camera_3d(-60.0, Vector3.ZERO)))
+	var target: Node3D = target_3d(Vector3(5, 0, 5))
+	assert_true(follow(target))
+	assert_false(follow(target_2d(Vector2(100, 100))))
+	assert_eq(errors(), 1)
+	target.position = Vector3(20, 0, -20)
+	await frame_end()
+	assert_center(Vector3(20, 0, -20))
