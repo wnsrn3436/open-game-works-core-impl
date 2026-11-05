@@ -208,9 +208,12 @@ static func _begin(state: _KIND_STATE, text: String) -> void:
 	if state.is_toast:
 		if _toast_resource != "":
 			var handle: Vector4i = PoolCore.borrow(_toast_resource, _scope)
+			# `PoolCore` or `ResourceCore` logs why the borrow failed. An empty handle is not passed on, so that the
+			# failure gives no second log.
+			if handle == Vector4i.ZERO:
+				return
 			object = PoolCore.get_instance(handle) as Control
 			if object == null:
-				LogCore.log_error(_TAG, "could not borrow a toast object")
 				return
 			state.pooled = true
 			state.pool_handle = handle
@@ -221,6 +224,7 @@ static func _begin(state: _KIND_STATE, text: String) -> void:
 			if not is_instance_valid(_code_toast_object):
 				_code_toast_object = _make_code_toast()
 				holder.add_child(_code_toast_object)
+				_record_tween_properties(state, _code_toast_object)
 			object = _code_toast_object
 			label = _code_toast_label
 	else:
@@ -236,6 +240,7 @@ static func _begin(state: _KIND_STATE, text: String) -> void:
 				state.clear_current()
 				return
 			holder.add_child(_black_box_object)
+			_record_tween_properties(state, _black_box_object)
 		object = _black_box_object
 		label = _black_box_label
 	_put_back_tween_properties(state, object)
@@ -267,7 +272,6 @@ static func _advance(state: _KIND_STATE) -> void:
 	if state.phase == _KIND_STATE.Phase.IDLE:
 		return
 	if not is_instance_id_valid(state.object_id):
-		LogCore.log_error(_TAG, "a message object was destroyed outside MessageCore while shown")
 		_drop_destroyed(state)
 		_show_next(state)
 		return
@@ -311,22 +315,26 @@ static func _lower(state: _KIND_STATE) -> void:
 	_unblock(state)
 
 
-## Display failure of a message whose object was destroyed outside MessageCore while shown.
+## Display failure of a message whose object was destroyed outside MessageCore while shown. A borrowed toast object is
+## not given back: `PoolCore` removed it and logged its destruction.
 static func _drop_destroyed(state: _KIND_STATE) -> void:
 	if state.tweening and TweenCore.is_initialized():
 		TweenCore.stop(state.tween_handle)
 	if not state.pooled:
 		if state.is_toast:
+			LogCore.log_error(_TAG, "the code made toast object was destroyed outside MessageCore while shown")
 			_code_toast_object = null
 			_code_toast_label = null
 		else:
+			LogCore.log_error(_TAG, "the black box object was destroyed outside MessageCore while shown")
 			_black_box_object = null
 			_black_box_label = null
 	_unblock(state)
 	state.clear_current()
 
 
-## Kind close: lowers the message on screen without its tweens and empties the queue.
+## Kind close: lowers the message on screen without its tweens and empties the queue. A message whose object was
+## destroyed outside is dropped as a display failure, and no waiting message is shown.
 static func _close_kind(state: _KIND_STATE) -> void:
 	if state.phase != _KIND_STATE.Phase.IDLE:
 		if is_instance_id_valid(state.object_id):
@@ -389,10 +397,12 @@ static func _load_all(session: RefCounted) -> bool:
 		_toast.enter_tween, _toast.exit_tween, _black_box.enter_tween, _black_box.exit_tween
 	])
 	for key: String in keys:
-		var length: int = await _load_preset(key, session)
-		if length < 0:
+		var preset: TweenDefinition = await _load_preset(key, session)
+		if session != _session:
 			return false
-		lengths.append(length)
+		if key != "" and preset == null:
+			return false
+		lengths.append(_length_ms(preset))
 	var black_box_ms: int = lengths[2] + _black_box.duration_ms + lengths[3]
 	if black_box_ms >= _block_max_duration_ms:
 		LogCore.log_error(_TAG, "black box enter tween, display time and exit tween take %d ms" % black_box_ms
@@ -438,22 +448,29 @@ static func _prepare_toast_pool(session: RefCounted) -> bool:
 	return ok
 
 
-## Loads a tween preset. Its length in ms, or -1 when it did not load, repeats forever or the session changed. An
-## empty key is 0.
-static func _load_preset(key: String, session: RefCounted) -> int:
+## Loads a tween preset. `null` for an empty key, when the session changed, or, with an error log, when it did not
+## load or repeats forever.
+static func _load_preset(key: String, session: RefCounted) -> TweenDefinition:
 	if key == "":
-		return 0
+		return null
 	var kind: int = TweenCore.get_preset_kind()
 	var resource: Resource = await ResourceCore.load(key, kind, _scope)
 	if session != _session:
-		return -1
+		return null
 	var definition: TweenDefinition = resource as TweenDefinition
 	if definition == null or not ResourceCore.is_loaded(key, kind):
 		LogCore.log_error(_TAG, "tween preset %s did not load" % key)
-		return -1
+		return null
 	if definition.repeat_count == 0:
 		LogCore.log_error(_TAG, "tween preset %s repeats forever" % key)
-		return -1
+		return null
+	return definition
+
+
+## Length of a tween preset in ms: `TweenCore` cycle time × repeat count. 0 for no preset.
+static func _length_ms(definition: TweenDefinition) -> int:
+	if definition == null:
+		return 0
 	return _cycle_ms(definition) * definition.repeat_count
 
 

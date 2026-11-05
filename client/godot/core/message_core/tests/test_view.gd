@@ -67,6 +67,20 @@ func test_empty_resource_keys_show_code_made_toast_and_black_box() -> void:
 	assert_eq(MessageCore._black_box_label.get_theme_color("font_color"), Color.WHITE)
 
 
+func test_displayed_text_of_code_made_toast_is_in_the_center_of_the_visible_game_area() -> void:
+	assert_true(await start_prepared())
+	MessageCore.show_toast(key_a(), null, "code 42")
+	await UnitTestCore.wait_frames(1)
+	var area: Rect2 = ResolutionCore.get_visible_game_area()
+	assert_eq(MessageCore._toast_holder.get_rect(), area)
+	var center: Vector2 = MessageCore._toast_holder.get_global_rect().get_center()
+	var label: Label = MessageCore._code_toast_label
+	assert_eq(label.text, LocalizationCore.get_text(key_a()) + "\ncode 42")
+	assert_almost_eq(label.get_global_rect().get_center(), center, Vector2(0.5, 0.5))
+	assert_eq(label.horizontal_alignment, HORIZONTAL_ALIGNMENT_CENTER)
+	assert_eq(label.vertical_alignment, VERTICAL_ALIGNMENT_CENTER)
+
+
 func test_three_toasts_show_one_after_another_on_one_code_made_toast_object() -> void:
 	assert_true(await start_prepared())
 	var object: Control = MessageCore._code_toast_object
