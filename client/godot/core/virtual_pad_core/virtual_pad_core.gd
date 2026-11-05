@@ -38,6 +38,8 @@ const _LOWER_Z: int = 122
 const _DIGIT_0: int = 48
 const _DIGIT_9: int = 57
 const _UNDERSCORE: int = 95
+## Room for the touch indices of `_consumed_ids` made in `init`; more pointers at once grow it.
+const _CONSUMED_CAPACITY: int = 16
 
 static var _is_initialized: bool = false
 static var _node: Node = null
@@ -75,6 +77,12 @@ static var _saved_offset_x: PackedFloat64Array = PackedFloat64Array()
 static var _saved_offset_y: PackedFloat64Array = PackedFloat64Array()
 static var _saved_scale: PackedFloat64Array = PackedFloat64Array()
 static var _saved_opacity: PackedFloat64Array = PackedFloat64Array()
+## Touch indices whose press an element consumed and whose release has not come: the first `_consumed_count` items.
+## `_mouse_consumed`: the same for a left mouse button press. While one of them is still pressed, a `HIDDEN` virtual
+## pad stays visible to the engine GUI.
+static var _consumed_ids: PackedInt64Array = PackedInt64Array()
+static var _consumed_count: int = 0
+static var _mouse_consumed: bool = false
 
 
 static func init() -> bool:
@@ -102,6 +110,7 @@ static func init() -> bool:
 	else:
 		_sensitivity = sensitivity / 1000.0
 	_touch_supported = DisplayServer.is_touchscreen_available()
+	_consumed_ids.resize(_CONSUMED_CAPACITY)
 	_session = RefCounted.new()
 	var node: _NODE_SCRIPT = _NODE_SCRIPT.new()
 	node.name = _TAG
@@ -387,6 +396,7 @@ static func _close() -> void:
 	_joystick_mode = JoystickMode.FIXED
 	_elements = []
 	_state = VirtualPadState.HIDDEN
+	_forget_consumed()
 
 
 ## Ends the `open_layout` that waits with `false`. Its load result makes no virtual pad.
@@ -436,12 +446,15 @@ static func _set_state(state: VirtualPadState) -> void:
 
 
 ## Draws the virtual pad unless `HIDDEN`; its elements take pointers only while `ACTIVE`. They pass the pointer input
-## they do not accept, so a move of a pointer pressed outside the areas goes on to the world stage. `HIDDEN` stops the
-## drawing in the rendering server and keeps the elements visible to the engine GUI: hiding an element drops the engine
-## mouse focus it holds, and the later mouse moves made from that touch would go to the UI element under them.
+## they do not accept, so a move of a pointer pressed outside the areas goes on to the world stage. `HIDDEN` hides the
+## virtual pad, but while a pointer whose press an element consumed is still pressed it only stops the drawing in the
+## rendering server and keeps the elements visible to the engine GUI: hiding an element drops the engine mouse focus it
+## holds, and the later mouse moves and the release made from that touch would go to the UI element under them.
+## `_on_frame` hides it after that release.
 static func _apply_state() -> void:
 	if _pad == null:
 		return
+	_pad.visible = _state != VirtualPadState.HIDDEN or _has_consumed()
 	RenderingServer.canvas_item_set_visible(_pad.get_canvas_item(), _state != VirtualPadState.HIDDEN)
 	var mouse_filter: Control.MouseFilter = Control.MOUSE_FILTER_PASS if _state == VirtualPadState.ACTIVE \
 		else Control.MOUSE_FILTER_IGNORE
@@ -455,6 +468,10 @@ static func _on_frame() -> void:
 	_check_cancel()
 	if (UICore.get_open_popup_count() >= 1) != _has_popup:
 		_update_state()
+	# The release of the last consumed pointer came in `_on_input`, before the engine GUI sent it to the element; the
+	# frame after that dispatch hides the pad.
+	if _state == VirtualPadState.HIDDEN and _pad.visible and not _has_consumed():
+		_pad.visible = false
 
 
 static func _on_device_changed() -> void:
@@ -471,13 +488,15 @@ static func _on_safe_area_changed() -> void:
 
 
 ## An input cancel since the last look: release handling of every element. `InputCore` discards the later moves and
-## release of the pointers pressed before it, so none of them reaches an element.
+## release of the pointers pressed before it, so none of them reaches an element or a UI element under it, and they
+## no longer keep a `HIDDEN` virtual pad visible to the engine GUI.
 static func _check_cancel() -> void:
 	var count: int = InputCore.get_cancel_count()
 	if count == _cancel_count:
 		return
 	_cancel_count = count
 	_release_all()
+	_forget_consumed()
 
 
 # --- pointers
@@ -497,6 +516,7 @@ static func _on_element_input(control: Control, event: InputEvent) -> void:
 	if touch != null:
 		if touch.pressed:
 			control.accept_event()
+			_add_consumed(touch.index)
 			_press(element, touch.index, touch.position)
 		elif element.pointer_id == touch.index:
 			control.accept_event()
@@ -511,6 +531,52 @@ static func _on_element_input(control: Control, event: InputEvent) -> void:
 	# Engine mouse input made from touch: the elements take it as they did with every pointer input on them.
 	if event is InputEventMouse:
 		control.accept_event()
+		var button: InputEventMouseButton = event as InputEventMouseButton
+		if button != null and button.pressed and button.button_index == MOUSE_BUTTON_LEFT:
+			_mouse_consumed = true
+
+
+## Device input at the core node `_input`, before `InputCore` and the engine GUI: the release of a consumed pointer.
+## The core node comes after the `InputCore` node in the tree, so `_input` gets the input before `InputCore` can
+## discard it. Frame code.
+static func _on_input(event: InputEvent) -> void:
+	if not _is_initialized:
+		return
+	var touch: InputEventScreenTouch = event as InputEventScreenTouch
+	if touch != null:
+		if not touch.pressed:
+			_remove_consumed(touch.index)
+		return
+	var button: InputEventMouseButton = event as InputEventMouseButton
+	if button != null and not button.pressed and button.button_index == MOUSE_BUTTON_LEFT:
+		_mouse_consumed = false
+
+
+static func _add_consumed(pointer_id: int) -> void:
+	for i: int in _consumed_count:
+		if _consumed_ids[i] == pointer_id:
+			return
+	if _consumed_count == _consumed_ids.size():
+		_consumed_ids.resize(maxi(_CONSUMED_CAPACITY, _consumed_count * 2))
+	_consumed_ids[_consumed_count] = pointer_id
+	_consumed_count += 1
+
+
+static func _remove_consumed(pointer_id: int) -> void:
+	for i: int in _consumed_count:
+		if _consumed_ids[i] == pointer_id:
+			_consumed_count -= 1
+			_consumed_ids[i] = _consumed_ids[_consumed_count]
+			return
+
+
+static func _has_consumed() -> bool:
+	return _consumed_count > 0 or _mouse_consumed
+
+
+static func _forget_consumed() -> void:
+	_consumed_count = 0
+	_mouse_consumed = false
 
 
 ## A pointer pressed in the area of `element` at `position` (element local). The element takes it unless it has one.
@@ -852,3 +918,6 @@ static func _reset_state() -> void:
 	_saved_offset_y = PackedFloat64Array()
 	_saved_scale = PackedFloat64Array()
 	_saved_opacity = PackedFloat64Array()
+	_consumed_ids = PackedInt64Array()
+	_consumed_count = 0
+	_mouse_consumed = false
