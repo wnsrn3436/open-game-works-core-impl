@@ -52,6 +52,7 @@ func test_release_during_a_share_ends_it_failed_and_init_again_has_no_adapter() 
 	assert_eq(NativeUiCore.request_review(), REVIEW_UNSUPPORTED)
 	assert_eq(await NativeUiCore.share(content("x")), SHARE_UNSUPPORTED)
 	assert_eq(errors(), 0)
+	assert_eq(warns(), 0)
 
 
 func test_set_native_adapter_after_init_logs_and_keeps_the_adapter() -> void:
