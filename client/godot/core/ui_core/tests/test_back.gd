@@ -157,6 +157,38 @@ func test_back_during_a_system_popup_open_flow() -> void:
 	assert_true(opening.ok)
 
 
+func test_back_while_a_system_popup_loads_its_tween_presets_keeps_a_close_popup() -> void:
+	set_string("UICore.systemPopupResource", POPUP_LATE_TWEEN)
+	assert_true(await start())
+	assert_true(await UICore.open_popup(POPUP_A, null, Callable()) == UICore.PopupOpenResult.OPENED)
+	var opening: CALL = CALL.new()
+	opening.open_system_popup(one_button_param())
+	assert_false(UICore._loading_system.is_empty(), "its tween presets are loading")
+	assert_false(UICore.is_system_popup_visible())
+	assert_true(handle_back_on("android"), "back input is consumed")
+	await finish(opening)
+	assert_true(opening.ok)
+	await UnitTestCore.wait_frames(3)
+	assert_not_null(popup_of(POPUP_A), "the popup whose back policy is Close stays open")
+	assert_eq(UICore._shown_system.size(), 1, "no exit confirm")
+
+
+func test_back_while_a_system_popup_loads_its_tween_presets_opens_no_exit_confirm() -> void:
+	set_string("UICore.systemPopupResource", POPUP_LATE_TWEEN)
+	assert_true(await start())
+	var opening: CALL = CALL.new()
+	opening.open_system_popup(one_button_param())
+	assert_false(UICore._loading_system.is_empty(), "its tween presets are loading")
+	assert_true(handle_back_on("android"), "back input is consumed")
+	await finish(opening)
+	assert_true(opening.ok)
+	for i: int in 30:
+		await UnitTestCore.wait_frames(1)
+	assert_eq(UICore._shown_system.size(), 1, "no exit confirm")
+	assert_true(UICore._loading_system.is_empty())
+	assert_eq(UICore.get_panel_stack(), PackedStringArray())
+
+
 func test_back_override() -> void:
 	assert_true(await start())
 	assert_true(await UICore.open_panel(PANEL_A, null, false))
