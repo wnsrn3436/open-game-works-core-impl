@@ -1,18 +1,5 @@
 {
   "target": "spec item-ledger",
   "nextId": 9,
-  "items": [
-    {
-      "id": "D7",
-      "location": "skills/server-core/modules/item-ledger.md:142",
-      "problem": "The order of the `ItemChange`s, history rows and hook list elements of `subtract_items` with a group item is not set. Line 53 sets that order only for `exchange_items`, and line 51 only the position of `Convert` replacement grants; line 142 sets the calculation order (items that are not group items first, then group items) but not the recording order, and storage.md:219 and contract/SKILL.md:199 carry `item_changes` in the order `item-ledger` added them. Input: group item G with `members` M1, M2, M1 balance 5, X balance 5, `subtract_items(ctx, [G 2, X 1], source)`. An implementation that records in calculation order gives `item_changes` X, M1; one that records each list element at its position (group takes at the group item's place) gives M1, X. A client reading `item_changes` and the history `seq` order differ between them",
-      "foundBy": "spec item-ledger"
-    },
-    {
-      "id": "D8",
-      "location": "skills/server-core/modules/item-ledger.md:50",
-      "problem": "The spec sets no order for the `ItemChange`s, the history rows and the hook-list items of `add_items` and `subtract_items`. Only `exchange_items` (item-ledger.md:53) and the replacement grants (item-ledger.md:51) have an order. Because of item-ledger.md:142, a group item in `subtract_items` is calculated after the items that are not group items. So `subtract_items` [G 1, B 1], where G takes from M, allows `item_changes` M, B (input order) and B, M (calculation order). Clients and core tests see these as different response `item_changes` and hook lists. The placement of recovery-application history rows (`seq`) relative to the change rows of the same operation is not set for any operation either, and `list_history` shows that order",
-      "foundBy": "spec item-ledger"
-    }
-  ]
+  "items": []
 }
