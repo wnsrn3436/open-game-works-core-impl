@@ -1,5 +1,12 @@
 {
   "target": "spec QACore",
-  "nextId": 4,
-  "items": []
+  "nextId": 5,
+  "items": [
+    {
+      "id": "D4",
+      "location": "skills/client-core/modules/qa-core.md:40",
+      "problem": "A command that exceeds its time limit ends with `ok` = `false`, but for a command whose target operation is async and outlives that limit other than a cheat command (a content command handler of line 43, `go_to_scene` with `SceneCore.change_scene`, `open_panel` with `UICore.open_panel`, `leave_match` with `RealtimeCore.leave`), the spec does not set what happens when that operation ends later: whether QACore sends a second response, leaves the end info log of line 39 again, or changes the last command result of line 243. Line 128 and the test at line 347 set this only for cheat commands, and line 81 only for the lockstep branch of `step`, so two implementations can differ for the other async commands",
+      "foundBy": "spec QACore"
+    }
+  ]
 }
