@@ -178,4 +178,26 @@ describe('requests', () => {
       await stop_test_server(server);
     }
   });
+
+  it('send_admin writes the query of a binary body as the query string with URLSearchParams', async () => {
+    const server = await start_test_server();
+    const urls: string[] = [];
+    const real_fetch = globalThis.fetch;
+    const spy = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      urls.push(input instanceof Request ? input.url : input.toString());
+      return real_fetch(input, init);
+    });
+    try {
+      const query = { sha256: 'a b&c+d=e/é?#', note: '' };
+      await send_admin(server, 'put_update_file', { binary: new Uint8Array([1, 2, 3]), query });
+      expect(urls).toHaveLength(1);
+      const url = new URL(urls[0] ?? '');
+      expect(url.pathname).toBe('/admin/put_update_file');
+      expect(url.search).toBe(`?${new URLSearchParams(query).toString()}`);
+      expect(Object.fromEntries(url.searchParams)).toEqual(query);
+    } finally {
+      spy.mockRestore();
+      await stop_test_server(server);
+    }
+  });
 });
