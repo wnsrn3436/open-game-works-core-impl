@@ -229,7 +229,8 @@ export function create_apple_adapter(options: AppleAdapterOptions): StoreAdapter
     },
 
     async lookup_subscription(original_transaction_id, latest, call): Promise<SubscriptionSnapshot | AdapterFailure> {
-      const order = latest === null ? bases : latest.test ? [SANDBOX] : [PRODUCTION];
+      // `iap-apple-sandbox` asks only sandbox, also for a verified transaction of the production environment.
+      const order = latest === null || options.name === 'iap-apple-sandbox' ? bases : latest.test ? [SANDBOX] : [PRODUCTION];
       for (const base of order) {
         const got = await get(`${base}/inApps/v1/subscriptions/${encodeURIComponent(original_transaction_id)}`, call);
         if (typeof got === 'string') return got;

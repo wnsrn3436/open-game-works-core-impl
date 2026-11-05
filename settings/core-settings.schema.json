@@ -907,7 +907,7 @@
     },
     "iap.notifyBodyReadTimeoutMs": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "iap.notifyMaxBodyBytes": {
       "type": "integer",
@@ -919,7 +919,7 @@
     },
     "iap.verifyTimeoutMs": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "iap.withdrawnRecordRetentionMs": {
       "type": "integer",

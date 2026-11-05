@@ -54,7 +54,9 @@ iap_product.name.[iap_locked],Iap locked pack,913b67665059fe63,913b67665059fe63,
 iap_product.name.[iap_no_ads],Iap no ads,497d31e3a7535540,497d31e3a7535540,Iap no ads
 iap_product.name.[iap_offer_pack],Iap offer pack,ac2ff55a70352c03,ac2ff55a70352c03,Iap offer pack
 iap_product.name.[iap_pass],Iap pass,f88d91931dd739a0,f88d91931dd739a0,Iap pass
+iap_product.name.[iap_unsold],Iap unsold pack,190ff0e71e06296e,190ff0e71e06296e,Iap unsold pack
 iap_product.name.[iap_vip],Iap vip,6e251ff5b7b2afad,6e251ff5b7b2afad,Iap vip
+iap_product.name.[iap_vip_google_only],Iap vip google only,8e482684f6a55d8f,8e482684f6a55d8f,Iap vip google only
 iap_product.name.[iap_vip_plus],Iap vip plus,b82571071b07f5b8,b82571071b07f5b8,Iap vip plus
 iap_product.name.[iap_window],Iap window pack,3db9fb2c7f2e4bcb,3db9fb2c7f2e4bcb,Iap window pack
 iap_product.name.[testing_subscription],Testing subscription,1b691d9eb0640352,1b691d9eb0640352,Testing subscription
