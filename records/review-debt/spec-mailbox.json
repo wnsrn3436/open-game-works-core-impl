@@ -1,5 +1,12 @@
 {
   "target": "spec mailbox",
-  "nextId": 6,
-  "items": []
+  "nextId": 7,
+  "items": [
+    {
+      "id": "D6",
+      "location": "skills/server-core/modules/mailbox.md:79",
+      "problem": "The `INVALID_INPUT` conditions of a mail input do not cover a `once_key` that holds U+0000, and `mail_input_from_json` (mailbox.md:64) borrows only the integer rules of the admin-api body rules, so the U+0000 rule of skills/server-core/modules/admin-api.md:178 does not reach strings inside the `json` field `mail`. Run path: admin `send_mail` with `mail` `{\"template_id\":<id>,\"once_key\":\"a\\u0000b\"}` passes step 5, `mailbox.send_mail` looks up and inserts the `mailbox_once_key` row (mailbox.md:90, :155, `once_key` is a `string` column), and that statement fails (skills/server-core/modules/storage.md:307, :437), so the result is 500 `internal` with an `error` log (admin-api.md:265) instead of 400 `bad_request`. The same input from content `send_mail` or `grant_or_mail` throws inside the request transaction instead of returning `INVALID_INPUT`",
+      "foundBy": "spec admin-api"
+    }
+  ]
 }
