@@ -183,7 +183,7 @@
     },
     "auth.socialVerifyTimeoutMs": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "block-report.maxCommentLength": {
       "type": "integer",

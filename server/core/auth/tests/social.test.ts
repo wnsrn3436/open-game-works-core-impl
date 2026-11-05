@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import {
   E,
@@ -21,6 +22,8 @@ import {
   type TestServer,
   type TestSession,
 } from './helpers.ts';
+
+const SCHEMA = JSON.parse(readFileSync(new URL('../../../../settings/core-settings.schema.json', import.meta.url), 'utf8')) as { properties: Record<string, { minimum?: number }> };
 
 let server: TestServer;
 beforeAll(async () => {
@@ -53,8 +56,9 @@ describe('social Login', () => {
   });
 
   it('an adapter past its time limit is EXTERNAL_SERVICE_FAILED at auth.socialVerifyTimeoutMs and makes no user', async () => {
-    // Two servers with different settings: each request ends at its own server's setting, not at a fixed value.
-    for (const limit_ms of [300, 1500]) {
+    // Servers with different settings: each request ends at its own server's setting, not at a fixed value. 1 is the
+    // schema minimum, where the call still ends at the time limit instead of throwing.
+    for (const limit_ms of [1, 300, 1500]) {
       const own = await start({ settings: { 'auth.socialVerifyTimeoutMs': limit_ms } });
       try {
         const before = await user_ids(own);
@@ -71,6 +75,10 @@ describe('social Login', () => {
         await testing.stop_test_server(own);
       }
     }
+  });
+
+  it('gives auth.socialVerifyTimeoutMs the minimum 1 in core-settings.schema.json', () => {
+    expect(SCHEMA.properties['auth.socialVerifyTimeoutMs']?.minimum).toBe(1);
   });
 
   it('two concurrent Logins of a new social account get one user; the losing new user is withdrawn and only the winner records core_user_created', async () => {
