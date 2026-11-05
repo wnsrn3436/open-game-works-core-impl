@@ -1,5 +1,12 @@
 {
   "target": "guild",
-  "nextId": 7,
-  "items": []
+  "nextId": 8,
+  "items": [
+    {
+      "id": "D7",
+      "location": "server/core/guild/members.ts:184",
+      "problem": "guild.md:223 sets that `guild.remove_user` changes nothing and returns `CHANGED` when the re-read member row of the user exists and the guild row was not locked in step 1 or its guild is not the guild locked in step 1, but the code returns `LOCK_FAILED` (`'FAILED'`) there, and the `remove_user` type at server/core/guild/index.ts:82 allows only `LockFailed \\| null`. Run path: a `Withdraw` whose member row another transaction creates or moves (e.g. a guild accepting that user's join request) between the first `db.member` read (members.ts:178) and the lock gives `FAILED` without a storage abort, so auth returns `INTERNAL` from the handler (server/core/auth/account.ts:79) with neither the `CHANGED` `error` log of auth.md:352 nor the routing step 13 `error` log of a `FAILED` request transaction. members.ts:189 (`guild === null` after the lock) also returns `FAILED` for a case that is not a lock wait",
+      "foundBy": "chat round 4"
+    }
+  ]
 }
