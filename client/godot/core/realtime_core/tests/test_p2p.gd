@@ -885,6 +885,39 @@ func test_peer_rejoined_after_a_failed_connect_peer_offers_again_without_peer_lo
 	assert_eq(_signals_of(_SIGNAL.Type.OFFER), 1, "one offer")
 
 
+## A `connect_peer` that failed is a connection being made: `MATCH_REJOINED` of the same match read before the read that
+## finds the failure replaces it without peer lost and without the warn log of the failure, with the next attempt number.
+func test_match_rejoined_after_a_failed_connect_peer_offers_again_without_peer_lost() -> void:
+	if not await _start_p2p(false):
+		return
+	var failing: _FailingTransport = _FailingTransport.new(server.base_url(), APP_VERSION, false)
+	failing.fails_start = true
+	p2p = failing
+	driver.transport = p2p
+	var remote: RealtimeRemotePeer = _remote(1)
+	assert_true(remote.start(false))
+	await _found(PackedInt64Array([USER_ID, OTHER_ID]), 0)
+	driver.paused = true
+	p2p.connect_peer(1)
+	failing.fails_start = false
+	var rejoined: CoreContract.MatchmakerFrame = server.new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_REJOINED)
+	var found: CoreContract.MatchmakerFrame = server.match_found(PackedInt64Array([USER_ID, OTHER_ID]), 0, false)
+	rejoined.match_id = found.match_id
+	rejoined.ok = true
+	rejoined.my_index = 0
+	rejoined.players = found.players
+	rejoined.transport = found.transport
+	await _deliver([rejoined])
+	await driver.wait_count(RealtimeNotice.Kind.PEER_CONNECTED, 1)
+	assert_true(driver.oks[driver.last(RealtimeNotice.Kind.REJOINED)])
+	assert_eq(driver.count(RealtimeNotice.Kind.PEER_LOST), 0)
+	assert_eq(driver.count_for(RealtimeNotice.Kind.PEER_CONNECTED, 1), 1)
+	assert_eq(warn_logs(), 0)
+	await _settle_signals(1)
+	assert_eq(_offer_attempts(), [2] as Array[int], "one offer, with the attempt number after the failed one")
+	assert_eq(remote.attempt, 2)
+
+
 ## A connection being made that the engine finds closed before it was connected raises no peer lost: RealtimeCore judges
 ## its time limit.
 func test_a_connection_closed_before_it_connected_raises_no_peer_lost() -> void:
