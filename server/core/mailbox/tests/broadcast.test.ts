@@ -166,6 +166,18 @@ describe('broadcast', () => {
     expect(await read_mails(ms, user.user_id)).toHaveLength(0);
   });
 
+  test('keeps an int_value over 2^53−1 of a broadcast mail exactly, as a decimal string in the mailbox_broadcast mail', async () => {
+    const args = [{ name: 'count', value: { int_value: 9007199254740993n } }];
+    const broadcast_id = await broadcast(ms, START_AT, { args });
+    const stored = await game(ms, (tx) => ms.storage.db(tx).query('SELECT mail FROM mailbox_broadcast WHERE broadcast_id = $1', [broadcast_id]));
+    const mail = JSON.parse(String(stored[0]?.mail)) as { args: unknown };
+    expect(mail.args).toEqual([{ name: 'count', value: { int_value: '9007199254740993' } }]);
+    const user = await login(ms);
+    await touch(ms, user);
+    const made = await broadcast_mails(ms, user);
+    expect(made.map((entry) => entry.args.map((arg) => arg.int_value))).toEqual([[9007199254740993n]]);
+  });
+
   test('mail_input_from_json answers INVALID_INPUT to JSON that is not the mail input form', () => {
     expect(ms.mailbox.mail_input_from_json({ template_id: 1, unknown: 1 })).toBe('INVALID_INPUT');
     expect(ms.mailbox.mail_input_from_json({ template_id: 1, expire_ms: '9' })).toMatchObject({ template_id: 1, expire_ms: 9n });

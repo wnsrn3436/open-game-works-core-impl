@@ -3,6 +3,7 @@ import {
   CoreError, DAY_MS, Source, admin_broadcast, admin_send_mail, advance_time, amount, balance, claim_all, claim_mail, game, id, in_user, login,
   mail_entries, mail_ids, peek, plain, read_mail, read_mails, send, send_mail, start_mail_server, stop_all, user_logs, type MailServer,
 } from './helpers.ts';
+import type { MailArgInput, MailInput } from '../index.ts';
 
 const INT = CoreContract.MailArgKind.MAIL_ARG_KIND_INT;
 const TEXT = CoreContract.MailArgKind.MAIL_ARG_KIND_TEXT;
@@ -53,12 +54,66 @@ describe('send_mail', () => {
     expect(await read_mails(ms, user.user_id)).toHaveLength(1);
   });
 
+  test('reads a MailArg with its kind when set, else Int when int_value is set, else Text when text_value is set', async () => {
+    const user = await login(ms);
+    const kinds: [MailArgInput, number | null][] = [
+      [{ name: 'n', int_value: 5n, text_value: '' }, INT],
+      [{ name: 'n', kind: TEXT, int_value: 0n, text_value: 'x' }, TEXT],
+      [{ name: 'n', int_value: 0n, text_value: 'x' }, null],
+      [{ name: 'n' } as MailArgInput, null],
+      [{ name: 'n', kind: INT, text_value: 'x' }, null],
+      [{ name: 'n', int_value: 5n }, INT],
+    ];
+    for (const [arg, kind] of kinds) {
+      const sent = await send_mail(ms, user.user_id, plain({ args: [arg] }));
+      if (kind === null) {
+        expect(sent).toEqual({ result: 'INVALID_INPUT', mail_id: 0n });
+        continue;
+      }
+      expect(sent.result).toBe('OK');
+      const mail = (await read_mails(ms, user.user_id)).find((entry) => entry.id === sent.mail_id);
+      expect(mail?.args.map((out) => out.kind)).toEqual([kind]);
+    }
+    expect(await read_mails(ms, user.user_id)).toHaveLength(3);
+  });
+
+  test('fills a mail input with only template_id with empty fields and the sent time + mailbox.defaultExpireMs', async () => {
+    const user = await login(ms);
+    const sent = await send_mail(ms, user.user_id, { template_id: id('[mail_mailbox_plain]') });
+    expect(sent.result).toBe('OK');
+    const [mail] = await read_mails(ms, user.user_id);
+    expect(mail && [mail.args, mail.attachments, mail.extra_id, mail.expires_at - mail.sent_at]).toEqual([[], [], 0, DAY_MS]);
+    const rows = await peek(ms, user.user_id, (ctx) => ms.storage.read_user_rows(ctx));
+    expect(rows.filter((row) => row.table === 'mailbox_once_key')).toEqual([]);
+  });
+
+  test('refuses a field that is neither undefined nor of its type, and takes undefined fields and a safe integer expire_ms', async () => {
+    const user = await login(ms);
+    for (const fields of [{ args: null }, { attachments: null }, { expire_ms: null }, { extra_id: null }, { once_key: null }, { expire_ms: 1.5 }]) {
+      expect((await send_mail(ms, user.user_id, plain(fields as unknown as Partial<MailInput>))).result).toBe('INVALID_INPUT');
+    }
+    const fields = { args: undefined, attachments: undefined, extra_id: undefined, expire_ms: undefined, no_expiry: undefined, once_key: undefined };
+    expect((await send_mail(ms, user.user_id, plain(fields))).result).toBe('OK');
+    const by_number = await send_mail(ms, user.user_id, plain({ expire_ms: 1000 }));
+    expect(by_number.result).toBe('OK');
+    const mail = (await read_mails(ms, user.user_id)).find((entry) => entry.id === by_number.mail_id);
+    expect(mail && mail.expires_at - mail.sent_at).toBe(1000n);
+  });
+
   test('answers ALREADY_SENT with the first mail ID to the second send_mail of a once_key', async () => {
     const user = await login(ms);
     const first = await send_mail(ms, user.user_id, plain({ once_key: 'test:welcome' }));
     const second = await send_mail(ms, user.user_id, plain({ once_key: 'test:welcome' }));
     expect(first.result).toBe('OK');
     expect(second).toEqual({ result: 'ALREADY_SENT', mail_id: first.mail_id });
+    expect(await mail_ids(ms, user.user_id)).toEqual([first.mail_id]);
+  });
+
+  test('answers INVALID_INPUT, not ALREADY_SENT, to a sent once_key with an expire_ms over mailbox.maxExpireMs', async () => {
+    const user = await login(ms);
+    const first = await send_mail(ms, user.user_id, plain({ once_key: 'gift' }));
+    expect(first.result).toBe('OK');
+    expect(await send_mail(ms, user.user_id, plain({ once_key: 'gift', expire_ms: 10n * DAY_MS + 1n }))).toEqual({ result: 'INVALID_INPUT', mail_id: 0n });
     expect(await mail_ids(ms, user.user_id)).toEqual([first.mail_id]);
   });
 
