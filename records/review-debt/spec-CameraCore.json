@@ -1,6 +1,6 @@
 {
   "target": "spec CameraCore",
-  "nextId": 5,
+  "nextId": 6,
   "items": [
     {
       "id": "D1",
@@ -24,6 +24,12 @@
       "id": "D4",
       "location": "skills/client-core/modules/camera-core.md:79",
       "problem": "It is not set whether bounds fitting writes the fitted value back into the base position or only produces the value of step 2 (`get_view_center` is \"base position after bounds fitting\", line 44; line 108 says a 3D camera \"moves\" the base position's horizontal axes). Run path: `snap_to`(p outside the bounds) → `set_bounds` → frame → `clear_bounds` → frame. The camera either stays at the fitted position or returns to p. This also affects row 146, \"the base position keeps its value at the call\", when `set_bounds` or `zoom_to` runs while a `move_by_preset` waits for loading",
+      "foundBy": "spec CameraCore"
+    },
+    {
+      "id": "D5",
+      "location": "skills/client-core/modules/camera-core.md:144",
+      "problem": "The failure conditions of `follow` (lines 31, 87, 144) cover a missing or destroyed target, negative smooth time and negative dead zone size, but not a target object that has no world position of the attached camera's dimension (e.g. in Godot a `Node2D` target for a `Camera3D`, or a plain `Node`). \"target object position\" (line 87) is then not defined, so one implementation can fail with `false`, another can project or pad the axes. `CutsceneCore` checks the dimension itself before calling `CameraCore` (skills/client-core/modules/cutscene-core.md:75), which shows `CameraCore` does not define it. This existed before the diff and is unrelated to the changed side effect on the `move_to` in progress",
       "foundBy": "spec CameraCore"
     }
   ]
