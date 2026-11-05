@@ -1,6 +1,6 @@
 {
   "target": "spec matchmaker",
-  "nextId": 15,
+  "nextId": 16,
   "items": [
     {
       "id": "D2",
@@ -66,6 +66,12 @@
       "id": "D14",
       "location": "skills/server-core/modules/matchmaker.md:211",
       "problem": "The counting window of the per-IP limits `matchmaker.preAuthAcceptsPerSecond` and `matchmaker.preAuthFramesPerSecond` is not set. Line 209 says only \"per-second counts\" for them while it uses \"the last 1000 ms\" for the user frame count on line 210, and line 213 takes only the IP judgement from `routing`, whose counters use the minute window (skills/server-core/modules/routing.md:168). Run path: with a limit of 10, 10 accepts at `clock_now` 999 and 10 accepts at `clock_now` 1001 all pass with a fixed window of `server-time.get_window_start`, and the second 10 get HTTP 429 with the last 1000 ms. Direction: name one window for both limits, and add a test at its boundary.",
+      "foundBy": "spec matchmaker"
+    },
+    {
+      "id": "D15",
+      "location": "skills/server-core/modules/matchmaker.md:375",
+      "problem": "The test item says \"the index that left has `left_at` and `reported_at` 0\", which reads as `left_at` 0 for a participant who did `MATCH_LEAVE`, contrary to line 232 (`left_at` is 0 only when none); the parallel clause \"the remaining index has `reported_at` and `result`\" suggests the intent is `left_at` not 0 and `reported_at` 0, so the judgement criterion of that item differs per reader",
       "foundBy": "spec matchmaker"
     }
   ]
