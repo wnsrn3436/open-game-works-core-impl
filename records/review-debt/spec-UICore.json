@@ -1,12 +1,5 @@
 {
   "target": "spec UICore",
   "nextId": 11,
-  "items": [
-    {
-      "id": "D10",
-      "location": "skills/client-core/modules/ui-core.md:349",
-      "problem": "The `panel key` payload of `PanelFlowFinishedEvent` is not defined for a close flow. `close_panel` has no key input, and the payload could be the key of the closed current panel or of the destination. A close flow can also end with the stack empty and no destination (ui-core.md:181). Two implementations can publish different keys, and test line 498 checks only the count and `is_panel_transitioning`",
-      "foundBy": "spec UICore"
-    }
-  ]
+  "items": []
 }
