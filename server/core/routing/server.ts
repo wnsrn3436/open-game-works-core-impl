@@ -18,7 +18,7 @@ import type { CoreRpcHandler, DevObject, LogEntry, ModuleObject, ServerTimeModul
 import { Pipeline } from './pipeline.ts';
 import type { RoutingModule } from './routing_module.ts';
 import { BEFORE_START_DEV_OPERATIONS, CONTENT_REGISTER_OPERATIONS, DEV_ONLY_MODULES, MODULE_DEPENDENCIES } from './spec_tables.ts';
-import { check_input, content_object, merge_objects, module_settings, preparation_order, read_build_data, read_data_file, read_secret_file, routing_deps, routing_settings, secret_reader } from './start_parts.ts';
+import { check_input, content_object, HOST_SECRET_DIR, merge_objects, module_settings, preparation_order, read_build_data, read_data_file, read_secret_file, routing_deps, routing_settings, secret_reader } from './start_parts.ts';
 
 export { module_settings, preparation_order } from './start_parts.ts';
 
@@ -239,7 +239,7 @@ export class ServerInstance {
       client_data_version: build.client ?? '',
       compat_client_data_version: build.compat,
       read_data_file: (name) => read_data_file(input.data_folder, name),
-      read_secret: secret_reader(input.args.secret_file === undefined ? null : secrets),
+      read_secret: secret_reader(input.args.secret_file === undefined ? null : secrets, HOST_SECRET_DIR),
       fetch: input.http_adapter ?? outgoing_fetch,
       write_log_line: (line) => {
         this.write_line(line);
