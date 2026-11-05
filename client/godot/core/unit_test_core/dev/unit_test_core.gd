@@ -475,12 +475,12 @@ static func _record(run: _RUN, state: _STATE) -> void:
 	var gut_failed: bool = run.gut != null and _gut_fail_count(run.gut) > state.gut_fail_baseline
 	var failures: PackedStringArray = state.assert_failures.duplicate()
 	failures.append_array(state.fail_reasons)
-	if not state.skip_reason.is_empty():
-		result.status = "skip"
-		result.message = state.skip_reason
-	elif gut_failed or not failures.is_empty():
+	if gut_failed or not failures.is_empty():
 		result.status = "fail"
 		result.message = "; ".join(failures) if not failures.is_empty() else "an assert failed"
+	elif not state.skip_reason.is_empty():
+		result.status = "skip"
+		result.message = state.skip_reason
 	else:
 		result.status = "pass"
 	run.results.append(result)
@@ -654,8 +654,8 @@ static func _setup_test() -> void:
 
 
 ## Checks at the end of a `UnitTestCase` test, before GUT ends it: fails it for unchecked error logs and unchecked
-## engine script runtime errors. Returns the failures UnitTestCore found, for GUT; none for a skipped test. What
-## comes after it comes between tests: `_delete_test_servers` follows it.
+## engine script runtime errors. Returns the failures UnitTestCore found, for GUT; a skipped test with a failure
+## fails too. What comes after it comes between tests: `_delete_test_servers` follows it.
 static func _finish_test() -> PackedStringArray:
 	var reasons: PackedStringArray = PackedStringArray()
 	if not _is_initialized:
@@ -674,9 +674,7 @@ static func _finish_test() -> PackedStringArray:
 	state.finished = true
 	run.script_errors_mark = _script_errors()
 	_wake(state)
-	if state.skip_reason.is_empty():
-		reasons = state.fail_reasons.duplicate()
-	return reasons
+	return state.fail_reasons.duplicate()
 
 
 ## Deletes the loopback HTTP servers and the WebSocket relays of the test that ends now from the test host and waits
@@ -1528,20 +1526,23 @@ static func realtime_calls(transport: UnitTestRealtimeTransport) -> Array[UnitTe
 	return transport.calls()
 
 
-## Ends this core test as a skip when the platform of the run is not in `platforms`. A regression test fails instead.
-static func require_platform(platforms: PackedStringArray) -> void:
+## Whether this core test goes on: `false` when the platform of the run is not in `platforms`, and the test is recorded
+## as a skip unless it fails; the test returns right after `false`. A regression test gets `false` and fails instead.
+static func require_platform(platforms: PackedStringArray) -> bool:
 	if not _check("require_platform"):
-		return
+		return false
 	var run: _RUN = _run
 	if run.kind != _KIND_CORE:
 		_error_and_fail("require_platform called in a regression test")
-		return
+		return false
 	if run.test == null:
 		LogCore.log_error(_TAG, "require_platform outside a test")
-		return
+		return false
 	var platform: String = CoreBuildInfo.platform
 	if not platform in platforms:
 		run.test.skip_reason = "platform %s is not in %s" % [platform, ", ".join(platforms)]
+		return false
+	return true
 
 
 ## Sets the test value of a core settings key or a game settings path core reads. Modules `init`ed after it read it;
