@@ -86,6 +86,47 @@ func test_root_with_only_the_root_panel_opens_no_panel() -> void:
 	assert_eq(stack(), "r")
 
 
+## Content code pushed another item with the root panel key above the root item (stack R, A, R, B, R). `Root` still
+## ends with the panel path on top of the root item, or with the root item alone.
+func test_root_with_root_key_items_above_the_root_item_goes_back_to_the_root_item() -> void:
+	var stacked: PackedStringArray = PackedStringArray([PANEL_A, PANEL_R, PANEL_B, PANEL_R])
+	assert_true(await start_at(SCENE_ROOT, stacked))
+	assert_eq(stack(), "r,a,r,b,r")
+	assert_true(await ShortcutCore.navigate(shortcut("root_c")))
+	assert_eq(stack(), "r,c")
+	assert_eq(Trace.count("flow:open:c:true"), 1)
+	assert_eq(Trace.with_prefix("flow:open:").size(), 1)
+	assert_true(await ShortcutCore.navigate(shortcut("top_b")))
+	assert_true(await UICore.open_panel(PANEL_R, null, false))
+	assert_eq(stack(), "r,c,b,r")
+	Trace.clear()
+	assert_true(await ShortcutCore.navigate(shortcut("root_r")))
+	assert_eq(stack(), "r")
+	assert_eq(Trace.with_prefix("flow:open:").size(), 0)
+	assert_true(await UICore.open_panel(PANEL_A, null, false))
+	assert_true(await UICore.open_panel(PANEL_R, null, false))
+	Trace.clear()
+	var id: int = shortcut("root_empty")
+	assert_true(await ShortcutCore.navigate(id))
+	assert_eq(stack(), "r")
+	assert_eq(probe.navigated_ids[probe.navigated_ids.size() - 1], id)
+
+
+## Going back below a root key item above the root item fails when the panel below it cannot show again: stage 7
+## stops, nothing opens and the stack keeps what was not closed.
+func test_root_stops_when_going_back_below_a_root_key_item_fails() -> void:
+	assert_true(await start_at(SCENE_ROOT, PackedStringArray([PANEL_A, PANEL_R])))
+	TestPanel.returned_gate = Gate.new()
+	navigate_later(shortcut("root_c"))
+	await wait_trace("panel_gated:a")
+	TestPanel.returned_gate.open(false)
+	await UnitTestCore.wait_frames(3)
+	assert_eq(results, PackedInt32Array([0]))
+	assert_eq(Trace.with_prefix("flow:open:").size(), 0)
+	assert_eq(stack(), "r,a,r")
+	assert_eq(probe.navigated_ids.size(), 0)
+
+
 ## The scene changes at stage 6 into a scene without a root panel, so `Top` acts as `Root`: no `close_panels_to`, and
 ## clear stack of the open is on, which also closes the panel the new scene's `on_start` opened.
 func test_top_into_a_scene_without_a_root_panel_opens_with_clear_stack() -> void:
