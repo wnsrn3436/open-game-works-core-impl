@@ -1,6 +1,10 @@
 extends Node
-## Core node of `VirtualPadCore`: receives frames, `InputDeviceChangedEvent` and `SafeAreaChangedEvent`, and hands them
-## to `VirtualPadCore`.
+## Core node of `VirtualPadCore`: receives device input, frames, `InputDeviceChangedEvent` and `SafeAreaChangedEvent`,
+## and hands them to `VirtualPadCore`.
+
+
+func _input(event: InputEvent) -> void:
+	VirtualPadCore._on_input(event)
 
 
 func _process(_delta: float) -> void:

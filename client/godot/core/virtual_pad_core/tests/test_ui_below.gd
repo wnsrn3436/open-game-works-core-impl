@@ -99,3 +99,35 @@ func test_device_change_while_held_keeps_the_pointer_from_the_button_below() -> 
 	assert_eq(button.inputs, 0, "the SceneUI button gets no input")
 	assert_eq(button.clicks, 0, "the SceneUI button is not clicked")
 	assert_false(InputCore.is_pressed(FIRE_ACTION), "the pointer the button let go presses nothing")
+
+
+func test_input_cancel_while_hidden_keeps_the_held_touch_from_the_button_below() -> void:
+	await open(LAYOUT_FIXED)
+	var button: VirtualPadTestButton = make_scene_button(area_of(element(FIRE)))
+	touch(0, true, center_of(FIRE))
+	InputCoreDev.set_test_device(InputCore.InputDevice.GAMEPAD)
+	InputCore.cancel_input()
+	await run_frames()
+	assert_false(element(FIRE).is_visible_in_tree(), "the cancel ends the held touch")
+	drag(0, center_of(FIRE) + Vector2(10.0, 10.0))
+	touch(0, false, center_of(FIRE) + Vector2(10.0, 10.0))
+	assert_eq(button.inputs, 0, "the SceneUI button gets no input")
+	assert_eq(button.clicks, 0, "the SceneUI button is not clicked")
+
+
+func test_hidden_elements_keep_the_held_touch_from_the_button_below_and_then_let_it_through() -> void:
+	await open(LAYOUT_FIXED)
+	var button: VirtualPadTestButton = make_scene_button(area_of(element(FIRE)))
+	touch(0, true, center_of(FIRE))
+	VirtualPadCoreDev.set_test_touch_support(false)
+	assert_eq(VirtualPadCore.get_state(), VirtualPadCore.VirtualPadState.HIDDEN)
+	drag(0, center_of(FIRE) + Vector2(10.0, 10.0))
+	touch(0, false, center_of(FIRE) + Vector2(10.0, 10.0))
+	assert_eq(button.inputs, 0, "the SceneUI button gets no input of the held touch")
+	assert_eq(button.clicks, 0, "the SceneUI button is not clicked")
+	await run_frames()
+	assert_false(element(FIRE).is_visible_in_tree(), "after the release the button is not a visible UI element")
+	touch(0, true, center_of(FIRE))
+	touch(0, false, center_of(FIRE))
+	assert_eq(button.clicks, 1, "a later touch clicks the SceneUI button")
+	assert_false(InputCore.is_pressed(FIRE_ACTION))
