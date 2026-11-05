@@ -19,3 +19,5 @@ id,name,type,sku_apple,sku_google,reward,daily_reward,extra_grant,limit_count,re
 [iap_apple_only],Iap apple only pack,Consumable,apple_only_apple,,[item_iap_gem] 5,,false,null,null,null,,null,null,null,null,200
 [iap_capped_unlock],Iap capped unlock,NonConsumable,capped_unlock_apple,capped_unlock_google,[item_iap_capped] 100,,false,1,null,null,,null,null,null,null,300
 [iap_extra],Iap extra pack,Consumable,extra_apple,extra_google,[item_iap_gem] 7,,true,null,null,null,,null,null,null,null,100
+[iap_unsold],Iap unsold pack,Consumable,,,[item_iap_gem] 2,,false,null,null,null,,null,null,null,null,0
+[iap_vip_google_only],Iap vip google only,Subscription,,vip_google_only,[item_iap_gem] 40,,false,null,null,null,,null,null,null,null,4000
