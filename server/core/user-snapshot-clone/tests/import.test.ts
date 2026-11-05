@@ -292,6 +292,19 @@ describe('import_user_snapshot', () => {
     expect(String(args['target_user_id'])).toBe(String(target.user_id));
   });
 
+  it('is bad_request for a body that is not JSON, and its audit args are null but target_user_id', async () => {
+    const target = await richUser(server, core, 'target');
+    await expectRefused(server, core, target.user_id, encodeJson('{'), 400);
+    const lines = read_logs(server, 'audit').filter((l) => l['request'] === 'import_user_snapshot' && l['status'] === 400);
+    const args = lines[lines.length - 1]?.['args'] as Record<string, unknown> | undefined;
+    if (args === undefined) throw new Error('no import_user_snapshot audit line');
+    expect(Object.keys(args).sort()).toEqual(['sha256', 'source_environment', 'source_user_id', 'target_user_id']);
+    expect(args['source_environment']).toBeNull();
+    expect(args['source_user_id']).toBeNull();
+    expect(args['sha256']).toBeNull();
+    expect(String(args['target_user_id'])).toBe(String(target.user_id));
+  });
+
   it('parses a body once for audit_args and prepare', async () => {
     const source = await richUser(server, core, 'source');
     const target = await newUser(server, 'target');

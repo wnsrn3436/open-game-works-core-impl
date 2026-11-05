@@ -106,6 +106,12 @@
       "type": "integer",
       "source": "core",
       "owner": "content"
+    },
+    {
+      "key": "storage.userLockWaitMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
     }
   ],
   "settingsConstraints": [],
