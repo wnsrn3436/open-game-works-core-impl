@@ -182,18 +182,18 @@ export function read_data_file(folder: string, name: string): Uint8Array | null 
 }
 
 /** Where the host secret store keeps a secret in the server image (`server-image.md`). */
-const HOST_SECRET_DIR = '/run/secrets';
+export const HOST_SECRET_DIR = '/run/secrets';
 
 /**
- * The secret adapter: the `--secret-file` values of a LOCAL server and a test server, or else the host secret store,
- * whose secret is the file content without one trailing line break.
+ * The secret adapter: the `--secret-file` values of a LOCAL server and a test server, or else the host secret store
+ * folder `store_folder`, whose secret is the file content without one trailing line break.
  */
-export function secret_reader(file_values: Readonly<Record<string, string>> | null): (name: string) => string | null {
+export function secret_reader(file_values: Readonly<Record<string, string>> | null, store_folder: string): (name: string) => string | null {
   if (file_values !== null) return (name) => (Object.prototype.hasOwnProperty.call(file_values, name) ? (file_values[name] ?? null) : null);
   return (name) => {
     if (name === '' || name.includes('/') || name === '.' || name === '..') return null;
     try {
-      return readFileSync(join(HOST_SECRET_DIR, name), 'utf8').replace(/\r?\n$/, '');
+      return readFileSync(join(store_folder, name), 'utf8').replace(/\r?\n$/, '');
     } catch {
       return null;
     }
