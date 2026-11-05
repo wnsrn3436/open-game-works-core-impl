@@ -686,6 +686,56 @@ export async function refuse_applied_write(h: Harness, match_id: string, idx: nu
   }
 }
 
+type TransactionFn = (...args: unknown[]) => Promise<unknown>;
+
+/** The spy of each storage transaction function `hold_next_transaction` held, with that function before it, by storage module. */
+const holds = new WeakMap<object, Map<string, { readonly run: TransactionFn; readonly spy: ReturnType<typeof vi.fn<TransactionFn>> }>>();
+
+/** A storage transaction function whose next call waits before it starts, until `open`. */
+export interface HeldTransaction {
+  open(): void;
+  /** The calls of that function since it was held, the held one first. */
+  calls(): number;
+  /** Waits for the end of every call counted by `calls`. */
+  done(): Promise<void>;
+}
+
+/**
+ * Makes the next call of `storage.run_rollback_transaction` or `storage.run_game_transaction` wait until `open`, as a
+ * transaction waits for a lock, on SQLite and PostgreSQL alike. The calls after it run at once.
+ */
+export function hold_next_transaction(h: Harness, name: 'run_rollback_transaction' | 'run_game_transaction'): HeldTransaction {
+  const storage = storage_module(h.server);
+  const by_name = holds.get(storage) ?? new Map<string, { readonly run: TransactionFn; readonly spy: ReturnType<typeof vi.fn<TransactionFn>> }>();
+  holds.set(storage, by_name);
+  // A held call runs the function as it was before the first hold, not the spy, so it counts once.
+  let held = by_name.get(name);
+  if (held === undefined) {
+    const original = Reflect.get(storage, name) as TransactionFn;
+    const run: TransactionFn = (...args) => Reflect.apply(original, storage, args);
+    held = { run, spy: vi.fn<TransactionFn>(run) };
+    Reflect.set(storage, name, held.spy);
+    by_name.set(name, held);
+  }
+  const { run, spy } = held;
+  let open = (): void => {};
+  const gate = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  const before = spy.mock.calls.length;
+  spy.mockImplementationOnce(async (...args: unknown[]) => {
+    await gate;
+    return run(...args);
+  });
+  return {
+    open,
+    calls: () => spy.mock.calls.length - before,
+    done: async () => {
+      await Promise.all(spy.mock.results.slice(before).map((r) => r.value as unknown));
+    },
+  };
+}
+
 export function calls_of(h: Harness, hook: HookCall['hook']): HookCall[] {
   return h.calls.filter((c) => c.hook === hook);
 }

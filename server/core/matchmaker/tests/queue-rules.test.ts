@@ -30,6 +30,25 @@ describe('run_queue', () => {
     expect(ids(queue)).toEqual([3n]);
   });
 
+  it('stops collecting once the collected headcount is max_players, so one run reads each entry a bounded number of times', () => {
+    let reads = 0;
+    const counted = (user_id: bigint): QueueEntry => ({
+      members: [{ user_id, rating: 0n, blocked: new Set<bigint>() }],
+      get rating() {
+        reads += 1;
+        return 0n;
+      },
+      entered_at: 0n,
+    });
+    const n = 400;
+    const queue = Array.from({ length: n }, (_, i) => counted(BigInt(i + 1)));
+    const steps = run_queue(queue, RULE, 0n);
+    expect(steps).toHaveLength(n / 2);
+    expect(queue).toEqual([]);
+    // Each match reads the ratings of e0 and its partner only; walking the rest of the queue would read about n² / 2.
+    expect(reads).toBeLessThanOrEqual(4 * n);
+  });
+
   it('does not group entries whose rating differs by more than the spread until waiting widens it', () => {
     const rule = { ...RULE, rating_spread: 10n, rating_spread_per_sec: 5n };
     const queue = [solo(1n, 100n), solo(2n, 130n)];

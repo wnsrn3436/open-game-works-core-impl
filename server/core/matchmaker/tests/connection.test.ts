@@ -1,4 +1,5 @@
 /** `### connection` and `### security`: `HELLO`, the checks before frames, replaced connections and the limits. */
+import { readFileSync } from 'node:fs';
 import { advance_time, read_logs, send_raw, wait_background, type TestSession } from '../../testing/dev/index.ts';
 import {
   CoreError,
@@ -19,6 +20,7 @@ import {
   player,
   read_frame,
   room_frame,
+  send_and_wait,
   send_frame,
   stop_all,
   tick,
@@ -52,6 +54,16 @@ describe('HELLO', () => {
     const conn = await connect(h.server);
     send_frame(conn, match_request(DUEL.id));
     expect(await read_frame(conn, 5_000n)).toBeNull();
+  });
+
+  it('gives matchmaker.helloTimeoutMs, frameReadTimeoutMs and applyRetryMaxAttempts the minimum 1 in core-settings.schema.json, and handles connections with both time limits at 1', async () => {
+    const schema = JSON.parse(readFileSync(new URL('../../../../settings/core-settings.schema.json', import.meta.url), 'utf8')) as { properties: Record<string, { minimum?: number }> };
+    for (const key of ['matchmaker.helloTimeoutMs', 'matchmaker.frameReadTimeoutMs', 'matchmaker.applyRetryMaxAttempts']) expect(schema.properties[key]?.minimum).toBe(1);
+    const read_limit = await harness({ modes: [DUEL], settings: { 'matchmaker.frameReadTimeoutMs': 1 } });
+    await barrier(await online(read_limit, await player(read_limit)));
+    const hello_limit = await harness({ modes: [DUEL], settings: { 'matchmaker.helloTimeoutMs': 1 } });
+    expect(await read_frame(await connect(hello_limit.server), 3_000n)).toBeNull();
+    expect(read_logs(hello_limit.server, 'security').some((l) => l['reason'] === 'hello_timeout')).toBe(true);
   });
 
   it('closes a connection not authenticated within matchmaker.helloTimeoutMs and keeps an authenticated one', async () => {
@@ -116,6 +128,37 @@ describe('HELLO', () => {
     const first = await online(h, s);
     await online(h, s);
     expect(await close_code(first)).toBe(CoreError.CORE_ERROR_SESSION_REPLACED);
+  });
+
+  it.each(['MATCH_REQUEST', 'ROOM_CREATE'] as const)('keeps a %s that the new connection sends right after HELLO after the WebSocket close of the replaced connection ends', async (kind) => {
+    const h = await harness({ modes: [DUEL, ROOMS] });
+    const s = await player(h);
+    const first = await online(h, s);
+    // The earlier connection is in the queue, so its close takes that user out of it before HELLO_ACK of the new one.
+    await send_and_wait(first, match_request(DUEL.id));
+    const second = await connect(h.server);
+    send_frame(second, hello(s, h.client_data_version));
+    send_frame(second, kind === 'MATCH_REQUEST'
+      ? match_request(DUEL.id)
+      : room_frame(K.MATCHMAKER_FRAME_KIND_ROOM_CREATE, (f) => {
+        f.mode_id = ROOMS.id;
+      }));
+    expect(await close_code(first)).toBe(CoreError.CORE_ERROR_SESSION_REPLACED);
+    const seen = await barrier(second);
+    expect(kinds(seen)[0]).toBe(K.MATCHMAKER_FRAME_KIND_HELLO_ACK);
+    const o = await player(h);
+    const other = await online(h, o);
+    if (kind === 'MATCH_REQUEST') {
+      await send_and_wait(other, match_request(DUEL.id));
+      await tick(h);
+      expect((await next(second, K.MATCHMAKER_FRAME_KIND_MATCH_FOUND)).players.map((p) => p.user_id)).toEqual([s.user_id, o.user_id]);
+      return;
+    }
+    const code = seen.find((f) => f.kind === K.MATCHMAKER_FRAME_KIND_ROOM_STATE)?.room_code ?? '';
+    const joined = await send_and_wait(other, room_frame(K.MATCHMAKER_FRAME_KIND_ROOM_JOIN, (f) => {
+      f.room_code = code;
+    }));
+    expect(joined.find((f) => f.kind === K.MATCHMAKER_FRAME_KIND_ROOM_STATE)?.room_members).toEqual([s.user_id, o.user_id]);
   });
 
   it('drops frames it cannot read, text-like kinds from the server side and a second HELLO after authentication', async () => {
@@ -225,6 +268,28 @@ describe('security', () => {
     advance_time(accepts.server, 1_000n);
     await connect(accepts.server);
     expect(read_logs(accepts.server, 'security').some((l) => l['reason'] === 'pre_auth_connection_limit')).toBe(true);
+  });
+
+  it('counts the pre-auth accepts and frames of the last 1000 ms of clock_now: one at t + 999 is over the limit and one at t + 1000 is not', async () => {
+    const accepts = await harness({ modes: [DUEL], settings: { 'matchmaker.preAuthAcceptsPerSecond': 2 } });
+    await connect(accepts.server);
+    await connect(accepts.server);
+    advance_time(accepts.server, 999n);
+    await expect(connect(accepts.server)).rejects.toThrow();
+    advance_time(accepts.server, 1n);
+    await connect(accepts.server);
+    const frames = await harness({ modes: [DUEL], settings: { 'matchmaker.preAuthFramesPerSecond': 2 } });
+    // Two HELLO frames of one IP at t, each before its connection authenticated.
+    await online(frames, await player(frames));
+    await online(frames, await player(frames));
+    advance_time(frames.server, 999n);
+    const s = await player(frames);
+    const over = await connect(frames.server);
+    send_frame(over, hello(s, frames.client_data_version));
+    expect(await read_frame(over, 5_000n)).toBeNull();
+    expect(read_logs(frames.server, 'security').filter((l) => l['reason'] === 'pre_auth_frame_limit')).toHaveLength(1);
+    advance_time(frames.server, 1n);
+    await barrier(await online(frames, s));
   });
 
   it('closes an unauthenticated connection past matchmaker.preAuthFramesPerSecond of its IP', async () => {

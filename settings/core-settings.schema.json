@@ -680,7 +680,7 @@
     },
     "matchmaker.applyRetryMaxAttempts": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "matchmaker.applyRetryMaxIntervalMs": {
       "type": "integer",
@@ -688,7 +688,7 @@
     },
     "matchmaker.frameReadTimeoutMs": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "matchmaker.framesPerSecond": {
       "type": "integer",
@@ -696,7 +696,7 @@
     },
     "matchmaker.helloTimeoutMs": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "matchmaker.lockstepMaxDurationMs": {
       "type": "integer",
