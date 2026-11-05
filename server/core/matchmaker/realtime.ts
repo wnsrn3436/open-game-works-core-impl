@@ -7,7 +7,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import type { Duplex } from 'node:stream';
 import * as CoreContract from '../../generated/contract/core_contract.ts';
 import * as GameData from '../../generated/data/game_data.ts';
-import type { Connection, ErrorCode } from './deps.ts';
+import type { Connection, ErrorCode, ParticipantChange } from './deps.ts';
 import { run_queue, type MatchRule, type QueueEntry, type QueueMember, type QueueStep } from './matching.ts';
 import { build_record, type MatchRecord, type MatchSource } from './records.ts';
 import type { Results } from './results.ts';
@@ -193,6 +193,8 @@ export function create_realtime(env: Env, results: Results): Realtime {
   const clients = new Set<Client>();
   const queues = new Map<string, Queue>();
   const rooms = new Map<string, Room>();
+  /** The participants of the matches being made, by user ID, with the count of such matches (`### match creation`). */
+  const making = new Map<bigint, number>();
   const ip_accepts = new Windows<string>();
   const ip_frames = new Windows<string>();
   const user_frames = new Windows<bigint>();
@@ -572,8 +574,9 @@ export function create_realtime(env: Env, results: Results): Realtime {
     return members;
   };
 
-  /** A new match would take a member whose connection is bound to a match session out of that match. */
+  /** A new match would take a member out of the match its connection is bound to or the match being made with it. */
   const member_in_match = (user_id: bigint): boolean => {
+    if (making.has(user_id)) return true;
     const client = client_of(user_id);
     return client !== null && env.p2p.is_bound(client);
   };
@@ -760,9 +763,33 @@ export function create_realtime(env: Env, results: Results): Realtime {
   };
 
   /** The handling ends when `handle_frame` returns; the participant change is written after it, in its match's order. */
-  const p2p_frame = (client: Client, frame: CoreContract.MatchmakerFrame): void => {
+  const forward = (client: Client, frame: CoreContract.MatchmakerFrame): ParticipantChange | null => {
     const change = env.p2p.handle_frame(client, frame);
     if (change !== null) void results.participant_change(change);
+    return change;
+  };
+
+  const p2p_frame = (client: Client, frame: CoreContract.MatchmakerFrame): void => {
+    forward(client, frame);
+  };
+
+  /**
+   * A participant of a match being made gets the `MATCH_REJOINED` of a rejoin condition violation without
+   * `handle_frame`. After an `ok` `true` rejoin the user leaves its queue entry and its room.
+   */
+  const match_rejoin = (client: Client, frame: CoreContract.MatchmakerFrame): void => {
+    if (making.has(client.user_id)) {
+      client.send(frame_of(FrameKind.MATCHMAKER_FRAME_KIND_MATCH_REJOINED, (f) => {
+        f.match_id = frame.match_id;
+        f.ok = false;
+      }));
+      return;
+    }
+    if (forward(client, frame)?.kind !== 'REJOINED') return;
+    const slot = live(client);
+    if (slot === null) return;
+    if (slot.room !== null) leave_room(client.user_id);
+    else if (slot.entry !== null) remove_entry(slot.entry);
   };
 
   /** The handler of each client frame kind after `HELLO`; kinds without one are dropped. */
@@ -793,7 +820,7 @@ export function create_realtime(env: Env, results: Results): Realtime {
     }],
     [FrameKind.MATCHMAKER_FRAME_KIND_PEER_SIGNAL, p2p_frame],
     [FrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, p2p_frame],
-    [FrameKind.MATCHMAKER_FRAME_KIND_MATCH_REJOIN, p2p_frame],
+    [FrameKind.MATCHMAKER_FRAME_KIND_MATCH_REJOIN, match_rejoin],
   ]);
 
   const handle = async (client: Client, payload: Uint8Array): Promise<void> => {
@@ -909,8 +936,33 @@ export function create_realtime(env: Env, results: Results): Realtime {
     });
   };
 
-  /** Steps 1 to 3 of `### match creation`; party rooms go back to `Open` after `MATCH_FOUND`. */
+  /**
+   * Steps 1 to 3 of `### match creation`; party rooms go back to `Open` after `MATCH_FOUND`. The seats are participants
+   * of a match being made from the call, which comes right after the queue removal or the member rating resolution,
+   * until it ends, also on a failure.
+   */
   async function create_match(
+    mode: GameData.MatchModeRow,
+    lockstep: boolean,
+    data_version: string,
+    client_version: string,
+    source: MatchSource,
+    seats: readonly Seat[],
+    party_rooms: readonly Room[],
+  ): Promise<void> {
+    for (const s of seats) making.set(s.user_id, (making.get(s.user_id) ?? 0) + 1);
+    try {
+      await make_match(mode, lockstep, data_version, client_version, source, seats, party_rooms);
+    } finally {
+      for (const s of seats) {
+        const left = (making.get(s.user_id) ?? 1) - 1;
+        if (left <= 0) making.delete(s.user_id);
+        else making.set(s.user_id, left);
+      }
+    }
+  }
+
+  async function make_match(
     mode: GameData.MatchModeRow,
     lockstep: boolean,
     data_version: string,
@@ -1033,6 +1085,7 @@ export function create_realtime(env: Env, results: Results): Realtime {
     users.clear();
     queues.clear();
     rooms.clear();
+    making.clear();
     pre_auth.clear();
     ip_accepts.clear();
     ip_frames.clear();
