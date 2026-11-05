@@ -1175,6 +1175,40 @@ func test_leave_room_and_room_kicked_cancel_the_room_matching_but_not_one_a_room
 		assert_eq(_room_event_join.join_result.status, RealtimeCore.MatchJoinStatus.CANCELLED, label)
 
 
+func test_room_kicked_in_matching_closes_once_and_cancels_the_pending_operation() -> void:
+	await start_realtime()
+	for kind: String in ["member wait_match", "host join_match", "host start_room"]:
+		var host: bool = kind.begins_with("host")
+		await reach_room(PackedInt64Array([USER_ID, OTHER_ID]) if host else PackedInt64Array([OTHER_ID, USER_ID]))
+		var op: RealtimeAsyncCall = RealtimeAsyncCall.new()
+		if kind == "host join_match":
+			op = await start_join()
+			push_room_updated(make_room(PackedInt64Array([USER_ID, OTHER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+			await frames()
+		elif kind == "host start_room":
+			op.start_room()
+			await frames()
+		else:
+			push_room_updated(make_room(PackedInt64Array([OTHER_ID, USER_ID]), CoreContract.RoomStatus.ROOM_STATUS_MATCHING))
+			await frames()
+			op.wait_match()
+		assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.MATCHING, kind)
+		assert_false(op.done, kind + ": the operation waits for the match")
+		events.lines.clear()
+		transport.clear_calls()
+		push_room_kicked()
+		await frames()
+		assert_true(op.done, kind + ": the operation ended")
+		await op.wait()
+		assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.CANCELLED, kind)
+		assert_eq(op.join_result.error_code, 0, kind)
+		assert_eq(transport.calls, PackedStringArray(["close()"]), kind)
+		assert_eq(events.lines, PackedStringArray(["room:KICKED"]), kind)
+		assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE, kind)
+		assert_eq(RealtimeCore.room_info().room_code, "", kind)
+		assert_eq(warn_logs(), 0, kind)
+
+
 func test_kick_room_member_needs_the_host() -> void:
 	await start_realtime()
 	assert_false(RealtimeCore.kick_room_member(OTHER_ID))
