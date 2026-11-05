@@ -1,18 +1,5 @@
 {
   "target": "spec public-profile",
   "nextId": 3,
-  "items": [
-    {
-      "id": "D1",
-      "location": "skills/server-core/modules/public-profile.md:99",
-      "problem": "The `## error` table has no row for `USER_NOT_FOUND`, though `FindUserByPublicCode` returns it (public-profile.md:31, :72) when no user has the code or the profile build leaves the user out. `skills/core/SKILL.md:46` requires one row per failure condition with a `log` column. So the log of that failure is not set and can differ per implementation. `friend.md:154`, `block-report.md:148` and `chat.md:243` each have such a row. The `## error` table was not changed by the diff",
-      "foundBy": "spec public-profile"
-    },
-    {
-      "id": "D2",
-      "location": "skills/server-core/modules/public-profile.md:56",
-      "problem": "`get_public_profiles` (public-profile.md:32) does not require unique user IDs in its input. Profile build runs \"for each input user ID\" (:56), but `storage.get_user_records` returns a user ID given twice only once (storage.md:259), and :57 splits the list into groups without saying what happens to duplicates. So with a duplicated user ID, whether the output has that user's `PublicProfileEntry` once or twice, and how many times hook `build_public_profile` is called, is not set. \"for each input user ID\" and the grouping sentence were both there before the diff",
-      "foundBy": "spec public-profile"
-    }
-  ]
+  "items": []
 }
