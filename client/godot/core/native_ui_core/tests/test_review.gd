@@ -61,3 +61,15 @@ func test_second_request_in_the_same_boot_after_the_interval_is_throttled() -> v
 	assert_eq(record().review_count, 1)
 	assert_eq(last_review_at(), start)
 	assert_eq(errors(), 0)
+
+
+func test_a_new_boot_with_the_device_time_set_back_past_the_interval_is_throttled() -> void:
+	assert_true(await start_modules(FakeNativeUiAdapter.new()))
+	var start: int = TimeCore.get_device_time()
+	assert_eq(NativeUiCore.request_review(), REQUESTED)
+	UnitTestCore.set_device_time(start - REVIEW_INTERVAL_MS - 1)
+	assert_true(reboot(FakeNativeUiAdapter.new()))
+	assert_eq(NativeUiCore.request_review(), THROTTLED, "a new boot with the device time set back")
+	assert_eq(record().review_count, 0)
+	assert_eq(last_review_at(), start)
+	assert_eq(errors(), 0)
