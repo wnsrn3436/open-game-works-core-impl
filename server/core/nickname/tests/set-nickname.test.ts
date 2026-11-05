@@ -1,8 +1,6 @@
 import { rmSync } from 'node:fs';
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
-import { advance_time, hold_lock_key, start_peer_process, stop_peer_processes, stop_test_server, until_blocked_by } from '../../testing/dev/index.ts';
-import { lock_key } from '../../storage/tx.ts';
-import { normalizeText } from '../../validation/text.ts';
+import { advance_time, game_row_lock_id, hold_lock_key, start_peer_process, stop_peer_processes, stop_test_server, until_blocked_by } from '../../testing/dev/index.ts';
 import { CoreError, GameError, cost_data_folder, gems, id_value, in_user_transaction, nickname_state, set_gems, set_nickname, start, users, withdraw, COST_ITEM } from './helpers.ts';
 import { cost_gate } from './peer.ts';
 
@@ -57,7 +55,7 @@ describe('duplicate', () => {
       const [a] = await users(one.remote, ['a']);
       const [b] = await users(two.remote, ['b']);
       for (const s of [a, b]) await set_gems(h.server, s.user_id, 10n);
-      const claim = await hold_lock_key(h.server, lock_key('nickname_claim', [normalizeText('Same')]));
+      const claim = await hold_lock_key(h.server, game_row_lock_id('nickname_claim', [h.core().validation.normalize_text('Same')]));
       const sent = [set_nickname(a, 'Same'), set_nickname(b, 'SAME')];
       // Each request waits at its cost (step 4): it passed rule 3 while neither user had a nickname_name row.
       await one.reached(cost_gate(a.user_id));
@@ -74,7 +72,7 @@ describe('duplicate', () => {
       expect(await nickname_state(h.server, loser.user_id)).toBeNull();
       expect(await gems(h.server, winner.user_id)).toBe(0n);
       expect(await gems(h.server, loser.user_id)).toBe(10n);
-      expect(h.core().storage.read_db().query('SELECT user_id FROM nickname_name WHERE normalized = $1', [normalizeText('Same')])).toEqual([{ user_id: winner.user_id }]);
+      expect(h.core().storage.read_db().query('SELECT user_id FROM nickname_name WHERE normalized = $1', [h.core().validation.normalize_text('Same')])).toEqual([{ user_id: winner.user_id }]);
     } finally {
       await stop_peer_processes();
       await stop_test_server(h.server);
@@ -89,7 +87,7 @@ describe('duplicate', () => {
       const [a] = await users(h.server, ['a']);
       await set_gems(h.server, a.user_id, 10n);
       const rows = (): unknown[] => h.core().storage.read_db().query('SELECT user_id FROM nickname_name WHERE user_id = $1', [a.user_id]);
-      const claim = await hold_lock_key(h.server, lock_key('nickname_claim', [normalizeText('Held')]));
+      const claim = await hold_lock_key(h.server, game_row_lock_id('nickname_claim', [h.core().validation.normalize_text('Held')]));
       try {
         const result = await set_nickname(a, 'Held');
         expect(result.code).toBe(CoreError.CORE_ERROR_INTERNAL);
@@ -123,7 +121,7 @@ describe('duplicate', () => {
       one.open(cost_gate(a.user_id));
       two.open(cost_gate(b.user_id));
       expect((await Promise.all(sent)).map((r) => r.code)).toEqual([0, 0]);
-      expect(h.core().storage.read_db().query('SELECT user_id FROM nickname_name WHERE normalized = $1 ORDER BY user_id', [normalizeText('Same')])).toEqual(
+      expect(h.core().storage.read_db().query('SELECT user_id FROM nickname_name WHERE normalized = $1 ORDER BY user_id', [h.core().validation.normalize_text('Same')])).toEqual(
         [a.user_id, b.user_id].sort((x, y) => (x < y ? -1 : 1)).map((user_id) => ({ user_id })),
       );
     } finally {
