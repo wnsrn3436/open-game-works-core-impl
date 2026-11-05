@@ -1,5 +1,5 @@
 import { DbHandle } from '../../storage/core.ts';
-import type { TestSession } from '../../testing/dev/index.ts';
+import { read_logs, type TestSession } from '../../testing/dev/index.ts';
 import { BLOCK_TABLE } from '../../block-report/index.ts';
 import { COUNT_TABLE, LINK_TABLE } from '../index.ts';
 import {
@@ -13,6 +13,7 @@ import {
   expect_counts_match_links,
   id,
   links,
+  run_core_test,
   send_request,
   snapshot,
   start,
@@ -26,6 +27,25 @@ import {
 function withdrawn_at(h: Harness, session: TestSession): bigint | null {
   const storage = h.core().storage;
   return storage.get_user_record(storage.read_db(), id(session))?.withdrawn_at ?? null;
+}
+
+/**
+ * Makes the first `friend_count` lock of `remove_user` of `user` write a request of `other` to `user` in the same
+ * transaction: a link row that commits between the first read (step 1) and the second read (step 3).
+ */
+function insert_before_lock(h: Harness, user: TestSession, other: TestSession): { mockRestore(): void } {
+  const storage = h.core().storage;
+  const original = storage.lock_game_row.bind(storage);
+  let inserted = false;
+  return vi.spyOn(storage, 'lock_game_row').mockImplementation((ctx, table, key) => {
+    if (table === COUNT_TABLE && 'user_id' in ctx && ctx.user_id === id(user) && !inserted) {
+      inserted = true;
+      const db = storage.db(ctx);
+      db.query(`INSERT INTO ${LINK_TABLE} (user_id, other_id, state, created_at, updated_at) VALUES ($1, $2, $3, $4, $4)`, [id(other), id(user), 'FRIEND_STATE_SENT', START_AT]);
+      db.query(`INSERT INTO ${LINK_TABLE} (user_id, other_id, state, created_at, updated_at) VALUES ($1, $2, $3, $4, $4)`, [id(user), id(other), 'FRIEND_STATE_RECEIVED', START_AT]);
+    }
+    return original(ctx, table, key);
+  });
 }
 
 afterEach(async () => {
@@ -164,32 +184,63 @@ describe('withdrawal', () => {
     expect(links(h)).toEqual([]);
   });
 
-  it('Withdraw whose second read finds a link row with an other user it did not lock is INTERNAL and changes nothing', async () => {
+  it('remove_user whose second read finds a link row with an other user it did not lock is CHANGED and deletes nothing', async () => {
     const h = await start();
     const [a, b, c] = await users(h, 3);
     await befriend(a, b);
-    const storage = h.core().storage;
     const before = snapshot(h);
+    const spy = insert_before_lock(h, a, c);
+    let result: unknown;
+    try {
+      result = await run_core_test(h, a, (ctx) => h.friend().remove_user(ctx));
+    } finally {
+      spy.mockRestore();
+    }
+    expect(result).toBe('CHANGED');
+    // RunCoreTest commits, so the rows the spy wrote stay; remove_user deleted no row and changed no count.
+    const inserted = [
+      { user_id: id(a), other_id: id(c), state: 'FRIEND_STATE_RECEIVED', created_at: START_AT, updated_at: START_AT },
+      { user_id: id(c), other_id: id(a), state: 'FRIEND_STATE_SENT', created_at: START_AT, updated_at: START_AT },
+    ];
+    const by_key = (x: { user_id: bigint; other_id: bigint }, y: { user_id: bigint; other_id: bigint }): number =>
+      x.user_id === y.user_id ? Number(x.other_id - y.other_id) : Number(x.user_id - y.user_id);
+    expect(snapshot(h)).toEqual({ links: [...before.links, ...inserted].sort(by_key), counts: before.counts });
+  });
+
+  it('remove_user is FAILED and deletes nothing when a friend_count lock is a lock wait timeout', async () => {
+    const h = await start();
+    const [a, b] = await users(h, 2);
+    await befriend(a, b);
+    const before = snapshot(h);
+    const storage = h.core().storage;
     const original = storage.lock_game_row.bind(storage);
-    let inserted = false;
-    // Between the first read (step 1) and the second read (step 3) of `remove_user`, a request of C to A commits.
-    const spy = vi.spyOn(storage, 'lock_game_row').mockImplementation((ctx, table, key) => {
-      if (table === COUNT_TABLE && 'user_id' in ctx && ctx.user_id === id(a) && !inserted) {
-        inserted = true;
-        const db = storage.db(ctx);
-        db.query(`INSERT INTO ${LINK_TABLE} (user_id, other_id, state, created_at, updated_at) VALUES ($1, $2, $3, $4, $4)`, [id(c), id(a), 'FRIEND_STATE_SENT', START_AT]);
-        db.query(`INSERT INTO ${LINK_TABLE} (user_id, other_id, state, created_at, updated_at) VALUES ($1, $2, $3, $4, $4)`, [id(a), id(c), 'FRIEND_STATE_RECEIVED', START_AT]);
-      }
-      return original(ctx, table, key);
-    });
+    const spy = vi.spyOn(storage, 'lock_game_row').mockImplementation((ctx, table, key) => (table === COUNT_TABLE ? 'FAILED' : original(ctx, table, key)));
+    let result: unknown;
+    try {
+      result = await run_core_test(h, a, (ctx) => h.friend().remove_user(ctx));
+    } finally {
+      spy.mockRestore();
+    }
+    expect(result).toBe('FAILED');
+    expect(snapshot(h)).toEqual(before);
+  });
+
+  it('Withdraw whose second read finds a link row with an other user it did not lock is INTERNAL with the error log auth leaves for CHANGED, and changes nothing', async () => {
+    const h = await start();
+    const [a, b, c] = await users(h, 3);
+    await befriend(a, b);
+    const before = snapshot(h);
+    const errors = read_logs(h.server, 'error', 'error').length;
+    const spy = insert_before_lock(h, a, c);
     try {
       expect((await withdraw(a)).code).toBe(CoreError.CORE_ERROR_INTERNAL);
     } finally {
       spy.mockRestore();
     }
-    expect(inserted).toBe(true);
     expect(withdrawn_at(h, a)).toBeNull();
     expect(snapshot(h)).toEqual(before);
+    const logged = read_logs(h.server, 'error', 'error').slice(errors);
+    expect(logged.map((line) => [line['message'], line['request']])).toEqual([['withdrawal rolled back: a remove_user is CHANGED', 'core/Withdraw']]);
   });
 
   it('accept of a request from a user who withdrew is FRIEND_REQUEST_NOT_FOUND, since Withdraw deleted the rows', async () => {

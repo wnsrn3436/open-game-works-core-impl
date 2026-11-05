@@ -67,7 +67,7 @@ export interface FriendModule {
   SearchUsers(ctx: RequestCtx, request: CoreContract.SearchUsersRequest): CoreContract.SearchUsersResponse | CoreError;
   are_friends(ctx: RequestCtx, a: bigint, b: bigint): boolean;
   list_friend_ids(ctx: RequestCtx, user_id: bigint): bigint[];
-  remove_user(ctx: RequestCtx): null | Failed;
+  remove_user(ctx: RequestCtx): null | Failed | 'CHANGED';
   readonly hook_slots: FriendHookSlots;
   begin_start(): void;
   complete_start(): string | null;
@@ -396,7 +396,8 @@ export function create_friend(input: FriendInput): FriendModule {
       }
       const lockset = new Set(locked);
       const links = read_links(db, me);
-      if (links.some((link) => !lockset.has(link.other_id))) return 'FAILED';
+      // A link row that came after the first read has an other user whose count row is not locked: the caller rolls back.
+      if (links.some((link) => !lockset.has(link.other_id))) return 'CHANGED';
       // The user's own count row goes, so only the others' counts come down. Each row is picked by its key.
       for (const link of links) {
         shift_counts(db, link.other_id, mirror(link.state), -1);
