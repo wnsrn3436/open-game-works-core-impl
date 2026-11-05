@@ -1,0 +1,12 @@
+{
+  "target": "mailbox",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/mailbox/mail_input.ts:196",
+      "problem": "`int64_json` takes only a safe `number` or a decimal string, and returns null for a `bigint`. mailbox.md:64 says a JSON integer can reach `mail_input_from_json` as a `bigint`, and the `## test` item at mailbox.md:237 says `expire_ms` given as the `bigint` 86400000 reads the same as 86400000. Checked with node: `mail_input_from_json({template_id:1, expire_ms:86400000n})` returns null. No mailbox test passes a `bigint`. This is why admin-api turns integers into strings (see the item above)",
+      "foundBy": "admin-api round 1"
+    }
+  ]
+}

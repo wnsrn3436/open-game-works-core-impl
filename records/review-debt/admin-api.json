@@ -1,6 +1,6 @@
 {
   "target": "admin-api",
-  "nextId": 5,
+  "nextId": 6,
   "items": [
     {
       "id": "D1",
@@ -18,6 +18,12 @@
       "id": "D3",
       "location": "server/core/admin-api/index.ts:414",
       "problem": "`spec`. A 500 `internal` caused by a failed storage operation leaves only the `audit` line, with no `error` line. Run paths: `lock_game_row` returns `FAILED` when the lock wait passes `storage.userLockWaitMs` or a deadlock occurs, and the work returns `ROLLBACK` with the initial `fail('internal')` in `box.reply`; `run_transaction` then returns that reply as `REJECTED`, and the `error` line at line 433 is written only for `FAILED`. Also `get_user` and `export_personal_data` answer `fail('internal')` at server/core/admin-api/operations.ts:132 and :150 when `run_user_transaction` is `FAILED`, without a log line. `storage` does not log these failures (`run_user` and `lock_row` of server/core/storage/tx.ts only return `FAILED`). Both 500 rows of `## error` in skills/server-core/modules/admin-api.md have the `error` log, and neither row names this condition. It was checked by reading the code, not by running it. It existed before the range.",
+      "foundBy": "admin-api round 1"
+    },
+    {
+      "id": "D5",
+      "location": "server/core/admin-api/operations.ts:228",
+      "problem": "`mail_of` passes the `mail` `json` value through `output_json` before `mailbox.mail_input_from_json`, so every JSON integer outside the safe integer range becomes a decimal string. `## API` of `mailbox` (mailbox.md:64) says that in the value `mail_input_from_json` receives, a JSON integer is a safe `number` or a `bigint`, and that a value of another type is a wrong format (`INVALID_INPUT`). Repro: `send_mail` with `mail` `{\"template_id\":<id>,\"args\":[{\"name\":\"n\",\"value\":{\"text_value\":9007199254740993}}]}` gets 200 and sends a mail whose `text_value` is `\"9007199254740993\"`, while the same body with `\"text_value\":5` gets 400. Checked with node: `mail_input_from_json(output_json({template_id:1,args:[{name:'n',value:{text_value:9007199254740993n}}]}))` returns a mail input with `text_value` `\"9007199254740993\"`. The same happens for `name`, `once_key` and attachment `big_amount` given as JSON integers past 2^53. The line is unchanged since the initial commit",
       "foundBy": "admin-api round 1"
     }
   ]
