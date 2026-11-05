@@ -590,7 +590,7 @@ static func _run_recovery(summary: RecoverySummary, epoch: int) -> bool:
 	var listed: _WAIT = await _await_job(
 		func() -> StoreAdapter.ReceiptList: return await adapter.list_unfinished(), _store_call_timeout_ms
 	)
-	if life != _life:
+	if life != _life or epoch != _login_epoch:
 		return false
 	var list: StoreAdapter.ReceiptList = listed.value as StoreAdapter.ReceiptList
 	if not listed.ok or list == null or not list.ok:
@@ -633,7 +633,7 @@ static func _run_restore(summary: RecoverySummary, epoch: int) -> bool:
 	var listed: _WAIT = await _await_job(
 		func() -> StoreAdapter.ReceiptList: return await adapter.list_owned(), _store_call_timeout_ms
 	)
-	if life != _life:
+	if life != _life or epoch != _login_epoch:
 		return false
 	var list: StoreAdapter.ReceiptList = listed.value as StoreAdapter.ReceiptList
 	if not listed.ok or list == null or not list.ok:

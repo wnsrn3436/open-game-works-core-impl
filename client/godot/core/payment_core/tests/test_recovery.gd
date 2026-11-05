@@ -205,6 +205,27 @@ func test_login_session_change_while_the_store_lists_run_discards_recovery_and_r
 	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 0)
 
 
+func test_store_lists_that_fail_after_the_login_session_ended_log_no_error() -> void:
+	var holding: HoldingLists = HoldingLists.new(CoreContract.IapStore.IAP_STORE_APPLE)
+	assert_true(await start_with(holding))
+	PaymentCoreDev.fake_set_fail("list_unfinished", true)
+	PaymentCoreDev.fake_set_fail("list_owned", true)
+	var recovery: Recovery = start_recover()
+	await settle()
+	assert_eq(holding.lists_started, 1, "list_unfinished waits")
+	assert_true(await log_in(USER_ID + 1))
+	holding.release_lists()
+	assert_false(await wait_recovery(recovery), "the recovery of the ended session")
+	holding.hold_lists = true
+	var restore: Recovery = start_restore()
+	await settle()
+	assert_eq(holding.lists_started, 2, "list_owned waits")
+	assert_true(await log_in(USER_ID + 2))
+	holding.release_lists()
+	assert_false(await wait_recovery(restore), "the restore of the ended session")
+	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 0, "the failed list of an ended session")
+
+
 func test_login_session_change_while_an_empty_store_list_runs_sends_no_subscription_sync() -> void:
 	var holding: HoldingLists = HoldingLists.new(CoreContract.IapStore.IAP_STORE_APPLE)
 	assert_true(await start_with(holding))
