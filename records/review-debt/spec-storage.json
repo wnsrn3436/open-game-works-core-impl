@@ -1,5 +1,12 @@
 {
   "target": "spec storage",
-  "nextId": 6,
-  "items": []
+  "nextId": 7,
+  "items": [
+    {
+      "id": "D6",
+      "location": "skills/server-core/modules/storage.md:306",
+      "problem": "storage claims the same semantics on SQLite and PostgreSQL (storage.md:17) but does not set what a write of a `string` column value holding U+0000 does: SQLite stores it and PostgreSQL rejects it, so any module that writes a caller-given string without its own U+0000 check (e.g. `once_key` of `mailbox.send_mail` called by content code, mailbox.md:90) answers differently per DB",
+      "foundBy": "spec admin-api"
+    }
+  ]
 }
