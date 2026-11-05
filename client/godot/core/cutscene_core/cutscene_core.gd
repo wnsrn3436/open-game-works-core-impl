@@ -54,6 +54,9 @@ static var _auto_delay_ms: int = 0
 static var _fast_forward_delay_ms: int = 0
 static var _history_max: int = 0
 static var _max_duration_ms: int = 0
+## Buffers for the key binding and the gamepad button binding of `cutscene_advance`, sized in `init`.
+static var _key_buffer: PackedStringArray = PackedStringArray()
+static var _pad_buffer: PackedStringArray = PackedStringArray()
 ## Instance ID of the registered actor of each actor key.
 static var _actors: Dictionary[String, int] = {}
 static var _block_pass_list: BlockPassList = null
@@ -160,7 +163,9 @@ static func init() -> bool:
 	if _is_initialized:
 		LogCore.log_error(_TAG, "init: already initialized")
 		return false
-	for key: String in [_TYPING_KEY, _AUTO_KEY, _FAST_FORWARD_KEY, _HISTORY_KEY, _MAX_DURATION_KEY]:
+	for key: String in [
+		_TYPING_KEY, _AUTO_KEY, _FAST_FORWARD_KEY, _HISTORY_KEY, _MAX_DURATION_KEY, _MAX_KEYS_KEY, _MAX_PAD_BUTTONS_KEY,
+	]:
 		if not CoreSettings.has_int(key):
 			LogCore.log_error(_TAG, "init: core settings key %s is missing or not an integer" % key)
 			return false
@@ -177,6 +182,10 @@ static func init() -> bool:
 	_history_max = CoreSettings.get_int(_HISTORY_KEY)
 	_max_duration_ms = CoreSettings.get_int(_MAX_DURATION_KEY)
 	_view_key = CoreSettings.get_string(_VIEW_KEY)
+	# A binding has at most the setting limit plus the default binding from the input map.
+	var default_size: int = InputMap.action_get_events(_ADVANCE).size() if InputMap.has_action(_ADVANCE) else 0
+	_key_buffer.resize(maxi(CoreSettings.get_int(_MAX_KEYS_KEY), 0) + default_size)
+	_pad_buffer.resize(maxi(CoreSettings.get_int(_MAX_PAD_BUTTONS_KEY), 0) + default_size)
 	_session = RefCounted.new()
 	_safe_root = SafeAreaRoot.new()
 	_safe_root.name = "CutsceneSafeArea"
@@ -380,6 +389,8 @@ static func _reset_module() -> void:
 	_fast_forward_delay_ms = 0
 	_history_max = 0
 	_max_duration_ms = 0
+	_key_buffer = PackedStringArray()
+	_pad_buffer = PackedStringArray()
 	_actors = {}
 	_block_pass_list = null
 	_tween_options = null
@@ -1646,10 +1657,7 @@ static func _is_advance_binding(event: InputEvent) -> bool:
 		pad = true
 	if input_name.is_empty():
 		return false
-	# A binding has at most the larger of the setting limit and the default binding from the input map.
-	var limit: String = _MAX_PAD_BUTTONS_KEY if pad else _MAX_KEYS_KEY
-	var buffer: PackedStringArray = PackedStringArray()
-	buffer.resize(maxi(CoreSettings.get_int(limit), 0) + InputMap.action_get_events(_ADVANCE).size())
+	var buffer: PackedStringArray = _pad_buffer if pad else _key_buffer
 	var count: int = InputCore.get_pad_buttons(_ADVANCE, buffer) if pad else InputCore.get_keys(_ADVANCE, buffer)
 	for i: int in count:
 		if buffer[i] == input_name:

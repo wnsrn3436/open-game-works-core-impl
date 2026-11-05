@@ -57,6 +57,47 @@ func test_the_advance_button_has_the_focus_during_a_line_and_accept_is_one_advan
 	assert_eq(errors(), 0)
 
 
+## Presses `keycode`, then releases it in a later frame, after `InputCore` has the press. Async.
+func press_and_later_release_key(keycode: Key) -> void:
+	var press: InputEventKey = InputEventKey.new()
+	press.keycode = keycode
+	press.physical_keycode = keycode
+	press.pressed = true
+	InputCoreDev.inject_device_input(press)
+	await UnitTestCore.wait_frames(2)
+	var release: InputEventKey = press.duplicate() as InputEventKey
+	release.pressed = false
+	InputCoreDev.inject_device_input(release)
+	await UnitTestCore.wait_frames(2)
+
+
+func test_in_the_key_focus_mode_enter_and_space_accept_inputs_are_one_advance_input_each_with_a_space_binding() -> void:
+	assert_true(await start())
+	InputCoreDev.set_test_device(InputCore.InputDevice.KEYBOARD_MOUSE)
+	assert_true(InputCore.set_keys(&"cutscene_advance", PackedStringArray(["Space"])))
+	var call: PLAY = await play("[cut_history]")
+	await UnitTestCore.wait_frames(2)
+	assert_null(focus_owner())
+	await press_key(KEY_DOWN)
+	await UnitTestCore.wait_frames(1)
+	assert_eq(focus_owner(), view().advance_button, "a key direction input starts the focus mode")
+	var clicks: Array[int] = [0]
+	view().advance_button.pressed.connect(func() -> void: clicks[0] += 1)
+	var next: int = CutsceneCore._next
+	await press_and_later_release_key(KEY_ENTER)
+	assert_eq(clicks[0], 1, "the Enter accept input clicks the advance button")
+	assert_eq(CutsceneCore._next, next + 1, "the Enter click, not in the binding, is one advance input")
+	assert_true(line_running())
+	assert_eq(focus_owner(), view().advance_button)
+	await press_and_later_release_key(KEY_SPACE)
+	assert_eq(clicks[0], 2, "the Space accept input clicks the advance button")
+	assert_eq(CutsceneCore._next, next + 2, "the Space press and its accept click are one advance input")
+	assert_true(line_running())
+	CutsceneCore._stop()
+	await finish(call)
+	assert_eq(errors(), 0)
+
+
 ## Puts device input `event` in from a `SceneTree.process_frame` handler of the next frame, before its process
 ## callbacks, as `QACore` puts in automation channel device inputs. Async: ends in that frame, before its process
 ## callbacks.
