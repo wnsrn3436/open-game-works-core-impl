@@ -176,7 +176,7 @@ describe('Withdraw of an applicant and AcceptGuildJoinRequest on two server inst
     await until_blocked_by(kit.server, pid);
     accepting.open(joined_gate(a.user_id));
     expect(await accepted).toBe(0);
-    // `### withdrawal` step 3: the row read again is in a guild that step 1 did not lock, so remove_user is FAILED.
+    // `### withdrawal` step 3: the row read again is in a guild that step 1 did not lock, so remove_user is CHANGED.
     expect(await withdrawn).toBe(E.CORE_ERROR_INTERNAL);
     expect(withdrawn_at(kit, a.user_id)).toBeNull();
     expect(member(kit, a.user_id)).toMatchObject({ guild_id, role: Role.GUILD_ROLE_MEMBER });
