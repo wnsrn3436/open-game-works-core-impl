@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import * as CoreCheatContract from '../../../dev/generated/contract/core_cheat_contract.ts';
 import { DbError } from '../../storage/db/types.ts';
+import type { DbHandle } from '../../storage/index.ts';
+import { fail_transaction } from '../../storage/tests/helpers.ts';
 import {
   E,
   P,
@@ -36,9 +38,12 @@ afterAll(async () => {
   await testing.stop_test_server(server);
 });
 
-/** A lock wait failure as the DB adapter throws it: storage rolls the transaction back and answers `FAILED`. */
-function lock_failure(): DbError {
-  return new DbError('lock', 'test', 'auth test: the lock wait was exceeded');
+/**
+ * A lock wait failure as the DB adapter throws it for a statement of the transaction of `handle`: storage rolls the
+ * transaction back and answers `FAILED`.
+ */
+function lock_failure(handle: DbHandle): DbError {
+  return fail_transaction(handle, new DbError('lock', 'test', 'auth test: the lock wait was exceeded'));
 }
 
 type Patchable = Record<string, unknown>;
@@ -51,14 +56,15 @@ function module_of(name: string): Patchable {
 
 /**
  * Makes the next call of `module.method` on the test server's instance throw a lock failure, inside the transaction
- * that calls it. The returned function puts the method back when no call came.
+ * of its first argument (a ctx or game tx). The returned function puts the method back when no call came.
  */
 function fail_next_call(module_name: string, method: string): () => void {
   const module = module_of(module_name);
   const original = module[method] as (...args: unknown[]) => unknown;
-  module[method] = () => {
+  const db = module_of('storage').db as (ctx_or_tx: unknown) => DbHandle;
+  module[method] = (ctx_or_tx: unknown) => {
     module[method] = original;
-    throw lock_failure();
+    throw lock_failure(db(ctx_or_tx));
   };
   return () => {
     module[method] = original;
@@ -88,7 +94,7 @@ function fail_next_query(prefix: string): () => void {
         return (sql: string, params: readonly unknown[]) => {
           if (storage.db !== original && sql.startsWith(prefix)) {
             restore();
-            throw lock_failure();
+            throw lock_failure(target as unknown as DbHandle);
           }
           return target.query(sql, params);
         };
