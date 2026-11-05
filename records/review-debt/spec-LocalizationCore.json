@@ -3,24 +3,6 @@
   "nextId": 6,
   "items": [
     {
-      "id": "D2",
-      "location": "skills/client-core/modules/localization-core.md:251",
-      "problem": "The test requires a device timezone offset of 9 hours and line 225 requires offset 0, but `## DEV` (line 205) has only `set_test_device_language`. skills/client-core/engines/godot.md:362 reads the offset from `Time.get_time_zone_from_system()`, and skills/core/SKILL.md:207 writes DEV operations only in `## DEV`. The spec gives a core test no operation to set the offset, so these items depend on the time zone of the host that runs them",
-      "foundBy": "spec LocalizationCore"
-    },
-    {
-      "id": "D3",
-      "location": "skills/client-core/modules/localization-core.md:94",
-      "problem": "The display name is the `get_text` result of `name_key`, and line 93 makes every `get_text` replace input prompt tokens through `InputCore.get_prompt`. Neither skills/client-core/modules/input-core.md:254 nor skills/data/SKILL.md:254 forbids an input prompt token in the `name` text of `input_prompt`. Input: a `name` of `{action:jump}` on the row that `jump` resolves to makes `get_text` call itself with no end, and no document sets a result for it",
-      "foundBy": "spec LocalizationCore"
-    },
-    {
-      "id": "D4",
-      "location": "skills/client-core/modules/localization-core.md:123",
-      "problem": "`bind_text` on an element that is already bound and `unbind_text` on an element that is not bound are not set in `### text binding` or `## error`. An implementation can replace the key, keep the first key or leave an error log, and `## test` does not fix one of these",
-      "foundBy": "spec LocalizationCore"
-    },
-    {
       "id": "D5",
       "location": "skills/client-core/modules/localization-core.md:33",
       "problem": "`bind_text` and `unbind_text` (localization-core.md:33-34, 127) do not set the result for an element that is null, already freed, or not a UI text element (e.g. a Godot `TextureRect`; the Godot rules list text nodes only for text scale, godot.md:403). There is no `## error` row for it, so one implementation can crash on a freed object, another ignore it silently, another leave an error log",
