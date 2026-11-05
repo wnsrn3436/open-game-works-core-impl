@@ -1,12 +1,5 @@
 {
   "target": "spec mailbox",
   "nextId": 5,
-  "items": [
-    {
-      "id": "D4",
-      "location": "skills/server-core/modules/mailbox.md:62",
-      "problem": "The TypeScript form of `send_mail` takes \"an object keyed by mail input field names\", but the spec does not say which fields may be left out or what a field left out means. The JSON form has that rule (line 64: a missing optional field is the empty value of its type), and the TypeScript form has none. Input `send_mail(ctx, {template_id, attachments: []})`: one implementation reads `expire_ms`, `args`, `once_key`, `extra_id` and `no_expiry` as 0, empty or `false` and sends a mail that expires at the sent time + `mailbox.defaultExpireMs`. Another computes `expires_at` as the sent time + `undefined` (NaN), or throws on `args.length`, so the request is `INTERNAL`. The `INVALID_INPUT` row (line 79) has no case for a missing field",
-      "foundBy": "spec mailbox"
-    }
-  ]
+  "items": []
 }
