@@ -1,5 +1,12 @@
 {
   "target": "spec RealtimeCore",
-  "nextId": 2,
-  "items": []
+  "nextId": 3,
+  "items": [
+    {
+      "id": "D2",
+      "location": "skills/client-core/modules/realtime-core.md:130",
+      "problem": "`PEER_REJOINED` of an index for which RealtimeCore has not called `connect_peer` yet (reachable when `MATCH_FOUND` and `PEER_REJOINED` are read in one `poll`, or `MATCH_REJOINED` of `rejoin_match` and `PEER_REJOINED` of another participant are read in one `poll`, because the transport reads the frames of a `poll` before raising notifications, line 107) makes the transport \"start a new connection the same as `connect_peer`\", while line 129 keeps `PEER_SIGNAL` received before `connect_peer` collected until `connect_peer`. What the later `connect_peer` of RealtimeCore does for that index (no-op on the started connection, or drop it and start another with the next connection attempt number and a second offer), and whether signals after that `PEER_REJOINED` are still collected, is not set, so the sent `PEER_SIGNAL` sequence can differ per implementation",
+      "foundBy": "spec RealtimeCore"
+    }
+  ]
 }
