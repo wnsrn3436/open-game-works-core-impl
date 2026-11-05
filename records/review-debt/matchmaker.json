@@ -3,18 +3,6 @@
   "nextId": 6,
   "items": [
     {
-      "id": "D1",
-      "location": "server/core/matchmaker/matching.ts:69",
-      "problem": "`efficiency`. `collect` keeps walking the whole queue after the collected headcount reached `max_players`, though no later entry can fit, and `run_queue` calls it once per match, so one `matchmaker_tick` over one queue is quadratic in the queue size and blocks the event loop of all `/realtime` connections and requests of that server instance. Run path: `run_tick` to `run_queue` to `collect`, growing amount: entries of one queue. Entries pile up behind an e0 that has no partner until its `match_wait` ends, because step 5 ends the queue at e0. Measured with `run_queue` directly, `max_players` 2, same ratings: 8000 entries 130 ms, 16000 entries 580 ms, 32000 entries 2583 ms. With `if (count === rule.max_players) break;` after the placement in a temporary copy: 32000 entries 229 ms, and `matching.test.ts` and `queue-rules.test.ts` pass on SQLite",
-      "foundBy": "matchmaker round 1"
-    },
-    {
-      "id": "D2",
-      "location": "server/core/matchmaker/realtime.ts:837",
-      "problem": "With `matchmaker.frameReadTimeoutMs` 0, one partial frame from an unauthenticated client throws out of the socket `data` listener. The schema allows 0 (settings/core-settings.schema.json:689), and `frame_time_limit` calls `server_time.network_time_limit(0n)`, which throws when ms is less than 1 (server/core/server-time/network_time_limit.ts:9). `WebSocketConnection.#read` reaches it through `#time_frame` (server/core/matchmaker/websocket.ts:167, :196). Reproduced on a stream with the real `WebSocketConnection` and `network_time_limit`: `socket.emit('data', Buffer.from([0x82]))` threw `network_time_limit: ms 0 is below 1`. server/core has no `uncaughtException` handler, so a real socket would end the server process; that last step was not run. `matchmaker.helloTimeoutMs` 0 (settings/core-settings.schema.json:697) throws the same way at server/core/matchmaker/realtime.ts:856, where the catch in `upgrade` (server/core/routing/pipeline.ts:823) destroys the socket, so every `/realtime` connection fails after its handshake. The range did not cause this: it raised six other keys to 1, and server/core/routing/tests/settings-minimum.test.ts only starts a server, with no connection, so it passes with both keys at 0. The spec writes no range for either key; the same cause is D5 of records/review-debt/spec-matchmaker.json.",
-      "foundBy": "matchmaker round 1"
-    },
-    {
       "id": "D3",
       "location": "server/core/matchmaker/realtime.ts:577",
       "problem": "`host_error` checks `p2p-signaling.is_bound` only when the host frame is handled, and nothing checks again before `open_match_session` (realtime.ts:937), so a member can bind to a match after the check and be taken out of it, which is what matchmaker.md:146 gives as the reason for `ROOM_BUSY`. Reproduced with frames in a temporary copy of the checkout (rooms test harness, SQLite). Room of a and b in mode `BOTH`, `ROOM_START` makes match M, a sends `MATCH_LEAVE`, b's connection closes, b reconnects and sends `ROOM_JOIN`, host `MATCH_REQUEST` passes, b sends `MATCH_REJOIN`(M) and gets `ok` `true`, then `tick` by `match_wait`. b then receives `MATCH_FOUND` of the new match, `left_at` of b in M goes from 0 to 1800000030000, and a second `MATCH_REJOIN`(M) is `ok` `false`. The specs set the check only at the host frame, so the code equals matchmaker.md, and the repair belongs to the `matchmaker` target. The reproduction sends raw frames; it does not show that client `RealtimeCore` produces this order.",
