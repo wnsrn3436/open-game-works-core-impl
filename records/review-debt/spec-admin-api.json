@@ -1,6 +1,6 @@
 {
   "target": "spec admin-api",
-  "nextId": 14,
+  "nextId": 15,
   "items": [
     {
       "id": "D2",
@@ -72,6 +72,12 @@
       "id": "D13",
       "location": "skills/server-core/modules/admin-api.md:281",
       "problem": "`admin-api.authFailuresPerMinute` has no written range, so skills/core/SKILL.md:134 allows 0. At step 1 of line 149 a count of 0 is 0 or more, so every admin request is 429 `rate_limited`, including those of operator `ogw`, and the setting cannot be recovered through the admin API. `admin-api.maxSearchRangeMs` (line 283) and `admin-api.maxSearchRows` (line 284) also allow 0, which makes every request with a time range or `limit` 400 `bad_request` at lines 174 and 175",
+      "foundBy": "spec admin-api"
+    },
+    {
+      "id": "D14",
+      "location": "skills/server-core/modules/admin-api.md:239",
+      "problem": "`args` of the `audit` log is \"the input that passed the check\", and in that input `int64` is `bigint` (admin-api.md:121), as are, since this change, integers outside the safe range inside `json` fields. server-core SKILL.md:211 makes a log line one JSON object, but no defining document (server-core SKILL.md `## log`, logging.md:45, logging.md:93) says whether a `bigint` in `fields` is written as a JSON integer or as a decimal string. Two implementations can write different `audit` lines for the same request. This problem existed before this diff for `int64` fields",
       "foundBy": "spec admin-api"
     }
   ]
