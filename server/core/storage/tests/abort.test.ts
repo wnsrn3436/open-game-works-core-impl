@@ -422,6 +422,55 @@ describe.runIf(DB_KIND === 'postgresql')('PostgreSQL aborts', () => {
     expect(storage.get_user_record(storage.read_db(), user)).not.toBeNull();
   });
 
+  it('a read_db query inside the function of each transaction operation that waits past storage.userLockWaitMs for a table testing.hold_db holds throws; the operation rolls back and throws that value when the function lets it out, and commits when the function catches it', async () => {
+    const lock_wait = 300;
+    const { db, storage } = await instance({ settings: { 'storage.userLockWaitMs': lock_wait }, register: tables });
+    await counter_rows(storage);
+    const user = await new_user(storage);
+    const read = (): unknown => storage.read_db().query('SELECT id FROM test_text');
+    const runs: [string, (fn: () => void) => Promise<unknown>][] = [
+      ['run_game_transaction', (fn) => storage.run_game_transaction((tx) => (storage.db(tx).query(UPDATE, [1n]), fn(), { done: true }))],
+      ['run_user_transaction', (fn) => storage.run_user_transaction(user, (ctx) => (storage.put_state(ctx, quest(1n, 1n)), fn(), 'pass'))],
+      ['run_request_transaction', (fn) => request(storage, user, (ctx) => (storage.put_state(ctx, quest(2n, 1n)), fn(), { done: true }))],
+      ['run_rollback_transaction', (fn) => storage.run_rollback_transaction(user, (ctx) => (storage.put_state(ctx, quest(3n, 1n)), fn(), { done: true }))],
+    ];
+    const holder = await hold_db(connection(db), [{ sql: 'LOCK TABLE test_text IN ACCESS EXCLUSIVE MODE' }]);
+    try {
+      for (const [name, run] of runs) {
+        let inner: unknown = null;
+        const out = await settled(
+          run(() => {
+            inner = thrown(read);
+            throw inner;
+          }),
+        );
+        expect(inner, name).toBeInstanceOf(Error);
+        expect(inner, name).not.toBeInstanceOf(StorageMisuse);
+        expect(out, name).toBe(inner);
+      }
+      expect(counters(storage)).toEqual([
+        { id: 1n, n: 0n },
+        { id: 2n, n: 0n },
+      ]);
+      expect(await request(storage, user, (ctx) => storage.list_state(ctx, QuestUserState).length)).toBe(0);
+      for (const [name, run] of runs) {
+        let inner: unknown = null;
+        const out = await run(() => {
+          inner = thrown(read);
+        });
+        expect(inner, name).toBeInstanceOf(Error);
+        expect(out, name).not.toBe('FAILED');
+      }
+    } finally {
+      await holder.release();
+    }
+    expect(counters(storage)).toEqual([
+      { id: 1n, n: 1n },
+      { id: 2n, n: 0n },
+    ]);
+    expect(await request(storage, user, (ctx) => storage.list_state(ctx, QuestUserState).length)).toBe(2);
+  });
+
   it('after a testing.hold_db ends every other session of the database while the server runs no statement, a read_db query succeeds and a run_game_transaction whose function runs a query commits', async () => {
     const { db, storage } = await instance({ register: tables });
     await counter_rows(storage);
@@ -523,7 +572,10 @@ describe.runIf(DB_KIND === 'postgresql')('PostgreSQL aborts', () => {
   });
 });
 
-describe('a string parameter that holds U+0000', () => {
+describe.each([
+  ['U+0000', 'a\u0000b'],
+  ['an unpaired surrogate', 'a\ud800b'],
+])('a string parameter that holds %s', (_name, bad) => {
   it('fails the query in both DBs with a value that is not a StorageMisuse: run_game_transaction throws it when the function lets it out, and is FAILED when the function catches it and returns; no write remains; a read_db query with one throws', async () => {
     const { storage } = await instance({ register: tables });
     const insert = 'INSERT INTO test_text (id, name) VALUES ($1, $2)';
@@ -532,7 +584,7 @@ describe('a string parameter that holds U+0000', () => {
       storage.run_game_transaction((tx: GameTx) => {
         storage.db(tx).query(insert, [1n, 'kept?']);
         try {
-          storage.db(tx).query(insert, [2n, 'a\u0000b']);
+          storage.db(tx).query(insert, [2n, bad]);
         } catch (error) {
           inner = error;
           throw error;
@@ -546,14 +598,14 @@ describe('a string parameter that holds U+0000', () => {
     let later: unknown = null;
     const caught = await storage.run_game_transaction((tx: GameTx) => {
       storage.db(tx).query(insert, [3n, 'kept?']);
-      thrown(() => storage.db(tx).query(insert, [4n, 'a\u0000b']));
+      thrown(() => storage.db(tx).query(insert, [4n, bad]));
       later = thrown(() => storage.db(tx).query('SELECT 1 AS one'));
       return { inserted: true };
     });
     expect(later).toBeInstanceOf(Error);
     expect(caught).toBe('FAILED');
     expect(storage.read_db().query('SELECT id FROM test_text')).toEqual([]);
-    const read_error = thrown(() => storage.read_db().query('SELECT id FROM test_text WHERE name = $1', ['a\u0000b']));
+    const read_error = thrown(() => storage.read_db().query('SELECT id FROM test_text WHERE name = $1', [bad]));
     expect(read_error).toBeInstanceOf(Error);
     expect(read_error).not.toBeInstanceOf(StorageMisuse);
   });

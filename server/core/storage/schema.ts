@@ -7,7 +7,7 @@ import { DbError, type DbConn, type DbTxConn, type Dialect, type Row } from './d
 import { pick_public_code } from './public_code.ts';
 
 /** The highest core schema version this `storage` applies. Same value as the file `core-schema-version`. */
-export const CORE_SCHEMA_VERSION = 2;
+export const CORE_SCHEMA_VERSION = 3;
 
 /** The key of the schema lock (`pg_advisory_xact_lock`). */
 const SCHEMA_LOCK_KEY = 0x6f6777n;
@@ -227,8 +227,19 @@ function base_v2(dialect: Dialect): string[] {
   return [`ALTER TABLE "user" ADD COLUMN public_code ${text_type(dialect)}`, `CREATE UNIQUE INDEX ix_user_public_code ON "user" (public_code)`];
 }
 
+/**
+ * Core schema version 3: the index `scan_users` with a contract version walks, so that one call reads the users with
+ * a row below that version without visiting the other users.
+ */
+function base_v3(): string[] {
+  return [
+    `CREATE INDEX ix_user_state_contract_version ON user_state (contract_version, user_id)`,
+    `CREATE INDEX ix_server_state_contract_version ON server_state (contract_version, user_id)`,
+  ];
+}
+
 /** Core schema changes by version: index 0 is version 1. A new version adds its statements at the end. */
-const CORE_SCHEMA: readonly ((dialect: Dialect) => string[])[] = [base_v1, base_v2];
+const CORE_SCHEMA: readonly ((dialect: Dialect) => string[])[] = [base_v1, base_v2, base_v3];
 
 function storage_schema_exists(conn: DbConn, dialect: Dialect): boolean {
   const sql =

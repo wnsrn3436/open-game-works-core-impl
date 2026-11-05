@@ -12,7 +12,9 @@ import { create_server_time_dev } from '../../server-time/dev/index.ts';
 import type { PgRow, PgValue } from '../db/pg_protocol.ts';
 import { create_storage_dev } from '../dev/index.ts';
 import type { ServerInput } from '../../routing/index.ts';
-import { create_storage_with, type GameTx, type Storage } from '../index.ts';
+import { mark_broken } from '../core.ts';
+import type { DbError } from '../db/types.ts';
+import { create_storage_with, type DbHandle, type GameTx, type Storage } from '../index.ts';
 import type { RequestCtx } from '../request_ctx.ts';
 import type { RequestFields } from '../tx.ts';
 import { core_test_server_paths, default_db_kind, new_core_test_server_input } from '../../testing/dev/index.ts';
@@ -323,6 +325,15 @@ export const PG_LOCK_SQL = 'SELECT pg_advisory_xact_lock(CAST($1 AS BIGINT)) AS 
 /** A test server of `testing` with its running server instance. */
 export interface RunningServer {
   running(): { readonly instance: { modules(): ReadonlyMap<string, unknown> } };
+}
+
+/**
+ * Ends the transaction of a DB handle with `error` as a failed statement of it does (`### transaction`): for a fake
+ * that throws a DB failure in place of running a statement. Returns `error` to throw.
+ */
+export function fail_transaction(handle: DbHandle, error: DbError): DbError {
+  if (handle.owner !== null) mark_broken(handle.owner, error);
+  return error;
 }
 
 /**

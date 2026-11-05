@@ -1,7 +1,7 @@
 import { DatabaseSync, type SQLInputValue, type StatementSync } from 'node:sqlite';
 import { network_time_limit } from '../../server-time/network_time_limit.ts';
 import { TimedQueue } from './timed_queue.ts';
-import { DbError, type BeginOptions, type Begun, type DbAdapter, type DbConn, type DbTxConn, type DbValue, type Row, type Statement } from './types.ts';
+import { check_text_param, DbError, type BeginOptions, type Begun, type DbAdapter, type DbConn, type DbTxConn, type DbValue, type Row, type Statement } from './types.ts';
 
 const SQLITE_BUSY = 5;
 const SQLITE_LOCKED = 6;
@@ -41,12 +41,9 @@ function db_error(error: unknown): DbError {
   return new DbError('sql', String(errcode), message);
 }
 
-/** The SQLSTATE PostgreSQL gives a text parameter that holds U+0000; SQLite fails such a statement the same way. */
-const NUL_IN_TEXT = '22021';
-
 function param(value: DbValue): SQLInputValue {
   if (typeof value === 'boolean') return value ? 1 : 0;
-  if (typeof value === 'string' && value.includes('\u0000')) throw new DbError('sql', NUL_IN_TEXT, 'a string parameter holds U+0000');
+  check_text_param(value);
   return value;
 }
 

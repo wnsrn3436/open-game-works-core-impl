@@ -2,7 +2,7 @@ import { Buffer } from 'node:buffer';
 import { generateKeyPairSync, randomBytes, randomUUID, sign } from 'node:crypto';
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import { DbError } from '../../storage/db/types.ts';
-import { lock_holder, stop_all } from '../../storage/tests/helpers.ts';
+import { fail_transaction, lock_holder, stop_all, storage_module, type RunningServer } from '../../storage/tests/helpers.ts';
 import type { TestServer as LocalTestServer } from '../../testing/dev/index.ts';
 import { IP_COUNTER_TABLE } from '../tickets.ts';
 import {
@@ -335,10 +335,11 @@ describe('ads-reward callback route', () => {
     const s = await start(
       {},
       hooks({
-        on_ad_rewarded: () => {
+        on_ad_rewarded: (ctx) => {
           if (fail_next) {
             fail_next = false;
-            throw new DbError('lock', 'timeout', 'a lock wait went over its limit');
+            // A statement of the user transaction that fails on a lock wait.
+            throw fail_transaction(storage_module(s.server as unknown as RunningServer).db(ctx), new DbError('lock', 'timeout', 'a lock wait went over its limit'));
           }
         },
       }),

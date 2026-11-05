@@ -1,6 +1,6 @@
 import { StorageMisuse, type RawRow, type Storage } from '../index.ts';
 import { DB_KIND, instance, lock_holder, new_user, new_users, PG_LOCK_SQL, raw_rows, request, stop_all } from './helpers.ts';
-import { hold_lock_key } from '../../testing/dev/index.ts';
+import { hold_db, hold_lock_key } from '../../testing/dev/index.ts';
 import { lock_key } from '../tx.ts';
 import { boss, BossGameState, profile, quest, wallet } from './kinds.ts';
 
@@ -339,6 +339,77 @@ describe('users', () => {
     expect(storage.scan_users(db, a, 1)).toEqual([c]);
     expect(storage.scan_users(db, 0n, 10, 3n)).toEqual([c]);
     expect(storage.scan_users(db, 0n, 10, 4n)).toEqual([c, d]);
+  });
+
+  it('scan_users with a version pages through the users with a lower version row of either state table, over several versions, without a withdrawn user', async () => {
+    const { storage } = await instance();
+    const users = await new_users(storage, 8);
+    const rows = (version: bigint, table: 'user_state' | 'server_state'): RawRow[] => [
+      table === 'user_state'
+        ? { table, key: 'quest_user_state/1', contract_version: version, value: quest(1n, 1n).encode() }
+        : { table, key: 'wallet_server_state/0', contract_version: version, value: wallet(1n).encode() },
+    ];
+    // Users 0, 3, 6 are at the current version; the rest have a row of version 1 or 2 in one of the two tables.
+    const lower: [number, bigint, 'user_state' | 'server_state'][] = [
+      [1, 1n, 'user_state'],
+      [2, 2n, 'server_state'],
+      [4, 2n, 'user_state'],
+      [5, 1n, 'server_state'],
+      [7, 1n, 'user_state'],
+    ];
+    for (const user of users) {
+      await request(storage, user, (ctx) => {
+        storage.put_state(ctx, quest(9n, 1n));
+      });
+    }
+    for (const [i, version, table] of lower) {
+      await request(storage, users[i] as bigint, (ctx) => {
+        storage.replace_user_rows(ctx, rows(version, table));
+      });
+    }
+    // User 4 is withdrawn while it keeps its lower version row.
+    await storage.run_game_transaction((tx) => storage.db(tx).query('UPDATE "user" SET withdrawn_at = 1 WHERE user_id = $1', [users[4] as bigint]));
+    const expected = [1, 2, 5, 7].map((i) => users[i] as bigint);
+    const db = storage.read_db();
+    for (const max of [1, 2, 3, 10]) {
+      const paged: bigint[] = [];
+      let after = 0n;
+      for (;;) {
+        const page = storage.scan_users(db, after, max, 3n);
+        expect(page.length).toBeLessThanOrEqual(max);
+        if (page.length === 0) break;
+        paged.push(...page);
+        after = page[page.length - 1] as bigint;
+      }
+      expect(paged).toEqual(expected);
+    }
+    expect(storage.scan_users(db, 0n, 10, 2n)).toEqual([1, 5, 7].map((i) => users[i] as bigint));
+    expect(storage.scan_users(db, 0n, 2, 3n)).toEqual([1, 2].map((i) => users[i] as bigint));
+    expect(storage.scan_users(db, users[2] as bigint, 2, 3n)).toEqual([5, 7].map((i) => users[i] as bigint));
+    expect(storage.scan_users(db, 0n, 10, 1n)).toEqual([]);
+  });
+
+  it.runIf(DB_KIND === 'postgresql')('On PostgreSQL, scan_users with a version reads no user row when no user has a lower version row: it returns at once while testing.hold_db holds LOCK TABLE "user"', async () => {
+    const lock_wait = 500;
+    const { db, storage } = await instance({ settings: { 'storage.userLockWaitMs': lock_wait } });
+    const users = await new_users(storage, 3);
+    for (const user of users) {
+      await request(storage, user, (ctx) => {
+        storage.put_state(ctx, quest(1n, 1n));
+      });
+    }
+    const holder = await hold_db(db.secrets.db ?? '', [{ sql: 'LOCK TABLE "user" IN ACCESS EXCLUSIVE MODE' }]);
+    let page: unknown;
+    const started = performance.now();
+    try {
+      page = storage.scan_users(storage.read_db(), 0n, 10, 3n);
+    } catch (error) {
+      page = error;
+    }
+    const waited = performance.now() - started;
+    await holder.release();
+    expect(page).toEqual([]);
+    expect(waited).toBeLessThan(lock_wait);
   });
 
   it('sample_users leaves out withdrawn users, gives no user twice, up to the maximum in user ID order, and all users when fewer', async () => {

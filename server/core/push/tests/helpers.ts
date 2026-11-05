@@ -13,7 +13,7 @@ import * as GameContract from '../../../generated/contract/game_contract.ts';
 import { open_pg_session } from '../../storage/dev/index.ts';
 import { DbError } from '../../storage/db/types.ts';
 import type { DbHandle, RequestCtx } from '../../storage/index.ts';
-import { storage_module, type DbTarget } from '../../storage/tests/helpers.ts';
+import { fail_transaction, storage_module, type DbTarget } from '../../storage/tests/helpers.ts';
 import * as testing from '../../testing/dev/index.ts';
 import { register_false_judges, register_required_hooks } from '../../testing/dev/index.ts';
 import type { PushAdapter } from '../adapter.ts';
@@ -419,7 +419,7 @@ export function fail_statements(server: TestServer, sql: RegExp, times: number, 
       if (sql.test(statement) && seen++ >= skip && failed < times) {
         failed += 1;
         before();
-        throw new DbError('lock', '55P03', 'lock wait over storage.userLockWaitMs');
+        throw fail_transaction(handle, new DbError('lock', '55P03', 'lock wait over storage.userLockWaitMs'));
       }
       return handle.query(statement, params);
     };
