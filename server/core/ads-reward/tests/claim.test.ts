@@ -99,4 +99,17 @@ describe('ads-reward claim', () => {
     const notify_id = await notify_of(owner, BASIC());
     expect(error_of(await claim(other, notify_id))).toBe(CoreError.CORE_ERROR_AD_REWARD_NOT_FOUND);
   });
+
+  it('answers AD_REWARD_NOT_FOUND at once without an error log to a reward notify ID that is not a lower-case UUID v4, U+0000 included', async () => {
+    const session = await user(s.server);
+    const notify_id = await notify_of(session, BASIC());
+    const errors = T.read_logs(s.server, 'error', 'error').length;
+    for (const sent_id of ['a\u0000b', `${notify_id.slice(0, 35)}\u0000`, notify_id.toUpperCase(), '']) {
+      const pending = claim(session, sent_id);
+      expect(await still_pending(pending, 1000)).toBe(false);
+      expect(error_of(await pending)).toBe(CoreError.CORE_ERROR_AD_REWARD_NOT_FOUND);
+    }
+    expect(T.read_logs(s.server, 'error', 'error').slice(errors)).toEqual([]);
+    expect(error_of(await drive(s.server, claim(session, notify_id)))).toBe(CoreError.CORE_ERROR_AD_REWARD_PENDING);
+  });
 });

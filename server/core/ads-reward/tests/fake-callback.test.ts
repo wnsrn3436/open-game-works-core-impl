@@ -38,6 +38,18 @@ describe('ads-reward FakeAdCallback', () => {
     expect(error_of(await fake_callback(owner, notify_id))).toBe(CoreError.CORE_ERROR_AD_REWARD_NOT_FOUND);
   });
 
+  it('answers AD_REWARD_NOT_FOUND without an error log to a reward notify ID that is not a lower-case UUID v4, U+0000 included', async () => {
+    const session = await user(s.server);
+    const notify_id = await notify_of(session, BASIC());
+    const errors = T.read_logs(s.server, 'error', 'error').length;
+    for (const sent_id of ['a\u0000b', `${notify_id.slice(0, 35)}\u0000`, notify_id.toUpperCase(), '']) {
+      expect(error_of(await fake_callback(session, sent_id))).toBe(CoreError.CORE_ERROR_AD_REWARD_NOT_FOUND);
+    }
+    expect(T.read_logs(s.server, 'error', 'error').slice(errors)).toEqual([]);
+    expect(await balance(s.server, session.user_id, GEM())).toBe(0n);
+    expect(error_of(await fake_callback(session, notify_id))).toBe(0);
+  });
+
   it('answers INTERNAL without a grant when on_ad_rewarded throws, and a later FakeAdCallback of the same reward notify ID grants', async () => {
     let fail_next = false;
     const failing = await start(
