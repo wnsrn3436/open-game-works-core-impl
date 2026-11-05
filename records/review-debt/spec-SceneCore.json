@@ -1,12 +1,5 @@
 {
   "target": "spec SceneCore",
   "nextId": 4,
-  "items": [
-    {
-      "id": "D3",
-      "location": "skills/client-core/engines/godot.md:290",
-      "problem": "The rule says \"The scene root is a `Node` and has no transform, so the `position` of `ui_root` is the position in game coordinates\", but nothing makes the root a plain `Node`: `SceneBase` `extends Node` (godot.md:288), a Godot script whose base is `Node` can be attached to a `Node2D` or `Control` node, such a root passes the scene base type check of scene-core.md:42, and skills/client-content/engines/godot.md:64 only asks that the root script inherit `SceneBase`. Run path: a scene whose root is a `Node2D` at `position` (100, 0) with a `ui_root` holding an ignore-mark element directly under it, with `SafeAreaCore.set_virtual_notch` in a DEV environment. Stage 4 sets `ui_root.position` to the safe area rect, but its global rect is shifted by 100 through the root transform, so from stage 4 until the stage 7 `reparent()` the `SafeAreaCore` parent rule (safe-area-core.md:55) is broken and leaves an error log, against the test item of scene-core.md:173. Either the base type check also rejects a root whose engine class is not `Node`, or the stage 4 placement uses the global rect of `ui_root`",
-      "foundBy": "spec SceneCore"
-    }
-  ]
+  "items": []
 }
