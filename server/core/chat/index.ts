@@ -48,8 +48,8 @@ export interface ChatModule extends ChatAdminOperations {
   ReportChatMessage(ctx: RequestCtx, request: CoreContract.ReportChatMessageRequest): CoreContract.ReportChatMessageResponse | CoreContract.CoreError;
   GetChatChannels(ctx: RequestCtx, request: CoreContract.GetChatChannelsRequest): CoreContract.GetChatChannelsResponse | CoreContract.CoreError;
   DeleteGuildChatMessage(ctx: RequestCtx, request: CoreContract.DeleteGuildChatMessageRequest): CoreContract.DeleteGuildChatMessageResponse | CoreContract.CoreError;
-  /** `auth` calls it at withdrawal. null, or `FAILED` on a lock wait timeout or a channel it did not lock. */
-  remove_user(ctx: RequestCtx): null | 'FAILED';
+  /** `auth` calls it at withdrawal. null, `FAILED` on a lock wait timeout, or `CHANGED` (nothing changed) on a channel it did not lock. */
+  remove_user(ctx: RequestCtx): null | 'FAILED' | 'CHANGED';
   /** The written `System` message, or null (and an `error` log). A lock wait timeout throws. */
   post_system_message(ctx: RequestCtx, channel_kind: CoreContract.ChatChannelKind, channel_id: bigint, text: string): CoreContract.ChatMessage | null;
   readonly hook_slots: ChatHookSlots;
@@ -470,7 +470,7 @@ function post_system_message(chat: Chat, ctx: RequestCtx, kind: CoreContract.Cha
   return chat.message(row, channel.id, new Map());
 }
 
-function remove_user(chat: Chat, ctx: RequestCtx): null | 'FAILED' {
+function remove_user(chat: Chat, ctx: RequestCtx): null | 'FAILED' | 'CHANGED' {
   const db = chat.db(ctx);
   const me = ctx.user_id;
   const others = new Set(T.direct_channels(db, K.CHAT_CHANNEL_KIND_DIRECT, me).map((row) => (row.key_a === me ? row.key_b : row.key_a)));
@@ -484,7 +484,7 @@ function remove_user(chat: Chat, ctx: RequestCtx): null | 'FAILED' {
     locked.add(`${String(key.key_a)}:${String(key.key_b)}`);
   }
   const channels = T.direct_channels(db, K.CHAT_CHANNEL_KIND_DIRECT, me);
-  if (channels.some((row) => !locked.has(`${String(row.key_a)}:${String(row.key_b)}`))) return 'FAILED';
+  if (channels.some((row) => !locked.has(`${String(row.key_a)}:${String(row.key_b)}`))) return 'CHANGED';
   T.delete_sent_messages(db, me);
   for (const row of channels) T.delete_channel(db, row);
   return null;

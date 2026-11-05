@@ -203,7 +203,7 @@ type Outcome =
 
 /** The withdrawal of step 5 in the user's transaction; `INTERNAL` (rolled back) when a `remove_user` failed. */
 function delete_account(a: AuthState, ctx: Ctx): 'pass' | number {
-  return withdraw(a, ctx) === 'FAILED' ? E.CORE_ERROR_INTERNAL : 'pass';
+  return withdraw(a, ctx) === 'done' ? 'pass' : E.CORE_ERROR_INTERNAL;
 }
 
 /** Step 5 in the user's transaction, and what the transaction result means for the page. */

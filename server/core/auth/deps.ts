@@ -187,7 +187,7 @@ export interface RemoveUser {
 
 /** `chat`, `friend`, `guild`, `block-report` `remove_user`. */
 export interface FallibleRemoveUser {
-  remove_user(ctx: Ctx): 'FAILED' | null | undefined;
+  remove_user(ctx: Ctx): 'FAILED' | 'CHANGED' | null | undefined;
 }
 
 export interface Iap extends RemoveUser {

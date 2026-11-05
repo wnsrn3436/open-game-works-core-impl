@@ -21,7 +21,7 @@ async function sweep_user(a: AuthState, user_id: bigint, delete_after_ms: bigint
   const result = await storage.run_user_transaction(user_id, (ctx) => {
     if (!inactive_guest(a, storage.db(ctx), user_id, delete_after_ms)) return 'pass';
     if (iap !== undefined && iap.has_granted_payment(ctx, user_id)) return 'pass';
-    if (withdraw(a, ctx) === 'FAILED') return E.CORE_ERROR_INTERNAL;
+    if (withdraw(a, ctx) !== 'done') return E.CORE_ERROR_INTERNAL;
     state.deleted = true;
     return 'pass';
   });

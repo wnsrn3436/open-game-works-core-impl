@@ -1,6 +1,7 @@
 /**
  * Lock wait timeouts of the channel row and the guild row while another connection holds them: `post_system_message`
- * throws, the chat core `rpc`s are `INTERNAL`, and `remove_user` is `FAILED`, so `Withdraw` is `INTERNAL`.
+ * throws, the chat core `rpc`s are `INTERNAL`, and `remove_user` is `FAILED`, so `Withdraw` is `INTERNAL`. A Direct
+ * channel row that `remove_user` did not lock makes it `CHANGED`, and `Withdraw` is `INTERNAL` too.
  */
 import { hold_game_row_lock, stop_test_server, type TestSession } from '../../testing/dev/index.ts';
 import {
@@ -11,8 +12,10 @@ import {
   direct_key,
   E,
   end_other_txs,
+  field,
   join_guild,
   K,
+  logs,
   make_friends,
   other_tx,
   post_system,
@@ -133,23 +136,42 @@ describe('lock wait timeout', () => {
     expect(direct_messages(leaving.user_id)).toEqual([]);
   });
 
-  it('makes Withdraw INTERNAL, as remove_user is FAILED, and keeps the chat rows when a Direct channel row of the user it read again after its locks is one it did not lock (PostgreSQL)', async () => {
-    h = await start({ db: 'postgresql' });
+  /**
+   * Another server instance holds the friend's Direct channel row, which remove_user waits for, and writes a Direct
+   * channel row of the leaving user with a stranger, which remove_user's first read did not see. It commits only once
+   * remove_user waits: a commit before remove_user's first read would let that read see the stranger's channel row, and
+   * remove_user would lock it too. Runs `fn` as `leaving` while it waits, and returns its result.
+   */
+  async function with_unlocked_direct_row<V>(fn: (leaving: TestSession) => Promise<V>): Promise<{ leaving: TestSession; result: V }> {
     const [leaving, friend, stranger] = await users(h.server, 3);
     await make_friends(leaving, friend);
     await sent(send_chat(leaving, K.CHAT_CHANNEL_KIND_DIRECT, friend.user_id, 'kept'));
-    // Another server instance holds the friend's Direct channel row, which remove_user waits for, and writes a Direct
-    // channel row of the user with a stranger, which remove_user's first read did not see. It commits while remove_user waits.
     const other = await other_tx(h, [['chat_channel', [K.CHAT_CHANNEL_KIND_DIRECT, ...direct_key(leaving.user_id, friend.user_id)]]]);
     const [key_a, key_b] = direct_key(leaving.user_id, stranger.user_id);
     await other.run('INSERT INTO chat_channel (kind, key_a, key_b, last_seq, last_at, last_delete_seq) VALUES ($1, $2, $3, 0, 0, 0)', [K.CHAT_CHANNEL_KIND_DIRECT, key_a, key_b]);
-    // It commits only once remove_user waits: a commit before remove_user's first read would let that read see the
-    // stranger's channel row, and remove_user would lock it too.
     const committed = other.commit_when_waited();
-    expect(await withdraw(leaving)).toBe(E.CORE_ERROR_INTERNAL);
+    const result = await fn(leaving);
     expect(await committed).toBe(true);
     expect(withdrawn_at(leaving.user_id)).toBeNull();
     expect(direct_messages(leaving.user_id)).toHaveLength(1);
     expect(rows(h.core(), 'SELECT key_a, key_b FROM chat_channel WHERE kind = $1 AND (key_a = $2 OR key_b = $2) ORDER BY key_a, key_b', [K.CHAT_CHANNEL_KIND_DIRECT, leaving.user_id])).toHaveLength(2);
+    return { leaving, result };
+  }
+
+  it('makes remove_user CHANGED and change nothing when a Direct channel row of the user it read again after its locks is one it did not lock (PostgreSQL)', async () => {
+    h = await start({ db: 'postgresql' });
+    const { result } = await with_unlocked_direct_row((leaving) => core_test(h, leaving, (ctx) => h.chat().remove_user(ctx)));
+    expect(result).toEqual({ code: 0, value: 'CHANGED' });
+  });
+
+  it('makes Withdraw INTERNAL with the error log of a CHANGED remove_user, and keeps the chat rows, when a Direct channel row of the user it read again is one it did not lock (PostgreSQL)', async () => {
+    h = await start({ db: 'postgresql' });
+    const errors_before = logs(h.server, 'error', 'error').length;
+    const { leaving, result } = await with_unlocked_direct_row((session) => withdraw(session));
+    expect(result).toBe(E.CORE_ERROR_INTERNAL);
+    const changed = logs(h.server, 'error', 'error')
+      .slice(errors_before)
+      .filter((line) => line['message'] === 'withdrawal rolled back: a remove_user is CHANGED');
+    expect(changed.map((line) => [field(line, 'user_id'), field(line, 'request')])).toEqual([[String(leaving.user_id), 'core/Withdraw']]);
   });
 });
