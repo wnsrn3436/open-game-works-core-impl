@@ -154,14 +154,14 @@ describe('DB adapter', () => {
       const runs = Array.from({ length: max + 1 }, () => request(storage, user, () => 'ran'));
       await wait(500);
       const [during] = await holder.ok(
-        "SELECT count(*) FILTER (WHERE wait_event_type = 'Lock') AS waiting, count(*) AS total FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()",
+        "SELECT count(*) FILTER (WHERE wait_event_type = 'Lock') AS waiting, count(*) AS total FROM pg_stat_activity WHERE datname = current_database() AND backend_type = 'client backend' AND pid <> pg_backend_pid()",
       );
-      // The transaction connections and the read connection.
+      // The transaction connections and the read connection; an autovacuum worker of the database is not one of them.
       expect([Number(during?.waiting), Number(during?.total)]).toEqual([max, max + 1]);
       expect(await Promise.all(runs)).toEqual(Array.from({ length: max + 1 }, () => 'FAILED'));
       await holder.ok('ROLLBACK');
       expect(await request(storage, user, () => 'ran')).toBe('ran');
-      const [after] = await holder.ok('SELECT count(*) AS total FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid()');
+      const [after] = await holder.ok("SELECT count(*) AS total FROM pg_stat_activity WHERE datname = current_database() AND backend_type = 'client backend' AND pid <> pg_backend_pid()");
       expect(Number(after?.total)).toBeLessThanOrEqual(max + 1);
     },
   );
