@@ -60,7 +60,7 @@ export function register_tables(storage: Pick<Storage, 'register_table'>): void 
     [['guild_id']],
   );
   storage.register_table(JOIN_REQUEST, 'game', [int64('guild_id'), int64('user_id'), int64('created_at')], ['guild_id', 'user_id'], null, null, 'user_id', [['user_id']]);
-  storage.register_table(COOLDOWN, 'game', [int64('user_id'), int64('ends_at')], ['user_id'], 'ends_at', null, 'user_id');
+  storage.register_table(COOLDOWN, 'game', [int64('user_id'), int64('ends_at')], ['user_id'], null, null, 'user_id');
   storage.register_table(SEQUENCE, 'game', [int64('id'), int64('last_guild_id')], ['id'], null, null);
 }
 
