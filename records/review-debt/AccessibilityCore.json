@@ -1,12 +1,5 @@
 {
   "target": "AccessibilityCore",
   "nextId": 5,
-  "items": [
-    {
-      "id": "D2",
-      "location": "open-game-works-core/skills/client-core/modules/accessibility-core.md:142",
-      "problem": "`spec`. DEV says that after `set_test_text_scale`, \"On `release` it returns to the saved value\", and no test checks it. `### release` (line 83) says the value passed to `LocalizationCore` is reverted by the `release` of that module, and `LocalizationCore.release` sets 1000 (`open-game-works-core/skills/client-core/modules/localization-core.md:119`), not the saved value. Run path: `set_text_scale(1250)`, `AccessibilityCoreDev.set_test_text_scale(1500)`, `AccessibilityCore.release()` leaves `get_text_scale` at 1500; with `LocalizationCore.release()` as well it is 1000 after a new `LocalizationCore.init`. It is 1250 only after the next `AccessibilityCore.init` and `apply_saved_settings` (`client/godot/core/accessibility_core/accessibility_core.gd:117`, `client/godot/core/accessibility_core/accessibility_core.gd:154`). The two sentences of the spec give different values for the time right after `release`.",
-      "foundBy": "AccessibilityCore round 1"
-    }
-  ]
+  "items": []
 }
