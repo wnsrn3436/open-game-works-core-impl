@@ -14,6 +14,8 @@ func assert_initial_state() -> void:
 	assert_eq(CutsceneCore._auto_delay_ms, 0)
 	assert_eq(CutsceneCore._fast_forward_delay_ms, 0)
 	assert_eq(CutsceneCore._history_max, 0)
+	assert_eq(CutsceneCore._key_buffer.size(), 0)
+	assert_eq(CutsceneCore._pad_buffer.size(), 0)
 	assert_eq(CutsceneCore._actors.size(), 0)
 	assert_null(CutsceneCore._block_pass_list)
 	assert_null(CutsceneCore._tween_options)
@@ -133,6 +135,30 @@ func test_operations_before_init_and_after_release_log_an_error_and_give_failure
 	CutsceneCore.release()
 	assert_false(CutsceneCore.is_playing())
 	assert_eq(errors(), 1)
+
+
+func test_init_fails_when_an_input_core_binding_size_setting_is_missing_or_not_an_integer() -> void:
+	assert_true(await start(false))
+	for key: String in ["InputCore.maxKeysPerAction", "InputCore.maxPadButtonsPerAction"]:
+		assert_true(UnitTestCore.set_invalid_test_settings(key, "text"), key)
+		assert_false(CutsceneCore.init(), key)
+		assert_eq(errors(), 1, key)
+		assert_initial_state()
+		assert_eq(_cutscene_safe_roots(), 0)
+		set_setting(key, 4)
+	assert_true(CutsceneCore.init())
+	assert_eq(errors(), 0)
+
+
+func test_init_sizes_the_binding_buffers_from_the_settings_and_the_default_binding() -> void:
+	set_setting("InputCore.maxKeysPerAction", 3)
+	set_setting("InputCore.maxPadButtonsPerAction", 5)
+	assert_true(await start())
+	var default_size: int = InputMap.action_get_events(&"cutscene_advance").size()
+	assert_true(default_size > 0, "the default binding of cutscene_advance")
+	assert_eq(CutsceneCore._key_buffer.size(), 3 + default_size)
+	assert_eq(CutsceneCore._pad_buffer.size(), 5 + default_size)
+	assert_eq(errors(), 0)
 
 
 func test_core_node_leaving_the_tree_outside_release_cleans_up_like_release() -> void:
