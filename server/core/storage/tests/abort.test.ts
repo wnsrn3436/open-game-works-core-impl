@@ -100,6 +100,41 @@ async function deadlock(db: DbTarget): Promise<{ meet(handle: DbHandle): void; e
   };
 }
 
+/** The backend pid of the read connection of `storage`. */
+function read_pid(storage: Storage): number {
+  return Number(storage.read_db().query('SELECT pg_backend_pid() AS pid')[0]?.['pid']);
+}
+
+/**
+ * In a session of another thread, as this thread waits in its query: ends, one after another, `count` sessions that
+ * wait for a lock that backend `holder` holds, each after it waits, then ends `holder`, which frees the lock.
+ */
+async function end_reads(db: DbTarget, holder: number, count: number): Promise<{ done: Promise<HolderResult> }> {
+  const ender = await lock_holder(db);
+  const done = ender.run(
+    `DO $$
+     DECLARE
+       ended INT[] := '{}';
+       waiter INT;
+     BEGIN
+       FOR n IN 1..${String(count)} LOOP
+         waiter := NULL;
+         FOR i IN 1..2000 LOOP
+           PERFORM pg_stat_clear_snapshot();
+           SELECT a.pid INTO waiter FROM pg_stat_activity a WHERE ${String(holder)} = ANY(pg_blocking_pids(a.pid)) AND a.pid <> ALL(ended) LIMIT 1;
+           EXIT WHEN waiter IS NOT NULL;
+           PERFORM pg_sleep(0.01);
+         END LOOP;
+         IF waiter IS NULL THEN RAISE EXCEPTION 'no session waited for backend ${String(holder)}'; END IF;
+         PERFORM pg_terminate_backend(waiter);
+         ended := ended || waiter;
+       END LOOP;
+       PERFORM pg_terminate_backend(${String(holder)});
+     END $$`,
+  );
+  return { done };
+}
+
 describe.runIf(DB_KIND === 'postgresql')('PostgreSQL aborts', () => {
   it('a query that meets a deadlock: a run_game_transaction function that catches it and returns gets a throw from its next query, and is FAILED with no write', async () => {
     const { db, storage } = await instance({ settings: { 'storage.userLockWaitMs': 10_000 }, register: tables });
@@ -405,6 +440,55 @@ describe.runIf(DB_KIND === 'postgresql')('PostgreSQL aborts', () => {
       { id: 1n, n: 1n },
       { id: 2n, n: 0n },
     ]);
+  });
+
+  it('a read_db query waiting for a table that testing.hold_db holds, whose read session another session ends with pg_terminate_backend, runs once more on a new connection and returns its rows', async () => {
+    const { db, storage } = await instance({ settings: { 'storage.userLockWaitMs': 10_000 }, register: tables });
+    await counter_rows(storage);
+    const before = read_pid(storage);
+    const holder = await hold_db(connection(db), [{ sql: 'LOCK TABLE test_counter IN ACCESS EXCLUSIVE MODE' }]);
+    const ended = await end_reads(db, holder.pid, 1);
+    const rows = storage.read_db().query('SELECT pg_backend_pid() AS pid, n FROM test_counter WHERE id = 1');
+    expect(await ended.done).toEqual({ ok: true, rows: [] });
+    // The holder's session was ended too, so its ROLLBACK fails.
+    await settled(holder.release());
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.['n']).toBe(0n);
+    expect(rows[0]?.['pid']).not.toBe(before);
+    expect(read_pid(storage)).toBe(rows[0]?.['pid']);
+  });
+
+  it('a read_db query whose run once more on a new connection is also ended throws a value that is not a StorageMisuse, and the next read_db query succeeds', async () => {
+    const { db, storage } = await instance({ settings: { 'storage.userLockWaitMs': 10_000 }, register: tables });
+    await counter_rows(storage);
+    const before = read_pid(storage);
+    const holder = await hold_db(connection(db), [{ sql: 'LOCK TABLE test_counter IN ACCESS EXCLUSIVE MODE' }]);
+    const ended = await end_reads(db, holder.pid, 2);
+    const error = thrown(() => storage.read_db().query('SELECT n FROM test_counter WHERE id = 1'));
+    expect(await ended.done).toEqual({ ok: true, rows: [] });
+    await settled(holder.release());
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(StorageMisuse);
+    expect(read_pid(storage)).not.toBe(before);
+    expect(storage.read_db().query('SELECT n FROM test_counter WHERE id = 1')).toEqual([{ n: 0n }]);
+  });
+
+  it('a read_db query on a read connection opened for it, because the one before was ended, throws when PostgreSQL ends that new connection while the query waits for a table that testing.hold_db holds', async () => {
+    const { db, storage } = await instance({ settings: { 'storage.userLockWaitMs': 10_000 }, register: tables });
+    await counter_rows(storage);
+    const before = read_pid(storage);
+    const killer = await lock_holder(db);
+    expect(await killer.ok(`SELECT pg_terminate_backend(${String(before)}) AS ended`)).toEqual([{ ended: true }]);
+    // The worker thread sees the closed socket, so the next read opens a new connection.
+    await wait(300);
+    const holder = await hold_db(connection(db), [{ sql: 'LOCK TABLE test_counter IN ACCESS EXCLUSIVE MODE' }]);
+    const ended = await end_reads(db, holder.pid, 1);
+    const error = thrown(() => storage.read_db().query('SELECT n FROM test_counter WHERE id = 1'));
+    expect(await ended.done).toEqual({ ok: true, rows: [] });
+    await settled(holder.release());
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(StorageMisuse);
+    expect(storage.read_db().query('SELECT n FROM test_counter WHERE id = 1')).toEqual([{ n: 0n }]);
   });
 
   it('with storage.dbAnswerWaitMs 0.1 × storage.userLockWaitMs, a sweep_expired delete that waits 0.6 × storage.userLockWaitMs for each of two expired rows that two testing.hold_db hold puts that table in the failed table list with 57014', async () => {
