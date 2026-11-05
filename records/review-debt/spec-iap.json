@@ -1,12 +1,5 @@
 {
   "target": "spec iap",
   "nextId": 8,
-  "items": [
-    {
-      "id": "D7",
-      "location": "skills/server-core/modules/iap.md:341",
-      "problem": "The `iap-google` subscription snapshot sets only the latest transaction ID, `state`, test transaction and purchase time (`startTime`), but not the SKU, `ends_at` or `auto_renew`. Line 197 says the snapshot holds these, and the Apple paragraph (line 340) sets each of them (`productId`, `expiresDate` / `gracePeriodExpiresDate` / `revocationDate`, `autoRenewStatus`). For a status lookup outside grant order there is no receipt JSON, so \"The SKU of the store transaction info is `productId` of the receipt JSON\" does not cover the snapshot. Subscription apply steps 1 and 3 (line 210, 212) read the snapshot SKU, and entitlement and `CheckPurchase` step 3 read `ends_at` and `auto_renew`. Two implementations give different observable results. Example: after a Google plan change, an implementation that takes the SKU from the read line item's `productId` moves the subscription record to the new product, while one that keeps the receipt or record SKU does not. `ends_at` can come from `expiryTime` of the line item or from something else, and `auto_renew` can come from `autoRenewingPlan.autoRenewEnabled` or be fixed. These differences change `SubscriptionUserState`, `is_subscribed` and `IAP_LIMIT_REACHED`. The test at line 420 (plan change to a product with a different SKU) has no Google value it can check",
-      "foundBy": "spec iap"
-    }
-  ]
+  "items": []
 }
