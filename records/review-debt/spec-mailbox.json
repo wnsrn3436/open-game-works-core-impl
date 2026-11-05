@@ -1,0 +1,12 @@
+{
+  "target": "spec mailbox",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/server-core/modules/mailbox.md:64",
+      "problem": "\"decimal integer string\" in the JSON value of a mail input has no definition in `mailbox`. admin-api.md:173 now defines the term only inside admin-api body rules (optional `-`, then `0` or digits that start with `1` to `9`), so `send_mail` of admin-api rejects `user_id` `\"03\"` with 400 while `mail.attachments[].amount` `\"03\"` can be accepted or be `INVALID_INPUT` depending on the `mailbox` implementation",
+      "foundBy": "spec admin-api"
+    }
+  ]
+}
