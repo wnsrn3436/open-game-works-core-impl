@@ -287,15 +287,21 @@ export function create_block_report(input: BlockReportInput): BlockReport {
   const has_block = (db: DbHandle, blocker_id: bigint, blocked_id: bigint): boolean =>
     db.query(`SELECT 1 AS found FROM ${BLOCK_TABLE} WHERE user_id = $1 AND blocked_id = $2`, [blocker_id, blocked_id]).length > 0;
 
-  /** The `ReportContext` element name of a valid `add_report` input, or null for the `INVALID_INPUT` conditions. */
+  /**
+   * The `ReportContext` element name of a valid `add_report` input, or null for the `INVALID_INPUT` conditions. A `ref`
+   * or `evidence` holding U+0000 breaks its rule: PostgreSQL does not store U+0000 in a text value and SQLite does, so
+   * the report row write would not give the same result in both DBs (`storage` `## behavior`).
+   */
   const valid_context_name = (reason_id: number, context: CoreContract.ReportContext, ref: string, comment: string, evidence: string): string | null => {
     const name = CONTEXT_NAMES.get(context);
     if (
       name === undefined ||
       !validation.has_table_id(REASON_TABLE, reason_id) ||
       utf8_bytes(ref) > settings.max_ref_bytes ||
+      ref.includes('\u0000') ||
       (comment !== '' && !validation.is_plain_text(comment, settings.max_comment_length)) ||
-      utf8_bytes(evidence) > settings.max_evidence_bytes
+      utf8_bytes(evidence) > settings.max_evidence_bytes ||
+      evidence.includes('\u0000')
     ) {
       return null;
     }

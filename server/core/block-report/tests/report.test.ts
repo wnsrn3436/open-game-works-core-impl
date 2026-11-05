@@ -1,7 +1,7 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import { advance_time, hold_game_row_lock, login, read_logs } from '../../testing/dev/index.ts';
 import { SEQUENCE_TABLE } from '../index.ts';
-import { ABUSE, id_value, in_request, list_reports, report_rows, report_user, run_core_test, SPAM, start, stop_all } from './kit.ts';
+import { ABUSE, count_rows, id_value, in_request, list_reports, report_rows, report_user, run_core_test, set_time_offset, SPAM, START, start, stop_all } from './kit.ts';
 
 const INVALID_REQUEST = CoreContract.CoreError.CORE_ERROR_INVALID_REQUEST;
 const USER_NOT_FOUND = CoreContract.CoreError.CORE_ERROR_USER_NOT_FOUND;
@@ -119,8 +119,61 @@ describe('ReportUser', () => {
     expect((await report_user(alice, bob.user_id, { comment: ' leading space' })).code).toBe(INVALID_REQUEST);
     expect((await report_user(alice, bob.user_id, { comment: 'bell\u0007' })).code).toBe(INVALID_REQUEST);
     expect(report_rows(instance)).toEqual([]);
+    // `INVALID_INPUT` of `add_report` in `ReportUser` leaves no log.
+    expect(read_logs(instance.server, undefined, 'error')).toEqual([]);
     // An empty comment is allowed.
     expect((await report_user(alice, bob.user_id, { comment: '' })).code).toBeNull();
+  });
+
+  it('is INVALID_REQUEST with no report row and no error log for a ref holding U+0000', async () => {
+    const instance = await start();
+    const alice = await login(instance.server, 'alice');
+    const bob = await login(instance.server, 'bob');
+    expect((await report_user(alice, bob.user_id, { ref: 'a\u0000b' })).code).toBe(INVALID_REQUEST);
+    expect(report_rows(instance)).toEqual([]);
+    expect(read_logs(instance.server, undefined, 'error')).toEqual([]);
+    expect((await report_user(alice, bob.user_id, { ref: 'ab' })).code).toBeNull();
+    expect(report_rows(instance)).toHaveLength(1);
+  });
+
+  it('is INVALID_REQUEST for a comment over block-report.maxCommentLength code points and takes one of that many', async () => {
+    const instance = await start({ settings: { 'block-report.maxCommentLength': 3 } });
+    const alice = await login(instance.server, 'alice');
+    const bob = await login(instance.server, 'bob');
+    expect((await report_user(alice, bob.user_id, { ref: '1', comment: 'abcd' })).code).toBe(INVALID_REQUEST);
+    expect(report_rows(instance)).toEqual([]);
+    // Three code points in six UTF-16 code units fit.
+    expect((await report_user(alice, bob.user_id, { ref: '2', comment: '\u{1F600}\u{1F600}\u{1F600}' })).code).toBeNull();
+    expect(report_rows(instance)).toHaveLength(1);
+  });
+
+  it('keeps the count in block_report_count with window_start of the request time and expires_at = window_start + block-report.reportWindowMs', async () => {
+    const window = 60_000n;
+    const instance = await start({ settings: { 'block-report.reportWindowMs': Number(window) } });
+    const alice = await login(instance.server, 'alice');
+    const bob = await login(instance.server, 'bob');
+    // START is a window start; 90 s later is inside the window that starts at START + 60 s.
+    advance_time(instance.server, 90_000n);
+    expect((await report_user(alice, bob.user_id, { ref: '1' })).code).toBeNull();
+    expect((await report_user(alice, bob.user_id, { ref: '2' })).code).toBeNull();
+    expect(count_rows(instance)).toEqual([{ user_id: alice.user_id, window_start: START + window, count: 2n, expires_at: START + 2n * window }]);
+  });
+
+  it('counts the fixed window and writes created_at by the request time, which holds the cheat time offset', async () => {
+    const window = 60_000n;
+    const instance = await start({ settings: { 'block-report.maxReportsPerWindow': 1, 'block-report.reportWindowMs': Number(window) } });
+    const alice = await login(instance.server, 'alice');
+    const bob = await login(instance.server, 'bob');
+    expect((await report_user(alice, bob.user_id, { ref: '1' })).code).toBeNull();
+    // The clock stays in the window of START; the request time moves to the next window.
+    await set_time_offset(alice, window);
+    expect((await report_user(alice, bob.user_id, { ref: '2' })).code).toBeNull();
+    expect((await report_user(alice, bob.user_id, { ref: '3' })).code).toBe(REPORT_LIMIT);
+    expect((await list_reports(instance)).map((report) => [report.ref, report.created_at])).toEqual([
+      ['1', String(START)],
+      ['2', String(START + window)],
+    ]);
+    expect(count_rows(instance)).toEqual([{ user_id: alice.user_id, window_start: START + window, count: 1n, expires_at: START + 2n * window }]);
   });
 
   it('is INVALID_REQUEST for the own user ID and user ID 0, USER_NOT_FOUND for a user that does not exist', async () => {
@@ -173,6 +226,31 @@ describe('add_report', () => {
     ]);
     expect(results).toEqual(['INVALID_INPUT', 'INVALID_INPUT', 'INVALID_INPUT', 'INVALID_INPUT']);
     expect(report_rows(instance)).toEqual([]);
+  });
+
+  it('is INVALID_INPUT with no report row for a ref or an evidence holding U+0000', async () => {
+    const instance = await start();
+    const alice = await login(instance.server, 'alice');
+    const bob = await login(instance.server, 'bob');
+    const results = await in_request(instance, alice, (ctx) => [
+      instance.block.add_report(ctx, bob.user_id, id_value(SPAM), Context.REPORT_CONTEXT_OTHER, 'a\u0000b', '', 'text'),
+      instance.block.add_report(ctx, bob.user_id, id_value(SPAM), Context.REPORT_CONTEXT_OTHER, 'c', '', 'te\u0000xt'),
+    ]);
+    expect(results).toEqual(['INVALID_INPUT', 'INVALID_INPUT']);
+    expect(report_rows(instance)).toEqual([]);
+    expect(read_logs(instance.server, 'error', 'error').map((line) => line.message)).toEqual(['add_report got an invalid input', 'add_report got an invalid input']);
+  });
+
+  it('is INVALID_INPUT for a comment over block-report.maxCommentLength code points and OK for one of that many', async () => {
+    const instance = await start({ settings: { 'block-report.maxCommentLength': 3 } });
+    const alice = await login(instance.server, 'alice');
+    const bob = await login(instance.server, 'bob');
+    const results = await in_request(instance, alice, (ctx) => [
+      instance.block.add_report(ctx, bob.user_id, id_value(SPAM), Context.REPORT_CONTEXT_OTHER, '1', '\u{1F600}\u{1F600}\u{1F600}\u{1F600}', ''),
+      instance.block.add_report(ctx, bob.user_id, id_value(SPAM), Context.REPORT_CONTEXT_OTHER, '2', '\u{1F600}\u{1F600}\u{1F600}', ''),
+    ]);
+    expect(results).toEqual(['INVALID_INPUT', 'OK']);
+    expect(report_rows(instance)).toHaveLength(1);
   });
 
   it('is LIMIT once the window count reaches block-report.maxReportsPerWindow', async () => {
