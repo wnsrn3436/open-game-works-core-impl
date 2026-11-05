@@ -1,12 +1,5 @@
 {
   "target": "spec NativeUiCore",
   "nextId": 6,
-  "items": [
-    {
-      "id": "D5",
-      "location": "skills/client-core/modules/native-ui-core.md:98",
-      "problem": "`release` ends a `share` in progress with `Failed`, but no row of `## error` (lines 110-119) covers that condition: the `Failed` row of line 112 is for a failure that the adapter reports, and in this case the module ends the wait itself (godot.md:59 `stop()`, `cancel_share`). Test line 159 checks only the result. So whether a `share` that `release` ends leaves an error log, a warn log or no log differs per implementation",
-      "foundBy": "spec NativeUiCore"
-    }
-  ]
+  "items": []
 }
