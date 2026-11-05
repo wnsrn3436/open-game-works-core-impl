@@ -1,0 +1,32 @@
+# review item-ledger round 3
+
+## findings
+
+| id | aspect | severity | location | evidence | fix | spec change | confidence |
+|---|---|---|---|---|---|---|---|
+| R3-1 | spec | medium | server/core/item-ledger/items.ts:47 | The changed spec (item-ledger.md `read_amount` row, line 34, and the `INVALID_AMOUNT` row) says `read_amount` has no amount when `amount`, `big_amount` is not the contract's big encoding of an integer. The contract encoding (contract SKILL.md:136) is `amount` = v and `big_amount` '' for \|v\| ≤ 2^53−1, otherwise `amount` 0 and `big_amount` the big integer. `read_big` returns `small` whenever `big` is '' without checking \|small\| ≤ 2^53−1, and returns `BigInt(big)` whenever `big` is a big integer without checking `small` = 0 or \|big\| > 2^53−1. `amount_of` (items.ts:58), `parse` (ledger.ts:367) and the module's `read_amount` (index.ts:133) all use it. Reproducing input (new `## test` item, item-ledger.md about line 393): big item with `max_digits` 20, `add_items` of `ItemAmount` {`amount` 2^53, `big_amount` ''} gives amount 2^53 ≤ `amount_limit` 10^20−1, so `input_problem` (ledger.ts:221) passes and the balance grows by 2^53 where the spec says `INVALID_AMOUNT`; {`amount` 1, `big_amount` '9007199254740993'} reads 9007199254740993 and is applied. `send_mail` reads attachments through the same `read_amount` (mailbox/mail_input.ts:88), so such an attachment is accepted where the spec says `INVALID_INPUT`. No test covers these inputs (big.test.ts:108 checks only a well-formed pair and '12x') | Make `read_big` return null when `big` is '' and \|small\| > 2^53−1, and when `big` is not '' and (`small` ≠ 0 or \|big\| ≤ 2^53−1). Keep the history read (history.ts:86) on a reader that accepts what core writes. Add the `## test` item's cases for `add_items` and `send_mail` | no | 90 |
+| R3-2 | correctness | medium | server/core/item-ledger/ledger.ts:737 | Changed change order step 3 (item-ledger.md:108): a change whose net amount is 0 or negative is not judged against `max_amount`, and the `## test` item at item-ledger.md:365 says an `exchange_items` that subtracts 1 and adds 1 of an item whose saved balance B is above `max_amount` (after a data change) is `OK` for `Reject`, `Discard` and `Convert` items, keeps B and records no `ItemChange` and no history row. In `apply_net`, the net d = 0 gives `next` = B > `balance_limit`; the guard `d < 0n \|\| next <= c.info.balance_limit` is false, so a `Reject` item throws `LIMIT_EXCEEDED` (ledger.ts:741). For a `Convert` item, `applied` = min(0, max(0, limit − B)) = 0 and `work.convert.push({ id, n: 0 })` (ledger.ts:745) runs, so `convert` (ledger.ts:760-777) pushes one entry per `convert_to` element with `delta` 0, `overflow` 0, `item_change: true`: `save` writes a history row and `add_item_change` sends an `ItemChange` of `delta` 0 (source `Overflow`) for each replacement item, and `balance_changes` puts that item in both hook lists; when a replacement item is itself above its `max_amount` with `Reject`, the whole exchange is `LIMIT_EXCEEDED`. The same path is taken when a group item take is the only change of such a member item in an `exchange_items`. No test covers a saved balance above `max_amount` | Treat a net change d ≤ 0 as not judged against the limit (`d <= 0n` in the guard), and push a `Convert` overflow only when n > 0. Add the `## test` items of item-ledger.md:365 | no | 90 |
+| R3-3 | spec | medium | server/core/item-ledger/tests/change.test.ts:198 | The spec changes add `## test` items whose behavior has no test in server/core/item-ledger/tests (searched every test name and the sources passed): item-ledger.md:366 (group G over P 0 and F 10 at `max_amount` 10: `Reject` `LIMIT_EXCEEDED`, `Discard` `OK` with F 9 and one `ItemChange` `delta` −1 `overflow` 1); item-ledger.md:367 (exchange −X 1 +X 1 +Y 1 passes hook lists with Y and not X; hooks.test.ts:34 checks only an `add_items`); item-ledger.md:375 (`add_items` by content code with source `Recovery` outside `storage.with_hook_change_source` records `Request`; change.test.ts:275 passes no source); item-ledger.md:382-383 (the `item_changes` order of exchange −Y +Y +X with X `Convert` → Y, of −B −G +A, of `subtract_items` G 2 and X 1, and of −X1 +X2 +X1 2 with two `Convert` items into a `Discard` Y); item-ledger.md:388 (`revoke_items` X 3, Y 1 with X 0 has `item_changes` Y only; revoke.test.ts:24 checks the history row of a `delta` 0 item but not that it has no `ItemChange`). The code reaches these through `compute_or_throw` (ledger.ts:682-699), `push_entries` (ledger.ts:702-714), `content_change_source` (ledger.ts:65) and `revoke` (ledger.ts:572); reading it, it gives the results these items set, but nothing fails if the order or the filters change | Add one test per listed `## test` item, checking `item_changes` (id, `delta`, `overflow`, source, ref) in order, the history rows and the hook lists as the items state | no | 90 |
+
+## previous
+
+none
+
+## out of scope
+
+none
+
+## debt
+
+none
+
+## must fix
+
+none
+
+## unknown
+
+- No item-ledger file changed in the commit range. The review covered the item-ledger code that the changed definitions of the spec changes diff reach (item-ledger.md, and the storage, logging, server SKILL.md and core SKILL.md hunks). The changed storage definitions (`get_states`, `get_user_records`, PostgreSQL abort handling, `read_db` statement failures, U+0000 in string parameters) and logging definitions (`log` level, truncated IP, analytics) do not change an operation that item-ledger calls or a log that it writes: item-ledger uses `get_state`, `put_core_state`, `delete_core_state`, `db`, `read_db`, `get_user_record` (`created_at` only), `add_item_change`, `on_commit` and `logging.write`, and their changed code in the range (storage/core.ts, tx.ts, index.ts) keeps their signatures
+- A `ref` or `once_key` holding U+0000 passed by content code now makes the history insert throw (storage.md, statement with a `string` parameter that holds U+0000); the request then ends `INTERNAL`. item-ledger.md sets no rule for such a value, so this was not judged
+- R3-1 and R3-2 were worked out by reading `read_big`, `parse`, `apply_net`, `convert`, `push_entries` and `save`; no reproducing test was run, because the target checkout is not edited and a temporary copy with the test fixtures was not set up. The previous review had no findings and no `open` rows, so no defect was restored in a temporary copy
+- No test suite was run in this round
