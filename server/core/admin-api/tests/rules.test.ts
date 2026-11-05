@@ -87,6 +87,18 @@ describe('body rules', () => {
     expect(body(fields, '{"operation_id":"","reason":""}')).toBeNull();
   });
 
+  it('refuses a string field holding U+0000 in a JSON body and in a query string', () => {
+    const fields: FieldMap = { operation_id: { type: { kind: 'string' } }, user_id: { type: { kind: 'int64' } }, note: { type: { kind: 'string' } } };
+    expect(body(fields, '{"operation_id":"a\\u0000b","user_id":1,"note":"x"}')).toBeNull();
+    expect(body(fields, '{"operation_id":"a","user_id":1,"note":"x\\u0000"}')).toBeNull();
+    expect(body(fields, '{"operation_id":"a","user_id":1,"note":"x\\u0001"}')).toEqual({ operation_id: 'a', user_id: 1n, note: 'x\u0001' });
+    const union: FieldMap = { value: { type: { kind: 'object_union', fields: { text_value: { kind: 'string' } } } } };
+    expect(body(union, '{"value":{"text_value":"\\u0000"}}')).toBeNull();
+    const query: FieldMap = { name: { type: { kind: 'string' } } };
+    expect(check_query(query, new URLSearchParams('name=a%00b'), LIMITS)).toBeNull();
+    expect(check_query(query, new URLSearchParams('name=ab'), LIMITS)).toEqual({ name: 'ab' });
+  });
+
   it('takes a big_amount of items that is empty or a contract big integer', () => {
     const fields: FieldMap = {
       items: {

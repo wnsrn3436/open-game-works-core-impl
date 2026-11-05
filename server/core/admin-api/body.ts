@@ -56,8 +56,9 @@ function int32_of(raw: unknown, query: boolean): unknown {
   return value >= INT32_MIN && value <= INT32_MAX ? value : INVALID;
 }
 
+/** `string`: at most `admin-api.maxStringBytes` UTF-8 bytes and no U+0000 (a DB text parameter cannot hold it). */
 function string_of(raw: unknown, limits: BodyLimits): unknown {
-  return typeof raw === 'string' && utf8_length(raw) <= limits.max_string_bytes ? raw : INVALID;
+  return typeof raw === 'string' && !raw.includes('\u0000') && utf8_length(raw) <= limits.max_string_bytes ? raw : INVALID;
 }
 
 function enum_of(raw: unknown, elements: readonly string[]): unknown {

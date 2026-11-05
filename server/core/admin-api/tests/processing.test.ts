@@ -80,6 +80,16 @@ describe('body rules', () => {
     expect((await admin(server, 'get_user', `{"user_id":"${user_id}"}`)).status).toBe(200);
   });
 
+  it('answers 400 for grant_items whose operation_id holds U+0000, with no balance change and one audit line', async () => {
+    server = await start();
+    const { user_id } = await login(server, 'nul');
+    const lines = audits(server, 'grant_items').length;
+    const reply = await admin(server, 'grant_items', `{"operation_id":"a\\u0000b","user_id":"${user_id}","items":${JSON.stringify(items(GOLD, 1n))}}`);
+    expect([reply.status, reply.json.error]).toEqual([400, 'bad_request']);
+    expect(audits(server, 'grant_items').length - lines).toBe(1);
+    expect(await balance(server, user_id, GOLD)).toBe(0n);
+  });
+
   it('answers 400 for send_mail whose mail has expire_ms 1e3 or 1.5, and sends no mail', async () => {
     server = await start();
     const { user_id } = await login(server, 'expire');
