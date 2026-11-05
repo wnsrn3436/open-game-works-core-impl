@@ -29,6 +29,23 @@ function profiles_of(result: CoreContract.GetPublicProfilesResponse | number): C
   return result.profiles;
 }
 
+/** Records the calls of `storage.get_user_records` (the user IDs of each) and counts those of `storage.get_user_record` from now on. */
+function count_user_reads(instance: Instance): { batches: bigint[][]; single: number } {
+  const reads = { batches: [] as bigint[][], single: 0 };
+  const storage = instance.storage;
+  const get_user_records = storage.get_user_records.bind(storage);
+  const get_user_record = storage.get_user_record.bind(storage);
+  storage.get_user_records = (db, user_ids) => {
+    reads.batches.push([...user_ids]);
+    return get_user_records(db, user_ids);
+  };
+  storage.get_user_record = (db, user_id) => {
+    reads.single += 1;
+    return get_user_record(db, user_id);
+  };
+  return reads;
+}
+
 function error_lines(instance: Instance): Record<string, unknown>[] {
   return instance.logs('error');
 }
@@ -134,6 +151,50 @@ describe('profile build', () => {
     expect(entries.map((e) => e.last_active_at)).toEqual(users.map(() => last_active));
     expect([...(entries[4]?.profile ?? [])]).toEqual([...profile(6n).encode()]);
     expect(lookups).toEqual([2, 2, 1]);
+  });
+
+  it('get_public_profiles of 5 users with public-profile.maxRequestCount 2 calls storage.get_user_records 3 times and storage.get_user_record never', async () => {
+    const instance = await start({ 'public-profile.maxRequestCount': 2 });
+    const users: bigint[] = [];
+    for (let i = 0; i < 5; i += 1) users.push(await new_user(instance));
+    users.sort((x, y) => (x < y ? -1 : 1));
+    const reads = count_user_reads(instance);
+
+    const entries = await request(instance, users[0] as bigint, 'Test', (ctx) => instance.profile.get_public_profiles(ctx, users));
+
+    expect(entries.map((e) => e.user_id)).toEqual(users);
+    expect(reads.batches).toEqual([users.slice(0, 2), users.slice(2, 4), users.slice(4)]);
+    expect(reads.single).toBe(0);
+  });
+
+  it('get_public_profiles of B, A, B gives one entry of A and then one of B and calls build_public_profile once per user', async () => {
+    const instance = await start();
+    const [a, b] = [await new_user(instance), await new_user(instance)].sort((x, y) => (x < y ? -1 : 1)) as [bigint, bigint];
+    const built: bigint[] = [];
+    instance.profile.hook_slots.build_public_profile = (_ctx, user_id) => {
+      built.push(user_id);
+      return new Uint8Array(0);
+    };
+
+    const entries = await request(instance, a, 'Test', (ctx) => instance.profile.get_public_profiles(ctx, [b, a, b]));
+
+    expect(entries.map((e) => e.user_id)).toEqual([a, b]);
+    expect([...built].sort((x, y) => (x < y ? -1 : 1))).toEqual([a, b]);
+  });
+
+  it('FindUserByPublicCode of an existing user calls storage.get_user_records once and storage.get_user_record never', async () => {
+    const instance = await start();
+    const [viewer, user] = [await new_user(instance), await new_user(instance)];
+    const message = new CoreContract.FindUserByPublicCodeRequest();
+    message.public_code = instance.storage.get_user_record(instance.storage.read_db(), user)?.public_code ?? '';
+    const reads = count_user_reads(instance);
+
+    const result = await request(instance, viewer, 'core/FindUserByPublicCode', (ctx) => instance.profile.FindUserByPublicCode(ctx, message));
+
+    if (!(result instanceof CoreContract.FindUserByPublicCodeResponse)) throw new Error(`FindUserByPublicCode failed: ${String(result)}`);
+    expect(result.profile?.user_id).toBe(user);
+    expect(reads.batches).toEqual([[user]]);
+    expect(reads.single).toBe(0);
   });
 });
 
