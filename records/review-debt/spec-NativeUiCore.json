@@ -1,5 +1,12 @@
 {
   "target": "spec NativeUiCore",
-  "nextId": 6,
-  "items": []
+  "nextId": 7,
+  "items": [
+    {
+      "id": "D6",
+      "location": "skills/client-core/engines/godot.md:412",
+      "problem": "The `NativeUiCore` capture waits for `RenderingServer.frame_post_draw` with no fallback, while the `QACore` capture at skills/client-core/engines/godot.md:394 falls back to `RenderingServer.force_draw()` when `frame_post_draw` does not come within 2 process frames. When the engine is not drawing the window (e.g. app in the background on `android` or `ios`), `capture_screen` does not end and skills/client-core/modules/native-ui-core.md:86 sets no duration or failure for that case, so the result differs per implementation",
+      "foundBy": "spec NativeUiCore"
+    }
+  ]
 }
