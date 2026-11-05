@@ -163,6 +163,20 @@ describe('SearchGuilds and ListJoinableGuilds', () => {
     expect(await search(e, ' ')).toEqual([]);
   }, T);
 
+  it('returns an empty list without an error log for a name that holds U+0000', async () => {
+    const kit = await start();
+    const [a, b] = await users(kit, 2);
+    await create_guild(a, 'Alpha');
+    for (const name of ['a\u0000', '\u0000', 'al\u0000pha']) {
+      const request = new CoreContract.SearchGuildsRequest();
+      request.name = name;
+      const sent = await rpc<CoreContract.SearchGuildsResponse>(b, 'SearchGuilds', request);
+      expect(sent.code, JSON.stringify(name)).toBe(0);
+      expect(sent.response?.guilds ?? []).toEqual([]);
+    }
+    expect(read_logs(kit.server, 'error', 'error')).toEqual([]);
+  }, T);
+
   it('leaves out Closed and full guilds, and guilds whose join_value is above a non-zero max_join_value', async () => {
     const kit = await start({ settings: { 'guild.maxMembers': 2 } });
     const [a, b, c, d, e, f] = await users(kit, 6);

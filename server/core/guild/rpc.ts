@@ -182,7 +182,8 @@ export function GetMyGuild(core: GuildCore, ctx: RequestCtx): Result<CoreContrac
 export function SearchGuilds(core: GuildCore, ctx: RequestCtx, request: CoreContract.SearchGuildsRequest): Result<CoreContract.SearchGuildsResponse> {
   const response = new CoreContract.SearchGuildsResponse();
   const prefix = core.validation.normalize_text(request.name);
-  if (prefix === '') return response;
+  // A saved name keeps the plain text conditions, so no normalized_name holds U+0000, and both DBs reject a U+0000 parameter.
+  if (prefix === '' || prefix.includes('\u0000')) return response;
   response.guilds = guild_db(core, ctx).guilds_with_prefix(prefix, core.settings.max_search_results).map(info_of);
   return response;
 }
