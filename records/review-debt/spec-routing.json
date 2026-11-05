@@ -1,12 +1,5 @@
 {
   "target": "spec routing",
   "nextId": 3,
-  "items": [
-    {
-      "id": "D2",
-      "location": "skills/server-core/modules/routing.md:171",
-      "problem": "The spec says \"the n-th value from the right of `X-Forwarded-For`\" but does not set how that value is taken from the header. It does not say whether whitespace around `,` is trimmed (the usual form is `a, b`), or what the client IP is when the value is not a bare IP address (e.g. `unknown`, `203.0.113.5:4711`, `[2001:db8::1]`). Implementations can differ in the IP counter `target`, the `ip_in_cidrs` result of admin-api and cheat, and the truncated IP. This was there before the diff, which only adds the IPv4-mapped rule",
-      "foundBy": "spec routing"
-    }
-  ]
+  "items": []
 }
