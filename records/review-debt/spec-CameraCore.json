@@ -1,24 +1,5 @@
 {
   "target": "spec CameraCore",
   "nextId": 12,
-  "items": [
-    {
-      "id": "D9",
-      "location": "skills/client-core/modules/camera-core.md:69",
-      "problem": "The base position of a 2D camera is \"the position of the attached camera\", and `get_view_center` (camera-core.md:44) is \"the world position at the screen center\", but neither camera-core.md nor the `CameraCore` rows of skills/client-core/engines/godot.md:332-337 set how the engine camera properties that move the screen center away from the camera position are handled (for Godot `Camera2D`: `anchor_mode` `ANCHOR_MODE_FIXED_TOP_LEFT`, `offset`, `limit_*`, `position_smoothing_enabled`, `drag_*_enabled`). Run path: attach a `Camera2D` with `anchor_mode` = `ANCHOR_MODE_FIXED_TOP_LEFT` or `offset` ≠ 0, then call `get_view_center` and `screen_to_world`(center of the visible game area). One implementation takes `global_position` as the base position and leaves those properties as they are, so `get_view_center` differs from the drawn screen center and the bounds fitting (camera-core.md:109) and test camera-core.md:208 (position of c equals `get_view_center`) give different results from an implementation that resets those properties at attach or converts between camera position and screen center",
-      "foundBy": "spec CameraCore"
-    },
-    {
-      "id": "D10",
-      "location": "skills/client-core/modules/camera-core.md:83",
-      "problem": "The text says that during a shake the screen shows at most `CameraCore.shakeMaxOffset` outside the bounds. But step 3 (camera-core.md:81) also adds the 2D shake rotation after bounds fitting. Rotating the view by θ about its center moves a corner by up to half-diagonal × 2·sin(θ/2), with no link to `shakeMaxOffset`. Example: half-diagonal 600 world units, `shakeMaxRotationDeg` 3, trauma 1, offset 0: the corners move about 31 world units outside the bounds, even with `shakeMaxOffset` 0",
-      "foundBy": "spec CameraCore"
-    },
-    {
-      "id": "D11",
-      "location": "skills/client-core/engines/godot.md:332",
-      "problem": "For a 2D camera, `get_view_center` is the world position at the screen center (camera-core.md:44), and the base position comes from the camera position (camera-core.md:69). godot.md does not fix the `Camera2D` properties that separate the screen center from the node position: `anchor_mode` `ANCHOR_MODE_FIXED_TOP_LEFT`, `offset`, `position_smoothing_enabled`, `drag_horizontal_enabled` and `drag_vertical_enabled`. Run: a camera with `anchor_mode` top-left. An implementation that returns the node position gives a `get_view_center` that is not the screen center, and bounds fitting is off by half the view. godot.md:333 sets `ignore_rotation` at attach, but nothing similar is written for these properties",
-      "foundBy": "spec CameraCore"
-    }
-  ]
+  "items": []
 }
