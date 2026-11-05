@@ -1,5 +1,12 @@
 {
   "target": "spec storage",
-  "nextId": 5,
-  "items": []
+  "nextId": 6,
+  "items": [
+    {
+      "id": "D5",
+      "location": "skills/server-core/modules/storage.md:302",
+      "problem": "The result of a `read_db` query on a DB failure (lock wait over `storage.userLockWaitMs`, DB connection failure) is not set as a throw or a failure value: the API row at storage.md:57 says failure value none, storage.md:302 says \"a DB failure\", and the error row at storage.md:349 says `FAILED` while running. ranking.md:175 relies on that query throwing; an implementation that returns a failure value to the caller leaves that ranking path unset",
+      "foundBy": "spec ranking"
+    }
+  ]
 }
