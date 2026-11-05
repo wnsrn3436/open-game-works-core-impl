@@ -1,12 +1,5 @@
 {
   "target": "spec mailbox",
   "nextId": 3,
-  "items": [
-    {
-      "id": "D2",
-      "location": "skills/server-core/modules/mailbox.md:137",
-      "problem": "How the `mail` JSON string of a `mailbox_broadcast` row writes `int64` values (`expire_ms`, `int_value` of an integer `MailArg`) and how step 2 of request start (mailbox.md:145) turns that string back into a mail input before `send_mail` are not set. A broadcast with an integer `MailArg` of 2^53+1 is delivered with that exact value when the row writes a decimal string or is read with an exact integer parser, and is lossy or skipped with an `error` log (as `INVALID_INPUT` under the rule of mailbox.md:64) when it is written as a JSON integer and read with `JSON.parse`",
-      "foundBy": "spec mailbox"
-    }
-  ]
+  "items": []
 }
