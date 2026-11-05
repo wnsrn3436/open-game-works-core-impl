@@ -1,11 +1,17 @@
 {
   "target": "spec storage",
-  "nextId": 4,
+  "nextId": 5,
   "items": [
     {
       "id": "D3",
       "location": "skills/server-core/modules/storage.md:145",
       "problem": "The storage spec does not say that `lock_game_row` on PostgreSQL takes a transaction advisory lock, nor how the int64 lock key is made from the table name and key value (the only advisory lock in this spec is the schema lock at :264, keyed by \"one constant of the core code\"). skills/server-core/modules/testing.md:105 `game_row_lock_id` and :134 `hold_lock_key` require that lock and key, and the tests at storage.md:421, :423, :424 and matchmaker.md:380-381 use them. Nothing sets that a game row key cannot equal the schema lock constant or the key of a row of another table, so a collision is not excluded and can serialize unrelated rows or make a game row lock wait for server start",
+      "foundBy": "spec storage"
+    },
+    {
+      "id": "D4",
+      "location": "skills/server-core/modules/storage.md:34",
+      "problem": "The output element of `read_public_state` is written as \"`(user ID, value)`\" without its TypeScript shape (tuple or object, field names) or user ID type, so the storage implementation and its callers (content handler, hook, `public-profile`'s hook `build_public_profile`) can disagree on how to read an element; this text existed before the diff and the diff did not change it",
       "foundBy": "spec storage"
     }
   ]
