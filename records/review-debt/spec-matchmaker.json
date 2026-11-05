@@ -1,12 +1,5 @@
 {
   "target": "spec matchmaker",
   "nextId": 17,
-  "items": [
-    {
-      "id": "D16",
-      "location": "skills/server-core/modules/matchmaker.md:126",
-      "problem": "No text sets when the entries that matching collected leave the queue. Step 3 and step 4 only say \"creates a match with the collected entries\" and \"goes back to 1\"; removal from the queue is written only for `TIMEOUT` (line 127), `MATCH_CANCEL`, close (line 122), and for a party entry only by inference from the status split of lines 89, 145 and 153 (\"has a party entry\" versus \"became a match\"). Match creation is async (game transaction of step 1 at line 161, `prepare_transport` at line 162), so frames of a collected solo user are handled during it. Run path: a solo user's entry is collected, and during the record save the user sends `ROOM_JOIN` (`ROOM_BUSY when in a room or queue`, line 144) or a second `MATCH_REQUEST` (step 1 at line 118 removes the user from the queue). An implementation that removes the entries at collection lets `ROOM_JOIN` succeed and keeps the match; one that removes them after `MATCH_FOUND` answers `ROOM_BUSY`, or lets step 1 remove the collected entry while the match is still created with that user. Direction: state that the collected entries are removed from the queue when they are collected, before match creation step 1.",
-      "foundBy": "spec matchmaker"
-    }
-  ]
+  "items": []
 }
