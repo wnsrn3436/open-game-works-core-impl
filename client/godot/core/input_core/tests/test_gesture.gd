@@ -291,6 +291,9 @@ func test_mouse_input_the_engine_made_from_touch() -> void:
 	touch(1, false, Vector2(1610.0, 600.0))
 	var unblocked_inputs: int = other.gui_inputs
 	assert_gt(unblocked_inputs, 3, "without a block the element gets the touch and the mouse input made from it")
+	assert_eq(other.gui_input_classes, PackedStringArray(["InputEventMouseButton", "InputEventScreenTouch",
+		"InputEventMouseMotion", "InputEventScreenDrag", "InputEventMouseButton", "InputEventScreenTouch"]),
+		"each mouse input made from touch comes right before its touch input")
 	var token: int = block_with([], [passed])
 	await run_frame_checks()
 	touch(2, true, Vector2(1600.0, 600.0))

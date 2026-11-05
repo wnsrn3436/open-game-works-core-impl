@@ -662,7 +662,7 @@ static func _on_unhandled_input(event: InputEvent) -> void:
 ## Engine mouse input made from touch: it reaches the UI stage when its pointer passes the fill area and block
 ## stages. The moves and the release after its left button press run the block start check first, and pass when
 ## that press passed both stages and no input cancel came after it. It is not used for device detection, key wait,
-## mouse position or the world stage.
+## mouse position or the world stage. The engine dispatches it right before the touch input it is made from.
 static func _on_emulated_mouse(event: InputEventMouse, viewport: Viewport) -> void:
 	var window_position: Vector2 = viewport.get_screen_transform() * event.position
 	var position: Vector2 = ResolutionCore.window_to_game(window_position * _real_to_window_scale())
