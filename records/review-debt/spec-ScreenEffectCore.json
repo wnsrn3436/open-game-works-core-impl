@@ -1,0 +1,12 @@
+{
+  "target": "spec ScreenEffectCore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/client-core/modules/screen-effect-core.md:80",
+      "problem": "The rule \"`skip_to_end` applies the end value and ends with `Completed`\" also has no stated effect for a handle settled as `Failed` whose request failed the input check (line 66, \"Current handle kept\"). An implementation may write that request's end value to the channel overlay over the current handle, for example for a `fade` that failed only because its owner was destroyed. Line 67 covers only replaced handles, and line 68 settles only the result, not the overlay",
+      "foundBy": "spec ScreenEffectCore"
+    }
+  ]
+}
