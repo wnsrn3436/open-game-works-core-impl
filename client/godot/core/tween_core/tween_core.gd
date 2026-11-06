@@ -607,9 +607,10 @@ static func _queue_skip_call() -> void:
 		_skip_end_call.call_deferred()
 
 
-## Deferred call, the skip end of a frame: ends with `Completed` the skipped tweens requested before it started. A
-## skipped tween requested during it, by a completion callback or by code resuming after a `wait_end`, has a higher
-## request number and waits for the skip end of the next frame.
+## Deferred call, the skip end of a frame: ends with `Completed` the skipped tweens requested before it started, and with
+## `TargetDestroyed` those whose target or receiver was destroyed while they waited. A skipped tween requested during
+## it, by a completion callback or by code resuming after a `wait_end`, has a higher request number and waits for the
+## skip end of the next frame.
 static func _skip_end() -> void:
 	if not _is_initialized or _skip_session != _session:
 		return
@@ -623,7 +624,7 @@ static func _skip_end() -> void:
 			continue
 		var record: _RECORD = _records[slot]
 		if record.skip_due and record.skip_seq <= last:
-			_end(slot, TweenEndReason.COMPLETED)
+			_end(slot, TweenEndReason.TARGET_DESTROYED if _is_gone(record) else TweenEndReason.COMPLETED)
 			# a callback released TweenCore
 			if session != _session:
 				return
@@ -633,7 +634,7 @@ static func _skip_end() -> void:
 
 
 ## Frame processing of the core node: the skip end of the skipped tweens that wait for this frame, target destruction
-## and progress.
+## and progress. A skipped tween does not progress, and the skip end checks its target destruction.
 static func _on_frame() -> void:
 	if not _is_initialized:
 		return

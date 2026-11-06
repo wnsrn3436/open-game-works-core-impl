@@ -3,6 +3,8 @@ extends "res://core/tween_core/tests/support/tween_test_case.gd"
 
 ## Number of tweens in a chain of skipped tweens.
 const CHAIN_LENGTH: int = 5
+const _RECEIVER := preload("res://core/tween_core/tests/support/tween_test_receiver.gd")
+const _STATS := preload("res://core/tween_core/tests/support/tween_test_receiver_stats.gd")
 
 
 ## Waits until the load of the tween preset `key` has ended.
@@ -192,6 +194,106 @@ func test_loop_that_plays_a_finite_tween_and_waits_for_its_wait_end_gets_one_com
 	assert_one_end_per_frame()
 	assert_eq(_chain_frames[0], first, "the first tween ends in the frame it was requested")
 	assert_eq(recorder.started_count, 0)
+
+
+## Process frames of the tween that requested a pair of skipped tweens (`first`) and of the pair (`a`, `b`).
+var _pair_frames: Dictionary[String, int] = {}
+var _pair_targets: Array[Node2D] = []
+
+
+func _play_pair(reason: TweenCore.TweenEndReason) -> void:
+	if reason != TweenCore.TweenEndReason.COMPLETED:
+		return
+	_pair_frames["first"] = Engine.get_process_frames()
+	var names: PackedStringArray = PackedStringArray(["a", "b"])
+	for i: int in names.size():
+		var made: TweenOptions = options()
+		made.callback = _mark_pair.bind(names[i])
+		TweenCore.play(move(100), _pair_targets[i], made)
+
+
+func _mark_pair(reason: TweenCore.TweenEndReason, name: String) -> void:
+	if reason == TweenCore.TweenEndReason.COMPLETED:
+		_pair_frames[name] = Engine.get_process_frames()
+
+
+func test_completion_callback_that_plays_two_finite_tweens_ends_both_in_the_next_frame() -> void:
+	start()
+	TweenCoreDev.set_finite_skip(true)
+	_pair_frames.clear()
+	# the first tween frees the lowest slot before its callback: `a` takes it again and `b` takes a higher one
+	_pair_targets = [node_2d(), node_2d()]
+	var made: TweenOptions = options()
+	made.callback = _play_pair
+	var first: int = Engine.get_process_frames()
+	TweenCore.play(move(100), node_2d(), made)
+	await UnitTestCore.wait_frames(3)
+	var ended: Dictionary[String, int] = {"first": first, "a": first + 1, "b": first + 1}
+	assert_eq(_pair_frames, ended, "the first tween ends in the frame it was requested, a and b in the next frame")
+	assert_eq(_pair_targets[0].position, Vector2(100, 0))
+	assert_eq(_pair_targets[1].position, Vector2(100, 0))
+	assert_eq(recorder.started_count, 0)
+
+
+## Plays a skipped value tween from a completion callback and moves the test clock while it waits for the skip end of
+## the next frame.
+func _play_value_and_move_the_clock(reason: TweenCore.TweenEndReason) -> void:
+	if reason != TweenCore.TweenEndReason.COMPLETED:
+		return
+	var handle: int = TweenCore.play_value(
+		TweenCore.TweenValueKind.FLOAT, Vector4(10, 0, 0, 0), Vector4(20, 0, 0, 0), move(100), recorder.on_float
+	)
+	recorder.wait(handle, 0)
+	UnitTestCore.advance_clock(50, false)
+
+
+func test_skipped_tween_waiting_for_the_next_frame_does_not_progress_while_the_clock_moves() -> void:
+	start()
+	TweenCoreDev.set_finite_skip(true)
+	var made: TweenOptions = options()
+	made.callback = _play_value_and_move_the_clock
+	TweenCore.play(move(100), node_2d(), made)
+	await UnitTestCore.wait_frames(3)
+	assert_eq(recorder.floats, PackedFloat64Array([20.0]), "the receiver gets only the end value, once")
+	assert_eq(recorder.waits, {0: TweenCore.TweenEndReason.COMPLETED})
+	assert_eq(recorder.started_count, 0)
+
+
+var _doomed_target: Node2D = null
+var _doomed_receiver: _RECEIVER = null
+
+
+## Plays a skipped tween on a target and a skipped value tween on a receiver from a completion callback, and queues the
+## target and the receiver for destruction at the end of this frame, while the tweens wait for the next frame.
+func _play_on_doomed(reason: TweenCore.TweenEndReason) -> void:
+	if reason != TweenCore.TweenEndReason.COMPLETED:
+		return
+	recorder.wait(TweenCore.play(move(100), _doomed_target, options()), 0)
+	recorder.wait(TweenCore.play_value(
+		TweenCore.TweenValueKind.FLOAT, Vector4(10, 0, 0, 0), Vector4(20, 0, 0, 0), move(100),
+		_doomed_receiver.on_float
+	), 1)
+	_doomed_target.queue_free()
+	_doomed_receiver.queue_free()
+
+
+func test_skipped_tween_whose_target_is_destroyed_while_it_waits_ends_with_target_destroyed() -> void:
+	start()
+	TweenCoreDev.set_finite_skip(true)
+	_doomed_target = node_2d()
+	_doomed_receiver = keep(_RECEIVER.new()) as _RECEIVER
+	var stats: _STATS = _doomed_receiver.stats
+	var made: TweenOptions = options()
+	made.callback = _play_on_doomed
+	TweenCore.play(move(100), node_2d(), made)
+	await UnitTestCore.wait_frames(3)
+	assert_false(is_instance_valid(_doomed_target), "the target was destroyed")
+	assert_eq(recorder.reasons, PackedInt32Array([TweenCore.TweenEndReason.TARGET_DESTROYED]), "one callback call")
+	assert_eq(recorder.waits, {
+		0: TweenCore.TweenEndReason.TARGET_DESTROYED, 1: TweenCore.TweenEndReason.TARGET_DESTROYED
+	})
+	assert_eq(stats.calls, 0, "the destroyed receiver is not called")
+	assert_eq(errors(), 0)
 
 
 func test_release_turns_the_skip_off_and_it_fails_before_init() -> void:
