@@ -1844,6 +1844,16 @@
     "QACore.touchIndexCount": {
       "type": "integer",
       "minimum": 1
+    },
+    "QACore.frameIntervalMaxCount": {
+      "type": "integer",
+      "minimum": 1,
+      "x-owner": "human"
+    },
+    "QACore.rewardPresentationWindowMs": {
+      "type": "integer",
+      "minimum": 1,
+      "x-owner": "human"
     }
   },
   "required": [
@@ -2238,7 +2248,9 @@
     "QACore.softlockNoResponseInputs",
     "QACore.stepMaxMs",
     "QACore.timeScaleMaxPermille",
-    "QACore.touchIndexCount"
+    "QACore.touchIndexCount",
+    "QACore.frameIntervalMaxCount",
+    "QACore.rewardPresentationWindowMs"
   ],
   "additionalProperties": false
 }

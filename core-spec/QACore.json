@@ -133,6 +133,18 @@
       "owner": "content"
     },
     {
+      "key": "QACore.frameIntervalMaxCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "QACore.rewardPresentationWindowMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
       "key": "baseResolution",
       "type": "array<integer>",
       "source": "game",
