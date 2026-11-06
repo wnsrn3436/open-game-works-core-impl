@@ -160,6 +160,7 @@ func _assert_initial_state() -> void:
 	assert_eq(CameraCore._extent_max, Vector2.ZERO)
 	assert_eq(CameraCore._trauma, 0.0)
 	assert_eq(CameraCore._shake_scale, 1000)
+	assert_false(CameraCore._shake_skip)
 	assert_null(CameraCore._random)
 	assert_eq(CameraCore._noise_elapsed_ms, 0)
 	assert_eq(CameraCore._noise_step, 0)
