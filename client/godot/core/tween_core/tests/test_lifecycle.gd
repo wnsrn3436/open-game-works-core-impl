@@ -119,6 +119,7 @@ func _assert_initial_state() -> void:
 	assert_true(TweenCore._load_preset_call.is_null())
 	assert_false(TweenCore._flush_queued)
 	assert_null(TweenCore._flush_session)
+	assert_false(TweenCore._finite_skip)
 	assert_eq(TweenCore._slot_count, 0)
 	assert_eq(TweenCore._generation.size(), 0)
 	assert_eq(TweenCore._active.size(), 0)
