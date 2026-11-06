@@ -14,9 +14,11 @@ signal frame_ended
 var released: bool = false
 
 
-## `SceneTree.process_frame`: it comes before the process callbacks of the frame. Frame code.
+## `SceneTree.process_frame`: it comes before the process callbacks of the frame. Frame code. The frame point is read
+## first, before any device input goes in.
 func on_process_frame() -> void:
-	QACore._on_frame_start(self)
+	var point_usec: int = Time.get_ticks_usec()
+	QACore._on_frame_start(self, point_usec)
 
 
 func _process(_delta: float) -> void:
@@ -28,7 +30,7 @@ func _exit_tree() -> void:
 		QACore._on_node_exit(self)
 
 
-## Subscribes the telemetry and stats events. `CameraShakeStartedEvent` only when `camera` (`CameraCore` is in the
+## Subscribes the telemetry and stats events and the background return of the frame interval record. `CameraShakeStartedEvent` only when `camera` (`CameraCore` is in the
 ## module list). Returns whether every subscription succeeded.
 func subscribe_events(camera: bool) -> bool:
 	var ok: bool = EventCore.subscribe(SoundPlayedEvent, _on_sound_played)
@@ -42,6 +44,7 @@ func subscribe_events(camera: bool) -> bool:
 	ok = EventCore.subscribe(UserStateChangedEvent, _on_user_state_changed) and ok
 	ok = EventCore.subscribe(ItemChangedEvent, _on_item_changed) and ok
 	ok = EventCore.subscribe(BootCompletedEvent, _on_boot_completed) and ok
+	ok = EventCore.subscribe(AppForegroundReturnedEvent, _on_foreground_returned) and ok
 	if camera:
 		ok = EventCore.subscribe(CameraShakeStartedEvent, _on_camera_shake_started) and ok
 	return ok
@@ -108,3 +111,7 @@ func _on_item_changed(event: ItemChangedEvent) -> void:
 
 func _on_boot_completed(event: BootCompletedEvent) -> void:
 	QACore._boot_ms = event.duration_ms
+
+
+func _on_foreground_returned(_event: AppForegroundReturnedEvent) -> void:
+	QACore._on_foreground_returned()

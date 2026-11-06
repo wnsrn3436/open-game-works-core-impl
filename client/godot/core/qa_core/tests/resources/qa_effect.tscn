@@ -1,0 +1,7 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://core/qa_core/tests/support/qa_pool_effect.gd" id="1_effect"]
+
+[node name="QaEffect" type="Node"]
+script = ExtResource("1_effect")
+auto_return = true

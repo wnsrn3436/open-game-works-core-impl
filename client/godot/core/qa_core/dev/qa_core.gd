@@ -41,6 +41,8 @@ const _KEY_SOFTLOCK_INPUTS: String = "QACore.softlockNoResponseInputs"
 const _KEY_STEP_MAX: String = "QACore.stepMaxMs"
 const _KEY_TIME_SCALE_MAX: String = "QACore.timeScaleMaxPermille"
 const _KEY_TOUCH_INDEX_COUNT: String = "QACore.touchIndexCount"
+const _KEY_FRAME_INTERVAL_MAX: String = "QACore.frameIntervalMaxCount"
+const _KEY_REWARD_WINDOW: String = "QACore.rewardPresentationWindowMs"
 const _KEY_BASE_RESOLUTION: String = "baseResolution"
 ## Reason tags of `QACore.softlockBlockMs`: the block reasons that forced release does not cover.
 const _SOFTLOCK_REASONS: PackedStringArray = ["scene", "cutscene", "tutorial", "ad", "boot"]
@@ -64,6 +66,16 @@ const _CAPTURE_DRAW_FRAMES: int = 2
 const _MIN_JPG_QUALITY: int = 10
 ## The largest `QACore.captureJpgQuality`, the permille of JPEG quality 1.
 const _MAX_JPG_QUALITY: int = 1000
+## Microseconds of one hundredth of a ms, the precision of `frame_intervals_ms`.
+const _USEC_PER_CENTI_MS: int = 10
+## The module states of the feedback switch, by index of `_module_states`.
+const _STATE_DEV_MUTE: int = 0
+const _STATE_PLAY_SKIP: int = 1
+const _STATE_SHAKE_SKIP: int = 2
+const _STATE_WORLD_SKIP: int = 3
+const _STATE_EFFECT_SKIP: int = 4
+const _STATE_FINITE_SKIP: int = 5
+const _STATE_COUNT: int = 6
 
 static var _is_initialized: bool = false
 static var _node: _NODE = null
@@ -82,6 +94,7 @@ static var _softlock_inputs: int = 0
 static var _step_max_ms: int = 0
 static var _time_scale_max_permille: int = 0
 static var _touch_index_count: int = 0
+static var _reward_window_ms: int = 0
 static var _base_resolution: Vector2i = Vector2i.ZERO
 ## Softlock block elapsed time by reason tag.
 static var _softlock_block_ms: Dictionary[String, int] = {}
@@ -146,13 +159,33 @@ static var _capture_hides: int = 0
 ## Core test state: launch values the next `init` reads instead of `BootstrapCoreDev.get_launch_value`.
 static var _test_launch_values: Dictionary[String, String] = {}
 static var _has_test_launch_values: bool = false
+## Whether the automation channel connection has opened: its first open empties the frame interval record.
+static var _channel_opened: bool = false
+
+## Frame interval record: a ring of up to `QACore.frameIntervalMaxCount` intervals in microseconds, the index of the
+## oldest and the count held. The last frame point, -1 before the first one after `init`, and whether the interval that
+## ends at the next frame point is left out because it holds background time.
+static var _frame_intervals: PackedInt64Array = PackedInt64Array()
+static var _frame_interval_first: int = 0
+static var _frame_interval_count: int = 0
+static var _last_frame_point_usec: int = -1
+static var _skip_frame_interval: bool = false
+
+## The two switches of the feedback switch, whether the reward window is open, and the telemetry time of its last
+## reward moment.
+static var _feedback_off: bool = false
+static var _reward_presentation_off: bool = false
+static var _reward_window_open: bool = false
+static var _reward_moment_time: int = 0
+## The module states as QACore last set them, by `_STATE_*` index.
+static var _module_states: Array[bool] = [false, false, false, false, false, false]
 
 
 # --- lifecycle ---
 
 
-## Reads the settings, makes the core node and the closed debug screen, starts the telemetry, subscribes the events
-## and connects the automation channel.
+## Reads the settings, makes the core node and the closed debug screen, starts the telemetry, makes the frame interval
+## record, subscribes the events and connects the automation channel.
 static func init() -> bool:
 	if _is_initialized:
 		LogCore.log_error(_TAG, "init: already initialized")
@@ -179,6 +212,7 @@ static func init() -> bool:
 	tree.process_frame.connect(node.on_process_frame)
 	_telemetry.start()
 	_last_state_time = _telemetry.now()
+	_frame_intervals.resize(CoreSettings.get_int(_KEY_FRAME_INTERVAL_MAX))
 	_refreshed_real_ms = TimeCore.get_real_time() if TimeCore.is_initialized() else 0
 	if not node.subscribe_events(CameraCore.is_initialized()):
 		LogCore.log_error(_TAG, "init: could not subscribe the telemetry events")
@@ -189,8 +223,9 @@ static func init() -> bool:
 	return true
 
 
-## Ends the waiting and running commands with `ok` = `false`, disconnects, and clears the registrations, the
-## telemetry, the event subscriptions, the held input records and the debug screen.
+## Ends the waiting and running commands with `ok` = `false`, turns both feedback switches off, disconnects, and clears
+## the registrations, the telemetry, the frame interval record, the event subscriptions, the held input records and the
+## debug screen.
 static func release() -> void:
 	if not _is_initialized:
 		return
@@ -224,6 +259,10 @@ static func _cleanup() -> void:
 		commands.append(_video)
 	for command: _COMMAND in commands:
 		_finish(command, false, _JSON.text(_RELEASED), PackedByteArray())
+	_feedback_off = false
+	_reward_presentation_off = false
+	_reward_window_open = false
+	_apply_module_states()
 	if _channel != null:
 		_channel.close()
 	if is_instance_valid(node):
@@ -250,6 +289,7 @@ static func _cleanup() -> void:
 	_step_max_ms = 0
 	_time_scale_max_permille = 0
 	_touch_index_count = 0
+	_reward_window_ms = 0
 	_base_resolution = Vector2i.ZERO
 	_softlock_block_ms = {}
 	_queue = []
@@ -291,6 +331,13 @@ static func _cleanup() -> void:
 	_capture_hides = 0
 	_test_launch_values = {}
 	_has_test_launch_values = false
+	_channel_opened = false
+	_frame_intervals = PackedInt64Array()
+	_frame_interval_first = 0
+	_frame_interval_count = 0
+	_last_frame_point_usec = -1
+	_skip_frame_interval = false
+	_reward_moment_time = 0
 	# The commands waiting for a frame see the new session and stop.
 	if is_instance_valid(node):
 		node.frame_started.emit()
@@ -357,8 +404,10 @@ static func mark(kind: MarkKind, id_value: int = 0) -> void:
 	_telemetry.add_mark(_MARK_NAMES[kind])
 	if kind == MarkKind.REWARD:
 		_telemetry.add_reward("Mark", id_value, 1)
+		_on_reward_moment()
 	elif kind == MarkKind.GOAL:
 		_telemetry.add_goal()
+		_on_reward_moment()
 	if kind == MarkKind.RESPONSE:
 		_telemetry.add_response(time)
 	else:
@@ -601,12 +650,15 @@ static func _on_deferred_frame() -> void:
 		_node.frame_ended.emit()
 
 
-## The start of a frame from the core node of `node`, frame code: puts in the device inputs that wait. The records of
+## The start of a frame from the core node of `node`, frame code, at frame point `point_usec`: records the frame
+## interval, closes a reward window that has run its length, then puts in the device inputs that wait. The records of
 ## them and the commands that wait for the frame start go on deferred, in the flush right after `process_frame`, which
 ## still comes before the frame's process callbacks.
-static func _on_frame_start(node: _NODE) -> void:
+static func _on_frame_start(node: _NODE, point_usec: int) -> void:
 	if not _is_initialized or node != _node:
 		return
+	_record_frame_point(point_usec)
+	_check_reward_window()
 	while _frame_input_count < _pending_inputs.size():
 		if not _is_initialized or node != _node or not InputCore.is_initialized():
 			return
@@ -699,6 +751,7 @@ static func _connect_channel() -> void:
 	if not _ARGS.is_int(port_text) or _ARGS.to_int(port_text) < 1 or _ARGS.to_int(port_text) > _MAX_PORT:
 		LogCore.log_error(_TAG, "could not connect the automation channel: the port is not a port number")
 		return
+	_channel_opened = false
 	var channel: _CHANNEL = _CHANNEL.new()
 	if not channel.open(_ARGS.to_int(port_text), token, _channel_max_bytes):
 		LogCore.log_error(_TAG, "could not connect the automation channel")
@@ -718,6 +771,9 @@ static func _poll_channel() -> void:
 	var channel: _CHANNEL = _channel
 	var messages: PackedStringArray = PackedStringArray()
 	var status: _CHANNEL.Status = channel.poll(messages)
+	if status == _CHANNEL.Status.OPEN and not _channel_opened:
+		_channel_opened = true
+		_empty_frame_intervals()
 	for message: String in messages:
 		if _channel != channel:
 			return
@@ -903,6 +959,7 @@ static func _on_item_changes(changes: Array[CoreContract.ItemChange]) -> void:
 		if amount < 1:
 			continue
 		_telemetry.add_reward("Item", change.item_id, mini(amount, _ARGS.MAX_SAFE_INTEGER))
+		_on_reward_moment()
 
 
 # --- debug screen ---
@@ -1091,6 +1148,135 @@ static func _drawn_frame(tree: SceneTree) -> void:
 		RenderingServer.force_draw()
 
 
+# --- frame interval ---
+
+
+## Frame code. Puts the interval that ends at frame point `point_usec` into the record, replacing the oldest when it is
+## full, unless it is the first frame point after `init` or the first after a return from the background.
+static func _record_frame_point(point_usec: int) -> void:
+	var size: int = _frame_intervals.size()
+	if _last_frame_point_usec >= 0 and not _skip_frame_interval and size > 0:
+		var index: int = (_frame_interval_first + _frame_interval_count) % size
+		if _frame_interval_count == size:
+			_frame_interval_first = (_frame_interval_first + 1) % size
+		else:
+			_frame_interval_count += 1
+		_frame_intervals[index] = point_usec - _last_frame_point_usec
+	_skip_frame_interval = false
+	_last_frame_point_usec = point_usec
+
+
+## `AppForegroundReturnedEvent`: the interval that ends at the next frame point holds background time.
+static func _on_foreground_returned() -> void:
+	_skip_frame_interval = true
+
+
+## Empties the record and keeps the last frame point, so the interval that spans this moment goes into the record.
+static func _empty_frame_intervals() -> void:
+	_frame_interval_first = 0
+	_frame_interval_count = 0
+
+
+## `frame_intervals_ms` of `get_stats`: the intervals of the record, oldest first, in ms rounded half up to 0.01 ms with
+## at most two decimals. Then empties the record.
+static func _take_frame_intervals_json() -> String:
+	var items: PackedStringArray = PackedStringArray()
+	var size: int = _frame_intervals.size()
+	for i: int in _frame_interval_count:
+		var usec: int = _frame_intervals[(_frame_interval_first + i) % size]
+		var centi_ms: int = (usec + _USEC_PER_CENTI_MS / 2) / _USEC_PER_CENTI_MS
+		var whole: int = centi_ms / 100
+		var fraction: int = centi_ms % 100
+		if fraction == 0:
+			items.append(str(whole))
+		elif fraction % 10 == 0:
+			items.append("%d.%d" % [whole, fraction / 10])
+		else:
+			items.append("%d.%02d" % [whole, fraction])
+	_empty_frame_intervals()
+	return _JSON.array(items)
+
+
+# --- feedback switch ---
+
+
+## `set_feedback_off`. Turning it on also stops the shake of `CameraCore`, so no shake shows while it is on.
+static func _set_feedback_off(on: bool) -> void:
+	var turned_on: bool = on and not _feedback_off
+	_feedback_off = on
+	if turned_on and CameraCore.is_initialized():
+		CameraCore.stop_shake()
+	_apply_module_states()
+
+
+## `set_reward_presentation_off`. Turning it off closes the reward window.
+static func _set_reward_presentation_off(on: bool) -> void:
+	_reward_presentation_off = on
+	if not on:
+		_reward_window_open = false
+	_apply_module_states()
+
+
+## A reward moment: while reward presentation off is on, opens the reward window, or keeps it open from now.
+static func _on_reward_moment() -> void:
+	if not _reward_presentation_off:
+		return
+	_reward_moment_time = _telemetry.now()
+	if not _reward_window_open:
+		_reward_window_open = true
+		_apply_module_states()
+
+
+## Frame code at frame start: closes the reward window once `QACore.rewardPresentationWindowMs` advanced ms have passed
+## since its last reward moment.
+static func _check_reward_window() -> void:
+	if not _reward_window_open or _telemetry.now() - _reward_moment_time < _reward_window_ms:
+		return
+	_reward_window_open = false
+	_apply_module_states()
+
+
+## Sets each module state that differs from what the switches and the reward window need now, so a state both need
+## stays on while either does. A module outside the module list is left out.
+static func _apply_module_states() -> void:
+	var window: bool = _reward_window_open
+	var wanted: Array[bool] = [false, false, false, false, false, false]
+	wanted[_STATE_DEV_MUTE] = _feedback_off
+	wanted[_STATE_PLAY_SKIP] = window
+	wanted[_STATE_SHAKE_SKIP] = _feedback_off or window
+	wanted[_STATE_WORLD_SKIP] = _feedback_off or window
+	wanted[_STATE_EFFECT_SKIP] = _feedback_off or window
+	wanted[_STATE_FINITE_SKIP] = window
+	for state: int in _STATE_COUNT:
+		if wanted[state] == _module_states[state]:
+			continue
+		_module_states[state] = wanted[state]
+		_set_module_state(state, wanted[state])
+
+
+static func _set_module_state(state: int, on: bool) -> void:
+	match state:
+		_STATE_DEV_MUTE:
+			if SoundCore.is_initialized():
+				SoundCoreDev.set_dev_mute(SoundCore.SoundBus.SFX, on)
+				SoundCoreDev.set_dev_mute(SoundCore.SoundBus.UI, on)
+		_STATE_PLAY_SKIP:
+			if SoundCore.is_initialized():
+				SoundCoreDev.set_play_skip(on)
+		_STATE_SHAKE_SKIP:
+			if CameraCore.is_initialized():
+				CameraCoreDev.set_shake_skip(on)
+		_STATE_WORLD_SKIP:
+			if ScreenEffectCore.is_initialized():
+				ScreenEffectCoreDev.set_world_skip(on)
+		_STATE_EFFECT_SKIP:
+			if PoolCore.is_initialized():
+				PoolCoreDev.set_effect_skip(on)
+		_STATE_FINITE_SKIP:
+			if TweenCore.is_initialized():
+				TweenCoreDev.set_finite_skip(on)
+
+
 # --- step mode ---
 
 
@@ -1112,6 +1298,7 @@ static func _read_settings() -> bool:
 		_KEY_VIDEO_FPS: 1, _KEY_VIDEO_MAX: 1, _KEY_CAPTURE_JPG_QUALITY: _MIN_JPG_QUALITY,
 		_KEY_FEEDBACK_WINDOW: 0, _KEY_IDLE_THRESHOLD: 0, _KEY_TELEMETRY_MAX: 0, _KEY_SOFTLOCK_NO_RESPONSE: 0,
 		_KEY_SOFTLOCK_INPUTS: 1, _KEY_STEP_MAX: 1, _KEY_TIME_SCALE_MAX: _NORMAL_TIME_SCALE, _KEY_TOUCH_INDEX_COUNT: 1,
+		_KEY_FRAME_INTERVAL_MAX: 1, _KEY_REWARD_WINDOW: 1,
 	}
 	for key: String in int_keys:
 		if not CoreSettings.has_int(key) or CoreSettings.get_int(key) < int_keys[key]:
@@ -1141,6 +1328,7 @@ static func _read_settings() -> bool:
 	_step_max_ms = CoreSettings.get_int(_KEY_STEP_MAX)
 	_time_scale_max_permille = CoreSettings.get_int(_KEY_TIME_SCALE_MAX)
 	_touch_index_count = CoreSettings.get_int(_KEY_TOUCH_INDEX_COUNT)
+	_reward_window_ms = CoreSettings.get_int(_KEY_REWARD_WINDOW)
 	_base_resolution = Vector2i(base[0], base[1])
 	_softlock_block_ms = block_ms
 	_telemetry.feedback_window_ms = CoreSettings.get_int(_KEY_FEEDBACK_WINDOW)

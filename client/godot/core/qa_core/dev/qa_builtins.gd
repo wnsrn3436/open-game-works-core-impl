@@ -80,6 +80,8 @@ const _SPECS: PackedStringArray = [
 	"set_text_scale|permille|Sets the text scale.",
 	"force_network_failure|kind|Makes the requests fail.",
 	"set_network_delay|ms|Delays the responses.",
+	"set_feedback_off|mode|Turns feedback off on or off.",
+	"set_reward_presentation_off|mode|Turns reward presentation off on or off.",
 	"expire_access_token||Expires the access token.",
 	"set_social_account|account|Sets the fake social account.",
 	"simulate_push|message,mode|Simulates a remote push.",
@@ -276,6 +278,14 @@ static func run(command: _COMMAND) -> void:
 			if _need(command, _ARGS.is_count(a[0]), "ms is not an integer of at least 0") \
 					and _need_module(command, NetworkCore.is_initialized(), "NetworkCore"):
 				NetworkCoreDev.force_delay(_ARGS.to_int(a[0]))
+				_ok(command)
+		"set_feedback_off":
+			if _need(command, a[0] == _ON or a[0] == _OFF, "the mode is not on or off"):
+				QACore._set_feedback_off(a[0] == _ON)
+				_ok(command)
+		"set_reward_presentation_off":
+			if _need(command, a[0] == _ON or a[0] == _OFF, "the mode is not on or off"):
+				QACore._set_reward_presentation_off(a[0] == _ON)
 				_ok(command)
 		"expire_access_token":
 			if _need_module(command, AuthCore.is_initialized(), "AuthCore"):
