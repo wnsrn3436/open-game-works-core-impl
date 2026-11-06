@@ -1239,19 +1239,23 @@ static func _check_reward_window() -> void:
 ## Sets each module state that differs from what the switches and the reward window need now, so a state both need
 ## stays on while either does. A module outside the module list is left out.
 static func _apply_module_states() -> void:
-	var window: bool = _reward_window_open
-	var wanted: Array[bool] = [false, false, false, false, false, false]
-	wanted[_STATE_DEV_MUTE] = _feedback_off
-	wanted[_STATE_PLAY_SKIP] = window
-	wanted[_STATE_SHAKE_SKIP] = _feedback_off or window
-	wanted[_STATE_WORLD_SKIP] = _feedback_off or window
-	wanted[_STATE_EFFECT_SKIP] = _feedback_off or window
-	wanted[_STATE_FINITE_SKIP] = window
 	for state: int in _STATE_COUNT:
-		if wanted[state] == _module_states[state]:
+		var wanted: bool = _wanted_state(state)
+		if wanted == _module_states[state]:
 			continue
-		_module_states[state] = wanted[state]
-		_set_module_state(state, wanted[state])
+		_module_states[state] = wanted
+		_set_module_state(state, wanted)
+
+
+## Whether the switches and the reward window need module state `state` on now. Frame code.
+static func _wanted_state(state: int) -> bool:
+	match state:
+		_STATE_DEV_MUTE:
+			return _feedback_off
+		_STATE_PLAY_SKIP, _STATE_FINITE_SKIP:
+			return _reward_window_open
+		_:
+			return _feedback_off or _reward_window_open
 
 
 static func _set_module_state(state: int, on: bool) -> void:
