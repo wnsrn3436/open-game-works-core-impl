@@ -269,3 +269,30 @@ func test_key_direction_that_starts_the_focus_mode_scrolls_the_body() -> void:
 
 func test_key_direction_from_touch_that_starts_the_focus_mode_scrolls_the_body() -> void:
 	await _assert_focus_start_scrolls(InputCore.InputDevice.TOUCH)
+
+
+## A body that fits in the body area does not scroll, so the key direction input that starts the focus mode is not
+## consumed and presses the action bound to that key.
+func test_key_direction_that_starts_the_focus_mode_over_a_body_that_fits_is_not_consumed() -> void:
+	assert_true(await start())
+	assert_true(await UICore.open_system_popup(one_button_param(), Callable()))
+	assert_true(InputCore.set_keys(&"cutscene_advance", PackedStringArray(["Down"])))
+	InputCoreDev.set_test_device(InputCore.InputDevice.KEYBOARD_MOUSE)
+	await UnitTestCore.wait_frames(3)
+	assert_null(focus_owner())
+	var view: UICore._SYSTEM_VIEW = UICore._shown_system[0].system_view as UICore._SYSTEM_VIEW
+	var bar: VScrollBar = view.scroll.get_v_scroll_bar()
+	assert_true(bar.max_value - bar.page <= 0.0, "the body fits")
+	var down: InputEventKey = InputEventKey.new()
+	down.keycode = KEY_DOWN
+	down.physical_keycode = KEY_DOWN
+	down.pressed = true
+	InputCoreDev.inject_device_input(down)
+	assert_eq(view.scroll.scroll_vertical, 0, "nothing scrolls")
+	assert_true(InputCore.is_pressed(&"cutscene_advance"), "the starting input presses the bound action")
+	await UnitTestCore.wait_frames(1)
+	assert_eq(focus_owner(), system_buttons(system_popup())[0], "the focus mode started")
+	var up: InputEventKey = down.duplicate() as InputEventKey
+	up.pressed = false
+	InputCoreDev.inject_device_input(up)
+	InputCore.reset_keys()
