@@ -107,6 +107,27 @@ func test_skip_of_a_loading_preset_is_decided_at_its_request() -> void:
 	assert_almost_eq(before.position.x, 50.0, 0.001)
 
 
+func test_preset_requested_before_the_skip_plays_when_its_load_ends_while_the_skip_is_on() -> void:
+	start()
+	var target: Node2D = node_2d()
+	var handle: int = TweenCore.play_preset(MOVE, ResourceCore.get_global_scope(), target, options())
+	recorder.wait(handle, 0)
+	assert_eq(recorder.started_count, 0, "the preset is loading")
+	TweenCoreDev.set_finite_skip(true)
+	await load_end(MOVE)
+	assert_eq(recorder.started_count, 1, "TweenStartedEvent is published when the playback starts")
+	assert_true(TweenCore.is_playing(handle))
+	await advance(50)
+	assert_almost_eq(target.position.x, 50.0, 0.001)
+	assert_true(TweenCore.is_playing(handle))
+	assert_eq(recorder.reasons.size(), 0)
+	await advance(50)
+	assert_eq(target.position, Vector2(100, 0))
+	assert_false(TweenCore.is_playing(handle))
+	assert_eq(recorder.reasons, PackedInt32Array([TweenCore.TweenEndReason.COMPLETED]))
+	assert_eq(recorder.waits, {0: TweenCore.TweenEndReason.COMPLETED})
+
+
 func test_release_turns_the_skip_off_and_it_fails_before_init() -> void:
 	start()
 	TweenCoreDev.set_finite_skip(true)
