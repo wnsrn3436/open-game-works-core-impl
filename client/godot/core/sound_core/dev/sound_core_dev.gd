@@ -60,3 +60,25 @@ static func inject_focus_change(has_focus: bool) -> void:
 		LogCore.log_error(_TAG, "inject_focus_change before init or after release")
 		return
 	SoundCore._on_focus_changed(has_focus)
+
+
+## Turns the DEV mute of `bus` on or off: the bus is silent while it is on, without changing `SoundCore.get_mute` or
+## the saved values, and playback that starts on it publishes no `SoundPlayedEvent`.
+static func set_dev_mute(bus: SoundCore.SoundBus, mute: bool) -> void:
+	if not SoundCore.is_initialized():
+		LogCore.log_error(_TAG, "set_dev_mute before init or after release")
+		return
+	if not SoundCore._is_bus(bus):
+		LogCore.log_error(_TAG, "set_dev_mute got a bus that is not a SoundBus element")
+		return
+	SoundCore._dev_mutes[bus] = mute
+	SoundCore._apply_bus(bus)
+
+
+## Turns the play skip on or off: while it is on, a `SoundCore.play` that passes the bus and scope checks returns the
+## invalid handle without loading, log or `SoundPlayedEvent`.
+static func set_play_skip(skip: bool) -> void:
+	if not SoundCore.is_initialized():
+		LogCore.log_error(_TAG, "set_play_skip before init or after release")
+		return
+	SoundCore._play_skip = skip

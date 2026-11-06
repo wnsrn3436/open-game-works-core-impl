@@ -70,6 +70,10 @@ static var _duck_release_ms: int = 0
 ## Volume and mute by `SoundBus`.
 static var _volumes: PackedFloat64Array = PackedFloat64Array([1.0, 1.0, 1.0, 1.0, 1.0])
 static var _mutes: Array[bool] = [false, false, false, false, false]
+## DEV mute by `SoundBus`, which only `SoundCoreDev.set_dev_mute` changes: silences the bus without changing `_mutes`.
+static var _dev_mutes: Array[bool] = [false, false, false, false, false]
+## Play skip of `SoundCoreDev.set_play_skip`: a `play` that passes the bus and scope checks is decided not to play.
+static var _play_skip: bool = false
 static var _haptic_enabled: bool = true
 ## Engine buses `init` added. `release` removes them.
 static var _created_buses: PackedStringArray = PackedStringArray()
@@ -365,6 +369,8 @@ static func play(key: String, bus: SoundBus, scope: Scope, priority: int = 0) ->
 	if scope == null or scope.released:
 		LogCore.log_error(_TAG, "play got a missing or released resource scope")
 		return INVALID_HANDLE
+	if _play_skip:
+		return INVALID_HANDLE
 	_next_handle += 1
 	var handle: int = _next_handle
 	if ResourceCore.is_loaded(key, ResourceCore.BaseKind.AUDIO_STREAM):
@@ -614,7 +620,7 @@ static func _apply_bus(bus: int) -> void:
 		return
 	var volume: float = _volumes[bus]
 	AudioServer.set_bus_volume_db(index, linear_to_db(volume) if volume > 0.0 else _SILENT_DB)
-	AudioServer.set_bus_mute(index, _mutes[bus] or volume <= 0.0)
+	AudioServer.set_bus_mute(index, _mutes[bus] or _dev_mutes[bus] or volume <= 0.0)
 
 
 ## Starts the loads of the BGM request and the `play` requests from a deferred call: `play_bgm`, `return_bgm` and
@@ -822,8 +828,8 @@ static func _load_sfx(request: _SFX_REQUEST, session: RefCounted) -> void:
 
 
 ## Starts a `play` request on an empty player or on the replaced player with the loaded `resource` of `key`: an
-## `AudioStream`, or a `ResourceVariants` of them. False when the limit check decides not to play it. Allocates no
-## memory.
+## `AudioStream`, or a `ResourceVariants` of them, and publishes `SoundPlayedEvent` unless `bus` has DEV mute. False
+## when the limit check decides not to play it. Allocates no memory.
 static func _start_sfx(handle: int, key: String, bus: int, priority: int, scope: Scope, resource: Resource) -> bool:
 	_update_game_pause(TimeCore.get_real_time())
 	var slot: int = _choose_slot(key, priority)
@@ -857,6 +863,8 @@ static func _start_sfx(handle: int, key: String, bus: int, priority: int, scope:
 	_slot_orders[slot] = _start_order
 	_slot_scopes[slot] = scope
 	_sync_duck(TimeCore.get_real_time())
+	if _dev_mutes[bus]:
+		return true
 	var event: SoundPlayedEvent = EventCore.acquire(SoundPlayedEvent) as SoundPlayedEvent
 	event.bus = bus as SoundBus
 	EventCore.publish(event)
@@ -1369,6 +1377,8 @@ static func _reset_state() -> void:
 	_duck_release_ms = 0
 	_volumes = PackedFloat64Array([1.0, 1.0, 1.0, 1.0, 1.0])
 	_mutes = [false, false, false, false, false]
+	_dev_mutes = [false, false, false, false, false]
+	_play_skip = false
 	_haptic_enabled = true
 	_created_buses = PackedStringArray()
 	_limiter = null
