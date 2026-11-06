@@ -49,7 +49,7 @@
         "ios",
         "macos"
       ],
-      "url": "https://github.com/wnsrn3436/open-game-works-core-impl/releases/download/v0.8.0/client-godot-plugins.zip",
+      "url": "https://github.com/wnsrn3436/open-game-works-core-impl/releases/download/v0.8.1/client-godot-plugins.zip",
       "sha256": "74f742a9f61e8c691df30ac8fe705edeee363bd588cb4da5866a047a711980c7"
     },
     {
@@ -62,7 +62,7 @@
         "windows",
         "linux"
       ],
-      "url": "https://github.com/wnsrn3436/open-game-works-core-impl/releases/download/v0.8.0/client-godot-plugins.zip",
+      "url": "https://github.com/wnsrn3436/open-game-works-core-impl/releases/download/v0.8.1/client-godot-plugins.zip",
       "sha256": "74f742a9f61e8c691df30ac8fe705edeee363bd588cb4da5866a047a711980c7"
     }
   ],
