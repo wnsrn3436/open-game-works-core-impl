@@ -9,6 +9,8 @@ const TOKEN: String = "qa-frame-interval-token-41c2"
 ## Real time a process callback waits in one frame, ms.
 const WAIT_MS: int = 120
 const SMALL_MAX_COUNT: int = 8
+## The interval of one frame the memory test puts into the record, microseconds.
+const FRAME_USEC: int = 16667
 
 var server: SERVER = null
 
@@ -83,6 +85,33 @@ func test_a_full_record_keeps_the_newest_intervals_without_growing() -> void:
 	assert_eq(values.size(), SMALL_MAX_COUNT, "the newest intervals")
 	assert_true(values.size() == SMALL_MAX_COUNT and values[2] >= float(WAIT_MS),
 		"the 15th of 20 intervals is the third of the 8 newest: %s" % values)
+
+
+func test_putting_intervals_into_a_full_record_allocates_no_memory() -> void:
+	assert_true(await start())
+	var size: int = QACore._frame_intervals.size()
+	assert_gt(size, 0, "init made the record at QACore.frameIntervalMaxCount")
+	var point: int = QACore._last_frame_point_usec
+	for i: int in size + 1:
+		point += FRAME_USEC
+		QACore._record_frame_point(point)
+	assert_eq(QACore._frame_interval_count, size, "the record is full")
+	LogCore.release()
+	for i: int in 100:
+		point += FRAME_USEC
+		QACore._record_frame_point(point)
+	var objects: float = Performance.get_monitor(Performance.OBJECT_COUNT)
+	var memory: float = Performance.get_monitor(Performance.MEMORY_STATIC)
+	for i: int in 1000:
+		point += FRAME_USEC
+		QACore._record_frame_point(point)
+	# Read both before asserting: an assert allocates.
+	var objects_after: float = Performance.get_monitor(Performance.OBJECT_COUNT)
+	var memory_after: float = Performance.get_monitor(Performance.MEMORY_STATIC)
+	assert_true(objects_after <= objects, "no object is made")
+	assert_true(memory_after <= memory, "no memory is allocated")
+	assert_eq(QACore._frame_intervals.size(), size, "the record did not grow")
+	assert_eq(QACore._frame_interval_count, size, "the record stays full")
 
 
 func test_the_intervals_are_real_time_under_the_test_clock_time_scale_and_step_mode() -> void:
