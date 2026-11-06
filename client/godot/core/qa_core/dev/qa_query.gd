@@ -152,12 +152,13 @@ static func _window_rect(game_rect: Rect2) -> Rect2:
 # --- stats ---
 
 
-## Stats. A headless run draws nothing, so its stats of drawing are 0.
+## Stats. A headless run draws nothing, so its stats of drawing are 0. Empties the frame interval record.
 static func stats_json() -> String:
 	var drawn: bool = not QACore.is_headless()
 	return _JSON.object(PackedStringArray([
 		_JSON.pair("fps", _JSON.number(Performance.get_monitor(Performance.TIME_FPS))),
 		_JSON.pair("frame_ms", _JSON.number(Performance.get_monitor(Performance.TIME_PROCESS) * _MS_PER_S)),
+		_JSON.pair("frame_intervals_ms", QACore._take_frame_intervals_json()),
 		_JSON.pair("static_memory_bytes", _JSON.integer(int(Performance.get_monitor(Performance.MEMORY_STATIC)))),
 		_JSON.pair("video_memory_bytes", _JSON.integer(_drawn_monitor(drawn, Performance.RENDER_VIDEO_MEM_USED))),
 		_JSON.pair("draw_calls", _JSON.integer(_drawn_monitor(drawn, Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))),

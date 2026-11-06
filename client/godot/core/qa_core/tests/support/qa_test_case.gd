@@ -18,6 +18,8 @@ const POPUP_TWEEN: String = "prefab/qa_test_popup_tween"
 ## One 100 ms change, repeat count 1.
 const TWEEN: String = "tween/qa_test_tween"
 const TUTORIAL_VIEW: String = "prefab/qa_tutorial_view"
+## An auto-return pool effect.
+const EFFECT: String = "prefab/qa_effect"
 const LOADING: String = "prefab/qa_loading"
 const MISSING: String = "scene/qa_test_missing"
 ## The resource key of `[ui_button_click]` in the core test data.
@@ -47,6 +49,8 @@ const STEP_MAX_MS: int = 1000
 const TOUCH_INDEX_COUNT: int = 4
 const TIME_SCALE_MAX_PERMILLE: int = 4000
 const BASE_RESOLUTION: Vector2i = Vector2i(1280, 720)
+const FRAME_INTERVAL_MAX_COUNT: int = 600
+const REWARD_WINDOW_MS: int = 1000
 
 ## Click callback labels of the buttons a test made, in click order.
 var clicks: PackedStringArray = PackedStringArray()
@@ -76,6 +80,8 @@ func before_each() -> void:
 	set_int("QACore.stepMaxMs", STEP_MAX_MS)
 	set_int("QACore.timeScaleMaxPermille", TIME_SCALE_MAX_PERMILLE)
 	set_int("QACore.touchIndexCount", TOUCH_INDEX_COUNT)
+	set_int("QACore.frameIntervalMaxCount", FRAME_INTERVAL_MAX_COUNT)
+	set_int("QACore.rewardPresentationWindowMs", REWARD_WINDOW_MS)
 	set_int("UICore.buttonClickIntervalMs", 0)
 	set_string("UICore.dimResource", "")
 	set_string("UICore.loadingIconResource", "")
@@ -131,6 +137,7 @@ func resource_keys() -> Dictionary[String, String]:
 		TWEEN: RESOURCES + "qa_tween.tres",
 		CLICK: RESOURCES + "qa_click.tres",
 		TUTORIAL_VIEW: RESOURCES + "qa_tutorial_view.tscn",
+		EFFECT: RESOURCES + "qa_effect.tscn",
 		LOADING: RESOURCES + "qa_loading.tscn",
 	}
 	for font: String in ["font/main", "font/cjk"]:
