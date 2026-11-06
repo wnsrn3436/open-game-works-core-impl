@@ -1,5 +1,5 @@
 extends "res://core/camera_core/tests/support/camera_test_case.gd"
-## Shake: trauma, decay, the offset and rotation limits, the noise, the shake scale and the noise seed.
+## Shake: trauma, decay, the offset and rotation limits, the noise, the shake scale, the noise seed and the shake skip.
 
 
 func test_two_half_shakes_publish_two_events_reach_trauma_one_and_decay_to_zero() -> void:
@@ -170,6 +170,39 @@ func test_shake_of_zero_or_less_logs_and_does_not_change_the_trauma() -> void:
 	assert_eq(errors(), 3)
 	assert_eq(CameraCore._trauma, 0.0)
 	assert_eq(shake_events, 0)
+
+
+func test_shake_skip_adds_no_trauma_and_no_event_while_the_trauma_there_decays() -> void:
+	assert_true(start())
+	assert_true(CameraCore.attach_camera(camera_2d()))
+	CameraCore.set_shake_scale(500)
+	CameraCore.shake(0.5)
+	assert_eq(shake_events, 1)
+	CameraCoreDev.set_shake_skip(true)
+	CameraCore.shake(0.5)
+	assert_eq(CameraCore._trauma, 0.5, "the skipped shake adds no trauma")
+	assert_eq(shake_events, 1, "the skipped shake publishes no event")
+	assert_eq(errors(), 0, "the skipped shake leaves no log")
+	assert_eq(CameraCore._shake_scale, 500, "the shake skip leaves the shake scale")
+	await advance(100)
+	assert_almost_eq(CameraCore._trauma, 0.5 - SHAKE_DECAY_PER_SECOND * 0.1, 0.0001, "the shake there decays")
+	CameraCore.shake(0.0)
+	assert_eq(errors(), 1, "the checks still run during the shake skip")
+	assert_true(CameraCore.attach_camera(camera_2d()))
+	CameraCore.shake(0.5)
+	assert_eq(CameraCore._trauma, 0.0, "attaching a camera leaves the shake skip on")
+	assert_eq(shake_events, 1)
+	CameraCoreDev.set_shake_skip(false)
+	CameraCore.shake(0.5)
+	assert_eq(CameraCore._trauma, 0.5)
+	assert_eq(shake_events, 2)
+	CameraCoreDev.set_shake_skip(true)
+	CameraCore.release()
+	assert_true(CameraCore.init())
+	assert_true(CameraCore.attach_camera(camera_2d()))
+	CameraCore.shake(0.5)
+	assert_eq(CameraCore._trauma, 0.5, "release turned the shake skip off")
+	assert_eq(shake_events, 3)
 
 
 ## The next noise value of `random` in the order the shake draws it: x, y, then rotation.
