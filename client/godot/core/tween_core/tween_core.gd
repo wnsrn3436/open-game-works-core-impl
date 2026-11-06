@@ -76,6 +76,8 @@ static var _load_preset_call: Callable = Callable()
 ## A deferred `_flush_end_due` call is queued, and the session it was queued in.
 static var _flush_queued: bool = false
 static var _flush_session: RefCounted = null
+## DEV finite skip, set by `TweenCoreDev.set_finite_skip`.
+static var _finite_skip: bool = false
 
 static var _slot_count: int = 0
 static var _generation: PackedInt64Array = PackedInt64Array()
@@ -269,6 +271,7 @@ static func play_value(
 	record.change_count = 1
 	record.cycle_ms = change.duration
 	record.repeat_count = 1
+	record.finite_skip = _finite_skip
 	var handle: int = record.handle
 	_begin(record)
 	return handle
@@ -459,6 +462,7 @@ static func _set_property_record(slot: int, target_id: int, options: TweenOption
 	record.time_basis = options.time_basis
 	record.tag = options.tag
 	record.callback = options.callback
+	record.finite_skip = _finite_skip
 	if options.input_block:
 		record.block_token = InputBlockCore.block(_REASON_TAG, options.block_pass_list)
 
@@ -527,7 +531,8 @@ static func _load_definition(record: _RECORD, definition: TweenDefinition) -> vo
 
 
 ## Starts the progress of a loaded record and publishes `TweenStartedEvent`. A record without cycle time ends with
-## `Completed` before the frame ends.
+## `Completed` before the frame ends. A record requested during the finite skip that does not repeat forever ends the
+## same way, without progress and without the event.
 static func _begin(record: _RECORD) -> void:
 	record.last_time = _now(record.time_basis)
 	record.cycle_index = 0
@@ -537,15 +542,22 @@ static func _begin(record: _RECORD) -> void:
 	if record.block_token != 0 and record.repeat_count == 0:
 		LogCore.log_error(_TAG, "an input block tween repeats forever; its block is lifted")
 		_unblock(record)
+	if record.finite_skip and record.repeat_count != 0:
+		_queue_end_due(record)
+		return
 	if record.cycle_ms == 0:
-		record.end_due = true
-		if not _flush_queued:
-			_flush_queued = true
-			_flush_session = _session
-			_flush.call_deferred()
+		_queue_end_due(record)
 	var event: TweenStartedEvent = EventCore.acquire(TweenStartedEvent) as TweenStartedEvent
 	if event != null:
 		EventCore.publish(event)
+
+
+static func _queue_end_due(record: _RECORD) -> void:
+	record.end_due = true
+	if not _flush_queued:
+		_flush_queued = true
+		_flush_session = _session
+		_flush.call_deferred()
 
 
 ## Deferred call: ends the tweens that started with an end condition in their playing operation.
@@ -1388,6 +1400,7 @@ static func _end_state() -> void:
 	_load_preset_call = Callable()
 	_flush_queued = false
 	_flush_session = null
+	_finite_skip = false
 	_slot_count = 0
 	_generation = PackedInt64Array()
 	_active = PackedByteArray()

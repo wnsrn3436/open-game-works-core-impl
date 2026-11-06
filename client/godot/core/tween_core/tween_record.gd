@@ -15,6 +15,8 @@ var value_kind: int = 0
 var pending: bool = false
 ## Started with an end condition in the playing operation: it ends with `Completed` before the frame ends.
 var end_due: bool = false
+## Requested while the DEV finite skip was on: unless it repeats forever, it ends like `end_due` without progress.
+var finite_skip: bool = false
 ## Its end processing runs. Ending it again does nothing.
 var ending: bool = false
 var time_basis: int = 0
@@ -52,6 +54,7 @@ func reset() -> void:
 	pending = false
 	end_due = false
 	ending = false
+	finite_skip = false
 	time_basis = 0
 	tag = ""
 	callback = Callable()
