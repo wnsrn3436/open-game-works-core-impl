@@ -350,3 +350,39 @@ func test_release_turns_every_module_state_off() -> void:
 	assert_true(QACore.init())
 	QACore.mark(QACore.MarkKind.GOAL)
 	assert_eq(module_states(), OFF, "both switches are off at init")
+
+
+func test_the_frame_code_that_ends_a_reward_window_allocates_no_memory() -> void:
+	assert_true(await start_switch())
+	await set_mode("set_feedback_off", "on")
+	await set_mode("set_reward_presentation_off", "on")
+	QACore.mark(QACore.MarkKind.GOAL)
+	await advance(REWARD_WINDOW_MS)
+	assert_eq(module_states(), FEEDBACK_OFF, "the window ended")
+	# The ballast raises static memory to its peak, so any allocation in the loop raises the peak, even one freed before
+	# the loop ends. It is made before the first read: the array object stays until the test ends.
+	var ballast: PackedByteArray = PackedByteArray()
+	LogCore.release()
+	_end_windows(100)
+	var objects: float = Performance.get_monitor(Performance.OBJECT_COUNT)
+	var memory: float = Performance.get_monitor(Performance.MEMORY_STATIC)
+	ballast.resize(int(Performance.get_monitor(Performance.MEMORY_STATIC_MAX) - memory) + 1)
+	var peak: float = Performance.get_monitor(Performance.MEMORY_STATIC_MAX)
+	_end_windows(1000)
+	# All are read before the first assert, which allocates.
+	var peak_after: float = Performance.get_monitor(Performance.MEMORY_STATIC_MAX)
+	ballast.clear()
+	var objects_after: float = Performance.get_monitor(Performance.OBJECT_COUNT)
+	var memory_after: float = Performance.get_monitor(Performance.MEMORY_STATIC)
+	assert_true(memory > 0.0, "static memory is measured")
+	assert_true(objects_after <= objects, "object count")
+	assert_true(memory_after <= memory, "static memory")
+	assert_true(peak_after <= peak, "static memory peak: no allocation freed inside the loop")
+	assert_eq(module_states(), FEEDBACK_OFF, "each end left the module states as they were")
+
+
+## Reopens the reward window past its length and runs the frame start check that ends it, `times` times.
+func _end_windows(times: int) -> void:
+	for i: int in times:
+		QACore._reward_window_open = true
+		QACore._check_reward_window()
