@@ -162,7 +162,13 @@ static var _accept_presses: Dictionary[String, _ACCEPT_STATE] = {}
 ## state an axis press event is a press only when the block stage of `InputCore` passes it to an action whose source it
 ## presses (`_axis_press_passes`); otherwise it is not kept: the next value event after the block is the first press.
 static var _accept_held: Dictionary[String, int] = {}
-static var _update_focus_callable: Callable = Callable()
+## A key direction input started the focus mode and the engine has not handled it yet: no focus is put until then,
+## so that input moves no focus.
+static var _focus_start_pending: bool = false
+static var _start_focus_callable: Callable = Callable()
+## A direction input that scrolled the body of the top system popup, consumed when no UI element took it. Kept until
+## the next input.
+static var _scroll_event: InputEvent = null
 ## A direction input that the engine moves out of the view focus or not at all: the event, the focus owner it starts
 ## from and the nearest visible view focus element in that direction. Kept until the next input or frame.
 static var _view_move_event: InputEvent = null
@@ -192,7 +198,7 @@ static func init() -> bool:
 		return false
 	_session = RefCounted.new()
 	_tween_options = TweenOptions.new()
-	_update_focus_callable = UICore._update_focus
+	_start_focus_callable = UICore._start_focus
 	var node: Node = _CORE_NODE.new()
 	node.name = "UICore"
 	_node = node
@@ -1167,7 +1173,9 @@ static func _reset_statics() -> void:
 	_accept_first = null
 	_accept_presses.clear()
 	_accept_held.clear()
-	_update_focus_callable = Callable()
+	_start_focus_callable = Callable()
+	_focus_start_pending = false
+	_scroll_event = null
 	_clear_view_move()
 	_text_input = null
 	_shift_target = null
@@ -2609,8 +2617,14 @@ static func _update_focus() -> void:
 		if owner != null and not _is_text_input(owner):
 			owner.release_focus()
 		return
-	if owner != element:
+	if owner != element and not _focus_start_pending:
 		element.grab_focus()
+
+
+## Deferred from the key direction input that started the focus mode, after the engine has handled that input.
+static func _start_focus() -> void:
+	_focus_start_pending = false
+	_update_focus()
 
 
 ## `Viewport.gui_focus_changed`.
@@ -2650,6 +2664,7 @@ static func _on_input(event: InputEvent) -> void:
 	if not _is_initialized:
 		return
 	_clear_view_move()
+	_scroll_event = null
 	var mouse_motion: bool = event is InputEventMouseMotion
 	var mouse_press: bool = event is InputEventMouseButton and event.is_pressed()
 	if mouse_motion or mouse_press:
@@ -2690,29 +2705,23 @@ static func _on_input(event: InputEvent) -> void:
 	if not direction:
 		return
 	var viewport: Viewport = _node.get_viewport()
-	var handled: bool = false
 	var focus_mode: bool = _is_focus_mode()
 	if is_key and not focus_mode:
 		var owner: Control = viewport.gui_get_focus_owner()
 		if owner == null or not _is_text_input(owner):
 			_key_focus_mode = true
-			if InputCore.get_device() == InputCore.InputDevice.KEYBOARD_MOUSE:
-				var holder: _HOLDER = _focus_target()
-				var element: Control = _holder_element(holder) if holder != null else null
-				if element != null:
-					element.grab_focus()
-					handled = true
-			else:
-				_update_focus_callable.call_deferred()
+			# The focus is put after the engine has handled this input, so that it moves no focus and goes on to
+			# the UI stage and the world stage like any other input.
+			if not _focus_start_pending:
+				_focus_start_pending = true
+				_start_focus_callable.call_deferred()
 	if (up or down) and not _shown_system.is_empty():
 		if not InputBlockCore.is_blocked() or InputBlockCore.pass_focus(_system_root):
 			var top: _POPUP = _shown_system[_shown_system.size() - 1]
 			var view: _SYSTEM_VIEW = top.system_view as _SYSTEM_VIEW
-			if view != null:
-				view.scroll_by(-_system_popup_scroll_step if up else _system_popup_scroll_step)
-	if handled:
-		viewport.set_input_as_handled()
-	elif focus_mode:
+			if view != null and view.scroll_by(-_system_popup_scroll_step if up else _system_popup_scroll_step):
+				_scroll_event = event
+	if focus_mode:
 		# The engine takes the last of these that the event matches.
 		var side: Side = SIDE_TOP
 		if event.is_action_pressed(&"ui_left", true, true):
@@ -2724,9 +2733,16 @@ static func _on_input(event: InputEvent) -> void:
 		_plan_view_move(event, viewport.gui_get_focus_owner(), side)
 
 
-## Unhandled input: the engine found no focus neighbor for the planned view focus move, so UICore moves the focus.
+## Unhandled input: a system popup body scroll that no UI element took is consumed, and when the engine found no
+## focus neighbor for the planned view focus move, UICore moves the focus.
 static func _on_unhandled_input(event: InputEvent) -> void:
-	if not _is_initialized or event == null or event != _view_move_event:
+	if not _is_initialized or event == null:
+		return
+	if event == _scroll_event:
+		_scroll_event = null
+		_node.get_viewport().set_input_as_handled()
+		return
+	if event != _view_move_event:
 		return
 	var holder: _HOLDER = _focus_target()
 	var from: Control = _view_move_from
