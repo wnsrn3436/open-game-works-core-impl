@@ -1,6 +1,9 @@
 extends "res://core/tween_core/tests/support/tween_test_case.gd"
 ## The DEV finite skip of `TweenCoreDev.set_finite_skip`.
 
+## Number of tweens in a chain of skipped tweens.
+const CHAIN_LENGTH: int = 5
+
 
 ## Waits until the load of the tween preset `key` has ended.
 func load_end(key: String) -> void:
@@ -126,6 +129,69 @@ func test_preset_requested_before_the_skip_plays_when_its_load_ends_while_the_sk
 	assert_false(TweenCore.is_playing(handle))
 	assert_eq(recorder.reasons, PackedInt32Array([TweenCore.TweenEndReason.COMPLETED]))
 	assert_eq(recorder.waits, {0: TweenCore.TweenEndReason.COMPLETED})
+
+
+## Process frames of the `Completed` ends of a chain of skipped tweens.
+var _chain_frames: PackedInt64Array = PackedInt64Array()
+var _chain_target: Node2D = null
+
+
+func _replay(reason: TweenCore.TweenEndReason) -> void:
+	if reason != TweenCore.TweenEndReason.COMPLETED:
+		return
+	_chain_frames.append(Engine.get_process_frames())
+	if _chain_frames.size() < CHAIN_LENGTH:
+		TweenCore.play(move(100), _chain_target, _chain_options())
+
+
+func _chain_options() -> TweenOptions:
+	var made: TweenOptions = options()
+	made.callback = _replay
+	return made
+
+
+## Plays a finite tween and waits for its `wait_end`, `CHAIN_LENGTH` times. Not awaited by the caller.
+func _play_and_wait_loop(target: Node2D) -> void:
+	for i: int in CHAIN_LENGTH:
+		var handle: int = TweenCore.play(move(100), target, options())
+		var reason: TweenCore.TweenEndReason = await TweenCore.wait_end(handle)
+		if reason != TweenCore.TweenEndReason.COMPLETED:
+			return
+		_chain_frames.append(Engine.get_process_frames())
+
+
+## Each `Completed` of the chain is in the frame after the one before it.
+func assert_one_end_per_frame() -> void:
+	assert_eq(_chain_frames.size(), CHAIN_LENGTH, "every tween of the chain completed")
+	for i: int in range(1, _chain_frames.size()):
+		assert_eq(_chain_frames[i] - _chain_frames[i - 1], 1, "one Completed per frame (end %d)" % i)
+
+
+func test_completion_callback_that_plays_a_finite_tween_again_gets_one_completed_per_frame() -> void:
+	start()
+	TweenCoreDev.set_finite_skip(true)
+	_chain_frames.clear()
+	_chain_target = node_2d()
+	var first: int = Engine.get_process_frames()
+	TweenCore.play(move(100), _chain_target, _chain_options())
+	await UnitTestCore.wait_frames(CHAIN_LENGTH + 2)
+	assert_one_end_per_frame()
+	assert_eq(_chain_frames[0], first, "the first tween ends in the frame it was requested")
+	assert_eq(_chain_target.position, Vector2(100, 0))
+	assert_eq(recorder.started_count, 0)
+
+
+func test_loop_that_plays_a_finite_tween_and_waits_for_its_wait_end_gets_one_completed_per_frame() -> void:
+	start()
+	TweenCoreDev.set_finite_skip(true)
+	_chain_frames.clear()
+	var target: Node2D = node_2d()
+	var first: int = Engine.get_process_frames()
+	_play_and_wait_loop(target)
+	await UnitTestCore.wait_frames(CHAIN_LENGTH + 2)
+	assert_one_end_per_frame()
+	assert_eq(_chain_frames[0], first, "the first tween ends in the frame it was requested")
+	assert_eq(recorder.started_count, 0)
 
 
 func test_release_turns_the_skip_off_and_it_fails_before_init() -> void:
