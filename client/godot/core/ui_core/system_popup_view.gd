@@ -141,10 +141,14 @@ func _fit_row() -> void:
 	row.size = area / factor
 
 
-## Moves the scroll position by `step` game coordinates; the scroll container keeps it in range. Returns whether there
-## is a body to scroll.
+## Moves the scroll position by `step` game coordinates; the scroll container keeps it in range. Returns whether the
+## body and extra text do not fit in the scroll area, so that the body area scrolls with the input; a body that fits
+## does not handle the input.
 func scroll_by(step: float) -> bool:
 	if scroll == null:
+		return false
+	var bar: VScrollBar = scroll.get_v_scroll_bar()
+	if bar.max_value - bar.page <= 0.0:
 		return false
 	scroll.scroll_vertical += roundi(step)
 	return true
