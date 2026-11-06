@@ -141,10 +141,13 @@ func _fit_row() -> void:
 	row.size = area / factor
 
 
-## Moves the scroll position by `step` game coordinates; the scroll container keeps it in range.
-func scroll_by(step: float) -> void:
-	if scroll != null:
-		scroll.scroll_vertical += roundi(step)
+## Moves the scroll position by `step` game coordinates; the scroll container keeps it in range. Returns whether there
+## is a body to scroll.
+func scroll_by(step: float) -> bool:
+	if scroll == null:
+		return false
+	scroll.scroll_vertical += roundi(step)
+	return true
 
 
 func _on_button(index: int) -> void:

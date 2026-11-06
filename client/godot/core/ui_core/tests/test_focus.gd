@@ -49,16 +49,34 @@ func test_gamepad_focus_next_frame_and_accept_click() -> void:
 	assert_null(focus_owner(), "no focus with touch")
 
 
+func _inject_key(keycode: Key, pressed: bool) -> void:
+	var event: InputEventKey = InputEventKey.new()
+	event.keycode = keycode
+	event.physical_keycode = keycode
+	event.pressed = pressed
+	InputCoreDev.inject_device_input(event)
+
+
 func test_key_direction_starts_the_focus_mode() -> void:
 	assert_true(await start())
 	assert_true(await UICore.open_popup(POPUP_FOCUS, null, Callable()) == UICore.PopupOpenResult.OPENED)
 	var popup: UIPopup = popup_of(POPUP_FOCUS)
 	ui_button_of(_first(popup)).set_on_click(click_of("first"))
+	assert_true(InputCore.set_keys(&"cutscene_advance", PackedStringArray(["Up"])))
 	InputCoreDev.set_test_device(InputCore.InputDevice.KEYBOARD_MOUSE)
 	await UnitTestCore.wait_frames(1)
 	assert_null(focus_owner())
-	await press_key(KEY_DOWN)
-	assert_eq(focus_owner(), _second(popup), "the initial focus element, not moved")
+	var frame: int = Engine.get_process_frames()
+	# Up from the initial focus element "Second" would move the focus to "First".
+	_inject_key(KEY_UP, true)
+	assert_true(InputCore.is_pressed(&"cutscene_advance"), "the starting input presses the action bound to that key")
+	await get_tree().process_frame
+	assert_eq(focus_owner(), _second(popup), "the initial focus element in that frame, not moved")
+	assert_eq(Engine.get_process_frames(), frame + 1)
+	_inject_key(KEY_UP, false)
+	assert_false(InputCore.is_pressed(&"cutscene_advance"))
+	await UnitTestCore.wait_frames(1)
+	assert_eq(focus_owner(), _second(popup), "the release moves no focus")
 	await press_key(KEY_UP)
 	assert_eq(focus_owner(), _first(popup), "the next direction input moves the focus")
 	await press_key(KEY_ENTER)
@@ -66,6 +84,25 @@ func test_key_direction_starts_the_focus_mode() -> void:
 	assert_eq(clicks, PackedStringArray(["first"]), "one click by the key accept input")
 	await move_mouse(Vector2(10, 10))
 	assert_null(focus_owner(), "a mouse move ends the focus mode")
+	InputCore.reset_keys()
+
+
+func test_key_direction_from_touch_starts_the_focus_mode() -> void:
+	assert_true(await start())
+	assert_true(await UICore.open_popup(POPUP_FOCUS, null, Callable()) == UICore.PopupOpenResult.OPENED)
+	var popup: UIPopup = popup_of(POPUP_FOCUS)
+	assert_true(InputCore.set_keys(&"cutscene_advance", PackedStringArray(["Up"])))
+	InputCoreDev.set_test_device(InputCore.InputDevice.TOUCH)
+	await UnitTestCore.wait_frames(1)
+	_inject_key(KEY_UP, true)
+	assert_eq(InputCore.get_device(), InputCore.InputDevice.KEYBOARD_MOUSE)
+	assert_true(InputCore.is_pressed(&"cutscene_advance"), "the starting input presses the action bound to that key")
+	await get_tree().process_frame
+	assert_eq(focus_owner(), _second(popup), "the initial focus element in that frame, not moved")
+	_inject_key(KEY_UP, false)
+	await press_key(KEY_UP)
+	assert_eq(focus_owner(), _first(popup), "the next direction input moves the focus")
+	InputCore.reset_keys()
 
 
 func test_text_input_keys_do_not_start_the_focus_mode() -> void:

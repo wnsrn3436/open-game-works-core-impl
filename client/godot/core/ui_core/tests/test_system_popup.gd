@@ -226,3 +226,46 @@ func test_scroll_with_direction_input() -> void:
 	var end: int = view.scroll.scroll_vertical
 	await press_pad(JOY_BUTTON_DPAD_DOWN)
 	assert_eq(view.scroll.scroll_vertical, end, "the end stays")
+
+
+## A key direction input that starts the focus mode from `device` scrolls the system popup body, and the scroll
+## consumes it after device detection.
+func _assert_focus_start_scrolls(device: InputCore.InputDevice) -> void:
+	assert_true(await start())
+	var param: SystemPopupParam = one_button_param()
+	var lines: PackedStringArray = PackedStringArray()
+	for i: int in 200:
+		lines.append("line %d" % i)
+	param.extra_text = "\n".join(lines)
+	assert_true(await UICore.open_system_popup(param, Callable()))
+	assert_true(InputCore.set_keys(&"cutscene_advance", PackedStringArray(["Down"])))
+	InputCoreDev.set_test_device(device)
+	await UnitTestCore.wait_frames(3)
+	assert_null(focus_owner())
+	var view: UICore._SYSTEM_VIEW = UICore._shown_system[0].system_view as UICore._SYSTEM_VIEW
+	assert_eq(view.scroll.scroll_vertical, 0)
+	var down: InputEventKey = InputEventKey.new()
+	down.keycode = KEY_DOWN
+	down.physical_keycode = KEY_DOWN
+	down.pressed = true
+	InputCoreDev.inject_device_input(down)
+	assert_eq(view.scroll.scroll_vertical, int(SCROLL_STEP), "the starting input scrolls the body")
+	assert_false(InputCore.is_pressed(&"cutscene_advance"), "the scroll consumes the input in the UI stage")
+	assert_eq(InputCore.get_device(), InputCore.InputDevice.KEYBOARD_MOUSE)
+	await UnitTestCore.wait_frames(1)
+	assert_eq(focus_owner(), system_buttons(system_popup())[0], "the focus mode started")
+	var up: InputEventKey = down.duplicate() as InputEventKey
+	up.pressed = false
+	InputCoreDev.inject_device_input(up)
+	await press_key(KEY_DOWN)
+	assert_eq(view.scroll.scroll_vertical, int(SCROLL_STEP) * 2, "the next input scrolls again")
+	assert_eq(focus_owner(), system_buttons(system_popup())[0], "the focus stays")
+	InputCore.reset_keys()
+
+
+func test_key_direction_that_starts_the_focus_mode_scrolls_the_body() -> void:
+	await _assert_focus_start_scrolls(InputCore.InputDevice.KEYBOARD_MOUSE)
+
+
+func test_key_direction_from_touch_that_starts_the_focus_mode_scrolls_the_body() -> void:
+	await _assert_focus_start_scrolls(InputCore.InputDevice.TOUCH)
