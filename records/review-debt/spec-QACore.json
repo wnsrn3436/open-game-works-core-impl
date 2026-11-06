@@ -1,0 +1,12 @@
+{
+  "target": "spec QACore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "tools/ogw.md:510",
+      "problem": "qa-core.md:234 says the degraded pairs of judge calibration start their degraded instances with `set_feedback_off` and `set_reward_presentation_off`, but the degradation table of `ogw judge calibrate` has only `latency` and `network`, and no runner option or degradation sends either command (grep of `set_feedback_off`, `set_reward_presentation_off`, `feedback off`, `reward presentation` finds no use outside qa-core.md), so the two switches have no caller that the harness defines",
+      "foundBy": "spec QACore"
+    }
+  ]
+}
