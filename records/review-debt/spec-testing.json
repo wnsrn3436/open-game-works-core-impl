@@ -1,12 +1,18 @@
 {
   "target": "spec testing",
-  "nextId": 2,
+  "nextId": 3,
   "items": [
     {
       "id": "D1",
       "location": "skills/server-core/SKILL.md:238",
       "problem": "The server process entry point is said to call `routing.create_server` \"with the server start arguments below\", but `create_server` also needs the server module list, the server build data folder, the merged core settings, the game settings values and `register`/`registerDev` (skills/server-core/modules/routing.md:44), and no defining document sets where the entry point reads each of them (e.g. `server/generated/server_modules.json`, `server/build/data/`, `server/main.ts`); the existing `## test` item skills/server-core/modules/testing.md:288 already starts the entry point in a server core test",
       "foundBy": "spec testing"
+    },
+    {
+      "id": "D2",
+      "location": "skills/server-core/modules/testing.md:208",
+      "problem": "`start_local_server` \"makes and starts a server instance with `routing.create_server` the same way as the server process entry point\". After this change the entry point runs `run_server_process`: a front, `routing.requestWorkers` request workers, a realtime worker with `--matchmaker`, and the ops port (routing.md:98-112). The runner starts `start_local_server` in place of the entry point for every instance with `--random-base` (tools/ogw.md:668-669). So the checks run one server instance with no front and no ops port, while play and judge instances run the server process, and the two documents describe the same start differently. testing.md is not a defining document of this review, and its check seed provider counts per server instance (testing.md:207), so the fix belongs there.",
+      "foundBy": "spec routing"
     }
   ]
 }
