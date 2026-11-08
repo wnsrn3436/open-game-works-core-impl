@@ -1,6 +1,8 @@
 extends "res://core/game_update_core/tests/support/game_update_test_case.gd"
 ## App version check: forced update popup, optional update popup and the skipped check.
 
+const _DEPLOY_LIST = preload("res://core/game_update_core/deploy_list.gd")
+
 
 func test_forced_update_popup_opens_again_and_check_update_does_not_end() -> void:
 	if not await start():
@@ -185,6 +187,63 @@ func test_store_redirect_that_cannot_open_leaves_error_log() -> void:
 	assert_true(popup_shows(ReservedString.game_update_app_update_required()), "opens again after the redirect")
 	assert_eq(popup_count(), 1)
 	assert_false(check_finished)
+
+
+func test_version_part_longer_than_int_range_is_accepted_and_compared_exactly() -> void:
+	if not await start():
+		fail_test("setup failed")
+		return
+	var list: _BUILDER = make_list()
+	list.min_version = "1.2.1000000000000000000"
+	list.recommended_version = "1.2.1000000000000000000"
+	list.bundle_files = [make_bundle_file("bundle_a.pck", "bundle a")]
+	serve(list)
+	start_check(make_source())
+	await pump()
+	assert_false(popup_shows(ReservedString.game_update_invalid_file()), "a 19-digit part passes the format check")
+	assert_true(popup_shows(ReservedString.game_update_app_update_required()), "1.2.0 is below 1.2.10^18")
+	assert_false(check_finished)
+	assert_eq(errors(), 0)
+
+
+func test_optional_update_from_a_version_part_longer_than_int_range() -> void:
+	if not await start():
+		fail_test("setup failed")
+		return
+	var list: _BUILDER = make_list()
+	list.min_version = "1.0.0"
+	list.recommended_version = "1.2.99999999999999999999999999"
+	list.bundle_files = [make_bundle_file("bundle_a.pck", "bundle a")]
+	serve(list)
+	start_check(make_source())
+	await pump()
+	assert_true(popup_shows(ReservedString.game_update_recommended()))
+	assert_true(await press(ReservedString.game_update_later()))
+	assert_true(check_finished)
+	assert_true(check_result)
+
+
+func test_version_form_and_order_have_no_digit_limit() -> void:
+	var long_part: String = "1".repeat(40)
+	assert_true(_DEPLOY_LIST.is_version("0.0." + long_part))
+	assert_true(_DEPLOY_LIST.is_version(long_part + ".0.0"))
+	assert_false(_DEPLOY_LIST.is_version("1.0." + long_part + ".0"))
+	assert_false(_DEPLOY_LIST.is_version("1.0." + long_part + "x"))
+	assert_false(_DEPLOY_LIST.is_version("1.0.01"))
+	assert_false(_DEPLOY_LIST.is_version("1.0." + "0" + long_part))
+	_assert_order("1.0.9223372036854775807", "1.0.9223372036854775808", -1)
+	_assert_order("1.0.10000000000000000000", "1.0.9999999999999999999", 1)
+	_assert_order("1.0.1000000000000000000", "1.0.1000000000000000000", 0)
+	_assert_order("1.0.18446744073709551616", "1.0.18446744073709551615", 1)
+	_assert_order("2.0.0", "1.99999999999999999999.0", 1)
+	_assert_order("1.2.0", "1.10.0", -1)
+	_assert_order("0.0.0", "0.0.0", 0)
+
+
+## Checks that `compare_versions` orders `a` before, equal to or after `b` by the sign of `expected`, both ways.
+func _assert_order(a: String, b: String, expected: int) -> void:
+	assert_eq(signi(_DEPLOY_LIST.compare_versions(a, b)), expected, a + " vs " + b)
+	assert_eq(signi(_DEPLOY_LIST.compare_versions(b, a)), -expected, b + " vs " + a)
 
 
 func _optional_list() -> _BUILDER:
