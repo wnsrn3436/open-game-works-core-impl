@@ -111,10 +111,11 @@ func test_reset_settings_keeps_a_test_text_scale_unless_the_text_scale_option_va
 func _saved(key: String) -> bool:
 	match key:
 		"AccessibilityCore.text_scale":
-			return LocalDataCore.get_value_int(DEVICE, key, -1) != -1 or LocalDataCore.get_value_int(DEVICE, key, -2) != -2
+			return LocalDataCore.get_value_int(DEVICE, key, -1) == LocalDataCore.get_value_int(DEVICE, key, -2)
 		"AccessibilityCore.color_mode":
-			return LocalDataCore.get_value_string(DEVICE, key, "") != "" or LocalDataCore.get_value_string(DEVICE, key, "-") != "-"
-	return LocalDataCore.get_value_bool(DEVICE, key, false) != LocalDataCore.get_value_bool(DEVICE, key, true)
+			var first: String = LocalDataCore.get_value_string(DEVICE, key, "")
+			return first == LocalDataCore.get_value_string(DEVICE, key, "-")
+	return LocalDataCore.get_value_bool(DEVICE, key, false) == LocalDataCore.get_value_bool(DEVICE, key, true)
 
 
 ## The shake offset of each frame of `shake(1.0)` with `SHAKE_SEED`: the move of the canvas the camera shows from
