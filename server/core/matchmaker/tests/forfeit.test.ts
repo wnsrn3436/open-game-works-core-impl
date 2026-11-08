@@ -13,7 +13,6 @@ import {
   barrier,
   bytes_equal,
   calls_of,
-  close,
   close_and_wait,
   close_code,
   connect,
