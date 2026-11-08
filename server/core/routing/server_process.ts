@@ -475,12 +475,21 @@ class Front {
       res.end(message.body === null ? undefined : Buffer.from(message.body));
       return;
     }
-    const socket = handed.socket;
+    this.from_upgrade(worker, handed.socket, message);
+  }
+
+  /** A message of the worker instance about an upgraded connection. */
+  private from_upgrade(worker: WorkerThread, socket: Duplex, message: Exclude<ToFront, { t: 'report' | 'pull' }>): void {
     if (message.t === 'sdata') socket.write(Buffer.from(message.chunk));
     else if (message.t === 'send') socket.end();
     else if (message.t === 'sclose') {
       this.done(worker, message.id);
-      socket.destroy();
+      // After the worker instance ended its side, its bytes reach the client before the connection closes.
+      if (socket.writableEnded && !socket.writableFinished)
+        socket.once('finish', () => {
+          socket.destroy();
+        });
+      else socket.destroy();
     } else {
       // A response to an upgrade request that the server instance did not take over: written as it is, then closed.
       const head = `HTTP/1.1 ${String(message.status)} \r\nConnection: close\r\n\r\n`;
