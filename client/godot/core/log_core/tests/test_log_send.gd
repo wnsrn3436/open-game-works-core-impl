@@ -155,3 +155,31 @@ func test_a_full_event_queue_drops_the_event_and_counts_it() -> void:
 	assert_eq(names, PackedStringArray(["first", "second"]))
 	assert_eq(_probe.batches[0].dropped_event_count, 1)
 	assert_eq(_probe.batches[0].dropped_error_count, 0)
+
+
+## A Godot `String` cannot hold U+0000: the engine puts U+FFFD in its place when it makes the tag and message, so
+## the entry reaches the batch with U+FFFD and the same code point counts. The log line has the U+FFFD that LogCore
+## received, because no U+0000 reaches it to escape as `\0`.
+func test_an_error_with_u0000_reaches_the_batch_with_u_fffd_in_its_place() -> void:
+	assert_true(LogCore.init())
+	LogCore.set_sender(_probe.send)
+	var tag: String = "t\u0000g"
+	var message: String = "\u0000a\u0000b"
+	LogCore.log_error(tag, message)
+	await UnitTestCore.wait_frames(2)
+	assert_eq(_probe.batches.size(), 1)
+	if _probe.batches.size() == 1 and _probe.batches[0].errors.size() == 1:
+		var entry: LogEntry = _probe.batches[0].errors[0]
+		assert_eq(entry.tag, "t\uFFFDg")
+		assert_eq(entry.message, "\uFFFDa\uFFFDb")
+		assert_eq(entry.tag.length(), 3)
+		assert_eq(entry.message.length(), 4)
+	LogCoreDev.list_log_files()
+	var lines: PackedStringArray = LogProbe.read_lines(1)
+	assert_eq(lines.size(), 1)
+	if lines.size() == 1:
+		var fields: PackedStringArray = LogProbe.fields(lines[0])
+		assert_eq(fields.size(), 5)
+		if fields.size() == 5:
+			assert_eq(fields[2], "t\uFFFDg")
+			assert_eq(fields[3], "\uFFFDa\uFFFDb")

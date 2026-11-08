@@ -149,3 +149,21 @@ func test_disallowing_analytics_clears_the_dropped_event_count() -> void:
 	if _probe.batches.size() == 1:
 		assert_eq(_event_names(_probe.batches[0]), PackedStringArray(["after_the_reset"]))
 		assert_eq(_probe.batches[0].dropped_event_count, 0)
+
+
+## A string value written with U+0000 holds U+FFFD there, because a Godot `String` cannot hold U+0000, so it is not
+## the U+0000 the server rejects: `track_event` puts it in with U+FFFD and gives no `error` log.
+func test_a_string_value_written_with_u0000_is_put_in_with_u_fffd() -> void:
+	assert_true(LogCore.init())
+	LogCore.set_analytics_allowed(true)
+	LogCore.set_sender(_probe.send)
+	var params: Array[LogEventParam] = [_string("text", "a\u0000b")]
+	assert_true(LogCore.track_event("nul_text", params))
+	assert_eq(_probe.count(LogCore.Level.ERROR, "LogCore"), 0)
+	await UnitTestCore.wait_frames(2)
+	assert_eq(_probe.batches.size(), 1)
+	if _probe.batches.size() == 1 and _probe.batches[0].events.size() == 1:
+		var event: LogAnalyticsEvent = _probe.batches[0].events[0]
+		assert_eq(event.params.size(), 1)
+		if event.params.size() == 1:
+			assert_eq(event.params[0].string_value, "a\uFFFDb")
