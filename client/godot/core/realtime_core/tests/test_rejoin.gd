@@ -120,7 +120,7 @@ func test_rejoin_match_without_an_access_token_closes_goes_none_and_fails_with_a
 	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.FAILED)
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
 	assert_eq(saved_id(), "")
-	assert_eq(transport.calls, PackedStringArray(["close()"]))
+	assert_eq(transport.calls, PackedStringArray(["close(false)"]))
 	assert_eq(warn_logs(), 1)
 	assert_eq(error_logs(), 0)
 

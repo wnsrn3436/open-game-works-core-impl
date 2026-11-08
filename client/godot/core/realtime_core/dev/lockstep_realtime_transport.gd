@@ -82,9 +82,9 @@ func close_peer(index: int) -> void:
 		_send_request(after, _request_ms)
 
 
-func close() -> void:
+func close(forfeit: bool) -> void:
 	_end_lockstep()
-	_inner.close()
+	_inner.close(forfeit)
 
 
 func disconnect_all() -> void:

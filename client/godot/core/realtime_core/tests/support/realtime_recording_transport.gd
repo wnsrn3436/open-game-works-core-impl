@@ -50,9 +50,9 @@ func close_peer(index: int) -> void:
 	inner.close_peer(index)
 
 
-func close() -> void:
-	calls.append("close()")
-	inner.close()
+func close(forfeit: bool) -> void:
+	calls.append("close(%s)" % forfeit)
+	inner.close(forfeit)
 
 
 func disconnect_all() -> void:

@@ -43,8 +43,8 @@ func close_peer(index: int) -> void:
 	_record("close_peer", PackedStringArray([str(index)]))
 
 
-func close() -> void:
-	_record("close", PackedStringArray())
+func close(forfeit: bool) -> void:
+	_record("close", PackedStringArray([str(forfeit)]))
 
 
 func disconnect_all() -> void:

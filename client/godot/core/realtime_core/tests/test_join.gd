@@ -236,6 +236,7 @@ func test_leave_in_matching_cancels_matching_and_in_connecting_sends_the_leave_n
 	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.CANCELLED)
 	assert_eq(transport.count("cancel_matching"), 1)
 	assert_eq(transport.count("close"), 1)
+	assert_eq(transport.calls[transport.calls.size() - 1], "close(false)", "leave in Matching does not forfeit")
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
 	op = await start_join()
 	push_match_found(make_info(3, 0))
@@ -249,7 +250,7 @@ func test_leave_in_matching_cancels_matching_and_in_connecting_sends_the_leave_n
 	assert_eq(transport.packets.size(), 1)
 	assert_eq(transport.packet_targets[0], 1)
 	assert_eq(transport.packets[0], PackedByteArray([1, 1, 1]))
-	assert_eq(transport.calls, PackedStringArray(["send_packet(1, 0)", "close()"]))
+	assert_eq(transport.calls, PackedStringArray(["send_packet(1, 0)", "close(false)"]))
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
 
 
@@ -266,7 +267,7 @@ func test_match_found_outside_matching_is_dropped_with_a_warning() -> void:
 	await frames()
 	assert_eq(warn_logs(), 1)
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
-	assert_eq(transport.calls, PackedStringArray(["close()"]))
+	assert_eq(transport.calls, PackedStringArray(["close(false)"]))
 
 
 func _assert_failed(op: RealtimeAsyncCall, is_error: bool) -> void:
@@ -274,6 +275,7 @@ func _assert_failed(op: RealtimeAsyncCall, is_error: bool) -> void:
 	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.FAILED)
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
 	assert_eq(transport.count("close"), 1)
+	assert_true(transport.calls.has("close(false)"), "a join_match failure does not forfeit")
 	transport.clear_calls()
 	if is_error:
 		assert_eq(error_logs(), 1)

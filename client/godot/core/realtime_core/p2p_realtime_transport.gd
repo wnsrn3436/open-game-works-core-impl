@@ -123,9 +123,10 @@ func close_peer(index: int) -> void:
 	_drop_queued(index)
 
 
-func close() -> void:
+func close(forfeit: bool) -> void:
+	# `MATCH_LEAVE` goes out before the close of the matchmaker connection starts, so the server reads the forfeit.
 	if not _match_id.is_empty():
-		_send_match_leave(_match_id)
+		_send_match_leave(_match_id, forfeit)
 	_reset_match()
 	if not _in_room:
 		_close_socket()
@@ -229,6 +230,7 @@ func _poll_socket() -> void:
 		hello.access_token = _hello_token
 		hello.data_version = DataCore.get_data_version()
 		hello.client_version = _app_version
+		hello.platform = CoreBuildInfo.platform
 		_hello_token = ""
 		if _socket.send(hello.encode(), WebSocketPeer.WRITE_MODE_BINARY) != OK:
 			_drop_socket(0)
@@ -323,10 +325,10 @@ func _on_match_found(frame: CoreContract.MatchmakerFrame) -> void:
 	# RealtimeCore keeps the first `MatchInfo`, so a second match cannot start here.
 	if not _match_id.is_empty():
 		LogCore.log_warn(_TAG, "MATCH_FOUND while holding a match: left the new match")
-		_send_match_leave(frame.match_id)
+		_send_match_leave(frame.match_id, false)
 		return
 	if not _read_ice_servers(frame.transport):
-		_send_match_leave(frame.match_id)
+		_send_match_leave(frame.match_id, false)
 		var failed: RealtimeNotice = add_notice(RealtimeNotice.Kind.MATCH_FAILED)
 		failed.fail_reason = CoreContract.MatchFailReason.MATCH_FAIL_REASON_CREATE_FAILED
 		failed.error_code = 0
@@ -614,9 +616,10 @@ func _new_frame(kind: CoreContract.MatchmakerFrameKind) -> CoreContract.Matchmak
 	return frame
 
 
-func _send_match_leave(match_id: String) -> void:
+func _send_match_leave(match_id: String, forfeit: bool) -> void:
 	var frame: CoreContract.MatchmakerFrame = _new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE)
 	frame.match_id = match_id
+	frame.forfeit = forfeit
 	_send_frame(frame)
 
 

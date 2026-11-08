@@ -70,9 +70,9 @@ func close_peer(index: int) -> void:
 	_inner.close_peer(index)
 
 
-func close() -> void:
+func close(forfeit: bool) -> void:
 	_deliver_all()
-	_inner.close()
+	_inner.close(forfeit)
 
 
 func disconnect_all() -> void:
