@@ -148,7 +148,8 @@ export function create_apple_adapter(options: AppleAdapterOptions): StoreAdapter
     return { status: response.status, json: parse_json(body) };
   };
 
-  const roots = async (): Promise<ReturnType<typeof roots_of> | AdapterFailure> => {
+  /** The root certificates of the key source. A failed call or a value that is not a list of root certificates is an adapter call failure. */
+  const roots = async (): Promise<NonNullable<ReturnType<typeof roots_of>> | AdapterFailure> => {
     let value: unknown;
     try {
       value = await options.key_source();
@@ -156,14 +157,14 @@ export function create_apple_adapter(options: AppleAdapterOptions): StoreAdapter
       return 'communication_failure';
     }
     if (value === 'timeout' || value === 'communication_failure') return value;
-    return roots_of(value) ?? 'rejected';
+    return roots_of(value) ?? 'communication_failure';
   };
 
   /** A signed JWS payload checked against the root certificates at `now`. */
   const signed = async (token: unknown, now: bigint): Promise<Record<string, unknown> | null | AdapterFailure> => {
     if (typeof token !== 'string') return null;
     const certs = await roots();
-    if (typeof certs === 'string' || certs === null) return typeof certs === 'string' ? certs : 'rejected';
+    if (typeof certs === 'string') return certs;
     return verify_x5c_jws(token, certs, APPLE_LEAF_OID, APPLE_INTERMEDIATE_OID, now);
   };
 

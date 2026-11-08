@@ -6,7 +6,7 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import * as testing from '../../testing/dev/index.ts';
 import type { StoreAdapter } from '../adapter.ts';
-import type { DbHandle, Storage } from '../../storage/index.ts';
+import type { DbHandle, GameTx, Storage } from '../../storage/index.ts';
 import { select_cursor, select_retries, type CursorRow, type RetryRow } from '../refund_lookup.ts';
 import {
   account_token,
@@ -82,6 +82,68 @@ function messages(server: TestServer, level: string, part: string): Record<strin
 
 function sleep_real(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+type Statement = (text: string, params: readonly unknown[]) => boolean;
+
+/**
+ * A DB fault of the storage module of the test server: inside a game transaction, a statement that `fail_write`
+ * matches is not run and that transaction is `FAILED`; a `read_db` statement that `throw_read` matches throws.
+ * `restore` puts the storage operations back.
+ */
+function storage_fault(server: TestServer, fault: { fail_write?: Statement; throw_read?: Statement }): { restore: () => void } {
+  const storage = storage_of(server);
+  const original = { run_game_transaction: storage.run_game_transaction.bind(storage), db: storage.db.bind(storage), read_db: storage.read_db.bind(storage) };
+  let in_game = false;
+  let hit = false;
+  const intercept = (handle: DbHandle, match: Statement, on_match: () => ReturnType<DbHandle['query']>): DbHandle => {
+    const wrapped = Object.create(handle) as DbHandle;
+    Object.defineProperty(wrapped, 'query', {
+      value: (text: string, params: NonNullable<Parameters<DbHandle['query']>[1]> = []) => (match(text, params) ? on_match() : handle.query(text, params)),
+    });
+    return wrapped;
+  };
+  storage.db = (ctx_or_tx) => {
+    const handle = original.db(ctx_or_tx);
+    if (!in_game || fault.fail_write === undefined) return handle;
+    return intercept(handle, fault.fail_write, () => {
+      hit = true;
+      return [];
+    });
+  };
+  storage.run_game_transaction = async <T>(fn: (tx: GameTx) => T): Promise<T | 'FAILED'> => {
+    const run = { failed: false };
+    const result = await original.run_game_transaction((tx) => {
+      in_game = true;
+      hit = false;
+      try {
+        return fn(tx);
+      } finally {
+        run.failed = hit;
+        in_game = false;
+      }
+    });
+    return run.failed ? 'FAILED' : result;
+  };
+  storage.read_db = () => {
+    const handle = original.read_db();
+    if (fault.throw_read === undefined) return handle;
+    return intercept(handle, fault.throw_read, () => {
+      throw new Error('test read fault');
+    });
+  };
+  return {
+    restore: () => {
+      storage.run_game_transaction = original.run_game_transaction;
+      storage.db = original.db;
+      storage.read_db = original.read_db;
+    },
+  };
+}
+
+/** A statement whose text starts with `prefix` (after whitespace) and, when given, whose parameters include `param`. */
+function statement(prefix: string, param?: string): Statement {
+  return (text, params) => text.trimStart().startsWith(prefix) && (param === undefined || params.includes(param));
 }
 
 describe('refund lookup', () => {
@@ -197,6 +259,149 @@ describe('refund lookup', () => {
       [START, START + INTERVAL, 'P1'],
       [START, START + INTERVAL, ''],
     ]);
+  });
+
+  it('a FAILED insert into iap_refund_retry of a page leaves an error log and ends that store without writing the cursor row; the next run reads that page again', async () => {
+    const server = await started({ 'iap.refundLookupPageCount': 1 });
+    const a = await testing.login(server, 'a');
+    const token = await account_token(a);
+    await verify(a, APPLE, receipt('vip_apple', 'fi-1', token));
+    await verify(a, APPLE, receipt('gems_apple', 'fi-2', token));
+    const fake = fake_store(server);
+    fake.set_result('list_refunds', { next_page_token: 'P1' });
+    await next_run(server);
+    const kept = cursor(server);
+    expect(kept).toMatchObject({ page_token: 'P1', done: false });
+    fake.set_failure('lookup_subscription', 'timeout');
+    fake.set_result('list_refunds', { transaction_ids: ['fi-1', 'fi-2'], next_page_token: 'P2' });
+    const fault = storage_fault(server, { fail_write: statement('INSERT INTO iap_refund_retry') });
+    await next_run(server);
+    fault.restore();
+    expect(cursor(server)).toEqual(kept);
+    expect(retries(server)).toEqual([]);
+    const failed = messages(server, 'error', 'could not write iap_refund_retry');
+    expect(failed).toHaveLength(1);
+    expect(failed[0]).toMatchObject({ store: 'IAP_STORE_APPLE', transaction_id: 'fi-1' });
+    expect((await payment(server, a.user_id, 'fi-1'))?.result).toBe('GRANTED');
+    expect((await payment(server, a.user_id, 'fi-2'))?.result).toBe('GRANTED');
+    fake.set_failure('lookup_subscription', null);
+    fake.set_result('lookup_subscription', { state: 'REVOKED', ends_at: (START + 2n * INTERVAL).toString(), auto_renew: false });
+    await next_run(server);
+    expect(list_calls(server).slice(1)).toEqual([
+      [START, START + INTERVAL, ''],
+      [START, START + INTERVAL, 'P1'],
+      [START, START + INTERVAL, 'P1'],
+    ]);
+    expect((await payment(server, a.user_id, 'fi-1'))?.result).toBe('REFUNDED');
+    expect((await payment(server, a.user_id, 'fi-2'))?.result).toBe('REFUNDED');
+    expect(cursor(server)).toMatchObject({ window_start: START, window_end: START + INTERVAL, page_token: 'P2', done: false });
+  });
+
+  it('a FAILED cursor write of a page leaves an error log and ends that store before its next page; the cursor row stays and the next run reads that page again', async () => {
+    const server = await started({ 'iap.refundLookupPageCount': 2 });
+    const fake = fake_store(server);
+    fake.set_result('list_refunds', { next_page_token: 'P1' });
+    await next_run(server);
+    const kept = cursor(server);
+    expect(kept).toMatchObject({ page_token: 'P1', done: false });
+    fake.set_result('list_refunds', { next_page_token: 'P2' });
+    const fault = storage_fault(server, { fail_write: statement('INSERT INTO iap_refund_cursor', 'IAP_STORE_APPLE') });
+    await next_run(server);
+    fault.restore();
+    expect(cursor(server)).toEqual(kept);
+    const failed = messages(server, 'error', 'could not write iap_refund_cursor');
+    expect(failed).toHaveLength(1);
+    expect(failed[0]).toMatchObject({ store: 'IAP_STORE_APPLE' });
+    expect(list_calls(server).slice(3)).toEqual([[START, START + INTERVAL, 'P1']]);
+    expect(cursor(server, GOOGLE)).toMatchObject({ window_end: START + 2n * INTERVAL, done: true });
+    await next_run(server);
+    expect(list_calls(server).slice(4, 5)).toEqual([[START, START + INTERVAL, 'P1']]);
+  });
+
+  it('a FAILED give-up delete of iap_refund_retry leaves an error log without the give-up log and ends the retry of that store; the row stays, the pages are read and a later run gives it up', async () => {
+    const server = await started({ 'iap.refundRetryCount': 1 });
+    const a = await testing.login(server, 'a');
+    const token = await account_token(a);
+    await verify(a, APPLE, receipt('vip_apple', 'rf-1', token));
+    await verify(a, APPLE, receipt('gems_apple', 'rf-3', token));
+    await sql(server, 'INSERT INTO iap_refund_retry (store, transaction_id, attempts, failed_at) VALUES ($1, $2, 0, $3)', ['IAP_STORE_APPLE', 'rf-1', 10n]);
+    await sql(server, 'INSERT INTO iap_refund_retry (store, transaction_id, attempts, failed_at) VALUES ($1, $2, 0, $3)', ['IAP_STORE_APPLE', 'rf-2', 20n]);
+    const fake = fake_store(server);
+    fake.set_failure('lookup_subscription', 'timeout');
+    fake.set_result('list_refunds', { transaction_ids: ['rf-3'] });
+    const fault = storage_fault(server, { fail_write: statement('DELETE FROM iap_refund_retry') });
+    const calls = list_calls(server).length;
+    await next_run(server);
+    fault.restore();
+    expect(retries(server)).toEqual([
+      { store: 'IAP_STORE_APPLE', transaction_id: 'rf-1', attempts: 0, failed_at: 10n },
+      { store: 'IAP_STORE_APPLE', transaction_id: 'rf-2', attempts: 0, failed_at: 20n },
+    ]);
+    const failed = messages(server, 'error', 'could not write iap_refund_retry');
+    expect(failed).toHaveLength(1);
+    expect(failed[0]).toMatchObject({ store: 'IAP_STORE_APPLE', transaction_id: 'rf-1' });
+    expect(messages(server, 'error', 'gave up the refund apply')).toHaveLength(0);
+    expect(list_calls(server)).toHaveLength(calls + 1);
+    expect((await payment(server, a.user_id, 'rf-3'))?.result).toBe('REFUNDED');
+    fake.set_result('list_refunds', null);
+    await next_run(server);
+    expect(retries(server)).toEqual([]);
+    const gave_up = messages(server, 'error', 'gave up the refund apply');
+    expect(gave_up).toHaveLength(1);
+    expect(gave_up[0]).toMatchObject({ store: 'IAP_STORE_APPLE', transaction_id: 'rf-1' });
+    expect((await payment(server, a.user_id, 'rf-1'))?.result).toBe('GRANTED');
+  });
+
+  it('a FAILED attempts update of iap_refund_retry leaves an error log and ends the retry of that store; the row keeps its attempts and failed_at', async () => {
+    const server = await started({ 'iap.refundRetryCount': 3 });
+    const a = await testing.login(server, 'a');
+    const token = await account_token(a);
+    await verify(a, APPLE, receipt('vip_apple', 'ru-1', token));
+    await sql(server, 'INSERT INTO iap_refund_retry (store, transaction_id, attempts, failed_at) VALUES ($1, $2, 0, $3)', ['IAP_STORE_APPLE', 'ru-1', 10n]);
+    fake_store(server).set_failure('lookup_subscription', 'timeout');
+    const fault = storage_fault(server, { fail_write: statement('UPDATE iap_refund_retry') });
+    await next_run(server);
+    fault.restore();
+    expect(retries(server)).toEqual([{ store: 'IAP_STORE_APPLE', transaction_id: 'ru-1', attempts: 0, failed_at: 10n }]);
+    expect(messages(server, 'error', 'could not write iap_refund_retry')).toHaveLength(1);
+    await next_run(server);
+    expect(retries(server)).toEqual([{ store: 'IAP_STORE_APPLE', transaction_id: 'ru-1', attempts: 1, failed_at: START + 2n * INTERVAL }]);
+  });
+
+  it('a throwing read_db of the iap_refund_retry rows leaves an error log and ends the retry of that store, and the pages of that store are read', async () => {
+    const server = await started();
+    const a = await testing.login(server, 'a');
+    const token = await account_token(a);
+    await verify(a, APPLE, receipt('gems_apple', 'rr-2', token));
+    await sql(server, 'INSERT INTO iap_refund_retry (store, transaction_id, attempts, failed_at) VALUES ($1, $2, 0, $3)', ['IAP_STORE_APPLE', 'rr-1', 10n]);
+    fake_store(server).set_result('list_refunds', { transaction_ids: ['rr-2'] });
+    const fault = storage_fault(server, { throw_read: (text, params) => text.includes('FROM iap_refund_retry') && params.includes('IAP_STORE_APPLE') });
+    await next_run(server);
+    fault.restore();
+    const failed = messages(server, 'error', 'could not read iap_refund_retry');
+    expect(failed).toHaveLength(1);
+    expect(failed[0]).toMatchObject({ store: 'IAP_STORE_APPLE' });
+    expect(retries(server).map((r) => r.transaction_id)).toEqual(['rr-1']);
+    expect((await payment(server, a.user_id, 'rr-2'))?.result).toBe('REFUNDED');
+    expect(cursor(server)).toMatchObject({ window_end: START + INTERVAL, done: true });
+  });
+
+  it('a throwing read_db of the cursor row leaves an error log and ends that store in that run; the next store is handled', async () => {
+    const server = await started();
+    const kept = cursor(server);
+    const apple_calls = list_calls(server).length;
+    const google_calls = list_calls(server, GOOGLE).length;
+    const fault = storage_fault(server, { throw_read: (text, params) => text.includes('FROM iap_refund_cursor') && params.includes('IAP_STORE_APPLE') });
+    await next_run(server);
+    fault.restore();
+    const failed = messages(server, 'error', 'could not read iap_refund_cursor');
+    expect(failed).toHaveLength(1);
+    expect(failed[0]).toMatchObject({ store: 'IAP_STORE_APPLE' });
+    expect(list_calls(server)).toHaveLength(apple_calls);
+    expect(cursor(server)).toEqual(kept);
+    expect(list_calls(server, GOOGLE)).toHaveLength(google_calls + 1);
+    await next_run(server);
+    expect(list_calls(server).at(-1)).toEqual([START, START + 2n * INTERVAL, '']);
   });
 
   it('a done cursor row whose window end is older than clock_now - iap.refundLookupBackMs starts the window at the oldest start with one warn log', async () => {

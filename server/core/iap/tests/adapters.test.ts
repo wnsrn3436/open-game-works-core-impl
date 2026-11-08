@@ -368,6 +368,39 @@ describe('iap-apple', () => {
     expect(await apple(http(() => json_response(500, {})).fetch).list_refunds(1n, 2n, '', call())).toBe('communication_failure');
     expect(await apple(http(() => new Response('[]', { status: 200 })).fetch).list_refunds(1n, 2n, '', call())).toBe('communication_failure');
   });
+
+  it('a key source value that is not a list of root certificates is an adapter call failure, not rejected, in list_refunds and the other verifications', async () => {
+    const element = { signedPayload: signed({ notificationType: 'REFUND', notificationUUID: 'u-1', data: { bundleId: 'com.example.app', environment: 'Sandbox', signedTransactionInfo: signed(TX) } }) };
+    const history = http(() => json_response(200, { notificationHistory: [element], hasMore: false }));
+    for (const value of ['not a list', ['not a certificate'], [1], { keys: [] }, null]) {
+      const adapter = create_apple_adapter({
+        name: 'iap-apple',
+        private_key_pem: API_KEY_PEM,
+        key_id: 'KEY1',
+        issuer_id: 'issuer-1',
+        bundle_id: 'com.example.app',
+        app_apple_id: 1234,
+        fetch: history.fetch,
+        key_source: () => Promise.resolve(value),
+        max_response_bytes: 1_048_576,
+      });
+      expect(await adapter.list_refunds(1n, 2n, 'P1', call())).toBe('communication_failure');
+      expect(await adapter.list_refunds(1n, 2n, '', call())).toBe('communication_failure');
+      const tx = http(() => json_response(200, { signedTransactionInfo: signed(TX) }));
+      const verifying = create_apple_adapter({
+        name: 'iap-apple',
+        private_key_pem: API_KEY_PEM,
+        key_id: 'KEY1',
+        issuer_id: 'issuer-1',
+        bundle_id: 'com.example.app',
+        app_apple_id: 1234,
+        fetch: tx.fetch,
+        key_source: () => Promise.resolve(value),
+        max_response_bytes: 1_048_576,
+      });
+      expect(await verifying.verify('2000001', call())).toBe('communication_failure');
+    }
+  });
 });
 
 const SERVICE_KEY = generateKeyPairSync('rsa', { modulusLength: 2048 });
