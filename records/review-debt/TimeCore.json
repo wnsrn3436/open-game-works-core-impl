@@ -1,24 +1,5 @@
 {
   "target": "TimeCore",
   "nextId": 4,
-  "items": [
-    {
-      "id": "D1",
-      "location": "client/godot/core/time_core/time_core.gd:113",
-      "problem": "TimeCore `init` also turns on the frame step in a DEV build without `set_frame_step`, from `--fixed-fps <n>` in the engine arguments or from the Movie Maker fps when the movie path is not empty (`_engine_frame_step_fps`, time_core.gd:442). The time-core spec `## DEV` says TimeCore is at a frame step only \"when `set_frame_step`(f) was called before `init`\", and that the runner passes f. Run path: a DEV build started with `--fixed-fps 30` and no `set_frame_step` call has `get_frame_step_fps` 30 and real frame increases of 33/34 ms, where the spec gives 0 and the monotonic difference",
-      "foundBy": "LocalDataCore round 1"
-    },
-    {
-      "id": "D2",
-      "location": "client/godot/core/time_core/dev/time_core_dev.gd:124",
-      "problem": "The DEV operation is named `TimeCoreDev.set_test_frame_step`, but the time-core spec `## DEV` table and bootstrap-core.md (`OGW_FRAME_STEP_FPS`, `InitModules` 2) name it `TimeCore.set_frame_step`. No `client/godot` code outside time_core calls either name, so `OGW_FRAME_STEP_FPS` has no caller that sets the frame step under the name the defining documents give",
-      "foundBy": "LocalDataCore round 1"
-    },
-    {
-      "id": "D3",
-      "location": "client/godot/core/time_core/time_core.gd:114",
-      "problem": "`init` in a build with DEV code turns on a frame step on its own from the `--fixed-fps` engine argument or from the Movie Maker fps (`_engine_frame_step_fps`) when `set_test_frame_step` was not called. The TimeCore spec says TimeCore is at a frame step only when `set_frame_step`(f) was called before `init` (time-core.md:174), so a DEV run started with `--fixed-fps` gets stepped real elapsed time that the spec does not allow, and `get_frame_step_fps` is not 0 without a `set_frame_step` call (time-core.md:177, :217)",
-      "foundBy": "MessageCore round 1"
-    }
-  ]
+  "items": []
 }
