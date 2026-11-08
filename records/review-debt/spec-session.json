@@ -1,0 +1,12 @@
+{
+  "target": "spec session",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/server-core/modules/session.md:48",
+      "problem": "The behavior of `end_session` is not set: only `start_session` is said to delete the previous session record, and nothing says that `end_session` deletes the session record of the ctx user. `check_current` (session.md:49) and `verify_signature` (session.md:66-67) return `UNAUTHORIZED` only when there is no record; an implementation that ends the session by overwriting `session_id` instead gives `SESSION_REPLACED`, which the test items at session.md:108 (after `Logout`, after `auth.revoke_login_tokens`) and auth.md:472 rely on being `UNAUTHORIZED`. It also does not set the result of `end_session` for a user with no session record (clone wipe at user-snapshot-clone.md:140 of a user who never logged in after the import)",
+      "foundBy": "spec session"
+    }
+  ]
+}
