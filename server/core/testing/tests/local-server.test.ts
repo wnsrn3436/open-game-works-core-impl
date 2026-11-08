@@ -3,9 +3,7 @@ import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import * as GameContract from '../../../generated/contract/game_contract.ts';
 import { make_purpose_seed } from '../../storage/random.ts';
 import { connect_server, default_db_kind, login, send, type TestSession } from '../dev/index.ts';
-import { check_seed_provider, start_local_server } from '../dev/local_server.ts';
-import { StartFailure } from '../dev/test_server.ts';
-import { listening_servers } from './helpers.ts';
+import { check_seed_provider } from '../dev/local_server.ts';
 import { free_port, local_args, local_game, run_local, wait_listening, type LocalGame, type LocalProcess } from './local_support.ts';
 
 /** A process test starts `node` processes that build a server instance of every module: a long real time limit. */
@@ -137,13 +135,13 @@ describe('start_local_server', () => {
     PROCESS_TEST_MS,
   );
 
-  it(
-    'a LOCAL server answers GET /update/deploy_list.json and its process ends after SIGTERM',
-    async () => {
+  it.each(['SIGTERM', 'SIGINT'] as const)(
+    'a LOCAL server answers GET /update/deploy_list.json and its process ends after %s',
+    async (signal) => {
       const local = await start_local(7n);
       // A new DB holds no deploy list: `game-update` answers HTTP 404 (`## API` of `game-update`).
       expect(local.deploy_list_status).toBe(404);
-      local.proc.child.kill('SIGTERM');
+      local.proc.child.kill(signal);
       expect(await local.proc.exited).toBe(0);
       expect(local.proc.lines().some((line) => line.driver === 'stopped')).toBe(true);
       await expect(fetch(`http://127.0.0.1:${String(local.port)}/update/deploy_list.json`)).rejects.toThrow();
@@ -151,14 +149,57 @@ describe('start_local_server', () => {
     PROCESS_TEST_MS,
   );
 
+  /**
+   * Runs the driver in a LOCAL game folder with a new DB, with the server start arguments `args` of `port`, and waits
+   * for its failure line and its exit. Every other start input is valid, so only the checked argument can fail it.
+   */
+  async function start_failure(args: (game: LocalGame, port: number) => string[], settings: Readonly<Record<string, unknown>> = {}): Promise<{ line: Record<string, unknown>; port: number }> {
+    const game = await local_game(default_db_kind(), settings);
+    const port = await free_port();
+    const proc = run_local(game, args(game, port), 7n);
+    running.push({ game, proc, port, deploy_list_status: 0, login: () => Promise.reject(new Error('not listening')) });
+    const line = await proc.wait_line((l) => l.driver !== undefined);
+    expect(await proc.exited).toBe(1);
+    expect(line.driver).toBe('failed');
+    expect(line.name).toBe('StartFailure');
+    return { line, port };
+  }
+
+  async function answers(port: number): Promise<boolean> {
+    return fetch(`http://127.0.0.1:${String(port)}/update/deploy_list.json`).then(
+      async (reply) => {
+        await reply.arrayBuffer();
+        return true;
+      },
+      () => false,
+    );
+  }
+
   it.each([
-    ['--env DEV', ['--env', 'DEV', '--port', '0']],
-    ['--ops-port', ['--env', 'LOCAL', '--port', '0', '--ops-port', '0', '--db', 'x.db', '--secret-file', 'x.json']],
-  ])('with %s throws StartFailure and listens on no port', async (_name, args) => {
-    const listening = listening_servers();
-    await expect(start_local_server(args, 7n)).rejects.toBeInstanceOf(StartFailure);
-    expect(listening_servers()).toBe(listening);
-  });
+    ['--env DEV', (_game: LocalGame, port: number): string[] => ['--env', 'DEV', '--port', String(port)], 'takes only --env LOCAL, not --env DEV'],
+    ['--ops-port', (game: LocalGame, port: number): string[] => [...local_args(game, port), '--ops-port', String(port + 1)], 'takes no --ops-port'],
+  ])(
+    'with %s, in a game folder whose other start inputs are valid, throws StartFailure of that rule and listens on no port',
+    async (_name, args, rule) => {
+      const { line, port } = await start_failure(args);
+      expect(String(line.message)).toContain(rule);
+      expect(line.logs).toEqual([]);
+      expect(await answers(port)).toBe(false);
+    },
+    PROCESS_TEST_MS,
+  );
+
+  it(
+    'a server start failure (routing.requestWorkers 0 fails the settings check) throws StartFailure with the reason and its start log lines, and listens on no port',
+    async () => {
+      const { line, port } = await start_failure(local_args, { 'routing.requestWorkers': 0 });
+      expect(String(line.message)).toContain('routing.requestWorkers (minimum)');
+      const logs = line.logs as Record<string, unknown>[];
+      expect(logs.filter((l) => l.kind === 'error' && String(l.message).includes('routing.requestWorkers (minimum)'))).toHaveLength(1);
+      expect(await answers(port)).toBe(false);
+    },
+    PROCESS_TEST_MS,
+  );
 });
 
 describe('check seed provider', () => {

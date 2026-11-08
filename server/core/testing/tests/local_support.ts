@@ -31,14 +31,14 @@ export function register(core) {
 }
 `;
 
-/** The driver: calls `start_local_server` with the JSON arguments and the random base, and prints a failure. */
+/** The driver: calls `start_local_server` with the JSON arguments and the random base, and prints a failure with its `logs`. */
 const DRIVER_TS = `import { start_local_server } from './core/testing/dev/index.ts';
 
 try {
   await start_local_server(JSON.parse(process.argv[2]), BigInt(process.argv[3]));
   process.stdout.write(JSON.stringify({ driver: 'stopped' }) + '\\n');
 } catch (error) {
-  process.stdout.write(JSON.stringify({ driver: 'failed', name: error?.constructor?.name ?? null, message: String(error?.message ?? error) }) + '\\n');
+  process.stdout.write(JSON.stringify({ driver: 'failed', name: error?.constructor?.name ?? null, message: String(error?.message ?? error), logs: error?.logs ?? null }) + '\\n');
   process.exitCode = 1;
 }
 `;
