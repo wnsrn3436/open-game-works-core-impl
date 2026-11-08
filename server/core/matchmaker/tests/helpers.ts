@@ -180,7 +180,7 @@ export function data_folder(options: DataOptions): string {
 
 /** One recorded hook call with what the hook received. */
 export interface HookCall {
-  readonly hook: 'prepare_match_request' | 'validate_party' | 'apply_match_result' | 'apply_match_mismatch' | 'replay_match';
+  readonly hook: 'prepare_match_request' | 'validate_party' | 'apply_match_result' | 'apply_match_forfeit' | 'apply_match_mismatch' | 'replay_match';
   readonly ctx: RequestCtx | null;
   readonly user_id: bigint;
   readonly mode_id: number;
@@ -201,6 +201,7 @@ export interface Hooks {
   prepare?: (core: Core, ctx: RequestCtx, mode_id: number, user_ids: readonly bigint[]) => bigint | number;
   validate_party?: (mode_id: number, members: readonly { user_id: bigint; rating: bigint }[], request: number) => 'pass' | number;
   apply_result?: (core: Core, ctx: RequestCtx, record: MatchRecordInput, index: number, result: Uint8Array) => 'pass' | number;
+  apply_forfeit?: (core: Core, ctx: RequestCtx, record: MatchRecordInput, index: number) => 'pass' | number;
   apply_mismatch?: (core: Core, ctx: RequestCtx, record: MatchRecordInput, index: number) => 'pass' | number;
   /** Not given: `reject`, as the default game-less `register` does. `null`: not registered. */
   replay?: ((record: MatchRecordInput, input_log: Uint8Array) => Uint8Array | 'reject') | null;
@@ -286,6 +287,13 @@ export function register_for(hooks: Hooks, calls: HookCall[], hold: { core: Core
         return apply_result(core, ctx, record, index, result);
       });
     }
+    const apply_forfeit = hooks.apply_forfeit;
+    if (apply_forfeit !== undefined) {
+      routing.register_hook('matchmaker', 'apply_match_forfeit', (ctx: RequestCtx, record: MatchRecordInput, index: number) => {
+        calls.push({ ...blank, hook: 'apply_match_forfeit', ctx, user_id: ctx.user_id, record, index, mode_id: record.mode_id });
+        return apply_forfeit(core, ctx, record, index);
+      });
+    }
     const apply_mismatch = hooks.apply_mismatch;
     if (apply_mismatch !== undefined) {
       routing.register_hook('matchmaker', 'apply_match_mismatch', (ctx: RequestCtx, record: MatchRecordInput, index: number) => {
@@ -305,8 +313,8 @@ export function register_for(hooks: Hooks, calls: HookCall[], hold: { core: Core
   };
 }
 
-/** The default hooks: both apply hooks recorded and passing. */
-export const RECORDING: Hooks = { apply_result: () => 'pass', apply_mismatch: () => 'pass' };
+/** The default hooks: the three apply hooks recorded and passing. */
+export const RECORDING: Hooks = { apply_result: () => 'pass', apply_forfeit: () => 'pass', apply_mismatch: () => 'pass' };
 
 /** A started matchmaker test server. */
 export async function harness(options: Options = {}): Promise<Harness> {
@@ -366,11 +374,12 @@ export function frame(kind: CoreContract.MatchmakerFrameKind, fill: (f: Frame) =
   return f;
 }
 
-export function hello(session: TestSession, data_version: string, client_version = ''): Frame {
+export function hello(session: TestSession, data_version: string, client_version = '', platform = ''): Frame {
   return frame(K.MATCHMAKER_FRAME_KIND_HELLO, (f) => {
     f.access_token = session.access_token;
     f.data_version = data_version;
     f.client_version = client_version;
+    f.platform = platform;
   });
 }
 
@@ -637,12 +646,45 @@ export async function close_and_wait(conn: Conn): Promise<void> {
   }
 }
 
-/** `left_at` and `disconnected_at` of each index of a match record, as committed. */
-export function participants(h: Harness, match_id: string): { left_at: bigint; disconnected_at: bigint }[] {
+/** A participant row of a match record as committed: the leave, end and disconnect times and the report time. */
+export interface ParticipantTimes {
+  readonly left_at: bigint;
+  readonly ended_at: bigint;
+  readonly disconnected_at: bigint;
+  readonly reported_at: bigint;
+}
+
+/** `left_at`, `ended_at`, `disconnected_at` and `reported_at` of each index of a match record, as committed. */
+export function participants(h: Harness, match_id: string): ParticipantTimes[] {
   return storage_module(h.server)
     .read_db()
-    .query('SELECT left_at, disconnected_at FROM matchmaker_participant WHERE match_id = $1 ORDER BY idx', [match_id])
-    .map((r) => ({ left_at: r['left_at'] as bigint, disconnected_at: r['disconnected_at'] as bigint }));
+    .query('SELECT left_at, ended_at, disconnected_at, reported_at FROM matchmaker_participant WHERE match_id = $1 ORDER BY idx', [match_id])
+    .map((r) => ({
+      left_at: r['left_at'] as bigint,
+      ended_at: (r['ended_at'] as bigint | null) ?? 0n,
+      disconnected_at: r['disconnected_at'] as bigint,
+      reported_at: r['reported_at'] as bigint,
+    }));
+}
+
+/** The status of a match record as committed, or null without one. */
+export function match_status(h: Harness, match_id: string): string | null {
+  const row = storage_module(h.server).read_db().query('SELECT status FROM matchmaker_match WHERE match_id = $1', [match_id])[0];
+  return row === undefined ? null : (row['status'] as string);
+}
+
+/** The integrity events of a match as committed, by user ID. */
+export function integrity(h: Harness, match_id: string): Map<bigint, string> {
+  const rows = storage_module(h.server).read_db().query('SELECT user_id, kind FROM matchmaker_integrity WHERE match_id = $1', [match_id]);
+  return new Map(rows.map((r) => [r['user_id'] as bigint, r['kind'] as string]));
+}
+
+/** A `MATCH_LEAVE` frame of the match. */
+export function leave_frame(match_id: string, forfeit: boolean): Frame {
+  return frame(K.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, (f) => {
+    f.match_id = match_id;
+    f.forfeit = forfeit;
+  });
 }
 
 /** Waits in real time until the condition holds. */
@@ -655,7 +697,7 @@ export async function until(condition: () => boolean): Promise<void> {
 }
 
 /** Waits in real time until the committed record of the match passes `check`. */
-export function until_participants(h: Harness, match_id: string, check: (rows: { left_at: bigint; disconnected_at: bigint }[]) => boolean): Promise<void> {
+export function until_participants(h: Harness, match_id: string, check: (rows: ParticipantTimes[]) => boolean): Promise<void> {
   return until(() => check(participants(h, match_id)));
 }
 

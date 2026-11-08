@@ -1,7 +1,8 @@
 /**
  * matchmaker: takes realtime matching connections on `GET /realtime`, groups waiting users and parties or room
- * members into matches, decides the match results participants report, and applies them to each participant's
- * saved state through the apply hooks.
+ * members into matches, judges each match from the reports of its participants and the leaves the server observed,
+ * applies the judgement to each participant's saved state through the apply hooks, and counts the integrity events
+ * that operators read with `list_match_flags` and `get_match`.
  */
 import type * as CoreContract from '../../generated/contract/core_contract.ts';
 import * as GameData from '../../generated/data/game_data.ts';
@@ -20,15 +21,19 @@ import type {
   MatchmakerStorage,
   MatchmakerValidation,
 } from './deps.ts';
+import { admin_operations, type AdminOperation } from './admin.ts';
 import { create_realtime, type RouteRequest, type RouteResponse } from './realtime.ts';
 import { register_tables, type MatchRecord } from './records.ts';
 import { create_results } from './results.ts';
 import { duration_of, read_settings, room_code_failure, type Env, type HookSlots } from './shared.ts';
 
+export type { AdminOperation } from './admin.ts';
 export type { Connection, ParticipantChange } from './deps.ts';
+export type { IntegrityKind } from './judge.ts';
 export type { MatchRecordInput, MatchSource } from './records.ts';
 export type { RouteRequest, RouteResponse } from './realtime.ts';
 export type {
+  ApplyMatchForfeitHook,
   ApplyMatchMismatchHook,
   ApplyMatchResultHook,
   HookSlots,
@@ -44,10 +49,15 @@ export interface MatchmakerInput {
   readonly server: MatchmakerServer;
 }
 
-/** The `matchmaker` module object: the route, the core `rpc` handler, the hook slots and the lifecycle. */
+/**
+ * The `matchmaker` module object: the route, the core `rpc` handler, the admin operations, the hook slots and the
+ * lifecycle.
+ */
 export interface Matchmaker {
   'GET /realtime'(request: RouteRequest, ip: string): RouteResponse | null;
   ReportMatchResult(ctx: RequestCtx, request: CoreContract.ReportMatchResultRequest): CoreContract.ReportMatchResultResponse | number;
+  readonly list_match_flags: AdminOperation;
+  readonly get_match: AdminOperation;
   readonly hook_slots: HookSlots;
   begin_start(): void;
   complete_start(): string | null;
@@ -102,7 +112,14 @@ function start_failure(env: Env): string | null {
 /** Makes `matchmaker` for one server instance. A missing setting or dependency throws. */
 export function create_matchmaker(input: MatchmakerInput): Matchmaker {
   const modules = input.modules;
-  const hooks: HookSlots = { prepare_match_request: null, validate_party: null, apply_match_result: null, apply_match_mismatch: null, replay_match: null };
+  const hooks: HookSlots = {
+    prepare_match_request: null,
+    validate_party: null,
+    apply_match_result: null,
+    apply_match_forfeit: null,
+    apply_match_mismatch: null,
+    replay_match: null,
+  };
   let stopped = false;
   const env: Env = {
     settings: read_settings(input.settings),
@@ -127,10 +144,13 @@ export function create_matchmaker(input: MatchmakerInput): Matchmaker {
   };
   const results = create_results(env);
   const realtime = create_realtime(env, results);
+  const admin = admin_operations(env);
 
   return {
     'GET /realtime': (request, ip) => realtime.route(request, ip),
     ReportMatchResult: (ctx, request) => results.report(ctx, request),
+    list_match_flags: admin.list_match_flags,
+    get_match: admin.get_match,
     hook_slots: hooks,
     begin_start() {
       register_tables(env.storage);

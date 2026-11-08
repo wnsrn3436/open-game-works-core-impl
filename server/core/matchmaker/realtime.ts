@@ -11,7 +11,7 @@ import type { Connection, ErrorCode, ParticipantChange } from './deps.ts';
 import { run_queue, type MatchRule, type QueueEntry, type QueueMember, type QueueStep } from './matching.ts';
 import { build_record, type MatchRecord, type MatchSource } from './records.ts';
 import type { Results } from './results.ts';
-import { CoreError, FrameKind, duration_of, is_banned, log_error, log_security, mode_of, new_seed, type Env } from './shared.ts';
+import { CoreError, FrameKind, duration_of, is_banned, log_error, log_security, mode_of, type Env } from './shared.ts';
 import { WebSocketConnection, handshake_response, type Violation } from './websocket.ts';
 
 /** The route request `routing` passes (`routing` `## API`); `upgrade` is the WebSocket upgrade's socket. */
@@ -52,6 +52,8 @@ class Client implements Connection {
   ws: WebSocketConnection | null = null;
   /** The frame being handled; the next frame waits for it. */
   chain: Promise<void> = Promise.resolve();
+  /** The frames that arrived and whose handling has not started, in arrival order. */
+  readonly pending: { readonly payload: Uint8Array; taken: boolean }[] = [];
   /** The count of matches being made that take this connection for its user (step 2 of `### match creation`). */
   making = 0;
   readonly ip: string;
@@ -318,8 +320,22 @@ export function create_realtime(env: Env, results: Results): Realtime {
     else pre_auth.set(ip, left);
   };
 
+  /**
+   * The `MATCH_LEAVE` frames that arrived before the close of the connection and whose handling has not started are
+   * handled before that connection close; the other waiting frames are dropped.
+   */
+  const leave_before_close = (client: Client): void => {
+    for (const item of client.pending.splice(0)) {
+      item.taken = true;
+      if (!client.authed || env.stopped()) continue;
+      const frame = CoreContract.MatchmakerFrame.decode(item.payload);
+      if (frame?.kind === FrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE) forward(client, frame);
+    }
+  };
+
   function drop(client: Client): void {
     if (client.closed) return;
+    leave_before_close(client);
     client.closed = true;
     clients.delete(client);
     client.ws?.close();
@@ -376,8 +392,16 @@ export function create_realtime(env: Env, results: Results): Realtime {
     }
     if (env.admin.is_maintenance()) return { code: CoreError.CORE_ERROR_MAINTENANCE };
     if (is_banned(env, verified.user_id)) return { code: CoreError.CORE_ERROR_BANNED };
-    if (!DATA_VERSION.test(frame.data_version) || (frame.client_version !== '' && !APP_VERSION.test(frame.client_version))) {
+    if (
+      !DATA_VERSION.test(frame.data_version) ||
+      (frame.client_version !== '' && !APP_VERSION.test(frame.client_version)) ||
+      (frame.platform !== '' && !env.validation.is_platform(frame.platform))
+    ) {
       return { code: CoreError.CORE_ERROR_INVALID_REQUEST };
+    }
+    // The minimum app version judgement of `routing` step 7; an empty platform has no `app` entry, so it passes.
+    if (frame.client_version !== '' && env.game_update.is_below_min_version(frame.client_version, frame.platform)) {
+      return { code: CoreError.CORE_ERROR_APP_UPDATE_REQUIRED };
     }
     const version_error = data_version_error(frame.data_version, frame.client_version);
     return version_error === null ? verified.user_id : { code: version_error };
@@ -890,8 +914,15 @@ export function create_realtime(env: Env, results: Results): Realtime {
       frame_time_limit: () => server_time.network_time_limit(settings.frame_read_timeout_ms),
       frame: () => count_frame(client),
       binary: (payload) => {
+        const item = { payload, taken: false };
+        client.pending.push(item);
         client.chain = client.chain
-          .then(() => handle(client, payload))
+          .then(() => {
+            if (item.taken) return undefined;
+            item.taken = true;
+            client.pending.splice(client.pending.indexOf(item), 1);
+            return handle(client, payload);
+          })
           .catch((error: unknown) => {
             if (!env.stopped()) log_error(env, `realtime frame handling threw: ${error instanceof Error ? error.message : String(error)}`, {}, client.user_id || null);
           });
@@ -929,7 +960,7 @@ export function create_realtime(env: Env, results: Results): Realtime {
       mode_id: mode.id,
       source,
       lockstep,
-      seed: new_seed(),
+      seed: storage.make_seed('match'),
       created_at: now(),
       prepare_time: mode.prepare_time,
       duration: duration_of(env, mode, lockstep),

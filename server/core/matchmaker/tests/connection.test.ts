@@ -4,6 +4,7 @@ import { advance_time, read_logs, send_raw, wait_background, type TestSession } 
 import {
   CoreError,
   K,
+  admin,
   ban,
   barrier,
   close_code,
@@ -36,10 +37,10 @@ afterEach(async () => {
   await stop_all();
 });
 
-async function hello_code(h: Harness, data_version: string, client_version = '', session?: TestSession): Promise<number | null> {
+async function hello_code(h: Harness, data_version: string, client_version = '', session?: TestSession, platform = ''): Promise<number | null> {
   const s = session ?? (await player(h));
   const conn = await connect(h.server);
-  send_frame(conn, hello(s, data_version, client_version));
+  send_frame(conn, hello(s, data_version, client_version, platform));
   const f = await read_frame(conn, 5_000n);
   if (f?.kind === K.MATCHMAKER_FRAME_KIND_HELLO_ACK) return 0;
   if (f?.kind !== K.MATCHMAKER_FRAME_KIND_CLOSE) return null;
@@ -120,6 +121,22 @@ describe('HELLO', () => {
     expect(await hello_code(h, version('b', '9'), '')).toBe(CoreError.CORE_ERROR_DATA_UPDATE_REQUIRED);
     // client_data_version itself differs from the server build data's data version and is accepted.
     expect(await hello_code(h, version('a', '1'))).toBe(0);
+  });
+
+  it('answers HELLO below min_version of the app entry of its platform with CLOSE APP_UPDATE_REQUIRED, takes min_version, another platform, an empty client_version and an empty platform, and refuses a platform that is_platform does not take', async () => {
+    const h = await harness({ modes: [DUEL] });
+    await admin(h, 'publish_deploy_list', {
+      app: { android: { min_version: '1.2.0', recommended_version: '2.0.0', store_url: 'https://play.example.com/app' } },
+      patches: { '2.0.0': { data_version: h.client_data_version, data_files: [], translation_files: [], bundle_files: [] } },
+    });
+    const v = h.client_data_version;
+    expect(await hello_code(h, v, '1.1.9', undefined, 'android')).toBe(CoreError.CORE_ERROR_APP_UPDATE_REQUIRED);
+    expect(await hello_code(h, v, '1.2.0', undefined, 'android')).toBe(0);
+    expect(await hello_code(h, v, '1.1.9', undefined, 'ios')).toBe(0);
+    expect(await hello_code(h, v, '', undefined, 'android')).toBe(0);
+    expect(await hello_code(h, v, '1.1.9', undefined, '')).toBe(0);
+    expect(await hello_code(h, v, '1.2.0', undefined, 'Android')).toBe(CoreError.CORE_ERROR_INVALID_REQUEST);
+    expect(await hello_code(h, v, '1.2.0', undefined, 'playstation')).toBe(CoreError.CORE_ERROR_INVALID_REQUEST);
   });
 
   it('closes the earlier connection of a user with CLOSE SESSION_REPLACED when a new one authenticates', async () => {

@@ -27,6 +27,7 @@ import {
   next,
   online,
   participants,
+  until_participants,
   player,
   queued,
   read_frame,
@@ -660,8 +661,8 @@ describe('party', () => {
     expect(found.players.map((p) => p.user_id)).toEqual([a.user_id, b.user_id, s1.user_id, s2.user_id]);
     expect(found.players.map((p) => p.party)).toEqual([1, 1, 0, 0]);
     expect((await last_state(a))?.room_status).toBe(RoomStatus.ROOM_STATUS_OPEN);
-    await report(q1.session, found.match_id, new Uint8Array([1]));
-    await report(a.session, found.match_id, new Uint8Array([2]));
+    // Different results of a 4-player Consensus match are MISMATCH once every participant reported.
+    for (const [session, value] of [[q1.session, 1], [a.session, 2], [b.session, 2], [s2, 1]] as const) await report(session, found.match_id, new Uint8Array([value]));
     await settled(h);
     expect(calls_of(h, 'apply_match_mismatch').map((c) => c.record?.source)).toEqual(['Queue', 'Queue', 'Queue', 'Queue']);
     expect(calls_of(h, 'apply_match_mismatch')[0]?.record?.parties).toEqual([1, 1, 0, 0]);
@@ -778,7 +779,9 @@ describe('party', () => {
         expect(kinds(out)).not.toContain(K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
         for (const m of still_in) expect(kinds(await barrier(m.conn))).not.toContain(K.MATCHMAKER_FRAME_KIND_PEER_LEFT);
       }
-      expect(participants(h, match_id).filter((p) => p.left_at === 0n)).toHaveLength(still_in.length);
+      // The ENDED of a MATCH_LEAVE is a game transaction that the frame handling does not wait for: wait for its commit.
+      await until_participants(h, match_id, (rows) => rows.filter((p) => p.ended_at === 0n).length === still_in.length);
+      expect(participants(h, match_id).filter((p) => p.ended_at === 0n && p.left_at === 0n)).toHaveLength(still_in.length);
     };
     const start_match = async (): Promise<string> => {
       const found = (await send_and_wait(a.conn, start_frame())).find((f) => f.kind === K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
@@ -1065,6 +1068,7 @@ describe('a match being made', () => {
     await close_and_wait(b.conn);
     await send_and_wait(a.conn, frame(K.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, (f) => {
       f.match_id = found.match_id;
+      f.forfeit = true;
     }));
     // The participant changes are written after the frame handling ends.
     await vi.waitFor(() => {
@@ -1147,7 +1151,7 @@ describe('a match being made', () => {
     await tick(h, BOTH.match_wait);
     for (const conn of [a.conn, b.conn]) expect(found_count(await barrier(conn))).toBe(0);
     await vi.waitFor(() => {
-      expect(participants(h, match_id)[1]).toEqual({ left_at: 0n, disconnected_at: 0n });
+      expect(participants(h, match_id)[1]).toMatchObject({ left_at: 0n, disconnected_at: 0n });
     });
   });
 
@@ -1163,7 +1167,7 @@ describe('a match being made', () => {
     expect(found_count(await barrier(b.conn))).toBe(0);
     expect((await barrier(other.conn)).map((f) => [f.kind, f.reason])).toEqual([[K.MATCHMAKER_FRAME_KIND_MATCH_FAILED, Reason.MATCH_FAIL_REASON_TIMEOUT]]);
     await vi.waitFor(() => {
-      expect(participants(h, match_id)[1]).toEqual({ left_at: 0n, disconnected_at: 0n });
+      expect(participants(h, match_id)[1]).toMatchObject({ left_at: 0n, disconnected_at: 0n });
     });
   });
 

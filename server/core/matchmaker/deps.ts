@@ -37,10 +37,12 @@ export interface MatchmakerAdminApi {
 /** `validation.validate_message`: `pass`, or the field path and rule of the failure. */
 export interface MatchmakerValidation {
   validate_message(message_name: string, message: unknown): Pass | CoreContract.ValidationFailure;
+  is_platform(text: string): boolean;
 }
 
 export interface MatchmakerGameUpdate {
   is_data_update_ready(app_version: string): boolean;
+  is_below_min_version(app_version: string, platform: string): boolean;
 }
 
 /** The authenticated `/realtime` WebSocket matchmaker passes to `p2p-signaling`: user, frame sending, closing. */
@@ -92,13 +94,15 @@ export type MatchmakerStorage = Pick<
   | 'check_hook_output'
   | 'lock_game_row'
   | 'after_commit'
+  | 'on_commit'
   | 'db'
   | 'read_db'
   | 'create_random'
   | 'make_purpose_seed'
+  | 'make_seed'
 >;
 
-export type MatchmakerServerTime = Pick<ServerTimeApi, 'clock_now' | 'schedule_job' | 'network_time_limit'>;
+export type MatchmakerServerTime = Pick<ServerTimeApi, 'clock_now' | 'schedule_job' | 'network_time_limit' | 'sleep'>;
 
 export type MatchmakerLogging = Pick<Logging, 'write'>;
 

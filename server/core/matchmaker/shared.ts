@@ -1,5 +1,4 @@
 /** What the parts of matchmaker share: the settings, the hook slots, the dependencies and the log lines. */
-import { randomBytes } from 'node:crypto';
 import * as CoreContract from '../../generated/contract/core_contract.ts';
 import type * as GameData from '../../generated/data/game_data.ts';
 import type { LogFields } from '../logging/index.ts';
@@ -20,6 +19,7 @@ import type {
   MatchmakerValidation,
   Pass,
 } from './deps.ts';
+import type { IntegrityKind } from './judge.ts';
 import type { MatchRecordInput } from './records.ts';
 
 export const CoreError = CoreContract.CoreError;
@@ -47,6 +47,9 @@ export interface MatchmakerSettings {
   readonly room_code_length: number;
   readonly room_code_max_picks: number;
   readonly lockstep_max_duration_ms: bigint;
+  readonly flag_window_ms: bigint;
+  /** The flag count key of each `MatchIntegrityKind`. */
+  readonly flag_counts: Readonly<Record<IntegrityKind, number>>;
 }
 
 function integer(settings: Readonly<Record<string, unknown>>, key: string): number {
@@ -85,6 +88,12 @@ export function read_settings(settings: Readonly<Record<string, unknown>>): Matc
     room_code_length: integer(settings, 'matchmaker.roomCodeLength'),
     room_code_max_picks: integer(settings, 'matchmaker.roomCodeMaxPicks'),
     lockstep_max_duration_ms: ms('matchmaker.lockstepMaxDurationMs'),
+    flag_window_ms: ms('matchmaker.flagWindowMs'),
+    flag_counts: {
+      Disagree: integer(settings, 'matchmaker.flagDisagreeCount'),
+      Forfeit: integer(settings, 'matchmaker.flagForfeitCount'),
+      Missing: integer(settings, 'matchmaker.flagMissingCount'),
+    },
   };
 }
 
@@ -120,6 +129,7 @@ export type ValidatePartyHook = (
   request: CoreContract.MatchmakerFrameKind,
 ) => Pass | ErrorCode;
 export type ApplyMatchResultHook = (ctx: RequestCtx, record: MatchRecordInput, index: number, result: Uint8Array) => Pass | ErrorCode;
+export type ApplyMatchForfeitHook = (ctx: RequestCtx, record: MatchRecordInput, index: number) => Pass | ErrorCode;
 export type ApplyMatchMismatchHook = (ctx: RequestCtx, record: MatchRecordInput, index: number) => Pass | ErrorCode;
 export type ReplayMatchHook = (
   record: MatchRecordInput,
@@ -134,6 +144,7 @@ export interface HookSlots {
   prepare_match_request: PrepareMatchRequestHook | null;
   validate_party: ValidatePartyHook | null;
   apply_match_result: ApplyMatchResultHook | null;
+  apply_match_forfeit: ApplyMatchForfeitHook | null;
   apply_match_mismatch: ApplyMatchMismatchHook | null;
   replay_match: ReplayMatchHook | null;
 }
@@ -199,7 +210,7 @@ export function duration_of(env: Env, mode: GameData.MatchModeRow, lockstep: boo
   return lockstep ? env.settings.lockstep_max_duration_ms : mode.max_duration;
 }
 
-/** A secure random `int64` from 0 up to but not including 2^63. */
-export function new_seed(): bigint {
-  return randomBytes(8).readBigUInt64BE(0) & 0x7fff_ffff_ffff_ffffn;
+/** A `core` log line of matchmaker. */
+export function log_core(env: Env, level: 'debug' | 'info' | 'warn', message: string, fields: LogFields, user_id: bigint | null): void {
+  env.logging.write({ kind: 'core', level, message, user_id, request_id: null, request: null, fields });
 }
