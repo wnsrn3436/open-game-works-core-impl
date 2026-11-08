@@ -1,0 +1,12 @@
+{
+  "target": "idempotency",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/idempotency/index.ts:204",
+      "problem": "`spec`: the behavior that `save_withdrawn_response` does not save a response whose `ResponseEnvelope` has `error` (`### request ID` of the idempotency spec) has no test. In `server/core/idempotency/tests/` the only error-response test (`request-id.test.ts` \"does not store an error response\") sends with handler `failing`, which does not delete the user, so `save_withdrawn_response` returns early on `user_deleted` `false`, never on `!is_success(response)`. No other test file calls `save_withdrawn_response`. The only tests that reach `save_withdrawn_response` with `user_deleted` `true` use handler `withdraw`, which always returns a success body. So no test fails when `\\|\\| !is_success(response)` is removed from line 204 (found by reading the tests, not by a run). This existed before the commit range and is unrelated to its changes",
+      "foundBy": "idempotency round 1"
+    }
+  ]
+}
