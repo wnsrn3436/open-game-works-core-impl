@@ -2,9 +2,7 @@
 
 ## findings
 
-| id | aspect | severity | location | evidence | fix | spec change | confidence |
-|---|---|---|---|---|---|---|---|
-| R1-1 | spec | medium | server/core/matchmaker/realtime.ts:327 | `drop` (realtime.ts:338) calls `leave_before_close`, which takes every waiting `MATCH_LEAVE` out of `client.pending` and hands it to `p2p-signaling.handle_frame` at once, at the WebSocket close. That is while the earlier frame of the same connection is still being handled. The spec says the handling of a frame starts after the handling of the previous frame of that connection ends (skills/server-core/modules/matchmaker.md:122). Its `## test` item (matchmaker.md:452) says that a `MATCH_LEAVE` with `forfeit` `true`, and the close right after it, arriving while the frame handling waits behind a `MATCH_REQUEST` whose `prepare_match_request` transaction is held, "write `left_at` of that index after the wait". Run path: forfeit.test.ts:600-616 sends `MATCH_REQUEST` (held in `run_rollback_transaction`), then `MATCH_LEAVE`(`forfeit` `true`), then closes. It then waits until `left_at` of index 1 is not 0 at line 612, before `held.open()` at line 613. The test passes (`ogw core test server matchmaker --file server/core/matchmaker/tests/forfeit.test.ts`: pass), so `left_at` is written during the wait, not after it. The order can be seen when the earlier frame changes what the `MATCH_LEAVE` meets. Example: after a `ROOM_START` whose match creation is still waiting, the `MATCH_LEAVE` of the earlier match reaches `handle_frame` before `open_match_session` of the new match binds that connection, not after. The test asserts the spec item's opposite, so it does not check that item | Hand the `MATCH_LEAVE` frames that arrived before the close to the frame chain of the connection, so each starts after the previous frame's handling ends. Handle the connection close (`connection_closed`, queue and room removal) after them. Change forfeit.test.ts:612 to check that `left_at` is still 0 while the hold is in place and is written after `held.open()` | no | 85 |
+none
 
 ## previous
 
@@ -16,17 +14,18 @@ none
 
 ## debt
 
-none
+| id | result | finding | evidence |
+|---|---|---|---|
+| D1 | fixed | none | `create_matchmaker` exports `list_match_flags` and `get_match` (server/core/matchmaker/index.ts:152-153), made by `admin_operations` with role `read` (server/core/matchmaker/admin.ts:45-119), and the routing collected table lists them (server/core/routing/spec_tables.ts:105). Tests: server/core/matchmaker/tests/forfeit.test.ts:176 and :476 send `POST /admin/list_match_flags`, forfeit.test.ts:509-539 send `get_match` and check 200 and 404. `ogw core test server matchmaker --file server/core/matchmaker/tests/forfeit.test.ts`: pass |
+| D2 | fixed | none | `hello_user` returns `INVALID_REQUEST` for a non-empty `platform` that `validation.is_platform` rejects (server/core/matchmaker/realtime.ts:421-426) and `APP_UPDATE_REQUIRED` when `game-update.is_below_min_version(client_version, platform)` is true for a non-empty `client_version` (realtime.ts:428-431), before the data version judgement. Test: server/core/matchmaker/tests/connection.test.ts:126-140 publishes android `min_version` `1.2.0` and checks `APP_UPDATE_REQUIRED` for `1.1.9`/`android`, `HELLO_ACK` for `1.2.0`/`android`, `1.1.9`/`ios`, empty `client_version` and empty `platform`, and `INVALID_REQUEST` for `Android` and `playstation`. `ogw core test server matchmaker --file server/core/matchmaker/tests/connection.test.ts`: pass |
+| D3 | fixed | none | `decide` returns `FORFEIT` in the final decision when there is a forfeiter and a reporter that is not one (server/core/matchmaker/judge.ts:106-108), `judge` saves it (server/core/matchmaker/results.ts:182-185), and `apply_in` calls hook `apply_match_forfeit` for status `FORFEIT` (results.ts:223-225); the hook slot is in `hook_slots` (server/core/matchmaker/index.ts:119). Tests: server/core/matchmaker/tests/decision-rules.test.ts:72-89 check `FORFEIT` and the `Forfeit` integrity event, server/core/matchmaker/tests/forfeit.test.ts:180-197 check status `FORFEIT` from `ReportMatchResult` and from the decision after the `left_at` write, and the `apply_match_forfeit` call. forfeit.test.ts: pass |
 
 ## must fix
 
-| id | result | finding | evidence |
-|---|---|---|---|
-| M1 | fixed | none | `MatchRecordInput` has `status: CoreContract.MatchJudgeStatus` (server/core/matchmaker/records.ts:69). `record_input` sets it with `status_value(r.status)` (records.ts:401), and the apply hooks and `replay_match` get it from `record_input` (results.ts:136, :216). Tests: server/core/matchmaker/tests/forfeit.test.ts:196 checks `status` `FORFEIT` in the `apply_match_forfeit` input. server/core/matchmaker/tests/rating.test.ts passes the received record to `rating.apply_match_outcome` without a fallback, and checks `status` `FORFEIT` and `CONFIRMED` and the rating changes |
-| M2 | fixed | none | `write_change` writes `ENDED` as `ended_at` (server/core/matchmaker/results.ts:503-506) and `LEFT` as `left_at` (results.ts:498-502). `ended_at` is a participant column (records.ts:194), read into the record (records.ts:291), passed in the match record input (records.ts:411) and in `get_match` (admin.ts:110). Tests: server/core/matchmaker/tests/results.test.ts:646 checks `ended_at` not 0, `left_at` 0, `MISMATCH` at `deadline_at` and a `Missing` event. results.test.ts:663 checks that a report after `MATCH_LEAVE` with `forfeit` `false` is saved and judged `CONFIRMED`. Both fail if `ENDED` writes `left_at` |
+none
 
 ## unknown
 
-- Did not run the whole server core test suite. Ran only server/core/matchmaker/tests/forfeit.test.ts (pass)
-- Did not read the p2p-signaling changes of the range (server/core/p2p-signaling/sessions.ts), which are outside the target. Assumed that `handle_frame` returns `ENDED` for `MATCH_LEAVE` with `forfeit` `false` and `LEFT` for `forfeit` `true`, as the p2p-signaling spec says
-- Read the room, party and matching code of server/core/matchmaker/realtime.ts and matching.ts outside the changes of the range only as far as the changed code calls them
+- The commit range `625ae189..625ae189` holds no commit, so no changed code was reviewed; only the positions of the input `## debt` items and their tests were read
+- The first run of server/core/matchmaker/tests/forfeit.test.ts, run at the same time as connection.test.ts, failed with `storage: cannot connect to PostgreSQL: the connect to PostgreSQL went over its time limit` and two `wait_background did not end within 10000 ms` errors. A second run alone passed. The cause (host load from two PostgreSQL runs at once, or a time limit that is too short) was not reproduced or checked
+- Did not run the whole server core test suite or the other matchmaker test files; ran only connection.test.ts and forfeit.test.ts
