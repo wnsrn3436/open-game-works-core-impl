@@ -304,7 +304,7 @@
   "SoundCore.masterPeakMaxDbtp": -1,
   "SoundCore.masterLimiterMarginDb": 0.5,
   "SoundCore.busLoudnessLufs": {
-    "Bgm": -28,
+    "Bgm": -20,
     "Sfx": -18,
     "Voice": -16,
     "Ui": -20
