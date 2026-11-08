@@ -208,6 +208,24 @@ func test_null_value_in_the_launch_value_file_is_fatal() -> void:
 	await _check_file_fatal('{"OGW_INSTANCE_ID": "i1", "OGW_PLATFORM": null}')
 
 
+func test_launch_value_file_that_is_not_json_is_fatal() -> void:
+	await _check_file_fatal('{"OGW_INSTANCE_ID": "i1"')
+
+
+func test_launch_value_file_that_is_a_json_array_is_fatal() -> void:
+	await _check_file_fatal('["OGW_INSTANCE_ID", "i1"]')
+
+
+func test_export_launch_value_file_that_is_not_a_json_object_is_fatal() -> void:
+	_SUPPORT.prepare()
+	_write(_PAGE_FILE, '{"OGW_INSTANCE_ID": "i1"}')
+	_write(_EXPORT_FILE, '"OGW_INSTANCE_ID"')
+	_read_from(_PAGE_FILE, _EXPORT_FILE)
+	await _boot_until_halted()
+	assert_false("stage:LoadData" in BootstrapCore._trace)
+	assert_eq(UnitTestCore.check_logs("error", "BootstrapCore"), 2)
+
+
 func test_launch_value_file_of_strings_reaches_the_build_info() -> void:
 	_SUPPORT.prepare()
 	_write(_PAGE_FILE, '{"OGW_INSTANCE_ID": "i2", "OGW_RANDOM_BASE": "42", "OGW_FRAME_STEP_FPS": "30"}')
