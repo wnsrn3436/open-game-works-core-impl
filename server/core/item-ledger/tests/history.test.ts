@@ -28,18 +28,23 @@ function count(e: Env, table: string, user_id: bigint): number {
   return e.storage.read_db().query(`SELECT 1 AS found FROM ${table} WHERE user_id = $1`, [user_id]).length;
 }
 
+/** An `int64` column value as a bigint. */
+function big(v: unknown): bigint {
+  return typeof v === 'bigint' ? v : BigInt(v as number);
+}
+
 /** The committed history rows of the user, expired or not: `[seq, item_id, delta, expires_at]` in `seq` order. */
 function raw_history(e: Env, user_id: bigint): [bigint, number, bigint, bigint][] {
   return e.storage
     .read_db()
     .query(`SELECT seq, item_id, delta, expires_at FROM ${HISTORY_TABLE} WHERE user_id = $1 ORDER BY seq ASC`, [user_id])
-    .map((r) => [BigInt(r.seq as bigint), Number(r.item_id), BigInt(r.delta as bigint), BigInt(r.expires_at as bigint)]);
+    .map((r) => [big(r.seq), Number(r.item_id), big(r.delta), big(r.expires_at)]);
 }
 
 /** The `last_seq` of the user's history counter row; null when there is none. */
 function counter(e: Env, user_id: bigint): bigint | null {
   const rows = e.storage.read_db().query(`SELECT last_seq FROM ${HISTORY_SEQ_TABLE} WHERE user_id = $1`, [user_id]);
-  return rows.length === 0 ? null : BigInt(rows[0]?.last_seq as bigint);
+  return rows.length === 0 ? null : big(rows[0]?.last_seq);
 }
 
 /** Writes a history row of `seq` directly, as rows written before the history counter existed. */
