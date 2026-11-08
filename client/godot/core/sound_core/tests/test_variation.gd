@@ -96,3 +96,14 @@ func test_an_sfx_play_with_a_pitch_scale_below_1_plays_until_its_length_divided_
 	assert_null(player_of(handle), "the handle is invalid")
 	assert_eq(playing_count(), 0)
 	assert_eq(errors(), 0)
+
+
+func test_variant_and_variation_randoms_are_seeded_by_time_core_make_random_seed() -> void:
+	TimeCoreDev.set_random_base(42)
+	assert_true(await start_modules())
+	var variant: UtilRandom = UtilCore.create_random(UtilCore.make_purpose_seed("sound_variant", 42))
+	var variation: UtilRandom = UtilCore.create_random(UtilCore.make_purpose_seed("sound_variation", 42))
+	for index: int in 5:
+		assert_eq(UtilCore.range_int(SoundCore._variant_random, 0, 1000), UtilCore.range_int(variant, 0, 1000))
+		assert_eq(UtilCore.next_float(SoundCore._variation_random), UtilCore.next_float(variation))
+	assert_eq(errors(), 0)

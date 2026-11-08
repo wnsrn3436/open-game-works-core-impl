@@ -96,3 +96,46 @@ func test_saved_volume_out_of_range_or_nan_loads_the_default_without_log() -> vo
 	assert_eq(SoundCore.get_volume(SoundCore.SoundBus.VOICE), 1.0)
 	assert_eq(SoundCore.get_volume(SoundCore.SoundBus.UI), 1.0)
 	assert_eq(errors(), 0)
+
+
+func test_reset_volume_settings_gives_defaults_at_once_removes_the_keys_and_keeps_dev_mute() -> void:
+	assert_true(await start_modules())
+	SoundCore.set_volume(SoundCore.SoundBus.BGM, 0.3)
+	SoundCore.set_mute(SoundCore.SoundBus.SFX, true)
+	SoundCore.set_volume(SoundCore.SoundBus.MASTER, 0.5)
+	SoundCore.set_haptic_enabled(false)
+	SoundCoreDev.set_dev_mute(SoundCore.SoundBus.VOICE, true)
+	var frame: int = Engine.get_process_frames()
+	SoundCore.reset_volume_settings()
+	_assert_default_values()
+	for bus: SoundCore.SoundBus in [SoundCore.SoundBus.BGM, SoundCore.SoundBus.SFX, SoundCore.SoundBus.MASTER]:
+		var index: int = bus_index(bus)
+		assert_almost_eq(AudioServer.get_bus_volume_db(index), 0.0, 0.0001, "level of bus " + str(bus))
+		assert_false(AudioServer.is_bus_mute(index), "mute of bus " + str(bus))
+	assert_eq(Engine.get_process_frames(), frame, "applied in the frame of the call")
+	assert_true(AudioServer.is_bus_mute(bus_index(SoundCore.SoundBus.VOICE)), "DEV mute stays")
+	_assert_no_saved_keys()
+	SoundCore.release()
+	assert_true(SoundCore.init())
+	SoundCore.load_volume_settings()
+	_assert_default_values()
+	_assert_no_saved_keys()
+	assert_eq(errors(), 0)
+
+
+func _assert_default_values() -> void:
+	for bus: int in SoundCore._BUS_NAMES.size():
+		assert_eq(SoundCore.get_volume(bus as SoundCore.SoundBus), 1.0, "volume of bus " + str(bus))
+		assert_false(SoundCore.get_mute(bus as SoundCore.SoundBus), "mute of bus " + str(bus))
+	assert_true(SoundCore.is_haptic_enabled())
+
+
+## A missing key gives the default given: two different defaults tell it from a saved value.
+func _assert_no_saved_keys() -> void:
+	var device: LocalDataCore.FileKind = LocalDataCore.FileKind.DEVICE
+	for key: String in SoundCore._VOLUME_KEYS:
+		assert_eq(LocalDataCore.get_value_float(device, key, -2.0), -2.0, key)
+		assert_eq(LocalDataCore.get_value_float(device, key, -3.0), -3.0, key)
+	for key: String in SoundCore._MUTE_KEYS + PackedStringArray([SoundCore._HAPTIC_ENABLED_KEY]):
+		assert_true(LocalDataCore.get_value_bool(device, key, true), key)
+		assert_false(LocalDataCore.get_value_bool(device, key, false), key)
