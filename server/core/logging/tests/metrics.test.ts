@@ -97,6 +97,20 @@ describe('read_metrics', () => {
     }
   });
 
+  it('counts the summary line of job logging_security_flush in ogw_log_lines_total, and not the grouped lines it summarizes', async () => {
+    const window_ms = 1000n;
+    const server = await start({ settings: { 'logging.securityRepeatWindowMs': Number(window_ms) } });
+    const user_id = await new_user(server);
+    for (const ip of ['203.0.113.7', '203.0.113.8', '198.51.100.4']) {
+      server.logging.write({ kind: 'security', level: 'warn', message: 'refused', user_id, request_id: null, request: 'core/Resync', fields: { ip, reason: 'bad_signature' } });
+    }
+    const security_lines = { kind: 'security', level: 'warn' };
+    expect(value_of(server.logging.read_metrics(), 'ogw_log_lines_total', 'ogw_log_lines_total', security_lines)).toBe(1);
+    await advance(server, 2n * window_ms);
+    expect(logs(server, 'security').map((line) => line.reason)).toEqual(['bad_signature', 'repeated']);
+    expect(value_of(server.logging.read_metrics(), 'ogw_log_lines_total', 'ogw_log_lines_total', security_lines)).toBe(2);
+  });
+
   it('gives each family its type, and a histogram one bucket per distinct bound in ascending order whatever the order given', async () => {
     const server = await start({ settings: { 'logging.metricsDurationBucketsMs': [500, 100, 100] } });
     const user_id = await new_user(server);
