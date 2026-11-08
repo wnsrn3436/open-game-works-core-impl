@@ -1,5 +1,5 @@
 import { PgConnection, parse_connection_string, type PgRow, type PgValue } from '../db/pg_protocol.ts';
-import type { Storage } from '../index.ts';
+import type { SeedProvider, Storage } from '../index.ts';
 
 export type { PgRow, PgValue } from '../db/pg_protocol.ts';
 
@@ -15,8 +15,11 @@ export interface PgSession {
 
 /** The `## DEV` operations of `storage`. */
 export interface StorageDev {
-  /** Before server start: the seed of each request's ctx random by request ID, or null for a secure random seed. */
-  set_seed_provider(fn: (request_id: string) => bigint | null): void;
+  /**
+   * Before server start: the seed of each request transaction's ctx random by request ID, user ID and request name,
+   * and of each `make_seed` by request ID empty string, user ID 0 and the purpose name; null for a secure random seed.
+   */
+  set_seed_provider(fn: SeedProvider): void;
   /** Waits until every `after_commit` function and user change apply started so far has ended. */
   wait_after_commit(): Promise<void>;
   /** A new connection to a PostgreSQL connection string, with the wire protocol of the PostgreSQL adapter. */

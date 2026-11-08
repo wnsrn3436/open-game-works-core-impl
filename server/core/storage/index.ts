@@ -2,17 +2,20 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import * as CoreContract from '../../generated/contract/core_contract.ts';
 import * as GameContract from '../../generated/contract/game_contract.ts';
 import type * as GameData from '../../generated/data/game_data.ts';
+import { counting_adapter, DbMeter } from './db/meter.ts';
 import type { PgLimits } from './db/pg_messages.ts';
 import { PostgresAdapter } from './db/postgres.ts';
 import { SqliteAdapter } from './db/sqlite.ts';
 import { DbError, type DbAdapter } from './db/types.ts';
 import {
   read_settings,
+  StorageMisuse,
   type DbHandle,
   type FailureCode,
   type GameTx,
   type ItemConverter,
   type Pass,
+  type SeedProvider,
   type StorageCore,
   type StorageSettings,
   type TimeSource,
@@ -71,6 +74,7 @@ import {
   db,
   lock_game_row,
   lock_game_row_content,
+  make_seed,
   on_commit,
   read_db,
   run_game_transaction,
@@ -96,7 +100,7 @@ export { StorageMisuse } from './core.ts';
 export { canonical_json } from './canonical_json.ts';
 /** `NoAccessTokenRpc` (`server-core` `## request`). */
 export { NO_ACCESS_TOKEN_RPC } from './request_sets.ts';
-export type { DbHandle, FailureCode, GameTx, ItemConverter, Pass, UserChangeApply, UserChangeFail, UserChangeFailure } from './core.ts';
+export type { DbHandle, FailureCode, GameTx, ItemConverter, Pass, SeedProvider, UserChangeApply, UserChangeFail, UserChangeFailure } from './core.ts';
 export type { FullStateResult, ResponseDelta, TakenDelta } from './delta.ts';
 export type { KindClass, KindValue } from './kinds.ts';
 export type { Random } from './random.ts';
@@ -106,6 +110,18 @@ export { is_public_code_input } from './public_code.ts';
 export type { ColumnType, Scope } from './schema.ts';
 export type { PublicStateEntry } from './state.ts';
 export type { RequestFields, UserTxResult } from './tx.ts';
+
+/** The output of `read_db_metrics`: counts from the server start of the server instance. */
+export interface DbMetrics {
+  /** The number of synchronous DB calls. */
+  readonly sync_calls: number;
+  /** The sum of the waits of the synchronous DB calls, in real elapsed ms. */
+  readonly sync_wait_ms: number;
+  readonly lock_failures: number;
+  readonly connection_failures: number;
+  /** On PostgreSQL, whether `pg_stat_archiver` shows a WAL archiving failure after the last archived WAL. */
+  readonly wal_archive_failing: boolean;
+}
 
 /** A column of `register_table`. */
 export interface ColumnInput {
@@ -199,12 +215,15 @@ export interface Storage {
   random_shuffle(source: RandomSource, n: number): number[];
   create_random(seed: bigint): Random;
   make_purpose_seed(name: string, base: bigint): bigint;
+  make_seed(purpose: string): bigint;
   canonical_json(value: unknown): string;
+  watch_db_wait(array: Int32Array): void;
+  read_db_metrics(): DbMetrics;
   begin_start(): void;
   complete_start(): string | null;
   stop(): void;
   /** Called by the DEV code only (`dev/index.ts`). */
-  set_seed_provider(fn: (request_id: string) => bigint | null): void;
+  set_seed_provider(fn: SeedProvider): void;
   /** Called by the DEV code only (`dev/index.ts`). */
   wait_after_commit(): Promise<void>;
   readonly content: StorageContent;
@@ -277,14 +296,42 @@ function pg_limits(settings: StorageSettings): PgLimits {
   };
 }
 
-/** The DB adapter of the server start arguments (`### DB adapter`). */
-function adapter_for(input: StorageInput, settings: StorageSettings): DbAdapter {
+/** The DB adapter of the server start arguments (`### DB adapter`), whose calls go to `meter`. */
+function adapter_for(input: StorageInput, settings: StorageSettings, meter: DbMeter): DbAdapter {
   const target = input.server.db;
-  if (target === 'postgresql') return new PostgresAdapter(secret(input, 'db', '--db postgresql: the secret db'), pg_limits(settings));
-  if (target !== null) return new SqliteAdapter(target);
+  const pg = (connection_string: string): DbAdapter => new PostgresAdapter(connection_string, pg_limits(settings), undefined, meter);
+  if (target === 'postgresql') return counting_adapter(pg(secret(input, 'db', '--db postgresql: the secret db')), meter);
+  if (target !== null) return counting_adapter(new SqliteAdapter(target, meter), meter);
   const name = input.settings['environments.<ENV>.secrets.db'];
   if (typeof name !== 'string' || name === '') throw new DbError('connection', 'secret', `game settings environments.${input.server.env}.secrets.db names no secret`);
-  return new PostgresAdapter(secret(input, name, `the secret ${name}`), pg_limits(settings));
+  return counting_adapter(pg(secret(input, name, `the secret ${name}`)), meter);
+}
+
+/** The WAL archiving state of `pg_stat_archiver`, as microseconds since the epoch. */
+const ARCHIVER_SQL =
+  'SELECT CAST(EXTRACT(EPOCH FROM last_archived_time) * 1000000 AS BIGINT) AS last_archived_time, CAST(EXTRACT(EPOCH FROM last_failed_time) * 1000000 AS BIGINT) AS last_failed_time FROM pg_stat_archiver';
+
+/**
+ * `wal_archive_failing` (`### DB adapter` DB metrics): on PostgreSQL, a failure after the last archived WAL, or a
+ * failure with none archived. False on SQLite and when the statement fails.
+ */
+function wal_archive_failing(core: StorageCore): boolean {
+  if (core.adapter?.dialect !== 'postgresql') return false;
+  try {
+    const row = read_db(core).query(ARCHIVER_SQL)[0];
+    const archived = row?.['last_archived_time'] ?? null;
+    const failed = row?.['last_failed_time'] ?? null;
+    if (typeof failed !== 'bigint') return false;
+    return typeof archived !== 'bigint' || archived < failed;
+  } catch {
+    return false;
+  }
+}
+
+/** `read_db_metrics`: the counts before its own statement, which the next call counts. */
+function read_db_metrics(core: StorageCore): DbMetrics {
+  const counts = core.meter.counts();
+  return { ...counts, wal_archive_failing: wal_archive_failing(core) };
 }
 
 function time_of(modules: Readonly<Record<string, unknown>>): TimeSource {
@@ -301,7 +348,7 @@ function registration(core: StorageCore, what: string, error: string | null): vo
 function begin_start(core: StorageCore, input: StorageInput): void {
   core.phase = 'starting';
   try {
-    const adapter = adapter_for(input, core.settings);
+    const adapter = adapter_for(input, core.settings, core.meter);
     adapter.open();
     core.adapter = adapter;
   } catch (error) {
@@ -367,6 +414,7 @@ export function create_storage_with(input: StorageInput, contract: StorageContra
     open: new Set(),
     background: new Set(),
     seed_provider: null,
+    meter: new DbMeter(),
     phase: 'created',
     start_errors: [],
   };
@@ -463,7 +511,14 @@ export function create_storage_with(input: StorageInput, contract: StorageContra
     sweep_expired: () => sweep_expired(core),
     ...random_api(core),
     create_random: (seed) => create_random_instance(seed),
+    make_seed: (purpose) => make_seed(core, purpose),
     canonical_json,
+    watch_db_wait: (array) => {
+      if (core.phase !== 'created') throw new Error('storage: watch_db_wait after server start began');
+      if (!(array instanceof Int32Array) || array.length < 1) throw new StorageMisuse('storage: watch_db_wait takes an Int32Array with an element 0');
+      core.meter.watch_with(array);
+    },
+    read_db_metrics: () => read_db_metrics(core),
     begin_start: () => {
       begin_start(core, input);
     },

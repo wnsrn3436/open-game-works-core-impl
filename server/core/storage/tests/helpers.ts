@@ -14,7 +14,7 @@ import { create_storage_dev } from '../dev/index.ts';
 import type { ServerInput } from '../../routing/index.ts';
 import { mark_broken } from '../core.ts';
 import type { DbError } from '../db/types.ts';
-import { create_storage_with, type DbHandle, type GameTx, type Storage } from '../index.ts';
+import { create_storage_with, type DbHandle, type GameTx, type SeedProvider, type Storage } from '../index.ts';
 import type { RequestCtx } from '../request_ctx.ts';
 import type { RequestFields } from '../tx.ts';
 import { core_test_server_paths, default_db_kind, new_core_test_server_input } from '../../testing/dev/index.ts';
@@ -163,7 +163,9 @@ export interface InstanceOptions {
   /** Registrations between `begin_start` and `complete_start`, like core modules and content `register`. */
   readonly register?: (storage: Storage) => void;
   readonly offset?: (user_id: bigint) => bigint;
-  readonly seed?: (request_id: string) => bigint | null;
+  readonly seed?: SeedProvider;
+  /** The array `watch_db_wait` gets before server start. */
+  readonly watch?: Int32Array;
 }
 
 export interface Instance {
@@ -185,6 +187,7 @@ export function start_instance(options: InstanceOptions): Instance | string {
   const server = { ...test_server(options.db), ...options.server };
   const storage = create_storage_with({ settings: { ...core_settings(), ...options.settings }, modules: { 'server-time': time }, server }, TEST_CONTRACT);
   if (options.seed !== undefined) create_storage_dev(storage).set_seed_provider(options.seed);
+  if (options.watch !== undefined) storage.watch_db_wait(options.watch);
   time.begin_start();
   storage.begin_start();
   options.register?.(storage);
