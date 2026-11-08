@@ -148,6 +148,56 @@ func test_weights_0_draw_every_font_at_its_default_weight_without_a_warn() -> vo
 		assert_almost_eq(_width(font, "A"), 60.0, 1.0)
 
 
+func test_body_0_draws_a_first_font_that_sets_its_own_wght_700_at_700_without_a_warn() -> void:
+	var resources: Dictionary[String, String] = _resources(_SUPPORT.NO_WEIGHT_AXIS_FONT, _SUPPORT.WEIGHT_700_FONT)
+	assert_eq(await _SUPPORT.start_language("ca", resources), _SUPPORT.language_id("[lang_ca]"))
+	assert_true(await LocalizationCore.load_fonts())
+	assert_eq(_SUPPORT.warns(), 0)
+	var own: Font = _loaded_font(_SUPPORT.FONT_MAIN)
+	assert_true(own is FontVariation)
+	var at_700: float = _width(own, "A")
+	assert_almost_eq(at_700, 84.0, 1.0)
+	var fonts: Array[Font] = [own]
+	var body: Font = _label(&"").get_theme_font("font")
+	_assert_chain(body, fonts, PackedInt32Array([700]))
+	assert_almost_eq(_width(body, "A"), at_700, 0.01)
+	_assert_chain(_label(&"HeadingLabel").get_theme_font("font"), fonts, PackedInt32Array([700]))
+
+
+func test_heading_800_draws_a_first_font_that_sets_its_own_wght_at_800() -> void:
+	assert_true(UnitTestCore.set_test_settings(_HEADING_WEIGHT, 800))
+	var resources: Dictionary[String, String] = _resources(_SUPPORT.NO_WEIGHT_AXIS_FONT, _SUPPORT.WEIGHT_700_FONT)
+	assert_eq(await _SUPPORT.start_language("ca", resources), _SUPPORT.language_id("[lang_ca]"))
+	assert_true(await LocalizationCore.load_fonts())
+	assert_eq(_SUPPORT.warns(), 0)
+	var fonts: Array[Font] = [_loaded_font(_SUPPORT.FONT_MAIN)]
+	var heading: Font = _label(&"HeadingLabel").get_theme_font("font")
+	_assert_chain(heading, fonts, PackedInt32Array([800]))
+	assert_almost_eq(_width(heading, "A"), 92.0, 1.0)
+
+
+func test_the_chain_keeps_the_own_variation_of_a_first_font_without_the_axis_and_of_a_fallback_at_weight_0() -> void:
+	assert_true(UnitTestCore.set_test_settings(_HEADING_WEIGHT, 800))
+	var resources: Dictionary[String, String] = _resources(_SUPPORT.SPACED_NO_WEIGHT_AXIS_FONT, _SUPPORT.WEIGHT_700_FONT)
+	assert_eq(await _SUPPORT.start_language("zh-TW", resources), _SUPPORT.language_id("[lang_zh_tw]"))
+	assert_true(await LocalizationCore.load_fonts())
+	# One warn for the heading text style on the first font, which has no axis.
+	assert_eq(_SUPPORT.warns(), 1)
+	var fonts: Array[Font] = [_loaded_font(_SUPPORT.FONT_CJK), _loaded_font(_SUPPORT.FONT_MAIN)]
+	var body: Font = _label(&"").get_theme_font("font")
+	var heading: Font = _label(&"HeadingLabel").get_theme_font("font")
+	_assert_chain(body, fonts, PackedInt32Array([_UNWEIGHTED, _UNWEIGHTED]))
+	_assert_chain(heading, fonts, PackedInt32Array([_UNWEIGHTED, 800]))
+	# The glyph spacing is between two glyphs.
+	var spaced: float = _width(fonts[0], "BB")
+	assert_almost_eq(spaced, 127.0, 1.0)
+	assert_almost_eq(_width(body, "BB"), spaced, 0.01)
+	assert_almost_eq(_width(heading, "BB"), spaced, 0.01)
+	# The fallback is drawn at its own wght 700 by the body and at 800 by the heading.
+	assert_almost_eq(_width(body, "A"), 84.0, 1.0)
+	assert_almost_eq(_width(heading, "A"), 92.0, 1.0)
+
+
 func test_heading_text_style_elements_draw_with_the_heading_font_and_release_puts_the_default_font_back() -> void:
 	assert_true(UnitTestCore.set_test_settings(_HEADING_WEIGHT, 800))
 	var resources: Dictionary[String, String] = _resources(_SUPPORT.WEIGHT_AXIS_FONT, _SUPPORT.NO_WEIGHT_AXIS_FONT)

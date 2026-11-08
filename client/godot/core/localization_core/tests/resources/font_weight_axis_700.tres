@@ -1,0 +1,11 @@
+[gd_resource type="FontVariation" load_steps=2 format=3]
+
+; A FontVariation of font_weight_axis.tres that sets its own wght 700 (the tag 2003265652 is "wght"). At wght 700 the advance of the glyph is 840 units.
+
+[ext_resource type="FontFile" path="res://core/localization_core/tests/resources/font_weight_axis.tres" id="1_axis"]
+
+[resource]
+base_font = ExtResource("1_axis")
+variation_opentype = {
+2003265652: 700
+}

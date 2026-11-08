@@ -1,0 +1,9 @@
+[gd_resource type="FontVariation" load_steps=2 format=3]
+
+; A FontVariation of font_no_weight_axis.tres that sets its own glyph spacing of 7 pixels and no wght.
+
+[ext_resource type="FontFile" path="res://core/localization_core/tests/resources/font_no_weight_axis.tres" id="1_no_axis"]
+
+[resource]
+base_font = ExtResource("1_no_axis")
+spacing_glyph = 7
