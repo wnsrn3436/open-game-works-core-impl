@@ -31,13 +31,17 @@ export interface MetricsSettings {
   readonly alert_error_log_count: number;
 }
 
-/** The counts of the log lines written at one `server-time.clock_now` that the alert signals read. */
-interface AlertSlot {
-  readonly time: bigint;
+/** The counts of the log lines that the alert signals read. */
+interface AlertCounts {
   requests: number;
   internal: number;
   slow: number;
   error_logs: number;
+}
+
+/** The counts of the log lines written at one `server-time.clock_now`. */
+interface AlertSlot extends AlertCounts {
+  readonly time: bigint;
 }
 
 /** The histogram of one `request` label: per bound (ascending) the count of values in it and below the previous bound. */
@@ -88,8 +92,14 @@ export class Metrics {
   readonly #durations = new Map<string, DurationHistogram>();
   /** `ogw_log_lines_total` by (kind, level). */
   readonly #lines = new Map<string, { kind: string; level: string; value: number }>();
-  /** The alert slots of the lines written, in the order written; the slots outside the alert window are removed. */
+  /**
+   * The alert slots of the lines written, ascending by time, from index `#head`: the slots before `#head` are dropped
+   * and removed from the array when they are at least half of it, so dropping a slot is amortized O(1).
+   */
   #slots: AlertSlot[] = [];
+  #head = 0;
+  /** The sums of the slots from `#head`. */
+  #totals: AlertCounts = { requests: 0, internal: 0, slow: 0, error_logs: 0 };
 
   constructor(settings: MetricsSettings, internal_code: number) {
     this.#settings = settings;
@@ -104,13 +114,22 @@ export class Metrics {
     if (counted === undefined) this.#lines.set(line_key, { kind, level, value: 1 });
     else counted.value += 1;
     const slot = this.#slot(now);
+    const totals = this.#totals;
     if (kind === 'request' && request !== null) {
       this.#request(request);
       slot.requests += 1;
-      if (request.error_code === this.#internal_code) slot.internal += 1;
-      if (request.duration_ms > this.#settings.alert_slow_request_ms) slot.slow += 1;
+      totals.requests += 1;
+      if (request.error_code === this.#internal_code) {
+        slot.internal += 1;
+        totals.internal += 1;
+      }
+      if (request.duration_ms > this.#settings.alert_slow_request_ms) {
+        slot.slow += 1;
+        totals.slow += 1;
+      }
     } else if (level === 'error') {
       slot.error_logs += 1;
+      totals.error_logs += 1;
     }
   }
 
@@ -132,38 +151,63 @@ export class Metrics {
     histogram.sum_ms += line.duration_ms;
   }
 
-  /** The alert slot of `now`: the last slot when it has that time, otherwise a new one. Old slots are removed first. */
+  /**
+   * The alert slot of `now`, kept in time order: the last slot when it has that time, a new last slot when `now` is
+   * later, otherwise (the test clock went back) the slot of that time found or inserted by binary search. Old slots
+   * are removed first.
+   */
   #slot(now: bigint): AlertSlot {
     this.#prune(now);
-    const last = this.#slots.at(-1);
-    if (last !== undefined && last.time === now) return last;
+    const slots = this.#slots;
+    const last = slots.at(-1);
+    if (last === undefined || last.time < now) {
+      const slot: AlertSlot = { time: now, requests: 0, internal: 0, slow: 0, error_logs: 0 };
+      slots.push(slot);
+      return slot;
+    }
+    if (last.time === now) return last;
+    let low = this.#head;
+    let high = slots.length;
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      if ((slots[mid]?.time ?? now) < now) low = mid + 1;
+      else high = mid;
+    }
+    const found = slots[low];
+    if (found !== undefined && found.time === now) return found;
     const slot: AlertSlot = { time: now, requests: 0, internal: 0, slow: 0, error_logs: 0 };
-    this.#slots.push(slot);
+    slots.splice(low, 0, slot);
     return slot;
   }
 
-  /** Removes the leading slots at or before `now` − the alert window: no judgement at `now` or later reads them. */
+  /**
+   * Drops the slots at or before `now` − the alert window, subtracting them from the totals: no judgement at `now` or
+   * later reads them.
+   */
   #prune(now: bigint): void {
     const cutoff = now - this.#settings.alert_window_ms;
-    let drop = 0;
-    while (drop < this.#slots.length && (this.#slots[drop]?.time ?? cutoff) <= cutoff) drop += 1;
-    if (drop > 0) this.#slots = this.#slots.slice(drop);
+    const slots = this.#slots;
+    const totals = this.#totals;
+    let head = this.#head;
+    for (let slot = slots[head]; slot !== undefined && slot.time <= cutoff; slot = slots[head]) {
+      totals.requests -= slot.requests;
+      totals.internal -= slot.internal;
+      totals.slow -= slot.slow;
+      totals.error_logs -= slot.error_logs;
+      head += 1;
+    }
+    if (head * 2 >= slots.length) {
+      this.#slots = slots.slice(head);
+      this.#head = 0;
+    } else {
+      this.#head = head;
+    }
   }
 
   /** The alert signals judged at `now`: the lines written later than `now` − `logging.alertWindowMs`. */
   alerts(now: bigint, db: DbMetrics): Record<AlertSignal, boolean> {
-    const cutoff = now - this.#settings.alert_window_ms;
-    let requests = 0;
-    let internal = 0;
-    let slow = 0;
-    let error_logs = 0;
-    for (const slot of this.#slots) {
-      if (slot.time <= cutoff) continue;
-      requests += slot.requests;
-      internal += slot.internal;
-      slow += slot.slow;
-      error_logs += slot.error_logs;
-    }
+    this.#prune(now);
+    const { requests, internal, slow, error_logs } = this.#totals;
     const s = this.#settings;
     const enough = requests >= s.alert_min_requests;
     return {
@@ -218,5 +262,7 @@ export class Metrics {
     this.#durations.clear();
     this.#lines.clear();
     this.#slots = [];
+    this.#head = 0;
+    this.#totals = { requests: 0, internal: 0, slow: 0, error_logs: 0 };
   }
 }
