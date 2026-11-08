@@ -1,5 +1,5 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
-import { login, new_user, request, SESSION_TABLE, signed, start, stop_all, verify } from './session_kit.ts';
+import { fields, login, new_user, request, SESSION_TABLE, signed, start, stop_all, verify, type Instance } from './session_kit.ts';
 
 const UNAUTHORIZED = CoreContract.CoreError.CORE_ERROR_UNAUTHORIZED;
 const SESSION_REPLACED = CoreContract.CoreError.CORE_ERROR_SESSION_REPLACED;
@@ -7,6 +7,18 @@ const SESSION_REPLACED = CoreContract.CoreError.CORE_ERROR_SESSION_REPLACED;
 afterEach(() => {
   stop_all();
 });
+
+/** A `Logout` of `session_id`: `end_session` in a request transaction whose ctx `session_id` is that session. */
+async function logout(instance: Instance, user: bigint, session_id: string): Promise<void> {
+  const result = await instance.storage.run_request_transaction(user, fields('core/Logout', session_id), (ctx) => {
+    instance.session.end_session(ctx);
+  });
+  if (result === 'FAILED' || result === 'WITHDRAWN') throw new Error(`Logout: ${String(result)}`);
+}
+
+function session_ids(instance: Instance, user: bigint): unknown[] {
+  return instance.storage.read_db().query(`SELECT session_id FROM ${SESSION_TABLE} WHERE user_id = $1`, [user]).map((row) => row.session_id);
+}
 
 describe('session record', () => {
   it('holds a 16-byte session ID, a 32-byte signing key as base64url and started_at = server-time.now(ctx)', async () => {
@@ -85,11 +97,51 @@ describe('check_current', () => {
     const instance = await start();
     const user = await new_user(instance.storage);
     const started = await login(instance, user);
-    await request(instance.storage, user, 'core/Logout', (ctx) => {
-      instance.session.end_session(ctx);
-    });
+    await logout(instance, user, started.session_id);
     expect(instance.session.check_current(user, started.session_id)).toBe(UNAUTHORIZED);
     expect(verify(instance, user, started.session_id, signed(started.signing_key, 'core/Resync', instance.time.clock_now()))).toBe(UNAUTHORIZED);
+  });
+
+  it('keeps a session S2 committed after routing step 5 of a Logout of S1: S2 is pass and S1 is SESSION_REPLACED', async () => {
+    const instance = await start();
+    const user = await new_user(instance.storage);
+    const s1 = await login(instance, user);
+    // `routing` step 5 of the Logout of S1 passes before the other device's AutoLogin commits S2.
+    expect(instance.session.check_current(user, s1.session_id)).toBe('pass');
+    const s2 = await login(instance, user);
+    await logout(instance, user, s1.session_id);
+    expect(session_ids(instance, user)).toEqual([s2.session_id]);
+    expect(instance.session.check_current(user, s2.session_id)).toBe('pass');
+    expect(verify(instance, user, s2.session_id, signed(s2.signing_key, 'core/Resync', instance.time.clock_now()))).toBe('pass');
+    expect(instance.session.check_current(user, s1.session_id)).toBe(SESSION_REPLACED);
+  });
+
+  it('does nothing in end_session of a user without a session record', async () => {
+    const instance = await start();
+    const user = await new_user(instance.storage);
+    await logout(instance, user, 'AAAAAAAAAAAAAAAAAAAAAA');
+    const result = await instance.storage.run_user_transaction(user, (ctx) => {
+      instance.session.end_session(ctx);
+      return 'pass';
+    });
+    expect(result).toBe('COMMITTED');
+    expect(session_ids(instance, user)).toEqual([]);
+  });
+
+  it('ends the session whatever its session ID in an out-of-request change (revoke_login_tokens, user-snapshot-clone)', async () => {
+    const instance = await start();
+    const user = await new_user(instance.storage);
+    const first = await login(instance, user);
+    const second = await login(instance, user);
+    const result = await instance.storage.run_user_transaction(user, (ctx) => {
+      expect(ctx.session_id).toBe('');
+      instance.session.end_session(ctx);
+      return 'pass';
+    });
+    expect(result).toBe('COMMITTED');
+    expect(session_ids(instance, user)).toEqual([]);
+    expect(instance.session.check_current(user, first.session_id)).toBe(UNAUTHORIZED);
+    expect(instance.session.check_current(user, second.session_id)).toBe(UNAUTHORIZED);
   });
 
   it('is UNAUTHORIZED for a user without a session', async () => {
@@ -104,10 +156,8 @@ describe('check_current', () => {
     const b = await new_user(instance.storage);
     const session_a = await login(instance, a);
     const session_b = await login(instance, b);
-    await login(instance, a);
-    await request(instance.storage, a, 'core/Logout', (ctx) => {
-      instance.session.end_session(ctx);
-    });
+    const again = await login(instance, a);
+    await logout(instance, a, again.session_id);
     expect(instance.session.check_current(b, session_b.session_id)).toBe('pass');
     expect(instance.session.check_current(a, session_a.session_id)).toBe(UNAUTHORIZED);
   });

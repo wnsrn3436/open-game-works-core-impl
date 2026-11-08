@@ -331,6 +331,12 @@
       ]
     },
     {
+      "name": "fail_transaction",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
       "name": "on_commit",
       "inputs": [
         "other",

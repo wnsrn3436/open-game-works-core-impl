@@ -135,7 +135,11 @@ export function create_session(input: SessionInput): Session {
       return { session_id, signing_key };
     },
     end_session: (ctx) => {
-      delete_record(storage.db(ctx), ctx.user_id);
+      const db = storage.db(ctx);
+      // In a request with a session (`Logout`), only that session: a later login committed after `routing` step 5
+      // keeps its session. An out-of-request change (empty `session_id`) ends whatever session the user has.
+      if (ctx.session_id === '') delete_record(db, ctx.user_id);
+      else db.query(`DELETE FROM ${SESSION_TABLE} WHERE user_id = $1 AND session_id = $2`, [ctx.user_id, ctx.session_id]);
     },
     check_current: (user_id, session_id) => {
       const record = read_record(storage.read_db(), user_id);
