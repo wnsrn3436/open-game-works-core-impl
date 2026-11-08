@@ -9,6 +9,7 @@ import {
   START_AT,
   STEP,
   cheat_audits,
+  client_data_version,
   code,
   gold,
   new_calls,
@@ -90,6 +91,30 @@ describe('cheat request processing', () => {
     expect((await raw_cheat(server, session, SET_TIME_OFFSET, set_time_offset(STEP), { body: Uint8Array.of(0xff) })).error?.code).toBe(E.CORE_ERROR_INVALID_REQUEST);
     expect(code(await testing.send_cheat(session, 'core/cheat/SetUserState', set_user_state('ItemBalanceUserState', 1n, '{"id": "1"}')))).toBe(E.CORE_ERROR_INVALID_REQUEST);
     expect(await user_time(session)).toBe(START_AT);
+  });
+
+  it('answers DevLogin below min_version with APP_UPDATE_REQUIRED without the auth handler, and skips step 7 for the other cheats', async () => {
+    const server = await start({ calls: new_calls(gold()) });
+    const session = await testing.login(server, 'qa');
+    // The request headers of served.ts send X-Ogw-Platform linux and X-Ogw-Client-Version 1.0.0.
+    await admin(server, 'publish_deploy_list', {
+      app: { linux: { min_version: '1.2.0', recommended_version: '2.0.0', store_url: 'https://example.com/app' } },
+      patches: { '2.0.0': { data_version: client_data_version(), data_files: [], translation_files: [], bundle_files: [] } },
+    });
+    expect((await raw_dev_login(server, 'qa')).error?.code).toBe(E.CORE_ERROR_APP_UPDATE_REQUIRED);
+    expect((await raw_dev_login(server, 'qa', server.dev_access, { 'X-Ogw-Client-Version': '1.1.9' })).error?.code).toBe(E.CORE_ERROR_APP_UPDATE_REQUIRED);
+    expect((await raw_cheat(server, session, SET_TIME_OFFSET, set_time_offset(STEP))).error?.code ?? 0).toBe(0);
+    expect(await user_time(session)).toBe(START_AT + STEP);
+    // The new session of this DevLogin replaces the session of `session`.
+    expect((await raw_dev_login(server, 'qa', server.dev_access, { 'X-Ogw-Client-Version': '1.2.0' })).error?.code ?? 0).toBe(0);
+    // The auth handler decides the user; the refused requests end before it, with no user. The first line is the
+    // DevLogin of `testing.login`.
+    expect(cheat_audits(server).filter((l) => l['request'] === 'core/cheat/DevLogin').map((l) => [String(l['user_id']), l['result']])).toEqual([
+      [String(session.user_id), 0],
+      ['0', E.CORE_ERROR_APP_UPDATE_REQUIRED],
+      ['0', E.CORE_ERROR_APP_UPDATE_REQUIRED],
+      [String(session.user_id), 0],
+    ]);
   });
 });
 
