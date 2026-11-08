@@ -1,10 +1,10 @@
-# review SoundCore round 1
+# SoundCore review round 1
 
 ## findings
 
 | id | aspect | severity | location | evidence | fix | spec change | confidence |
 |---|---|---|---|---|---|---|---|
-| R1-1 | test evidence | medium | client/godot/core/sound_core/tests/test_dev_feedback.gd:91 | `## DEV` play skip of the spec skips only a `play` "whose bus and resource scope pass the checks of `## error`", so a `play` with a missing or released scope while play skip is on must still return the invalid handle with an error log. `test_play_skip_returns_the_invalid_handle_without_load_log_or_event_and_keeps_earlier_plays` checks the bus check order (`errors() == 1` for `SoundBus.BGM`) but never calls `play` with a null or released scope while play skip is on, and no other test does (`set_play_skip` is called only in this file; `qa_core/tests/test_feedback_switch.gd:91` passes the global scope). Moving `if _play_skip: return INVALID_HANDLE` of `client/godot/core/sound_core/sound_core.gd:372` above the scope check at `sound_core.gd:369` makes `play(key, SFX, released_scope)` return without the error log, and every test still passes | Add to the play skip test a `play` with `null` and with a released scope while play skip is on, asserting the invalid handle and one error log each | no | 85 |
+| R1-1 | spec | medium | settings/core-settings.json:307 | Commit c8fe1d02 (same change also in 0d4c6278) changes the core settings default `SoundCore.busLoudnessLufs.Bgm` from -20 to -28 (also client/godot/generated/core_settings.json:307). The message says only "SoundCore Bgm -28 LUFS" inside "settings of the spec changes since harness 3417ebc", and the body is empty. The harness at HEAD defines no default for `SoundCore.busLoudnessLufs` (skills/client-core/modules/sound-core.md:177 and skills/resource/production.md:183 name the key with no value). `git log 3417ebc..HEAD` of the harness has no commit about BGM loudness, and the core-impl records/ have no -28 value either. So the message gives no cause the value fixes and no evidence (measurement, reproduced failure, specification), which `## harness writing rules` of AGENTS.md requires for a changed threshold. The value is what `ogw resource finalize` brings every BGM file to, so it makes BGM 8 dB quieter in every game that does not override it | Give the cause and the evidence for -28 in a commit message (e.g. the judge or play result that found BGM too loud, or a loudness measurement against reference games). Without evidence, restore -20 | no | 85 |
 
 ## previous
 
@@ -24,6 +24,7 @@ none
 
 ## unknown
 
-- Core tests were not run in this review; the finding R1-1 was checked by reading every caller of `set_play_skip` in `client/` and `benchmark/` and every test that drives it
-- Whether a bus with DEV mute is actually silent at the audio output was not checked; the implementation and the tests rely on `AudioServer.set_bus_mute` / `AudioServer.is_bus_mute`
-- `QACore` code that calls `set_dev_mute` and `set_play_skip` (`client/godot/core/qa_core/dev/qa_core.gd:1261`) is outside this target and was read only to find callers
+- `reset_volume_settings` on a device file that is not loaded: only read in code (it calls `LocalDataCore.remove_value`, and `LocalDataCore` logs one error per file kind), not run
+- The seed change was checked only with the test clock and a random base (`test_variant_and_variation_randoms_are_seeded_by_time_core_make_random_seed`). The path without a random base (device time) was checked by reading `TimeCore.make_random_seed` (client/godot/core/time_core/time_core.gd:392), not run from SoundCore
+- Tests run: `ogw core test godot SoundCore --file` for tests/test_volume.gd and tests/test_variation.gd, both pass. The other SoundCore test files and the whole suite were not run, because the range changed nothing they cover except the two `TimeCore.make_random_seed` calls in `init`, which every SoundCore test runs through `start_modules`
+- The other commits of the range (server core, other client modules, generated contract) are outside this target and were not reviewed
