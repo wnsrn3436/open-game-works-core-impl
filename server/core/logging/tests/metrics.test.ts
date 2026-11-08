@@ -55,7 +55,8 @@ describe('read_metrics', () => {
     };
     for (const request of ['cheat/a', 'core/cheat/b', 'cheat/', 'Cheater', 'core/cheatsheet', 'game/cheat/x', 'cheat']) write(request);
     const families = server.logging.read_metrics();
-    const counts = Object.fromEntries(family(families, 'ogw_requests_total').samples.map((s) => [s.labels.request, s.value]));
+    const counts: Record<string, number> = {};
+    for (const sample of family(families, 'ogw_requests_total').samples) counts[sample.labels.request ?? ''] = sample.value;
     expect(counts).toEqual({ cheat: 4, Cheater: 1, 'core/cheatsheet': 1, 'game/cheat/x': 1 });
     expect(value_of(families, 'ogw_request_duration_seconds', 'ogw_request_duration_seconds_count', { request: 'cheat' })).toBe(4);
     expect(logs(server, 'request').map((line) => line.request)).toEqual(['cheat/a', 'core/cheat/b', 'cheat/', 'Cheater', 'core/cheatsheet', 'game/cheat/x', 'cheat']);
