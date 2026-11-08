@@ -13,7 +13,7 @@ async function logout(instance: Instance, user: bigint, session_id: string): Pro
   const result = await instance.storage.run_request_transaction(user, fields('core/Logout', session_id), (ctx) => {
     instance.session.end_session(ctx);
   });
-  if (result === 'FAILED' || result === 'WITHDRAWN') throw new Error(`Logout: ${String(result)}`);
+  if (result === 'FAILED' || result === 'WITHDRAWN') throw new Error(`Logout: ${result}`);
 }
 
 function session_ids(instance: Instance, user: bigint): unknown[] {
