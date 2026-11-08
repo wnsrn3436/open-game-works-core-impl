@@ -55,7 +55,9 @@ func test_world_effect_that_started_before_goes_on_and_other_channels_play() -> 
 	assert_true(is_settled(skipped))
 	assert_eq(results.size(), 1, "only the skipped flash ended")
 	ScreenEffectCore.skip_to_end(skipped)
+	ScreenEffectCore.clear_handle(skipped)
 	assert_overlay(WORLD, Color.RED, before.opacity, true, "the playing fade keeps the overlay")
+	assert_eq(results.size(), 1, "the World fade still plays")
 	var transition: ScreenEffectHandle = ScreenEffectCore.fade(TRANSITION, owner, Color.BLUE, 0.0, 1.0, 500)
 	var cutscene: ScreenEffectHandle = ScreenEffectCore.flash(CUTSCENE, owner, Color.WHITE, 1.0, 100, 0, 100)
 	var expected: Array[ScreenEffectCore.ScreenEffectChannel] = [TRANSITION, CUTSCENE]
