@@ -248,8 +248,13 @@ export class SqliteAdapter implements DbAdapter {
     try {
       const write = new DatabaseSync(this.path, { readBigInts: true });
       this.handles.push(write);
-      write.exec('PRAGMA busy_timeout = 0');
-      this.set_wal(write);
+      this.sync(() => {
+        write.exec('PRAGMA busy_timeout = 0');
+      });
+      // One synchronous DB call: the thread blocks through every try and every pause between them.
+      this.sync(() => {
+        this.set_wal(write);
+      });
       const read = new DatabaseSync(this.path, { readOnly: true, readBigInts: true });
       this.handles.push(read);
       this.writer = new Connection(write, this.meter);
@@ -277,6 +282,11 @@ export class SqliteAdapter implements DbAdapter {
         Atomics.wait(WAL_PAUSE, 0, 0, WAL_RETRY_MS);
       }
     }
+  }
+
+  /** Runs a statement of `open` outside a `Connection` as a synchronous DB call of the meter. */
+  private sync<T>(call: () => T): T {
+    return this.meter === null ? call() : this.meter.sync(call);
   }
 
   get read(): DbConn {
