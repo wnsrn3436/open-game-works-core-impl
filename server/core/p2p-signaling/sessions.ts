@@ -12,8 +12,12 @@ export interface Connection {
   close(): void;
 }
 
-/** How a participant's binding to a match session changed. */
-export type ParticipantChangeKind = 'LEFT' | 'DISCONNECTED' | 'REJOINED';
+/**
+ * How a participant's binding to a match session changed. `LEFT`: `MATCH_LEAVE` with `forfeit` `true`, or the connection
+ * was bound to a new session. `ENDED`: `MATCH_LEAVE` with `forfeit` `false`. `DISCONNECTED`: the connection closed.
+ * `REJOINED`: bound again by `MATCH_REJOIN`. `LEFT` comes only from that participant's own connection.
+ */
+export type ParticipantChangeKind = 'LEFT' | 'ENDED' | 'DISCONNECTED' | 'REJOINED';
 
 /** A participant change: the match, the participant index and how it changed. */
 export interface ParticipantChange {
@@ -99,7 +103,7 @@ export class SessionStore {
         this.#signal(connection, f);
         return null;
       case Kind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE:
-        return this.#match_leave(connection, f.match_id);
+        return this.#match_leave(connection, f.match_id, f.forfeit);
       case Kind.MATCHMAKER_FRAME_KIND_MATCH_REJOIN:
         return this.#rejoin(connection, f.match_id);
       default:
@@ -156,21 +160,22 @@ export class SessionStore {
     );
   }
 
-  #match_leave(connection: Connection, match_id: string): ParticipantChange | null {
+  /** `MATCH_LEAVE`: `LEFT` when `forfeit` is `true`, `ENDED` when it is `false`. Either way the index becomes a left index. */
+  #match_leave(connection: Connection, match_id: string, forfeit: boolean): ParticipantChange | null {
     const bound = this.#binding.get(connection);
     if (bound?.session.match_id !== match_id) {
       this.#env.dropped(connection, 'MATCH_LEAVE', 'not_in_session');
       return null;
     }
-    return this.#leave(connection);
+    return this.#leave(connection, forfeit ? 'LEFT' : 'ENDED');
   }
 
   /** Takes the connection out of its session as a leave: the index becomes a left index. */
-  #leave(connection: Connection): ParticipantChange | null {
+  #leave(connection: Connection, kind: 'LEFT' | 'ENDED' = 'LEFT'): ParticipantChange | null {
     const bound = this.#unbind(connection);
     if (bound === null) return null;
     bound.session.left.add(bound.index);
-    return { match_id: bound.session.match_id, index: bound.index, kind: 'LEFT' };
+    return { match_id: bound.session.match_id, index: bound.index, kind };
   }
 
   /** Takes the connection out of its session and sends `PEER_LEFT` to the other bound participants. */
