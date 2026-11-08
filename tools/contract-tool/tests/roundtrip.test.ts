@@ -227,6 +227,18 @@ describe('encode and decode', () => {
     expect(cls(gameNs, 'ClaimQuestRequest').decode(bytes)?.note).toBe(text.toWellFormed());
   });
 
+  it('U+0000 decodes as it is, fails the nul rule, and encodes back to the same bytes', () => {
+    // note (field 3) = "a\u0000b"
+    const bytes = new Uint8Array([26, 3, 0x61, 0x00, 0x62]);
+    const request = cls(gameNs, 'ClaimQuestRequest').decode(bytes);
+    expect(request).not.toBeNull();
+    expect(request?.note).toBe('a\u0000b');
+    expect(request?.encode()).toEqual(bytes);
+    if (request === null || request === undefined) return;
+    Object.assign(request, { quest_id: 7, details: [new (cls(gameNs, 'Detail'))()] });
+    expect((gameNs.validate_ClaimQuestRequest as (m: Message, d: unknown) => Failure)(request, data)).toEqual({ path: 'note', rule: 'nul' });
+  });
+
   it('a leading U+FEFF is kept and encodes back to the same bytes', () => {
     // note (field 3) = "\uFEFFabc"
     const bytes = new Uint8Array([26, 6, 0xef, 0xbb, 0xbf, 0x61, 0x62, 0x63]);
@@ -480,6 +492,9 @@ describe('field validators', () => {
     ['max_chars counts code points', { note: 'abcde' }, 'note', 'max_chars'],
     ['max_chars of an element', { tags: ['abcd'] }, 'tags[0]', 'max_chars'],
     ['utf8', { note: `a${String.fromCharCode(0xdcff)}` }, 'note', 'utf8'],
+    ['nul', { note: 'a\u0000b' }, 'note', 'nul'],
+    ['nul of an element', { tags: ['a', '\u0000'] }, 'tags[1]', 'nul'],
+    ['utf8 before nul', { note: `\u0000${String.fromCharCode(0xdcff)}` }, 'note', 'utf8'],
     ['enum value not defined', { kind: 7 }, 'kind', 'enum'],
     ['int64 min', { bet: -6n }, 'bet', 'min'],
     ['int64 max', { bet: 9000000000001n }, 'bet', 'max'],

@@ -44,4 +44,22 @@ describe('field validation of a request', () => {
     expect(calls).toEqual(['handler']);
     expect(savedState(started, user)).not.toEqual(before);
   });
+
+  it('fails a request with a string that holds U+0000 as INVALID_REQUEST with rule nul before its handler runs', async () => {
+    const started = await startServer();
+    const user = await newUser(started);
+    const calls: string[] = [];
+    const handler = (ctx: RequestCtx): void => {
+      calls.push('handler');
+      started.storage.put_state(ctx, quest(1n, 1n));
+    };
+    const before = savedState(started, user);
+    // nickname (field 1) = "A\u0000B": the decode keeps U+0000.
+    const nul = new Uint8Array([0x0a, 0x03, 0x41, 0x00, 0x42]);
+    expect(await send(started, user, 'core/SetNickname', nul, handler)).toEqual({ code: CoreContract.CoreError.CORE_ERROR_INVALID_REQUEST, detail: 'nickname: nul' });
+    const nested = Object.assign(new CoreContract.ReportClientErrorsRequest(), { errors: [Object.assign(new CoreContract.ClientErrorEntry(), { message: 'a\u0000' })] }).encode();
+    expect(await send(started, user, 'core/ReportClientErrors', nested, handler)).toEqual({ code: CoreContract.CoreError.CORE_ERROR_INVALID_REQUEST, detail: 'errors[0].message: nul' });
+    expect(calls).toEqual([]);
+    expect(savedState(started, user)).toEqual(before);
+  });
 });

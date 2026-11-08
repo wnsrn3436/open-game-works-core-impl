@@ -634,6 +634,8 @@ function checkText<D>(rule: Rule<D>, value: unknown): string | null {
   if (rule.kind === 'string') {
     const text = value as string;
     if (!text.isWellFormed()) return 'utf8';
+    // Protobuf allows U+0000, but neither DB stores it in a string column.
+    if (text.includes('\u0000')) return 'nul';
     if (rule.max_len !== undefined && utf8_bytes(text).length > rule.max_len) return 'max_len';
     if (rule.max_chars !== undefined && codePoints(text) > rule.max_chars) return 'max_chars';
     return null;
