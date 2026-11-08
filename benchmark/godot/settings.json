@@ -134,7 +134,8 @@
         0,
         0,
         0
-      ]
+      ],
+      "pixelRatio": 1
     }
   ],
   "titleScene": "scene/bench/title",

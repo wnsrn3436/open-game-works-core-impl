@@ -189,6 +189,11 @@ service Core {
   rpc Logout(LogoutRequest) returns (LogoutResponse) {
     option (ogw.retry) = true;
   }
+  // Ends the login of every other device of the user. This device stays logged in.
+  // changes: none
+  rpc LogoutOtherDevices(LogoutOtherDevicesRequest) returns (LogoutOtherDevicesResponse) {
+    option (ogw.retry) = true;
+  }
   // Links a social account to the user.
   // changes: none
   rpc LinkAccount(LinkAccountRequest) returns (LinkAccountResponse) {
@@ -621,6 +626,14 @@ message LogoutRequest {
 
 // Response of Logout.
 message LogoutResponse {
+}
+
+// Request of LogoutOtherDevices.
+message LogoutOtherDevicesRequest {
+}
+
+// Response of LogoutOtherDevices.
+message LogoutOtherDevicesResponse {
 }
 
 // Request of LinkAccount.
@@ -1857,6 +1870,10 @@ message MatchmakerFrame {
   MatchmakerFrameKind request = 24;
   // Indices of participants that left.
   repeated int32 left_indices = 25;
+  // True when the client leaves a match it is playing before its end.
+  bool forfeit = 26;
+  // Platform of the client. Empty when the client does not send it.
+  string platform = 27;
 }
 
 // One participant of a match.
@@ -2213,6 +2230,7 @@ enum MatchJudgeStatus {
   MATCH_JUDGE_STATUS_PENDING = 1;
   MATCH_JUDGE_STATUS_CONFIRMED = 2;
   MATCH_JUDGE_STATUS_MISMATCH = 3;
+  MATCH_JUDGE_STATUS_FORFEIT = 4;
 }
 
 // The kind of a matchmaker frame.

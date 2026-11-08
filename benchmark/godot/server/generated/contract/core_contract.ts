@@ -208,6 +208,7 @@ export const MatchJudgeStatus = {
   MATCH_JUDGE_STATUS_PENDING: 1,
   MATCH_JUDGE_STATUS_CONFIRMED: 2,
   MATCH_JUDGE_STATUS_MISMATCH: 3,
+  MATCH_JUDGE_STATUS_FORFEIT: 4,
 } as const;
 export type MatchJudgeStatus = (typeof MatchJudgeStatus)[keyof typeof MatchJudgeStatus];
 
@@ -534,6 +535,26 @@ export class LogoutResponse {
 
   static decode(bytes: Uint8Array): LogoutResponse | null {
     return Wire.decode(bytes, schema_LogoutResponse);
+  }
+}
+
+export class LogoutOtherDevicesRequest {
+  encode(): Uint8Array {
+    return Wire.encode(this, schema_LogoutOtherDevicesRequest);
+  }
+
+  static decode(bytes: Uint8Array): LogoutOtherDevicesRequest | null {
+    return Wire.decode(bytes, schema_LogoutOtherDevicesRequest);
+  }
+}
+
+export class LogoutOtherDevicesResponse {
+  encode(): Uint8Array {
+    return Wire.encode(this, schema_LogoutOtherDevicesResponse);
+  }
+
+  static decode(bytes: Uint8Array): LogoutOtherDevicesResponse | null {
+    return Wire.decode(bytes, schema_LogoutOtherDevicesResponse);
   }
 }
 
@@ -2468,6 +2489,8 @@ export class MatchmakerFrame {
   room_status: RoomStatus = RoomStatus.ROOM_STATUS_UNSPECIFIED;
   request: MatchmakerFrameKind = MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_UNSPECIFIED;
   left_indices: number[] = [];
+  forfeit: boolean = false;
+  platform: string = '';
 
   encode(): Uint8Array {
     return Wire.encode(this, schema_MatchmakerFrame);
@@ -3292,6 +3315,16 @@ const schema_LogoutRequest: Wire.Schema<LogoutRequest> = {
 
 const schema_LogoutResponse: Wire.Schema<LogoutResponse> = {
   create: () => new LogoutResponse(),
+  fields: [],
+};
+
+const schema_LogoutOtherDevicesRequest: Wire.Schema<LogoutOtherDevicesRequest> = {
+  create: () => new LogoutOtherDevicesRequest(),
+  fields: [],
+};
+
+const schema_LogoutOtherDevicesResponse: Wire.Schema<LogoutOtherDevicesResponse> = {
+  create: () => new LogoutOtherDevicesResponse(),
   fields: [],
 };
 
@@ -4436,6 +4469,8 @@ const schema_MatchmakerFrame: Wire.Schema<MatchmakerFrame> = {
     { no: 23, name: 'room_status', kind: 'enum', repeated: false, values: RoomStatus },
     { no: 24, name: 'request', kind: 'enum', repeated: false, values: MatchmakerFrameKind },
     { no: 25, name: 'left_indices', kind: 'int32', repeated: true },
+    { no: 26, name: 'forfeit', kind: 'bool', repeated: false },
+    { no: 27, name: 'platform', kind: 'string', repeated: false },
   ],
 };
 
@@ -4878,6 +4913,16 @@ export const RPCS: readonly RpcInfo[] = [
     sensitive: false,
     errors: [],
     validate: (message, data) => validate_LogoutRequest(message, data),
+  },
+  {
+    name: 'core/LogoutOtherDevices',
+    request_class: LogoutOtherDevicesRequest,
+    response_class: LogoutOtherDevicesResponse,
+    silent: false,
+    retry: true,
+    sensitive: false,
+    errors: [],
+    validate: (message, data) => validate_LogoutOtherDevicesRequest(message, data),
   },
   {
     name: 'core/LinkAccount',
@@ -5624,6 +5669,12 @@ const rules_CoreContract_LogoutRequest: readonly Wire.Rule<GameData.DataSet>[] =
 
 export function validate_LogoutRequest(message: LogoutRequest, data: GameData.DataSet): ValidationFailure | null {
   return Wire.validate(message, rules_CoreContract_LogoutRequest, data, '');
+}
+
+const rules_CoreContract_LogoutOtherDevicesRequest: readonly Wire.Rule<GameData.DataSet>[] = [];
+
+export function validate_LogoutOtherDevicesRequest(message: LogoutOtherDevicesRequest, data: GameData.DataSet): ValidationFailure | null {
+  return Wire.validate(message, rules_CoreContract_LogoutOtherDevicesRequest, data, '');
 }
 
 const rules_CoreContract_LinkAccountRequest: readonly Wire.Rule<GameData.DataSet>[] = [

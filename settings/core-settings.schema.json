@@ -185,6 +185,10 @@
       "type": "integer",
       "minimum": 1
     },
+    "auth.loginTokenIdleTtlMs": {
+      "type": "integer",
+      "minimum": 1
+    },
     "block-report.maxCommentLength": {
       "type": "integer",
       "minimum": 1
@@ -300,6 +304,10 @@
       "type": "integer",
       "minimum": 0
     },
+    "item-ledger.onceKeyRetentionMs": {
+      "type": "integer",
+      "minimum": 0
+    },
     "logging.analyticsDeletionBatchSize": {
       "type": "integer",
       "minimum": 1
@@ -359,6 +367,46 @@
     "logging.serverEventRetentionMs": {
       "type": "integer",
       "minimum": 0
+    },
+    "logging.metricsDurationBucketsMs": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "minItems": 1
+    },
+    "logging.alertWindowMs": {
+      "type": "integer",
+      "minimum": 1,
+      "x-owner": "human"
+    },
+    "logging.alertMinRequests": {
+      "type": "integer",
+      "minimum": 1,
+      "x-owner": "human"
+    },
+    "logging.alertErrorRatioPermille": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000,
+      "x-owner": "human"
+    },
+    "logging.alertSlowRequestMs": {
+      "type": "integer",
+      "minimum": 0,
+      "x-owner": "human"
+    },
+    "logging.alertSlowRatioPermille": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000,
+      "x-owner": "human"
+    },
+    "logging.alertErrorLogCount": {
+      "type": "integer",
+      "minimum": 1,
+      "x-owner": "human"
     },
     "mailbox.defaultExpireMs": {
       "type": "integer",
@@ -544,6 +592,18 @@
     "routing.userRateLimitPerMinute": {
       "type": "integer",
       "minimum": 0
+    },
+    "routing.requestWorkers": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "routing.opsReportIntervalMs": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "routing.readyMaxReportAgeMs": {
+      "type": "integer",
+      "minimum": 1
     },
     "server-time.silentMarginMs": {
       "type": "integer",
@@ -750,6 +810,22 @@
       "type": "integer",
       "minimum": 1
     },
+    "matchmaker.flagWindowMs": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "matchmaker.flagDisagreeCount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "matchmaker.flagForfeitCount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "matchmaker.flagMissingCount": {
+      "type": "integer",
+      "minimum": 1
+    },
     "block-report.maxBlocks": {
       "type": "integer",
       "minimum": 0
@@ -924,6 +1000,27 @@
     "iap.withdrawnRecordRetentionMs": {
       "type": "integer",
       "minimum": 0
+    },
+    "iap.refundLookupIntervalMs": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "iap.refundLookupBackMs": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2505600000
+    },
+    "iap.refundLookupPageCount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "iap.refundRetryCount": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "iap.refundRetryBatchSize": {
+      "type": "integer",
+      "minimum": 1
     },
     "loot-table.maxRollCount": {
       "type": "integer",
@@ -1204,6 +1301,19 @@
     "InputCore.swipeMinDistance": {
       "type": "number",
       "minimum": 0
+    },
+    "InputCore.padAxisSensitivities": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "minItems": 1,
+      "maxItems": 10,
+      "uniqueItems": true,
+      "contains": {
+        "const": 1000
+      }
     },
     "SoundCore.bgmCrossfadeMs": {
       "type": "integer",
@@ -1653,6 +1763,7 @@
         "minimum": 1
       },
       "minItems": 1,
+      "maxItems": 8,
       "uniqueItems": true,
       "contains": {
         "const": 1000
@@ -1902,6 +2013,7 @@
     "auth.maxDevAccountNameLength",
     "auth.maxTokenBytes",
     "auth.socialVerifyTimeoutMs",
+    "auth.loginTokenIdleTtlMs",
     "block-report.maxCommentLength",
     "block-report.maxRefBytes",
     "chat.maxTextLength",
@@ -1931,6 +2043,7 @@
     "idempotency.responseRetentionMs",
     "item-ledger.bigMaxDigits",
     "item-ledger.historyRetentionMs",
+    "item-ledger.onceKeyRetentionMs",
     "logging.analyticsDeletionBatchSize",
     "logging.analyticsDeletionIntervalMs",
     "logging.analyticsDeletionMaxAttempts",
@@ -1946,6 +2059,13 @@
     "logging.reportRateLimitPerMinute",
     "logging.securityRepeatWindowMs",
     "logging.serverEventRetentionMs",
+    "logging.metricsDurationBucketsMs",
+    "logging.alertWindowMs",
+    "logging.alertMinRequests",
+    "logging.alertErrorRatioPermille",
+    "logging.alertSlowRequestMs",
+    "logging.alertSlowRatioPermille",
+    "logging.alertErrorLogCount",
     "mailbox.defaultExpireMs",
     "mailbox.maxArgLength",
     "mailbox.maxArgs",
@@ -1992,6 +2112,9 @@
     "routing.maxBodyBytes",
     "routing.storageSweepIntervalMs",
     "routing.userRateLimitPerMinute",
+    "routing.requestWorkers",
+    "routing.opsReportIntervalMs",
+    "routing.readyMaxReportAgeMs",
     "server-time.silentMarginMs",
     "session.signatureWindowMs",
     "storage.dbAnswerWaitMs",
@@ -2042,6 +2165,10 @@
     "matchmaker.roomCodeMaxPicks",
     "matchmaker.sweepIntervalMs",
     "matchmaker.tickMs",
+    "matchmaker.flagWindowMs",
+    "matchmaker.flagDisagreeCount",
+    "matchmaker.flagForfeitCount",
+    "matchmaker.flagMissingCount",
     "block-report.maxBlocks",
     "block-report.maxEvidenceBytes",
     "block-report.maxReportsPerWindow",
@@ -2085,6 +2212,11 @@
     "iap.subscriptionSyncIntervalMs",
     "iap.verifyTimeoutMs",
     "iap.withdrawnRecordRetentionMs",
+    "iap.refundLookupIntervalMs",
+    "iap.refundLookupBackMs",
+    "iap.refundLookupPageCount",
+    "iap.refundRetryCount",
+    "iap.refundRetryBatchSize",
     "loot-table.maxRollCount",
     "ranking.aroundCount",
     "ranking.maxDisplayBytes",
@@ -2155,6 +2287,7 @@
     "InputCore.padAxisWaitThreshold",
     "InputCore.swipeMaxMs",
     "InputCore.swipeMinDistance",
+    "InputCore.padAxisSensitivities",
     "SoundCore.bgmCrossfadeMs",
     "SoundCore.busLoudnessLufs",
     "SoundCore.busPeakMaxDbtp",

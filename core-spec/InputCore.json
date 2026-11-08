@@ -67,6 +67,12 @@
       "type": "number",
       "source": "core",
       "owner": "content"
+    },
+    {
+      "key": "InputCore.padAxisSensitivities",
+      "type": "array<integer>",
+      "source": "core",
+      "owner": "content"
     }
   ],
   "settingsConstraints": [],
@@ -273,6 +279,42 @@
     },
     {
       "name": "wait_pad_button",
+      "inputs": []
+    },
+    {
+      "name": "set_pad_axis_inverted",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "is_pad_axis_inverted",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "set_pad_axis_sensitivity",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_pad_axis_sensitivity",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "list_pad_axis_sensitivities",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
+      "name": "reset_pad_axes",
       "inputs": []
     },
     {

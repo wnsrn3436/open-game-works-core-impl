@@ -122,6 +122,13 @@
       ]
     },
     {
+      "name": "is_below_min_version",
+      "inputs": [
+        "other",
+        "other"
+      ]
+    },
+    {
       "name": "put_update_file",
       "inputs": [
         "other",
