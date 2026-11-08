@@ -107,8 +107,14 @@ func test_reset_settings_keeps_a_test_text_scale_unless_the_text_scale_option_va
 	assert_eq(errors(), 0)
 
 
+## Whether the `device` file holds `key` with the type of `## data`: a missing key gives each of two defaults back.
 func _saved(key: String) -> bool:
-	return LocalDataCore._file_of(DEVICE).entries.has(key)
+	match key:
+		"AccessibilityCore.text_scale":
+			return LocalDataCore.get_value_int(DEVICE, key, -1) != -1 or LocalDataCore.get_value_int(DEVICE, key, -2) != -2
+		"AccessibilityCore.color_mode":
+			return LocalDataCore.get_value_string(DEVICE, key, "") != "" or LocalDataCore.get_value_string(DEVICE, key, "-") != "-"
+	return LocalDataCore.get_value_bool(DEVICE, key, false) != LocalDataCore.get_value_bool(DEVICE, key, true)
 
 
 ## The shake offset of each frame of `shake(1.0)` with `SHAKE_SEED`: the move of the canvas the camera shows from
