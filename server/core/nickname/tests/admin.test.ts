@@ -1,5 +1,5 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
-import { advance_time, game_row_lock_id, hold_lock_key, read_logs, send_admin, set_time, stop_test_server, type TestServer } from '../../testing/dev/index.ts';
+import { advance_time, game_row_lock_id, hold_lock_key, read_logs, send_admin, set_time, StartFailure, stop_test_server, type TestServer } from '../../testing/dev/index.ts';
 import { gems, in_user_transaction, nickname_state, set_gems, set_nickname, start, users, withdraw } from './helpers.ts';
 
 async function rename(server: TestServer, operation_id: string, user_id: bigint, nickname: string): Promise<{ status: number; json: unknown }> {
@@ -191,6 +191,24 @@ describe('find_user_by_nickname', () => {
       for (const s of sessions) expect((await set_nickname(s, 'Delta')).code).toBe(0);
       const ids = sessions.map((s) => s.user_id).sort((x, y) => (x < y ? -1 : 1));
       expect(await find(h.server, 'delta')).toEqual({ status: 200, json: { users: ids.slice(0, 2).map((id) => ({ user_id: id.toString(), nickname: 'Delta' })) } });
+    } finally {
+      await stop_test_server(h.server);
+    }
+  });
+
+  it('fails server start with admin-api.maxSearchRows 0, which the settings check rejects below its minimum 1, and starts with 1', async () => {
+    const thrown: unknown = await start(false, { 'admin-api.maxSearchRows': 0 }).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    expect(thrown).toBeInstanceOf(StartFailure);
+    expect((thrown as StartFailure).message).toContain('admin-api.maxSearchRows (minimum)');
+    const h = await start(false, { 'admin-api.maxSearchRows': 1 });
+    try {
+      const sessions = await users(h.server, ['a', 'b']);
+      for (const s of sessions) expect((await set_nickname(s, 'Foxtrot')).code).toBe(0);
+      const first = sessions.map((s) => s.user_id).sort((x, y) => (x < y ? -1 : 1))[0];
+      expect(await find(h.server, 'foxtrot')).toEqual({ status: 200, json: { users: [{ user_id: String(first), nickname: 'Foxtrot' }] } });
     } finally {
       await stop_test_server(h.server);
     }

@@ -72,7 +72,7 @@
     },
     "admin-api.maxSearchRows": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 1
     },
     "admin-api.maxStringBytes": {
       "type": "integer",
