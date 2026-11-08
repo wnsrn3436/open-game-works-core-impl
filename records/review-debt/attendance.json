@@ -1,12 +1,5 @@
 {
   "target": "attendance",
   "nextId": 2,
-  "items": [
-    {
-      "id": "D1",
-      "location": "server/core/attendance/index.ts:250",
-      "problem": "the server start check of `## data` of the attendance spec (\"When there is a row whose `reward` is an empty array and `extra_grant` is `false` ... the server does not start\", skills/server-core/modules/attendance.md:159) is not implemented: `complete_start` only checks `extra_grant` rows against a missing `grant_attendance_extra`, nothing else in `server/core` or the core test data invariants (`test-data/data/invariants.csv:7-9` has only `order_column` and `child_exists`) rejects such a row, and `grant_reward` (server/core/attendance/index.ts:220) returns `pass` for an empty `reward`, so a day row `[cal],1,,false` starts the server and `ClaimAttendance` succeeds, writes progress and grants nothing. No test of `server/core/attendance/tests/` covers the `## test` item \"When there is a row that violates the data rules, the server does not start\". The attendance code is unchanged in the commit range, so this existed before it",
-      "foundBy": "attendance round 1"
-    }
-  ]
+  "items": []
 }
