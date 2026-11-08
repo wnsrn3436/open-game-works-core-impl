@@ -16,7 +16,9 @@ const run_paths = core_test_server_paths();
 /**
  * The content `server/main.ts` of the process tests. `RunCoreTest` writes a probe line with the thread and whether
  * that server instance was made with `--matchmaker`, then by `OGW_TEST_MODE`: `exit` ends its worker thread with exit
- * code 7, `lock` puts the game state row `CoreTestGameState` key 1.
+ * code 7, `lock` puts the game state row `CoreTestGameState` key 1. With `OGW_TEST_MODE` `flood`, the route
+ * `GET /account/deletion` takes over an upgrade request: it writes `OGW_TEST_FLOOD_BYTES` bytes, ends the connection,
+ * destroys it once the end is written, then writes the probe line `flood`.
  */
 const MAIN_TS = `import { threadId, workerData } from 'node:worker_threads';
 import * as GameContract from './generated/contract/game_contract.ts';
@@ -24,6 +26,19 @@ import { core_test_register } from './core/testing/dev/index.ts';
 
 export function register(core) {
   core_test_register(core, ['RunCoreTest']);
+  if (process.env.OGW_TEST_MODE === 'flood') {
+    const auth = core.auth;
+    const route = auth['GET /account/deletion'];
+    auth['GET /account/deletion'] = (request, ip) => {
+      if (request.upgrade === null) return route.call(auth, request, ip);
+      const socket = request.upgrade.socket;
+      socket.end(Buffer.alloc(Number(process.env.OGW_TEST_FLOOD_BYTES), 0x61), () => {
+        socket.destroy();
+        process.stdout.write(JSON.stringify({ probe: 'flood' }) + '\\n');
+      });
+      return null;
+    };
+  }
   core.routing.register_handler('RunCoreTest', (ctx) => {
     process.stdout.write(JSON.stringify({ probe: 'RunCoreTest', thread: threadId, matchmaker: workerData?.args?.matchmaker === true }) + '\\n');
     const mode = process.env.OGW_TEST_MODE ?? '';
