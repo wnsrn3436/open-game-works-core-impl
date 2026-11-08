@@ -1,5 +1,5 @@
 extends "res://core/accessibility_core/tests/support/accessibility_test_case.gd"
-## Text scale: `set_text_scale` and the DEV `set_test_text_scale`.
+## Text scale: `set_text_scale`, `list_text_scales` and the DEV `set_test_text_scale`.
 
 const KEY_TEXT_SCALE: String = "AccessibilityCore.text_scale"
 
@@ -21,6 +21,43 @@ func test_set_text_scale_outside_the_list_is_false_with_an_error_and_keeps_the_t
 	assert_eq(LocalizationCore.get_text_scale(), 1250)
 	assert_eq(AccessibilityCore.get_settings().text_scale_permille, 1250)
 	assert_eq(LocalDataCore.get_value_int(DEVICE, KEY_TEXT_SCALE, 0), 1250)
+
+
+func test_list_text_scales_fills_the_text_scales_in_ascending_order() -> void:
+	var unsorted: PackedInt64Array = [1500, 1000, 1250]
+	set_int_array("AccessibilityCore.textScales", unsorted)
+	assert_true(await start_modules())
+	AccessibilityCore.apply_saved_settings()
+	var buffer: PackedInt32Array = PackedInt32Array()
+	buffer.resize(3)
+	assert_eq(AccessibilityCore.list_text_scales(buffer), 3)
+	assert_eq(buffer, PackedInt32Array([1000, 1250, 1500]))
+	for permille: int in buffer:
+		assert_true(AccessibilityCore.set_text_scale(permille), "set_text_scale(%d)" % permille)
+	assert_eq(errors(), 0)
+
+
+func test_list_text_scales_with_8_values_fills_a_buffer_of_8_without_a_log() -> void:
+	var eight: PackedInt64Array = [2000, 750, 1000, 1750, 500, 1250, 875, 1500]
+	set_int_array("AccessibilityCore.textScales", eight)
+	assert_true(await start_modules())
+	var buffer: PackedInt32Array = PackedInt32Array()
+	buffer.resize(8)
+	assert_eq(AccessibilityCore.list_text_scales(buffer), 8)
+	assert_eq(buffer, PackedInt32Array([500, 750, 875, 1000, 1250, 1500, 1750, 2000]))
+	assert_eq(errors(), 0)
+
+
+func test_list_text_scales_with_a_short_buffer_fills_its_size_with_an_error() -> void:
+	assert_true(await start_modules())
+	var buffer: PackedInt32Array = PackedInt32Array([0, 0])
+	assert_eq(AccessibilityCore.list_text_scales(buffer), 2)
+	assert_eq(buffer, PackedInt32Array([1000, 1250]), "the buffer size is unchanged")
+	assert_eq(errors(), 1)
+	var long_buffer: PackedInt32Array = PackedInt32Array([-1, -1, -1, -1, -1])
+	assert_eq(AccessibilityCore.list_text_scales(long_buffer), 3)
+	assert_eq(long_buffer, PackedInt32Array([1000, 1250, 1500, -1, -1]), "only the filled values change")
+	assert_eq(errors(), 0)
 
 
 func test_set_test_text_scale_applies_the_text_scale_and_leaves_the_device_file() -> void:

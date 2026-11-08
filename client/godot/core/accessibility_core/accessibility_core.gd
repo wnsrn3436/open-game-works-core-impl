@@ -27,10 +27,14 @@ const _KEY_COLOR_MODE: String = "AccessibilityCore.color_mode"
 const _KEY_SUBTITLES: String = "AccessibilityCore.subtitles"
 const _KEY_REDUCE_SHAKE: String = "AccessibilityCore.reduce_shake"
 const _KEY_REDUCE_FLASH: String = "AccessibilityCore.reduce_flash"
+## Every key above, which `reset_settings` removes.
+const _KEYS: PackedStringArray = [_KEY_TEXT_SCALE, _KEY_COLOR_MODE, _KEY_SUBTITLES, _KEY_REDUCE_SHAKE, _KEY_REDUCE_FLASH]
 
 ## Element names of `ColorMode`, indexed by the member.
 const _COLOR_MODE_NAMES: PackedStringArray = ["None", "Protanopia", "Deuteranopia", "Tritanopia"]
 const _DEFAULT_TEXT_SCALE: int = 1000
+## Most elements `AccessibilityCore.textScales` can have.
+const _MAX_TEXT_SCALES: int = 8
 const _FULL_SHAKE_PERMILLE: int = 1000
 const _FULL_FLASH_OPACITY: float = 1.0
 const _MATRIX_SIZE: int = 9
@@ -57,6 +61,7 @@ const _FONT_COLOR: StringName = &"font_color"
 
 static var _is_initialized: bool = false
 static var _node: _CORE_NODE = null
+## `AccessibilityCore.textScales` in ascending order.
 static var _text_scales: PackedInt64Array = PackedInt64Array()
 static var _subtitles_default: bool = false
 static var _filter_enabled: bool = false
@@ -172,6 +177,19 @@ static func get_settings() -> AccessibilitySettings:
 
 
 ## Sets the text scale to `permille`, one of `AccessibilityCore.textScales`.
+## Fills `buffer` from index 0 with the values of `AccessibilityCore.textScales` in ascending order and returns the
+## number filled. A buffer shorter than the list gets its first values and an error log.
+static func list_text_scales(buffer: PackedInt32Array) -> int:
+	if not _check_initialized("list_text_scales"):
+		return 0
+	var count: int = mini(buffer.size(), _text_scales.size())
+	if count < _text_scales.size():
+		LogCore.log_error(_TAG, "list_text_scales: the buffer is smaller than AccessibilityCore.textScales")
+	for index: int in count:
+		buffer[index] = _text_scales[index]
+	return count
+
+
 static func set_text_scale(permille: int) -> bool:
 	if not _check_initialized("set_text_scale"):
 		return false
@@ -235,6 +253,35 @@ static func set_reduce_flash(enabled: bool) -> void:
 	_publish_changed()
 
 
+## Sets every option to its default value, applies the ones that change and removes the saved values, so that
+## `apply_saved_settings` reads the defaults. One `AccessibilityChangedEvent` when any value changed.
+static func reset_settings() -> void:
+	if not _check_initialized("reset_settings"):
+		return
+	var previous: AccessibilitySettings = _settings
+	_settings = _default_settings()
+	var changed: bool = false
+	if _settings.text_scale_permille != previous.text_scale_permille:
+		_apply_text_scale()
+		changed = true
+	if _settings.color_mode != previous.color_mode:
+		_apply_color_mode()
+		changed = true
+	if _settings.subtitles != previous.subtitles:
+		_apply_subtitles()
+		changed = true
+	if _settings.reduce_shake != previous.reduce_shake:
+		_apply_reduce_shake()
+		changed = true
+	if _settings.reduce_flash != previous.reduce_flash:
+		_apply_reduce_flash()
+		changed = true
+	for key: String in _KEYS:
+		LocalDataCore.remove_value(LocalDataCore.FileKind.DEVICE, key)
+	if changed:
+		_publish_changed()
+
+
 ## Plays the voice `key` on the `Voice` bus in `scope` and, while subtitles are on, shows the text of `subtitle_key`
 ## (formatted with `args` when given) until the play ends. Returns the `SoundCore` play handle.
 static func play_voice(key: String, scope: Scope, subtitle_key: String, args: FormatArgs = null) -> int:
@@ -268,6 +315,8 @@ static func _read_settings() -> bool:
 	if not CoreSettings.has_int_array(_SETTING_TEXT_SCALES):
 		return _setting_error("core settings has no integer array " + _SETTING_TEXT_SCALES)
 	var scales: PackedInt64Array = CoreSettings.get_int_array(_SETTING_TEXT_SCALES)
+	if scales.size() > _MAX_TEXT_SCALES:
+		return _setting_error(_SETTING_TEXT_SCALES + " has more than 8 elements")
 	if not scales.has(_DEFAULT_TEXT_SCALE):
 		return _setting_error(_SETTING_TEXT_SCALES + " has no 1000")
 	for index: int in scales.size():
@@ -318,6 +367,7 @@ static func _read_settings() -> bool:
 		return _setting_error(_SETTING_SUBTITLE_FONT_SIZE + " is less than 1")
 	if not (is_finite(padding) and padding >= 0.0) or not (is_finite(margin) and margin >= 0.0):
 		return _setting_error("%s or %s is less than 0" % [_SETTING_SUBTITLE_PADDING, _SETTING_SUBTITLE_MARGIN])
+	scales.sort()
 	_text_scales = scales
 	_subtitles_default = CoreSettings.get_bool(_SETTING_SUBTITLES_DEFAULT)
 	_filter_enabled = CoreSettings.get_bool(_SETTING_COLOR_FILTER_ENABLED)

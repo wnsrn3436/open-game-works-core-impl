@@ -18,6 +18,17 @@ func test_deuteranopia_filter_multiplies_a_pure_red_pixel_by_its_matrix_and_none
 	_assert_color(await _pixel(at), RED, "None after")
 
 
+func test_reset_settings_puts_a_filtered_pure_red_pixel_back_to_red() -> void:
+	assert_true(await start_modules())
+	AccessibilityCore.apply_saved_settings()
+	_add_background(RED)
+	var at: Vector2 = _background_point()
+	assert_true(AccessibilityCore.set_color_mode(DEUTERANOPIA))
+	_assert_color(await _pixel(at), _filtered(RED), "Deuteranopia")
+	AccessibilityCore.reset_settings()
+	_assert_color(await _pixel(at), RED, "after reset_settings")
+
+
 func test_with_color_filter_disabled_no_mode_changes_the_pixels() -> void:
 	set_bool("AccessibilityCore.colorFilterEnabled", false)
 	assert_true(await start_modules())
