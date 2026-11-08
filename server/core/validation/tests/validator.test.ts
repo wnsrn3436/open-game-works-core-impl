@@ -24,10 +24,14 @@ function setting(key: string): number {
  * A game folder with no `contract/`, whose server generated contract code the contract tool makes with `settings` as
  * the merged core settings. Removed after `use`.
  */
-async function withGeneratedGame(settings: Record<string, number>, use: (game: string) => Promise<void>): Promise<void> {
+async function withGeneratedGame(settings: Record<string, number>, use: (game: string) => Promise<void>, contract: Readonly<Record<string, string>> = {}): Promise<void> {
   // The real path: the module under test and this test must import the generated code by the same path.
   const game = realpathSync(mkdtempSync(join(tmpdir(), 'validation-game-')));
   try {
+    for (const [name, text] of Object.entries(contract)) {
+      mkdirSync(join(game, 'contract'), { recursive: true });
+      writeFileSync(join(game, 'contract', name), text);
+    }
     mkdirSync(join(game, 'server', 'generated', 'data'), { recursive: true });
     copyFileSync(join(ROOT, 'server', 'generated', 'data', 'game_data.proto'), join(game, 'server', 'generated', 'data', 'game_data.proto'));
     writeFileSync(join(game, 'core-settings.json'), JSON.stringify(settings));
@@ -40,6 +44,51 @@ async function withGeneratedGame(settings: Record<string, number>, use: (game: s
   } finally {
     rmSync(game, { recursive: true, force: true });
   }
+}
+
+/** A game contract with a `repeated string` request field, which neither the base proto nor the core test contract has. */
+const TAG_CONTRACT: Readonly<Record<string, string>> = {
+  'error.proto': 'syntax = "proto3";\npackage game;\n\nenum GameError {\n  GAME_ERROR_UNSPECIFIED = 0;\n}\n',
+  'service.proto': [
+    'syntax = "proto3";',
+    'package game;',
+    '',
+    'import "ogw/options.proto";',
+    '',
+    'service Game {',
+    '  // Sets tags.',
+    '  // changes: none',
+    '  rpc Tag(TagRequest) returns (TagResponse) {}',
+    '}',
+    '',
+    'message TagRequest {',
+    '  repeated string tags = 1 [(ogw.v) = {max_count: 4, max_chars: 8}];',
+    '  TagInner inner = 2;',
+    '}',
+    '',
+    'message TagInner {',
+    '  string note = 1 [(ogw.v) = {max_chars: 8}];',
+    '}',
+    '',
+    'message TagResponse {}',
+    '',
+  ].join('\n'),
+};
+
+/**
+ * The validation module of a generated game, with the module and the generated code it imports at the same relative
+ * paths as in a game's `server/`.
+ */
+async function gameValidation(game: string): Promise<ValidationModule.Validation> {
+  const generatedData = join(game, 'server', 'generated', 'data');
+  copyFileSync(join(ROOT, 'server', 'generated', 'data', 'game_data.ts'), join(generatedData, 'game_data.ts'));
+  cpSync(join(ROOT, 'server', 'core', 'validation'), join(game, 'server', 'core', 'validation'), { recursive: true, filter: (path) => basename(path) !== 'tests' });
+  const url = (...path: string[]) => pathToFileURL(join(game, 'server', ...path)).href;
+  const data = (await import(url('generated', 'data', 'game_data.ts'))) as typeof GameData;
+  const validationModule = (await import(url('core', 'validation', 'index.ts'))) as typeof ValidationModule;
+  const dataSet = data.load_data_set({ get: () => new Uint8Array(0) } as unknown as ReadonlyMap<string, Uint8Array>);
+  if (dataSet === null) throw new Error('an empty data set did not load');
+  return validationModule.create_validation({ settings: { supportedLanguages: ['en'] }, modules: {} as ValidationModule.ValidationInput['modules'], server: { data: dataSet } });
 }
 
 function make<T extends object>(ctor: new () => T, values: Partial<T>): T {
@@ -124,6 +173,30 @@ describe('validate_request rules', () => {
     const message = CoreContract.SetNicknameRequest.decode(new Uint8Array([0x0a, 0x03, 0x41, 0xff, 0x42]));
     if (message === null) throw new Error('the request did not decode');
     expect(v.validate_request('core/SetNickname', message)).toEqual({ path: 'nickname', rule: 'utf8' });
+  });
+
+  it('rejects a string that holds U+0000 with rule nul, also decoded from the wire and in a message inside a message', () => {
+    const nickname = (text: string) => v.validate_request('core/SetNickname', make(CoreContract.SetNicknameRequest, { nickname: text }));
+    expect(nickname('a\u0000b')).toEqual({ path: 'nickname', rule: 'nul' });
+    expect(nickname('\u0000')).toEqual({ path: 'nickname', rule: 'nul' });
+    expect(nickname('ab')).toBe(PASS);
+    const decoded = CoreContract.SetNicknameRequest.decode(new Uint8Array([0x0a, 0x03, 0x41, 0x00, 0x42]));
+    if (decoded === null) throw new Error('the request did not decode');
+    expect(decoded.nickname).toBe('A\u0000B');
+    expect(v.validate_request('core/SetNickname', decoded)).toEqual({ path: 'nickname', rule: 'nul' });
+    const errors = [make(CoreContract.ClientErrorEntry, { message: 'ok' }), make(CoreContract.ClientErrorEntry, { message: 'x\u0000' })];
+    expect(v.validate_request('core/ReportClientErrors', make(CoreContract.ReportClientErrorsRequest, { errors }))).toEqual({ path: 'errors[1].message', rule: 'nul' });
+  });
+
+  it('rejects an element of a repeated string field that holds U+0000 with rule nul', async () => {
+    await withGeneratedGame(CORE_SETTINGS, async (game) => {
+      const validation = await gameValidation(game);
+      const contract = (await import(pathToFileURL(join(game, 'server', 'generated', 'contract', 'game_contract.ts')).href)) as Record<string, unknown>;
+      const request = (tags: string[], note: string) => Object.assign(new (contract['TagRequest'] as new () => ValidationModule.Message)(), { tags, inner: Object.assign(new (contract['TagInner'] as new () => object)(), { note }) });
+      expect(validation.validate_request('Tag', request(['a', 'b'], 'c'))).toBe(PASS);
+      expect(validation.validate_request('Tag', request(['a', 'b\u0000'], 'c'))).toEqual({ path: 'tags[1]', rule: 'nul' });
+      expect(validation.validate_request('Tag', request(['a'], '\u0000'))).toEqual({ path: 'inner.note', rule: 'nul' });
+    }, TAG_CONTRACT);
   });
 
   it('checks the fields of a message inside a message', () => {
