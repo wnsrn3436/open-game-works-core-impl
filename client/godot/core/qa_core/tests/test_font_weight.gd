@@ -1,7 +1,7 @@
 extends "res://core/qa_core/tests/support/qa_test_case.gd"
 ## `font_weight` of `list_ui`: the `wght` of the body and heading text styles on a font with a `wght` axis, the axis
-## default, the clamp to the axis, the outermost `FontVariation` that sets a weight, the weight class of a font without
-## the axis, and 0 for an element without text.
+## default, the clamp to the axis, the weight of only the outermost `FontVariation` (the engine drops the coordinates
+## of inner ones), the weight class of a font without the axis, and 0 for an element without text.
 
 const BODY_WEIGHT: String = "LocalizationCore.bodyFontWeight"
 const HEADING_WEIGHT: String = "LocalizationCore.headingFontWeight"
@@ -116,7 +116,7 @@ func test_a_weight_outside_the_axis_is_clamped_to_it() -> void:
 	assert_eq(weight_of(await run_ok("list_ui"), "HeadingLabel"), AXIS_MAX, "the engine draws it at the end of the axis")
 
 
-func test_the_outermost_font_variation_that_sets_a_weight_gives_it() -> void:
+func test_only_the_outermost_font_variation_gives_the_weight() -> void:
 	assert_true(await start_with_fonts(AXIS_FONT, 0, 0))
 	var font: Font = loaded_font()
 	var inner: FontVariation = FontVariation.new()
@@ -129,13 +129,22 @@ func test_the_outermost_font_variation_that_sets_a_weight_gives_it() -> void:
 	outer.base_font = middle
 	var nested: Control = add_text("Nested", "Label", &"", "A", 100)
 	nested.add_theme_font_override(&"font", outer)
+	var top_inner: FontVariation = FontVariation.new()
+	top_inner.base_font = font
+	set_weight(top_inner, 300)
+	var top: FontVariation = FontVariation.new()
+	top.base_font = top_inner
+	set_weight(top, 800)
+	var outermost: Control = add_text("Outermost", "Label", &"", "A", 150)
+	outermost.add_theme_font_override(&"font", top)
 	var unset: FontVariation = FontVariation.new()
 	unset.base_font = font
-	var plain: Control = add_text("Unset", "Label", &"", "A", 150)
+	var plain: Control = add_text("Unset", "Label", &"", "A", 200)
 	plain.add_theme_font_override(&"font", unset)
 	await UnitTestCore.wait_frames(1)
 	var list: String = await run_ok("list_ui")
-	assert_eq(weight_of(list, "Nested"), 700, "the outermost FontVariation that sets wght")
+	assert_eq(weight_of(list, "Nested"), AXIS_DEFAULT, "the outermost FontVariation sets no wght; inner ones are dropped")
+	assert_eq(weight_of(list, "Outermost"), 800, "the outermost FontVariation's wght, not the inner 300")
 	assert_eq(weight_of(list, "Unset"), AXIS_DEFAULT, "no FontVariation sets wght")
 
 
