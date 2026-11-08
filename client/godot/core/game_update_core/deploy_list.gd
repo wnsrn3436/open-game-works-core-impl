@@ -10,7 +10,6 @@ const _FORMAT: int = 1
 const _MAX_SAFE_INTEGER: float = 9007199254740991.0
 const _HEX_DIGITS: String = "0123456789abcdef"
 const _NAME_CHARS: String = "abcdefghijklmnopqrstuvwxyz0123456789_.-"
-const _VERSION_PART_MAX_DIGITS: int = 18
 const _URL_END_MARKS: PackedStringArray = ["?", "#"]
 
 ## Why reading or the format check failed. Empty when it passed.
@@ -58,28 +57,29 @@ static func check(bytes: PackedByteArray, environment: String, min_sequence: int
 	return result
 
 
-## Whether `version` is `<major>.<minor>.<patch>`: three decimal integers without leading zeros.
+## Whether `version` is `<major>.<minor>.<patch>`: three decimal integers without leading zeros, of any number of
+## digits, as server `game-update` publish accepts.
 static func is_version(version: String) -> bool:
 	var parts: PackedStringArray = version.split(".")
 	if parts.size() != 3:
 		return false
 	for part: String in parts:
-		if part.is_empty() or part.length() > _VERSION_PART_MAX_DIGITS or not _is_digits(part):
+		if part.is_empty() or not _is_digits(part):
 			return false
 		if part.length() > 1 and part.begins_with("0"):
 			return false
 	return true
 
 
-## Compares two versions that pass `is_version`, number by number from the front: negative, 0 or positive.
+## Compares two versions that pass `is_version`, number by number from the front: negative, 0 or positive. The
+## numbers are compared as decimal strings, so a number of any number of digits compares exactly.
 static func compare_versions(a: String, b: String) -> int:
 	var pa: PackedStringArray = a.split(".")
 	var pb: PackedStringArray = b.split(".")
 	for i: int in 3:
-		var x: int = pa[i].to_int()
-		var y: int = pb[i].to_int()
-		if x != y:
-			return -1 if x < y else 1
+		var order: int = _compare_decimals(pa[i], pb[i])
+		if order != 0:
+			return order
 	return 0
 
 
@@ -369,6 +369,24 @@ static func _is_sha256(text: String) -> bool:
 		if not _HEX_DIGITS.contains(text[i]):
 			return false
 	return true
+
+
+## Compares two decimal digit strings by value: negative, 0 or positive. Leading zeros are ignored.
+static func _compare_decimals(a: String, b: String) -> int:
+	var x: String = _strip_leading_zeros(a)
+	var y: String = _strip_leading_zeros(b)
+	if x.length() != y.length():
+		return -1 if x.length() < y.length() else 1
+	if x == y:
+		return 0
+	return -1 if x < y else 1
+
+
+static func _strip_leading_zeros(text: String) -> String:
+	var start: int = 0
+	while start < text.length() - 1 and text.unicode_at(start) == 0x30:
+		start += 1
+	return text.substr(start)
 
 
 static func _is_digits(text: String) -> bool:
