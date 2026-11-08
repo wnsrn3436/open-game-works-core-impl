@@ -100,11 +100,11 @@ describe('ads-reward claim', () => {
     expect(error_of(await claim(other, notify_id))).toBe(CoreError.CORE_ERROR_AD_REWARD_NOT_FOUND);
   });
 
-  it('answers AD_REWARD_NOT_FOUND at once without an error log to a reward notify ID that is not a lower-case UUID v4, U+0000 included', async () => {
+  it('answers AD_REWARD_NOT_FOUND at once without an error log to a reward notify ID that is not a lower-case UUID v4', async () => {
     const session = await user(s.server);
     const notify_id = await notify_of(session, BASIC());
     const errors = T.read_logs(s.server, 'error', 'error').length;
-    for (const sent_id of ['a\u0000b', `${notify_id.slice(0, 35)}\u0000`, notify_id.toUpperCase(), '']) {
+    for (const sent_id of [notify_id.toUpperCase(), `${notify_id.slice(0, 35)}x`, 'a', '']) {
       const pending = claim(session, sent_id);
       expect(await still_pending(pending, 1000)).toBe(false);
       expect(error_of(await pending)).toBe(CoreError.CORE_ERROR_AD_REWARD_NOT_FOUND);
@@ -112,4 +112,20 @@ describe('ads-reward claim', () => {
     expect(T.read_logs(s.server, 'error', 'error').slice(errors)).toEqual([]);
     expect(error_of(await drive(s.server, claim(session, notify_id)))).toBe(CoreError.CORE_ERROR_AD_REWARD_PENDING);
   });
+
+  it('answers INVALID_REQUEST with rule nul at once, before the handler, to a reward notify ID that holds U+0000', async () => {
+    const session = await user(s.server);
+    const notify_id = await notify_of(session, BASIC());
+    const errors = T.read_logs(s.server, 'error', 'error').length;
+    for (const sent_id of ['a\u0000b', `${notify_id.slice(0, 35)}\u0000`, '\u0000']) {
+      const pending = claim(session, sent_id);
+      expect(await still_pending(pending, 1000)).toBe(false);
+      const sent = await pending;
+      expect(error_of(sent)).toBe(CoreError.CORE_ERROR_INVALID_REQUEST);
+      expect(sent.envelope.error?.detail).toMatch(/^step 11 .*\bnotify_id:? nul$/);
+    }
+    expect(T.read_logs(s.server, 'error', 'error').slice(errors)).toEqual([]);
+    expect(error_of(await drive(s.server, claim(session, notify_id)))).toBe(CoreError.CORE_ERROR_AD_REWARD_PENDING);
+  });
+});
 });

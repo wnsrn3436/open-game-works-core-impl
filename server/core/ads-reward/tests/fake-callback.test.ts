@@ -38,15 +38,30 @@ describe('ads-reward FakeAdCallback', () => {
     expect(error_of(await fake_callback(owner, notify_id))).toBe(CoreError.CORE_ERROR_AD_REWARD_NOT_FOUND);
   });
 
-  it('answers AD_REWARD_NOT_FOUND without an error log to a reward notify ID that is not a lower-case UUID v4, U+0000 included', async () => {
+  it('answers AD_REWARD_NOT_FOUND without an error log to a reward notify ID that is not a lower-case UUID v4', async () => {
     const session = await user(s.server);
     const notify_id = await notify_of(session, BASIC());
     const errors = T.read_logs(s.server, 'error', 'error').length;
-    for (const sent_id of ['a\u0000b', `${notify_id.slice(0, 35)}\u0000`, notify_id.toUpperCase(), '']) {
+    for (const sent_id of [notify_id.toUpperCase(), `${notify_id.slice(0, 35)}x`, 'a', '']) {
       expect(error_of(await fake_callback(session, sent_id))).toBe(CoreError.CORE_ERROR_AD_REWARD_NOT_FOUND);
     }
     expect(T.read_logs(s.server, 'error', 'error').slice(errors)).toEqual([]);
     expect(await balance(s.server, session.user_id, GEM())).toBe(0n);
+    expect(error_of(await fake_callback(session, notify_id))).toBe(0);
+  });
+
+  it('answers INVALID_REQUEST with rule nul, before the handler and without a grant, to a reward notify ID that holds U+0000', async () => {
+    const session = await user(s.server);
+    const notify_id = await notify_of(session, BASIC());
+    const errors = T.read_logs(s.server, 'error', 'error').length;
+    for (const sent_id of ['a\u0000b', `${notify_id.slice(0, 35)}\u0000`, '\u0000']) {
+      const sent = await fake_callback(session, sent_id);
+      expect(error_of(sent)).toBe(CoreError.CORE_ERROR_INVALID_REQUEST);
+      expect(sent.envelope.error?.detail).toMatch(/^step 11 .*\bnotify_id:? nul$/);
+    }
+    expect(T.read_logs(s.server, 'error', 'error').slice(errors)).toEqual([]);
+    expect(await balance(s.server, session.user_id, GEM())).toBe(0n);
+    expect(await reward_count(s.server, session.user_id, BASIC())).toBeNull();
     expect(error_of(await fake_callback(session, notify_id))).toBe(0);
   });
 
