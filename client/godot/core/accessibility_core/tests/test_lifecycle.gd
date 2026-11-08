@@ -83,7 +83,11 @@ func test_operations_before_init_log_an_error_and_return_their_failure_values() 
 	AccessibilityCore.set_reduce_flash(true)
 	assert_eq(AccessibilityCore.play_voice(VOICE_LOOP, scope, subtitle_key()), SoundCore.INVALID_HANDLE)
 	AccessibilityCoreDev.set_test_text_scale(1500)
-	assert_eq(errors(), 9)
+	var buffer: PackedInt32Array = PackedInt32Array([-1, -1, -1])
+	assert_eq(AccessibilityCore.list_text_scales(buffer), 0)
+	assert_eq(buffer, PackedInt32Array([-1, -1, -1]), "the buffer is not filled")
+	AccessibilityCore.reset_settings()
+	assert_eq(errors(), 11)
 	assert_eq(LocalizationCore.get_text_scale(), 1000)
 	assert_eq(LocalDataCore.get_value_int(DEVICE, "AccessibilityCore.text_scale", -1), -1, "nothing saved")
 	assert_true(AccessibilityCore.init())
@@ -99,6 +103,8 @@ func test_init_fails_with_an_error_for_core_settings_out_of_their_range() -> voi
 	_assert_int_array_fails("AccessibilityCore.textScales", below_1, TEXT_SCALES)
 	var repeated: PackedInt64Array = [1000, 1250, 1250]
 	_assert_int_array_fails("AccessibilityCore.textScales", repeated, TEXT_SCALES)
+	var nine: PackedInt64Array = [500, 625, 750, 875, 1000, 1250, 1500, 1750, 2000]
+	_assert_int_array_fails("AccessibilityCore.textScales", nine, TEXT_SCALES)
 	var eight: PackedFloat64Array = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
 	set_matrices(eight)
 	_assert_init_fails("a matrix of 8 numbers")
