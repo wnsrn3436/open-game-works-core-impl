@@ -38,6 +38,8 @@ func test_release_restores_the_first_values() -> void:
 	InputCore.set_ui_pointer_observer(recorder.on_pointer)
 	assert_true(InputCore.set_keys(&"jump", PackedStringArray(["H"])))
 	assert_true(InputCore.set_pad_buttons(&"jump", PackedStringArray(["y"])))
+	assert_true(InputCore.set_pad_axis_inverted("right_x", true))
+	assert_true(InputCore.set_pad_axis_sensitivity("left_y", 2000))
 	InputCore.set_pinch_enabled(true)
 	key(KEY_H, true)
 	touch(0, true, CENTER)
@@ -53,6 +55,10 @@ func test_release_restores_the_first_values() -> void:
 	InputCore.release()
 	unblock(token)
 	assert_initial_state()
+	assert_eq(LocalDataCore.get_array_string(LocalDataCore.FileKind.DEVICE, "InputCore.pad_axis_inverted"),
+		PackedStringArray(["right_x"]), "release keeps the saved stick axis options")
+	assert_eq(LocalDataCore.get_array_string(LocalDataCore.FileKind.DEVICE, "InputCore.pad_axis_sensitivity"),
+		PackedStringArray(["left_y=2000"]))
 	var buffer: PackedInt32Array = PackedInt32Array([9])
 	assert_eq(InputCore.get_connected_gamepads(buffer), 0)
 	assert_eq(errors(), 1)
@@ -63,6 +69,8 @@ func test_release_restores_the_first_values() -> void:
 	var pads: PackedStringArray = PackedStringArray(["", ""])
 	assert_eq(InputCore.get_pad_buttons(&"jump", pads), 1)
 	assert_eq(pads[0], "b")
+	assert_false(InputCore.is_pad_axis_inverted("right_x"), "release puts the stick axis options back")
+	assert_eq(InputCore.get_pad_axis_sensitivity("left_y"), 1000)
 	assert_false(InputCore.is_pressed(&"jump"))
 	recorder.clear()
 	key(KEY_ESCAPE, true)
@@ -186,7 +194,8 @@ func assert_initial_state() -> void:
 			InputCore._pointer_drag_positions.size(), InputCore._pointer_press_times.size(),
 			InputCore._pointer_orders.size(), InputCore._connected_gamepads.size(), InputCore._axis_values.size(),
 			InputCore._gamepad_families.size(), InputCore._gamepad_slot_ids.size(), InputCore._passed.size(),
-			InputCore._prompt_rows.size()]:
+			InputCore._prompt_rows.size(), InputCore._sensitivities.size(), InputCore._axis_inverted.size(),
+			InputCore._axis_sensitivity.size()]:
 		assert_eq(collection, 0, "collections are empty")
 	assert_eq(InputCore._press_order, 0)
 	assert_false(InputCore._emulated_pressed)

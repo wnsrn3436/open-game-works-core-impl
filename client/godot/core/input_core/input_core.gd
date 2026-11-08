@@ -1,10 +1,10 @@
 class_name InputCore
 extends RefCounted
 ## Turns device input into actions and gestures, and owns the input processing order, the input device, key and
-## gamepad button bindings and input prompts. Device input goes through the core node: `_input` runs the debug, fill
-## area, block, device detection and key wait stages and calls the UI pointer observer, engine GUI is the UI stage,
-## and `_unhandled_input` gets the world input. A release of a pressed input source releases it before the UI stage,
-## so a release the UI consumes still releases its source.
+## gamepad button bindings, stick axis options and input prompts. Device input goes through the core node: `_input`
+## runs the debug, fill area, block, device detection and key wait stages and calls the UI pointer observer, engine GUI
+## is the UI stage, and `_unhandled_input` gets the world input. A release of a pressed input source releases it
+## before the UI stage, so a release the UI consumes still releases its source.
 
 ## Device of the device input that device detection used last.
 enum InputDevice { TOUCH, KEYBOARD_MOUSE, GAMEPAD }
@@ -28,9 +28,13 @@ const _SETTING_MAX_KEYS_PER_ACTION: String = "InputCore.maxKeysPerAction"
 const _SETTING_MAX_PAD_BUTTONS_PER_ACTION: String = "InputCore.maxPadButtonsPerAction"
 const _SETTING_PAD_AXIS_WAIT_THRESHOLD: String = "InputCore.padAxisWaitThreshold"
 const _SETTING_PAD_AXIS_DEADZONE: String = "InputCore.padAxisDeadzone"
+const _SETTING_PAD_AXIS_SENSITIVITIES: String = "InputCore.padAxisSensitivities"
 ## `LocalDataCore` keys of the bindings that differ from the default binding.
 const _KEY_BINDINGS: String = "InputCore.key_bindings"
 const _PAD_BINDINGS: String = "InputCore.pad_bindings"
+## `LocalDataCore` keys of the stick axis options that differ from the default.
+const _PAD_AXIS_INVERTED: String = "InputCore.pad_axis_inverted"
+const _PAD_AXIS_SENSITIVITY: String = "InputCore.pad_axis_sensitivity"
 ## Mouse button names; index + 1 is the `MouseButton` value.
 const _MOUSE_BUTTON_NAMES: Array[String] = ["mouse_left", "mouse_right", "mouse_middle"]
 ## Gamepad button names; the index is the `JoyButton` value.
@@ -40,6 +44,12 @@ const _PAD_BUTTON_NAMES: Array[String] = [
 ]
 ## Gamepad axis names; the index is the `JoyAxis` value.
 const _PAD_AXIS_NAMES: Array[String] = ["left_x", "left_y", "right_x", "right_y", "trigger_left", "trigger_right"]
+## Stick axes are the gamepad axes whose `JoyAxis` value is below this: `left_x`, `left_y`, `right_x`, `right_y`.
+const _STICK_AXES: int = 4
+## Default stick axis sensitivity permille.
+const _DEFAULT_SENSITIVITY: int = 1000
+## Most elements `InputCore.padAxisSensitivities` has.
+const _MAX_SENSITIVITIES: int = 10
 ## Parts of a lower case `Input.get_joy_name` that decide the gamepad family.
 const _XBOX_NAMES: Array[String] = ["xbox", "xinput"]
 const _PLAY_STATION_NAMES: Array[String] = ["playstation", "ps3", "ps4", "ps5", "dualshock", "dualsense"]
@@ -106,6 +116,11 @@ static var _max_keys_per_action: int = 0
 static var _max_pad_buttons_per_action: int = 0
 static var _pad_axis_wait_threshold: float = 0.0
 static var _pad_axis_deadzone: float = 0.0
+## `InputCore.padAxisSensitivities` in ascending order.
+static var _sensitivities: PackedInt64Array = PackedInt64Array()
+## Stick axis options, indexed by `JoyAxis` value below `_STICK_AXES`: 1 when inverted, and the sensitivity permille.
+static var _axis_inverted: PackedByteArray = PackedByteArray()
+static var _axis_sensitivity: PackedInt32Array = PackedInt32Array()
 
 ## Action names and their index.
 static var _action_names: Array[StringName] = []
@@ -445,14 +460,16 @@ static func reset_keys() -> void:
 	_reset_binding(false)
 
 
-## Applies the saved key bindings and gamepad button bindings. `BootstrapCore` calls it after
+## Applies the saved key bindings, gamepad button bindings and stick axis options. `BootstrapCore` calls it after
 ## `LocalDataCore.load_device_file`.
 static func load_keys() -> void:
 	if not _check_initialized("load_keys"):
 		return
 	var applied_keys: bool = _load_binding(false)
 	var applied_pads: bool = _load_binding(true)
-	if applied_keys or applied_pads:
+	var applied_inversion: bool = _load_axis_inverted()
+	_load_axis_sensitivity()
+	if applied_keys or applied_pads or applied_inversion:
 		_publish_prompt_changed()
 
 
@@ -487,6 +504,80 @@ static func reset_pad_buttons() -> void:
 ## Async. The name of the next pressed gamepad button or gamepad axis direction; empty (button none) on failure.
 static func wait_pad_button() -> String:
 	return await _wait("wait_pad_button", true)
+
+
+## Inverts stick axis `axis_name` (`left_x`, `left_y`, `right_x`, `right_y`) for the gamepad axis direction sources of
+## `Gameplay` actions, or puts it back.
+static func set_pad_axis_inverted(axis_name: String, inverted: bool) -> bool:
+	var axis: int = _stick_axis("set_pad_axis_inverted", axis_name)
+	if axis < 0:
+		return false
+	if (_axis_inverted[axis] == 1) == inverted:
+		return true
+	_release_stick_axis(axis)
+	_axis_inverted[axis] = 1 if inverted else 0
+	_save_axis_options()
+	_publish_prompt_changed()
+	return true
+
+
+static func is_pad_axis_inverted(axis_name: String) -> bool:
+	var axis: int = _stick_axis("is_pad_axis_inverted", axis_name)
+	return axis >= 0 and _axis_inverted[axis] == 1
+
+
+## Sets the sensitivity permille of stick axis `axis_name`, one of `InputCore.padAxisSensitivities`, for the gamepad
+## axis direction sources of `Gameplay` actions.
+static func set_pad_axis_sensitivity(axis_name: String, permille: int) -> bool:
+	var axis: int = _stick_axis("set_pad_axis_sensitivity", axis_name)
+	if axis < 0:
+		return false
+	if not _sensitivities.has(permille):
+		LogCore.log_error(_TAG, "set_pad_axis_sensitivity: %d is not in %s" % [permille,
+			_SETTING_PAD_AXIS_SENSITIVITIES])
+		return false
+	if _axis_sensitivity[axis] == permille:
+		return true
+	_release_stick_axis(axis)
+	_axis_sensitivity[axis] = permille
+	_save_axis_options()
+	return true
+
+
+static func get_pad_axis_sensitivity(axis_name: String) -> int:
+	var axis: int = _stick_axis("get_pad_axis_sensitivity", axis_name)
+	return _axis_sensitivity[axis] if axis >= 0 else _DEFAULT_SENSITIVITY
+
+
+## Fills `buffer` from index 0 with the values of `InputCore.padAxisSensitivities` in ascending order and returns the
+## count filled.
+static func list_pad_axis_sensitivities(buffer: PackedInt32Array) -> int:
+	if not _check_initialized("list_pad_axis_sensitivities"):
+		return 0
+	var count: int = mini(_sensitivities.size(), buffer.size())
+	for i: int in count:
+		buffer[i] = _sensitivities[i]
+	if count < _sensitivities.size():
+		LogCore.log_error(_TAG, "list_pad_axis_sensitivities: the buffer is smaller than the sensitivity count")
+	return count
+
+
+## Puts every stick axis back to not inverted with sensitivity 1000 and deletes the saved stick axis options.
+static func reset_pad_axes() -> void:
+	if not _check_initialized("reset_pad_axes"):
+		return
+	var inversion_off: bool = false
+	for axis: int in _STICK_AXES:
+		if _axis_inverted[axis] == 0 and _axis_sensitivity[axis] == _DEFAULT_SENSITIVITY:
+			continue
+		_release_stick_axis(axis)
+		inversion_off = inversion_off or _axis_inverted[axis] == 1
+		_axis_inverted[axis] = 0
+		_axis_sensitivity[axis] = _DEFAULT_SENSITIVITY
+	LocalDataCore.remove_value(LocalDataCore.FileKind.DEVICE, _PAD_AXIS_INVERTED)
+	LocalDataCore.remove_value(LocalDataCore.FileKind.DEVICE, _PAD_AXIS_SENSITIVITY)
+	if inversion_off:
+		_publish_prompt_changed()
 
 
 static func get_prompt_family() -> GameData.InputPromptFamily:
@@ -877,17 +968,18 @@ static func _pass_actions(event: InputEvent, kind: int, pad_slot: int) -> bool:
 	return passed if matched else not InputBlockCore.is_blocked()
 
 
-## Whether a gamepad axis input of gamepad slot `pad_slot` presses `action` (a direction of `value` with strength above
-## 0 is in its binding) or releases it (its source of that gamepad for a direction whose strength is 0 is pressed).
+## Whether a gamepad axis input of gamepad slot `pad_slot` presses `action` (a source of a direction of `axis` in its
+## binding has a strength above 0 for `value`) or releases it (such a source of that gamepad whose strength is 0 is
+## pressed).
 static func _axis_hits(action: int, axis: int, value: float, pad_slot: int) -> bool:
-	for direction: int in 2:
-		var positive: bool = direction == 0
-		var source: int = _pad_source(action, _axis_entry(axis, positive))
-		if source < 0:
+	var start: int = action * _pad_stride
+	for j: int in _pad_counts[action]:
+		var entry: int = _pads[start + j]
+		if not _is_axis_entry_of(entry, axis):
 			continue
-		if _direction_strength(value, positive) > 0.0:
+		if _axis_source_strength(action, entry, value) > 0.0:
 			return true
-		if pad_slot >= 0 and _source_pressed[action * _source_stride + _pad_source_index(pad_slot, source)] == 1:
+		if pad_slot >= 0 and _source_pressed[action * _source_stride + _pad_source_index(pad_slot, j)] == 1:
 			return true
 	return false
 
@@ -985,10 +1077,7 @@ static func _release_world_sources(event: InputEvent, kind: int, slot: int, pad_
 			_release_pad_entry(pad_button.button_index, pad_slot)
 	elif kind == _PAD_AXIS:
 		var motion: InputEventJoypadMotion = event as InputEventJoypadMotion
-		if _direction_strength(motion.axis_value, true) <= 0.0:
-			_release_pad_entry(_axis_entry(motion.axis, true), pad_slot)
-		if _direction_strength(motion.axis_value, false) <= 0.0:
-			_release_pad_entry(_axis_entry(motion.axis, false), pad_slot)
+		_release_axis(motion.axis, motion.axis_value, pad_slot)
 
 
 static func _track_mouse(event: InputEventMouse, position: Vector2, viewport: Viewport) -> void:
@@ -1065,8 +1154,9 @@ static func _release_pad_entry(entry: int, pad_slot: int) -> void:
 			_release_source(action, _pad_source_index(pad_slot, source), true)
 
 
-## World stage of a gamepad axis input of gamepad slot `pad_slot`, for the passed actions: a direction whose strength
-## rises from 0 is a press of the actions that have it, and a pressed direction takes the new strength.
+## World stage of a gamepad axis input of gamepad slot `pad_slot`, for the passed actions: a source of a direction of
+## `axis` whose strength rises from 0 is a press, and a pressed source takes the new strength. `back` is a `Ui` action,
+## so its strength is the direction strength.
 static func _press_axis(axis: int, value: float, previous: float, pad_slot: int) -> void:
 	if _back_index >= 0 and _passed[_back_index] == 1:
 		for direction: int in 2:
@@ -1076,28 +1166,39 @@ static func _press_axis(axis: int, value: float, previous: float, pad_slot: int)
 				return
 	if pad_slot < 0:
 		return
-	for direction: int in 2:
-		var positive: bool = direction == 0
-		var strength: float = _direction_strength(value, positive)
-		if strength <= 0.0:
+	for action: int in _action_names.size():
+		if action == _back_index or _passed[action] == 0:
 			continue
-		var entry: int = _axis_entry(axis, positive)
-		for action: int in _action_names.size():
-			if action == _back_index or _passed[action] == 0:
+		var start: int = action * _pad_stride
+		for j: int in _pad_counts[action]:
+			var entry: int = _pads[start + j]
+			if not _is_axis_entry_of(entry, axis):
 				continue
-			var source: int = _pad_source(action, entry)
-			if source >= 0:
-				_press_source(action, _pad_source_index(pad_slot, source), strength, true)
+			var strength: float = _axis_source_strength(action, entry, value)
+			if strength > 0.0:
+				_press_source(action, _pad_source_index(pad_slot, j), strength, true)
 
 
+## Releases the sources of gamepad slot `pad_slot` of the directions of `axis` whose strength is 0 for `value`.
+static func _release_axis(axis: int, value: float, pad_slot: int) -> void:
+	if pad_slot < 0:
+		return
+	for action: int in _action_names.size():
+		var start: int = action * _pad_stride
+		for j: int in _pad_counts[action]:
+			var entry: int = _pads[start + j]
+			if _is_axis_entry_of(entry, axis) and _axis_source_strength(action, entry, value) <= 0.0:
+				_release_source(action, _pad_source_index(pad_slot, j), true)
+
+
+## Whether a gamepad axis input of `axis` with `value` presses an action: a source of a direction of `axis` has a
+## strength above 0.
 static func _axis_presses_action(axis: int, value: float) -> bool:
-	for direction: int in 2:
-		var positive: bool = direction == 0
-		if _direction_strength(value, positive) <= 0.0:
-			continue
-		var entry: int = _axis_entry(axis, positive)
-		for action: int in _action_names.size():
-			if _pad_source(action, entry) >= 0:
+	for action: int in _action_names.size():
+		var start: int = action * _pad_stride
+		for j: int in _pad_counts[action]:
+			var entry: int = _pads[start + j]
+			if _is_axis_entry_of(entry, axis) and _axis_source_strength(action, entry, value) > 0.0:
 				return true
 	return false
 
@@ -1196,6 +1297,43 @@ static func _pad_source(action: int, entry: int) -> int:
 
 static func _axis_entry(axis: int, positive: bool) -> int:
 	return _AXIS_BASE + axis * 2 + (1 if positive else 0)
+
+
+## Whether pad binding entry `entry` is a gamepad axis direction of `axis`.
+static func _is_axis_entry_of(entry: int, axis: int) -> bool:
+	return entry >= _AXIS_BASE and (entry - _AXIS_BASE) / 2 == axis
+
+
+## Whether the source of gamepad axis direction entry `entry` of `action` takes the stick axis options: a `Gameplay`
+## action and a direction of a stick axis.
+static func _takes_axis_options(action: int, entry: int) -> bool:
+	return _contexts[action] == BindingContext.GAMEPLAY and entry >= _AXIS_BASE \
+		and (entry - _AXIS_BASE) / 2 < _STICK_AXES
+
+
+## Strength of the source of gamepad axis direction entry `entry` of `action` for the axis value `value`. With the
+## stick axis options, an inverted axis takes the strength of the other direction, multiplied by the sensitivity
+## permille ÷ 1000 and at most 1.
+static func _axis_source_strength(action: int, entry: int, value: float) -> float:
+	var positive: bool = (entry - _AXIS_BASE) % 2 == 1
+	if not _takes_axis_options(action, entry):
+		return _direction_strength(value, positive)
+	var axis: int = (entry - _AXIS_BASE) / 2
+	var strength: float = _direction_strength(value, positive != (_axis_inverted[axis] == 1))
+	return minf(1.0, strength * float(_axis_sensitivity[axis]) / 1000.0)
+
+
+## Releases the pressed gamepad axis direction sources of stick axis `axis` of the `Gameplay` actions, of every gamepad.
+static func _release_stick_axis(axis: int) -> void:
+	for action: int in _action_names.size():
+		if _contexts[action] != BindingContext.GAMEPLAY:
+			continue
+		var start: int = action * _pad_stride
+		for j: int in _pad_counts[action]:
+			if not _is_axis_entry_of(_pads[start + j], axis):
+				continue
+			for pad_slot: int in _GAMEPAD_SLOTS:
+				_release_source(action, _pad_source_index(pad_slot, j), false)
 
 
 ## Source index of pad binding entry `entry_index` of gamepad slot `pad_slot`.
@@ -1595,8 +1733,14 @@ static func _first_pad_name(action: int) -> String:
 		if _pads[start + j] < _AXIS_BASE:
 			return _pad_entry_name(_pads[start + j])
 	for j: int in _pad_counts[action]:
-		if _pads[start + j] >= _AXIS_BASE:
-			return _pad_entry_name(_pads[start + j])
+		var entry: int = _pads[start + j]
+		if entry < _AXIS_BASE:
+			continue
+		# The prompt input of a direction of an inverted stick axis of a `Gameplay` action is the other direction.
+		var axis: int = (entry - _AXIS_BASE) / 2
+		if _takes_axis_options(action, entry) and _axis_inverted[axis] == 1:
+			entry = _axis_entry(axis, (entry - _AXIS_BASE) % 2 == 0)
+		return _pad_entry_name(entry)
 	return ""
 
 
@@ -1876,6 +2020,104 @@ static func _load_binding(pad: bool) -> bool:
 	return applied
 
 
+# --- stick axis options
+
+
+## `JoyAxis` value of stick axis `axis_name` for `operation`; -1 with an error log when not initialized or when it is
+## not a stick axis name.
+static func _stick_axis(operation: String, axis_name: String) -> int:
+	if not _check_initialized(operation):
+		return -1
+	var axis: int = _stick_axis_of_name(axis_name)
+	if axis < 0:
+		LogCore.log_error(_TAG, operation + ": " + axis_name + " is not a stick axis name")
+	return axis
+
+
+static func _stick_axis_of_name(axis_name: String) -> int:
+	var axis: int = _PAD_AXIS_NAMES.find(axis_name)
+	return axis if axis >= 0 and axis < _STICK_AXES else -1
+
+
+## Writes the stick axis options that differ from the default; a key whose list is empty is deleted.
+static func _save_axis_options() -> void:
+	var inverted: PackedStringArray = PackedStringArray()
+	var sensitivity: PackedStringArray = PackedStringArray()
+	for axis: int in _STICK_AXES:
+		if _axis_inverted[axis] == 1:
+			inverted.append(_PAD_AXIS_NAMES[axis])
+		if _axis_sensitivity[axis] != _DEFAULT_SENSITIVITY:
+			sensitivity.append(_PAD_AXIS_NAMES[axis] + "=" + str(_axis_sensitivity[axis]))
+	_save_list(_PAD_AXIS_INVERTED, inverted)
+	_save_list(_PAD_AXIS_SENSITIVITY, sensitivity)
+
+
+static func _save_list(key: String, items: PackedStringArray) -> void:
+	if items.is_empty():
+		LocalDataCore.remove_value(LocalDataCore.FileKind.DEVICE, key)
+	else:
+		LocalDataCore.set_array_string(LocalDataCore.FileKind.DEVICE, key, items)
+
+
+## Applies the saved `InputCore.pad_axis_inverted`. `true` when it applied a saved inversion.
+static func _load_axis_inverted() -> bool:
+	var operation: String = "load_keys: stick axis inversion"
+	var counts: PackedInt32Array = PackedInt32Array()
+	counts.resize(_STICK_AXES)
+	for item: String in LocalDataCore.get_array_string(LocalDataCore.FileKind.DEVICE, _PAD_AXIS_INVERTED):
+		var axis: int = _stick_axis_of_name(item)
+		if axis < 0:
+			LogCore.log_warn(_TAG, operation + ": " + item + " is not a stick axis name")
+			continue
+		counts[axis] += 1
+	var applied: bool = false
+	for axis: int in _STICK_AXES:
+		if counts[axis] == 0:
+			continue
+		if counts[axis] > 1:
+			LogCore.log_warn(_TAG, operation + " of " + _PAD_AXIS_NAMES[axis] + ": saved more than once")
+			continue
+		if _axis_inverted[axis] == 0:
+			_release_stick_axis(axis)
+			_axis_inverted[axis] = 1
+		applied = true
+	return applied
+
+
+## Applies the saved `InputCore.pad_axis_sensitivity`: `<stick axis name>=<permille>` elements.
+static func _load_axis_sensitivity() -> void:
+	var operation: String = "load_keys: stick axis sensitivity"
+	var counts: PackedInt32Array = PackedInt32Array()
+	counts.resize(_STICK_AXES)
+	var values: PackedInt64Array = PackedInt64Array()
+	values.resize(_STICK_AXES)
+	for item: String in LocalDataCore.get_array_string(LocalDataCore.FileKind.DEVICE, _PAD_AXIS_SENSITIVITY):
+		var separator: int = item.find("=")
+		var text: String = item.substr(separator + 1) if separator > 0 else ""
+		if separator <= 0 or not text.is_valid_int():
+			LogCore.log_warn(_TAG, operation + ": " + item + " is not <stick axis name>=<permille>")
+			continue
+		var axis: int = _stick_axis_of_name(item.left(separator))
+		if axis < 0:
+			LogCore.log_warn(_TAG, operation + ": " + item.left(separator) + " is not a stick axis name")
+			continue
+		counts[axis] += 1
+		values[axis] = text.to_int()
+	for axis: int in _STICK_AXES:
+		if counts[axis] == 0:
+			continue
+		if counts[axis] > 1:
+			LogCore.log_warn(_TAG, operation + " of " + _PAD_AXIS_NAMES[axis] + ": saved more than once")
+			continue
+		if not _sensitivities.has(values[axis]):
+			LogCore.log_warn(_TAG, operation + " of " + _PAD_AXIS_NAMES[axis] + ": " + str(values[axis]) + " is not in " \
+				+ _SETTING_PAD_AXIS_SENSITIVITIES)
+			continue
+		if _axis_sensitivity[axis] != values[axis]:
+			_release_stick_axis(axis)
+			_axis_sensitivity[axis] = values[axis]
+
+
 # --- wait
 
 
@@ -1933,6 +2175,9 @@ static func _read_settings() -> bool:
 	if not (deadzone >= 0.0 and deadzone < 1.0):
 		LogCore.log_error(_TAG, "init: " + _SETTING_PAD_AXIS_DEADZONE + " is not at least 0 and less than 1")
 		return false
+	var sensitivities: PackedInt64Array = _read_sensitivities()
+	if sensitivities.is_empty():
+		return false
 	_move_threshold = CoreSettings.get_float(_SETTING_MOVE_THRESHOLD)
 	_long_press_ms = CoreSettings.get_int(_SETTING_LONG_PRESS_MS)
 	_swipe_max_ms = CoreSettings.get_int(_SETTING_SWIPE_MAX_MS)
@@ -1942,7 +2187,39 @@ static func _read_settings() -> bool:
 	_max_pad_buttons_per_action = maxi(CoreSettings.get_int(_SETTING_MAX_PAD_BUTTONS_PER_ACTION), 0)
 	_pad_axis_wait_threshold = threshold
 	_pad_axis_deadzone = deadzone
+	_sensitivities = sensitivities
+	_axis_inverted = PackedByteArray()
+	_axis_inverted.resize(_STICK_AXES)
+	_axis_sensitivity = PackedInt32Array()
+	_axis_sensitivity.resize(_STICK_AXES)
+	_axis_sensitivity.fill(_DEFAULT_SENSITIVITY)
 	return true
+
+
+## `InputCore.padAxisSensitivities` in ascending order; empty with an error log when it is missing, has no element or
+## more than `_MAX_SENSITIVITIES`, has no 1000, an element less than 1 or a repeated element.
+static func _read_sensitivities() -> PackedInt64Array:
+	var none: PackedInt64Array = PackedInt64Array()
+	var prefix: String = "init: " + _SETTING_PAD_AXIS_SENSITIVITIES
+	if not CoreSettings.has_int_array(_SETTING_PAD_AXIS_SENSITIVITIES):
+		LogCore.log_error(_TAG, prefix + " is missing or not an integer array")
+		return none
+	var values: PackedInt64Array = CoreSettings.get_int_array(_SETTING_PAD_AXIS_SENSITIVITIES)
+	if values.is_empty() or values.size() > _MAX_SENSITIVITIES:
+		LogCore.log_error(_TAG, prefix + " does not have 1 to " + str(_MAX_SENSITIVITIES) + " elements")
+		return none
+	if not values.has(_DEFAULT_SENSITIVITY):
+		LogCore.log_error(_TAG, prefix + " has no " + str(_DEFAULT_SENSITIVITY))
+		return none
+	for i: int in values.size():
+		if values[i] < 1:
+			LogCore.log_error(_TAG, prefix + " has an element less than 1")
+			return none
+		if values.find(values[i]) != i:
+			LogCore.log_error(_TAG, prefix + " has a repeated element")
+			return none
+	values.sort()
+	return values
 
 
 ## Reads the action list and the default bindings from the input map, and makes the state collections.
@@ -2126,6 +2403,9 @@ static func _reset_state() -> void:
 	_max_pad_buttons_per_action = 0
 	_pad_axis_wait_threshold = 0.0
 	_pad_axis_deadzone = 0.0
+	_sensitivities = PackedInt64Array()
+	_axis_inverted = PackedByteArray()
+	_axis_sensitivity = PackedInt32Array()
 	_action_names = []
 	_action_index = {}
 	_contexts = PackedInt32Array()
