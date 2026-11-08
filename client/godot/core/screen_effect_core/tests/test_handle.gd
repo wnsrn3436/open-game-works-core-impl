@@ -22,6 +22,33 @@ func test_new_request_cancels_the_replaced_handle_whose_clear_handle_keeps_the_n
 	assert_overlay(WORLD, Color.BLUE, 0.5, true, "the second fade ended")
 
 
+func test_failed_handle_controls_no_overlay_while_a_fade_plays() -> void:
+	assert_true(await start_modules())
+	var owner: Node = make_owner()
+	var playing: ScreenEffectHandle = ScreenEffectCore.fade(WORLD, owner, Color.RED, 0.0, 1.0, 1000)
+	record(playing)
+	await advance(300)
+	var gone: Node = Node.new()
+	gone.free()
+	var failed: Array[ScreenEffectHandle] = [
+		ScreenEffectCore.fade(WORLD, gone, Color.BLUE, 0.0, 1.0, 1000),
+		ScreenEffectCore.fade(WORLD, owner, Color.BLUE, 0.0, 1.5, 1000),
+	]
+	assert_eq(errors(), 2, "one error log per failed request")
+	for handle: ScreenEffectHandle in failed:
+		assert_true(is_settled(handle))
+	assert_results([FAILED, FAILED])
+	var before: GetOverlayStateResult = state(WORLD)
+	for handle: ScreenEffectHandle in failed:
+		ScreenEffectCore.skip_to_end(handle)
+		ScreenEffectCore.clear_handle(handle)
+	assert_overlay(WORLD, Color.RED, before.opacity, true, "after skip_to_end and clear_handle of a Failed handle")
+	assert_eq(results.size(), 2, "the fade still plays")
+	await advance(800)
+	assert_results([FAILED, FAILED, COMPLETED])
+	assert_overlay(WORLD, Color.RED, 1.0, true, "the fade ended")
+
+
 func test_duration_zero_sets_completed_once() -> void:
 	assert_true(await start_modules())
 	var handle: ScreenEffectHandle = ScreenEffectCore.fade(WORLD, make_owner(), Color.WHITE, 0.0, 1.0, 0)
