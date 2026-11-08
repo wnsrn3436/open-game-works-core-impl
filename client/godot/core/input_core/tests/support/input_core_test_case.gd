@@ -15,6 +15,8 @@ const MAX_KEYS_PER_ACTION: int = 3
 const MAX_PAD_BUTTONS_PER_ACTION: int = 3
 const PAD_AXIS_WAIT_THRESHOLD: float = 0.5
 const PAD_AXIS_DEADZONE: float = 0.2
+## `InputCore.padAxisSensitivities` of the tests, not in ascending order.
+const PAD_AXIS_SENSITIVITIES: Array[int] = [2000, 1000, 500]
 ## A point of the visible game area away from the top left corner, where the test runner draws its GUI.
 const CENTER: Vector2 = Vector2(1200.0, 600.0)
 ## `key_result` and `pad_result` while the wait has not ended.
@@ -81,6 +83,8 @@ func set_input_settings() -> void:
 	assert_true(UnitTestCore.set_test_settings("InputCore.maxPadButtonsPerAction", MAX_PAD_BUTTONS_PER_ACTION))
 	assert_true(UnitTestCore.set_test_settings("InputCore.padAxisWaitThreshold", PAD_AXIS_WAIT_THRESHOLD))
 	assert_true(UnitTestCore.set_test_settings("InputCore.padAxisDeadzone", PAD_AXIS_DEADZONE))
+	assert_true(UnitTestCore.set_test_settings("InputCore.padAxisSensitivities",
+		PackedInt64Array(PAD_AXIS_SENSITIVITIES)))
 
 
 ## Test actions besides the core actions `back` (Escape, `b`), `cutscene_advance` (Space, Enter, `a`) and
