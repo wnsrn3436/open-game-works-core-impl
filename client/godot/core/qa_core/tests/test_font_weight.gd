@@ -5,12 +5,16 @@ extends "res://core/qa_core/tests/support/qa_test_case.gd"
 
 const BODY_WEIGHT: String = "LocalizationCore.bodyFontWeight"
 const HEADING_WEIGHT: String = "LocalizationCore.headingFontWeight"
-## One glyph for U+0041 and a `wght` axis from 100 to 900, default 400.
+## One glyph for U+0041, a `wght` axis from 100 to 900, default 400, and weight class 600, so that the axis default
+## and the weight class give different weights.
 const AXIS_FONT: String = RESOURCES + "qa_font_weight_axis.tres"
-## One glyph for U+0042 and no variation axis.
+## One glyph for U+0042, no variation axis and weight class 700: neither the axis default of `AXIS_FONT` nor a text
+## style weight of the tests.
 const NO_AXIS_FONT: String = RESOURCES + "qa_font_no_weight_axis.tres"
 const AXIS_MAX: int = 900
 const AXIS_DEFAULT: int = 400
+const AXIS_FONT_WEIGHT_CLASS: int = 600
+const NO_AXIS_FONT_WEIGHT_CLASS: int = 700
 
 ## The font file both font keys of the test resources point to.
 var font_path: String = AXIS_FONT
@@ -99,6 +103,7 @@ func test_weights_0_give_the_axis_default() -> void:
 	add_text("BodyLabel", "Label", &"", "A", 100)
 	add_text("HeadingLabel", "Label", &"HeadingLabel", "A", 150)
 	await UnitTestCore.wait_frames(1)
+	assert_eq(loaded_font().get_font_weight(), AXIS_FONT_WEIGHT_CLASS, "the weight class differs from the axis default")
 	var list: String = await run_ok("list_ui")
 	assert_eq(weight_of(list, "BodyLabel"), AXIS_DEFAULT)
 	assert_eq(weight_of(list, "HeadingLabel"), AXIS_DEFAULT)
@@ -139,11 +144,10 @@ func test_a_font_without_the_axis_gives_its_weight_class() -> void:
 	add_text("BodyLabel", "Label", &"", "B", 100)
 	add_text("HeadingLabel", "Label", &"HeadingLabel", "B", 150)
 	await UnitTestCore.wait_frames(1)
-	var declared: int = loaded_font().get_font_weight()
-	assert_gt(declared, 0, "the test font declares a weight class")
+	assert_eq(loaded_font().get_font_weight(), NO_AXIS_FONT_WEIGHT_CLASS, "the test font declares its weight class")
 	var list: String = await run_ok("list_ui")
-	assert_eq(weight_of(list, "BodyLabel"), declared)
-	assert_eq(weight_of(list, "HeadingLabel"), declared)
+	assert_eq(weight_of(list, "BodyLabel"), NO_AXIS_FONT_WEIGHT_CLASS)
+	assert_eq(weight_of(list, "HeadingLabel"), NO_AXIS_FONT_WEIGHT_CLASS)
 
 
 ## Sets `variation_opentype` of `variation` to `wght` at `weight`, keyed by the axis tag. The property takes an

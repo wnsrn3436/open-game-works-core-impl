@@ -216,6 +216,7 @@ func test_the_first_get_stats_of_a_connection_holds_only_intervals_after_the_con
 	wait_real(WAIT_MS)
 	await UnitTestCore.wait_frames(2)
 	assert_true(QACore._frame_interval_count >= 2, "intervals before the connection")
+	assert_true(QACore._frame_interval_max_usec >= WAIT_MS * 1000, "the longest interval before the connection")
 	QACore._test_launch_values = {"OGW_AUTOMATION_PORT": str(server.port), "OGW_AUTOMATION_TOKEN": TOKEN}
 	QACore._connect_channel()
 	assert_true(await pump_until(1), "the hello came")
@@ -225,6 +226,7 @@ func test_the_first_get_stats_of_a_connection_holds_only_intervals_after_the_con
 	assert_true(JSONR.boolean(response, "ok"))
 	var stats: String = JSONR.at(response, "result")
 	assert_true(largest(intervals(stats)) < float(WAIT_MS), "no interval from before the connection: " + stats)
+	assert_true(longest(stats) < float(WAIT_MS), "the connection reset max_frame_interval_ms: " + stats)
 
 
 ## Polls the server a frame at a time until it has `count` messages.
