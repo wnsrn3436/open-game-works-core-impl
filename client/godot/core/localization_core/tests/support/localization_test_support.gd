@@ -12,6 +12,10 @@ const FONT_CJK: String = "font/cjk"
 ## glyph `B`, 600 units wide.
 const WEIGHT_AXIS_FONT: String = RESOURCES + "font_weight_axis.tres"
 const NO_WEIGHT_AXIS_FONT: String = RESOURCES + "font_no_weight_axis.tres"
+## A `FontVariation` of `WEIGHT_AXIS_FONT` that sets its own `wght` 700, at which `A` is 840 units wide.
+const WEIGHT_700_FONT: String = RESOURCES + "font_weight_axis_700.tres"
+## A `FontVariation` of `NO_WEIGHT_AXIS_FONT` that sets its own glyph spacing of 7 pixels, so `BB` is 7 pixels wider.
+const SPACED_NO_WEIGHT_AXIS_FONT: String = RESOURCES + "font_no_weight_axis_spaced.tres"
 ## The `input_prompt` icons of the core test data.
 const ICON_ESCAPE: String = "icon/key_escape"
 const ICON_KEY_J: String = "icon/key_j"
