@@ -204,10 +204,21 @@ export class Metrics {
     }
   }
 
-  /** The alert signals judged at `now`: the lines written later than `now` − `logging.alertWindowMs`. */
+  /**
+   * The alert signals judged at `now`: the lines written later than `now` − `logging.alertWindowMs`. A judgement
+   * drops no slot: it takes the slots at or before its cutoff away from a copy of the totals, so a later judgement at
+   * an earlier time (the test clock went back) still counts them. The next line drops them.
+   */
   alerts(now: bigint, db: DbMetrics): Record<AlertSignal, boolean> {
-    this.#prune(now);
-    const { requests, internal, slow, error_logs } = this.#totals;
+    const cutoff = now - this.#settings.alert_window_ms;
+    let { requests, internal, slow, error_logs } = this.#totals;
+    const slots = this.#slots;
+    for (let index = this.#head, slot = slots[index]; slot !== undefined && slot.time <= cutoff; index += 1, slot = slots[index]) {
+      requests -= slot.requests;
+      internal -= slot.internal;
+      slow -= slot.slow;
+      error_logs -= slot.error_logs;
+    }
     const s = this.#settings;
     const enough = requests >= s.alert_min_requests;
     return {

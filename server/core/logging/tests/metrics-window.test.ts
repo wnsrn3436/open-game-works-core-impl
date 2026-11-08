@@ -1,7 +1,7 @@
 /**
  * The alert window of `Metrics` (`### alert signal`) on its own: the signals judged from the running totals equal the
  * signals counted from every line written later than the judgement time − `logging.alertWindowMs`, also when the test
- * clock goes back, and writing a line does not cost more as the window holds more lines.
+ * clock goes back between lines or between judgements, and writing a line does not cost more as the window holds more lines.
  */
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import type { DbMetrics } from '../../storage/index.ts';
@@ -79,7 +79,7 @@ function write(metrics: Metrics, line: Line): void {
 }
 
 describe('alert window', () => {
-  it('judges each signal as counted from every line later than the judgement time − the window, with the test clock going back between lines', () => {
+  it('judges each signal as counted from every line later than the judgement time − the window, with the test clock going back between lines and between judgements', () => {
     const window_ms = 50n;
     const all_settings: MetricsSettings[] = [];
     for (const min_requests of [0, 1, 3, 8]) {
@@ -90,25 +90,36 @@ describe('alert window', () => {
     const random = random_of(7);
     const instances = all_settings.map((settings) => new Metrics(settings, INTERNAL));
     const lines: Line[] = [];
-    let latest = 1000n;
+    /** The latest time of a line written: a judgement at or after it counts every line in its window. */
+    let latest_line = 1000n;
+    /** The latest judgement time. */
+    let latest_judged = latest_line;
     let judged = 0;
+    let judged_back = 0;
     for (let step = 0; step < 3000; step += 1) {
       const roll = random();
       if (roll < 0.1) {
-        // A judgement at or after every line time written: the time of `read_metrics` on a clock that moved on.
-        latest += BigInt(Math.floor(random() * 70));
-        const counts = counts_of(lines, latest, window_ms, 10);
+        // A judgement at or after every line time written: the time of `read_metrics` on a clock that moved on from the
+        // latest line, or (the test clock went back after a judgement) a time between the latest line and the latest
+        // judgement.
+        const judgement =
+          random() < 0.5
+            ? latest_line + BigInt(Math.floor(random() * 120))
+            : latest_line + BigInt(Math.floor(random() * Number(latest_judged - latest_line + 1n)));
+        if (judgement < latest_judged) judged_back += 1;
+        else latest_judged = judgement;
+        const counts = counts_of(lines, judgement, window_ms, 10);
         for (const [index, metrics] of instances.entries()) {
           const settings = all_settings[index] as MetricsSettings;
-          expect(metrics.alerts(latest, DB)).toEqual(expected_alerts(settings, counts));
+          expect(metrics.alerts(judgement, DB)).toEqual(expected_alerts(settings, counts));
         }
         judged += 1;
         continue;
       }
       // Mostly forward, sometimes the same ms, sometimes back by up to the window and a bit more.
       const move = roll < 0.75 ? Math.floor(random() * 4) : roll < 0.95 ? 0 : -Math.floor(random() * 60);
-      const time = latest + BigInt(move);
-      if (time > latest) latest = time;
+      const time = latest_line + BigInt(move);
+      if (time > latest_line) latest_line = time;
       const kind_roll = random();
       const line: Line =
         kind_roll < 0.6
@@ -118,6 +129,17 @@ describe('alert window', () => {
       for (const metrics of instances) write(metrics, line);
     }
     expect(judged).toBeGreaterThan(100);
+    expect(judged_back).toBeGreaterThan(50);
+  });
+
+  it('still counts a line in the window of a judgement made after a judgement at a later time, when the test clock went back', () => {
+    const metrics = new Metrics(settings_of(100n, 0, 0, 0, 1), INTERNAL);
+    metrics.line(1001n, 'error', 'error', null);
+    expect(metrics.alerts(1050n, DB).error_logs).toBe(true);
+    expect(metrics.alerts(2000n, DB).error_logs).toBe(false);
+    expect(metrics.alerts(1050n, DB).error_logs).toBe(true);
+    expect(metrics.alerts(1100n, DB).error_logs).toBe(true);
+    expect(metrics.alerts(1101n, DB).error_logs).toBe(false);
   });
 
   it('drops the lines at the judgement time − the window and counts the line 1 ms later', () => {
