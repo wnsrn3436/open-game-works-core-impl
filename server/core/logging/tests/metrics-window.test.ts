@@ -84,7 +84,9 @@ function write(metrics: Metrics, line: Line): void {
  */
 function judgement_time(random: () => number, latest_line: bigint, latest_judged: bigint): bigint {
   if (random() < 0.5) return latest_line + BigInt(Math.floor(random() * 120));
-  return latest_line + BigInt(Math.floor(random() * Number(latest_judged - latest_line + 1n)));
+  // Lines move `latest_line` past `latest_judged`; the span is then empty and the judgement stays at `latest_line`.
+  const span = latest_judged > latest_line ? latest_judged - latest_line : 0n;
+  return latest_line + BigInt(Math.floor(random() * Number(span + 1n)));
 }
 
 /**
@@ -122,6 +124,7 @@ describe('alert window', () => {
       if (roll < 0.1) {
         // A judgement at or after every line time written, which then counts every line in its window.
         const judgement = judgement_time(random, latest_line, latest_judged);
+        expect(judgement >= latest_line).toBe(true);
         if (judgement < latest_judged) judged_back += 1;
         else latest_judged = judgement;
         const counts = counts_of(lines, judgement, window_ms, 10);
