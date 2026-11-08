@@ -54,7 +54,9 @@ func close_peer(_index: int) -> void:
 
 
 ## Leaves the match and closes every participant connection. Closes the matchmaker connection out of a room.
-func close() -> void:
+## `forfeit` asks the server to judge this client as leaving the match it plays before its end; a transport that wraps
+## another passes it on unchanged.
+func close(_forfeit: bool) -> void:
 	pass
 
 

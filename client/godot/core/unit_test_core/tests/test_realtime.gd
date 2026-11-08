@@ -37,15 +37,17 @@ func test_calls_are_recorded_in_order_and_send_results_follow_the_participant() 
 	assert_false(transport.send_packet(2, RealtimeCore.RealtimeChannel.UNRELIABLE, PackedByteArray([3])))
 	transport.poll()
 	assert_eq(transport.lockstep_time(), RealtimeTransport.NO_TIME)
+	transport.close(true)
 	transport.disconnect_all()
 	var names: PackedStringArray = PackedStringArray()
 	for entry: UnitTestRealtimeCall in UnitTestCore.realtime_calls(transport):
 		names.append(entry.name)
-	assert_eq(names, PackedStringArray(["start_matching", "connect_peer", "send_packet", "send_packet", "disconnect"]))
+	assert_eq(names, PackedStringArray(["start_matching", "connect_peer", "send_packet", "send_packet", "close", "disconnect"]))
 	var calls: Array[UnitTestRealtimeCall] = UnitTestCore.realtime_calls(transport)
-	if calls.size() == 5:
+	if calls.size() == 6:
 		assert_eq(calls[0].inputs, PackedStringArray(["3", "token", "false"]))
 		assert_eq(calls[2].inputs, PackedStringArray(["1", str(RealtimeCore.RealtimeChannel.RELIABLE), "0102"]))
+		assert_eq(calls[4].inputs, PackedStringArray(["true"]), "the forfeit flag of close")
 
 
 func test_dev_operations_give_a_peer_lost_and_a_matchmaker_lost_at_the_next_poll() -> void:

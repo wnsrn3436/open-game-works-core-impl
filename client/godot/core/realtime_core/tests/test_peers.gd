@@ -62,7 +62,7 @@ func test_leave_in_playing_ends_the_match_with_left() -> void:
 	await frames()
 	transport.clear_calls()
 	RealtimeCore.leave()
-	assert_eq(transport.calls, PackedStringArray(["send_packet(1, 0)", "close()"]))
+	assert_eq(transport.calls, PackedStringArray(["send_packet(1, 0)", "close(true)"]))
 	assert_eq(transport.packets[0], PackedByteArray([1, 1, 1]))
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
 	assert_eq(events.lines[events.lines.size() - 1], "ended:%s:LEFT" % MATCH_ID)
@@ -74,7 +74,7 @@ func test_end_match_ends_the_match_with_ended() -> void:
 	await reach_playing()
 	transport.clear_calls()
 	RealtimeCore.end_match()
-	assert_eq(transport.calls, PackedStringArray(["send_packet(1, 0)", "close()"]))
+	assert_eq(transport.calls, PackedStringArray(["send_packet(1, 0)", "close(false)"]))
 	assert_eq(transport.packets[0], PackedByteArray([1, 1, 2]))
 	assert_eq(events.lines, PackedStringArray(["ended:%s:ENDED" % MATCH_ID]))
 	assert_eq(events.state_at_end, PackedInt32Array([RealtimeCore.MatchState.NONE]))
@@ -88,9 +88,11 @@ func test_background_below_the_limit_changes_nothing_and_at_the_limit_ends_playi
 	_background(BACKGROUND_TIMEOUT_MS - 1)
 	await frames()
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.PLAYING)
+	transport.clear_calls()
 	_background(BACKGROUND_TIMEOUT_MS)
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
 	assert_eq(events.lines, PackedStringArray(["ended:%s:BACKGROUND_TIMEOUT" % MATCH_ID]))
+	assert_eq(transport.calls, PackedStringArray(["send_packet(1, 0)", "close(true)"]), "the match end of BackgroundTimeout forfeits")
 
 
 func test_background_at_the_limit_fails_matching_and_connecting() -> void:
@@ -126,7 +128,7 @@ func test_background_at_the_limit_cancels_the_entry_of_a_host_in_matching_before
 	_background(BACKGROUND_TIMEOUT_MS)
 	await op.wait()
 	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.FAILED)
-	assert_eq(transport.calls, PackedStringArray(["cancel_matching()", "close()"]))
+	assert_eq(transport.calls, PackedStringArray(["cancel_matching()", "close(false)"]))
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
 	op = RealtimeAsyncCall.new()
 	op.start_room()
@@ -135,7 +137,7 @@ func test_background_at_the_limit_cancels_the_entry_of_a_host_in_matching_before
 	_background(BACKGROUND_TIMEOUT_MS)
 	await op.wait()
 	assert_eq(op.join_result.status, RealtimeCore.MatchJoinStatus.FAILED)
-	assert_eq(transport.calls, PackedStringArray(["cancel_matching()", "close()"]))
+	assert_eq(transport.calls, PackedStringArray(["cancel_matching()", "close(false)"]))
 	assert_eq(warn_logs(), 2)
 
 
@@ -147,7 +149,7 @@ func test_background_at_the_limit_does_not_cancel_for_a_member_in_matching() -> 
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.MATCHING)
 	transport.clear_calls()
 	_background(BACKGROUND_TIMEOUT_MS)
-	assert_eq(transport.calls, PackedStringArray(["close()"]))
+	assert_eq(transport.calls, PackedStringArray(["close(false)"]))
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
 	assert_eq(warn_logs(), 1)
 

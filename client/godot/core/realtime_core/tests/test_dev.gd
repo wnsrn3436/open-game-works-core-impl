@@ -51,7 +51,7 @@ func test_simulation_with_latency_sends_the_leave_notice_of_end_match_before_clo
 	await reach_playing()
 	transport.clear_calls()
 	RealtimeCore.end_match()
-	assert_eq(transport.calls, PackedStringArray(["send_packet(1, 0)", "close()"]))
+	assert_eq(transport.calls, PackedStringArray(["send_packet(1, 0)", "close(false)"]))
 	assert_eq(transport.packets, [PackedByteArray([1, 1, 2])] as Array[PackedByteArray])
 
 
@@ -63,8 +63,8 @@ func test_simulation_close_and_disconnect_send_the_held_packets_in_send_order_fi
 	assert_true(sim.send_packet(1, RealtimeCore.RealtimeChannel.RELIABLE, PackedByteArray([0, 1])))
 	assert_true(sim.send_packet(2, RealtimeCore.RealtimeChannel.UNRELIABLE, PackedByteArray([0, 2])))
 	assert_true(sim.send_packet(1, RealtimeCore.RealtimeChannel.RELIABLE, PackedByteArray([1, 1, 1])))
-	sim.close()
-	assert_eq(recording.calls, PackedStringArray(["send_packet(1, 0)", "send_packet(2, 1)", "send_packet(1, 0)", "close()"]))
+	sim.close(false)
+	assert_eq(recording.calls, PackedStringArray(["send_packet(1, 0)", "send_packet(2, 1)", "send_packet(1, 0)", "close(false)"]))
 	assert_eq(recording.packets, [PackedByteArray([0, 1]), PackedByteArray([0, 2]), PackedByteArray([1, 1, 1])] as Array[PackedByteArray])
 	recording.clear_calls()
 	assert_true(sim.send_packet(1, RealtimeCore.RealtimeChannel.RELIABLE, PackedByteArray([0, 3])))

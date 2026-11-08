@@ -288,13 +288,13 @@ static func leave() -> void:
 				return
 			var waiter: _MATCH_WAITER = _waiter
 			_transport.cancel_matching()
-			_transport.close()
+			_transport.close(false)
 			_set_none()
 			_finish(waiter, MatchJoinStatus.CANCELLED, 0)
 		MatchState.CONNECTING:
 			var waiter: _MATCH_WAITER = _waiter
 			_send_leave_notice(_LEAVE_LEFT)
-			_transport.close()
+			_transport.close(false)
 			_set_none()
 			_finish(waiter, MatchJoinStatus.CANCELLED, 0)
 		MatchState.PLAYING:
@@ -402,7 +402,7 @@ static func leave_room() -> void:
 		_transport.leave_room()
 		# The transport may hold a match it read in this `poll`, whose match found the rest of the `poll` discards.
 		if _state == MatchState.NONE:
-			_transport.close()
+			_transport.close(false)
 		waiter.finish(false, 0)
 		return
 	if _room == null:
@@ -608,7 +608,7 @@ static func _on_match_found(info: MatchInfo) -> void:
 		# In `None` the server still holds this client in that match. In `Connecting` and `Playing`, `close` would end the
 		# running match.
 		if _state == MatchState.NONE:
-			_transport.close()
+			_transport.close(false)
 		return
 	if member_start:
 		_begin_match(MatchOrigin.ROOM_MEMBER)
@@ -762,7 +762,8 @@ static func _leave_handling(participant: int, reason: PeerLeaveReason) -> void:
 
 static func _end_match_now(reason: MatchEndReason) -> void:
 	_send_leave_notice(_LEAVE_ENDED if reason == MatchEndReason.ENDED else _LEAVE_LEFT)
-	_transport.close()
+	# Only `Ended` is a match end that does not forfeit (`Left` and `BackgroundTimeout` do).
+	_transport.close(reason != MatchEndReason.ENDED)
 	var match_id: String = _info.match_id
 	_set_none()
 	var event: MatchEndedEvent = EventCore.acquire(MatchEndedEvent) as MatchEndedEvent
@@ -790,7 +791,7 @@ static func _fail_match(reason: CoreContract.MatchFailReason, error_code: int, m
 		LogCore.log_warn(_TAG, message)
 	var waiter: _MATCH_WAITER = _waiter
 	if _transport != null:
-		_transport.close()
+		_transport.close(false)
 	_set_none()
 	if waiter != null:
 		waiter.finish(MatchJoinStatus.FAILED, reason, error_code)
@@ -1107,7 +1108,7 @@ static func _on_room_updated(info: RoomInfo) -> void:
 		elif _room.status == CoreContract.RoomStatus.ROOM_STATUS_OPEN and (_origin == MatchOrigin.ROOM_MEMBER or _room_matching_received):
 			var waiter: _MATCH_WAITER = _waiter
 			# The transport may hold a match it read in this `poll`, whose match found the rest of the `poll` discards.
-			_transport.close()
+			_transport.close(false)
 			_set_none()
 			_finish(waiter, MatchJoinStatus.CANCELLED, 0)
 	elif _state == MatchState.NONE and _room.status == CoreContract.RoomStatus.ROOM_STATUS_MATCHING:
@@ -1170,7 +1171,7 @@ static func _leave_room_now() -> void:
 	_transport.leave_room()
 	# The transport may hold a match it read in this `poll`, whose match found the rest of the `poll` discards.
 	if _state == MatchState.NONE:
-		_transport.close()
+		_transport.close(false)
 	_room = null
 	_change_count += 1
 	_room_leave_count += 1
@@ -1192,7 +1193,7 @@ static func _matching_waiter() -> _MATCH_WAITER:
 static func _cancel_room_matching(waiter: _MATCH_WAITER) -> void:
 	if waiter == null or _state != MatchState.MATCHING or _waiter != waiter:
 		return
-	_transport.close()
+	_transport.close(false)
 	_set_none()
 	_finish(waiter, MatchJoinStatus.CANCELLED, 0)
 

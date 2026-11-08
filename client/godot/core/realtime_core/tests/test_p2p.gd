@@ -25,6 +25,8 @@ func test_matchmaker_frames_become_notifications_and_hello_comes_first() -> void
 	assert_eq(hello.access_token, ACCESS_TOKEN)
 	assert_eq(hello.data_version, DataCore.get_data_version())
 	assert_eq(hello.client_version, APP_VERSION)
+	assert_false(CoreBuildInfo.platform.is_empty())
+	assert_eq(hello.platform, CoreBuildInfo.platform, "the platform of build info")
 	assert_eq(server.received[1].mode_id, MODE_ID)
 	var failed: CoreContract.MatchmakerFrame = server.new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_FAILED)
 	failed.reason = CoreContract.MatchFailReason.MATCH_FAIL_REASON_REJECTED
@@ -98,7 +100,7 @@ func test_only_the_smaller_index_sends_the_offer() -> void:
 	assert_eq(_signals_of(_SIGNAL.Type.OFFER), 1)
 	# The candidates of the closed connection reach the matchmaker before the count.
 	await _sync_sent()
-	p2p.close()
+	p2p.close(false)
 	await _found(PackedInt64Array([OTHER_ID, USER_ID]), 1)
 	var before: int = server.count(PEER_SIGNAL)
 	p2p.connect_peer(0)
@@ -149,7 +151,7 @@ func test_close_peer_and_close_drop_kept_signals_and_a_closed_index_stays_closed
 	assert_eq(p2p._queued.size(), 1)
 	assert_eq(driver.count_for(RealtimeNotice.Kind.PEER_CONNECTED, 1), 0)
 	assert_eq(driver.count_for(RealtimeNotice.Kind.PEER_LOST, 1), 0)
-	p2p.close()
+	p2p.close(false)
 	assert_eq(p2p._queued.size(), 0)
 
 
@@ -1077,7 +1079,7 @@ func test_a_connection_that_does_not_start_raises_peer_lost_at_the_next_poll() -
 	await driver.wait_count(RealtimeNotice.Kind.PEER_LOST, 2)
 	assert_eq(driver.count_for(RealtimeNotice.Kind.PEER_LOST, 1), 2)
 	assert_eq(warn_logs(), 1, "one warn log of the same cause in a match")
-	p2p.close()
+	p2p.close(false)
 	await _found(PackedInt64Array([USER_ID, OTHER_ID]), 0)
 	p2p.connect_peer(1)
 	await driver.wait_count(RealtimeNotice.Kind.PEER_LOST, 3)
@@ -1125,6 +1127,7 @@ func test_match_found_while_holding_a_match_leaves_the_new_match_once_and_close_
 	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, 1)
 	var leaves: Array[CoreContract.MatchmakerFrame] = server.frames_of(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE)
 	assert_eq(leaves[0].match_id, "match-second")
+	assert_false(leaves[0].forfeit, "the transport leaves a second match by itself without forfeit")
 	assert_eq(driver.count(RealtimeNotice.Kind.MATCH_FOUND), 1, "nothing raised")
 	assert_eq(warn_logs(), 1)
 	assert_eq(p2p._match_id, "match-p2p")
@@ -1133,10 +1136,11 @@ func test_match_found_while_holding_a_match_leaves_the_new_match_once_and_close_
 	assert_eq(p2p._peers[1], peer)
 	assert_eq(peer.status, _PEER.Status.CONNECTED)
 	assert_true(p2p.send_packet(1, RealtimeCore.RealtimeChannel.RELIABLE, PackedByteArray([1])))
-	p2p.close()
+	p2p.close(false)
 	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, 2)
 	leaves = server.frames_of(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE)
 	assert_eq(leaves[1].match_id, "match-p2p", "the second match is left once, and then close leaves the first")
+	assert_false(leaves[1].forfeit, "the forfeit flag of close")
 	await frames(10)
 	assert_eq(server.count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE), 2)
 
@@ -1148,7 +1152,7 @@ func test_signals_with_no_match_start_nothing_and_the_next_match_connects_with_i
 	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_ROOM_CREATE, 1)
 	await _found(PackedInt64Array([OTHER_ID, USER_ID]), 1)
 	p2p.connect_peer(0)
-	p2p.close()
+	p2p.close(false)
 	assert_not_null(p2p._socket, "the room keeps the matchmaker connection")
 	var rejoined: CoreContract.MatchmakerFrame = server.new_frame(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_PEER_REJOINED)
 	rejoined.index = 0
@@ -1209,6 +1213,7 @@ func test_a_host_in_none_that_receives_match_found_leaves_it_and_keeps_the_room_
 	server.send(server.match_found(PackedInt64Array([USER_ID, OTHER_ID]), 0, false))
 	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, 1)
 	assert_eq(server.frames_of(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE)[0].match_id, "match-p2p")
+	assert_false(server.frames_of(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE)[0].forfeit)
 	assert_eq(warn_logs(), 1)
 	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
 	assert_eq(RealtimeCore.room_info().room_code, ROOM_CODE)
@@ -1347,11 +1352,51 @@ func test_disconnect_closes_without_match_leave_and_close_sends_it_first() -> vo
 	assert_null(p2p._socket)
 	assert_eq(p2p._peers.size(), 0)
 	await _found(PackedInt64Array([USER_ID, OTHER_ID]), 0)
-	p2p.close()
+	p2p.close(true)
 	await server.wait_closed(2)
 	var leaves: Array[CoreContract.MatchmakerFrame] = server.frames_of(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE)
 	assert_eq(leaves.size(), 1)
 	assert_eq(leaves[0].match_id, "match-p2p")
+	assert_true(leaves[0].forfeit, "the forfeit flag of close")
+
+
+## RealtimeCore with the P2P transport out of a room: `leave` in `Playing` sends `MATCH_LEAVE` with `forfeit` `true`, and
+## the matchmaker connection closes after it.
+func test_leave_in_playing_out_of_a_room_sends_a_forfeit_match_leave_before_the_close() -> void:
+	await _play_on_p2p()
+	var closed: int = server.closed_count
+	RealtimeCore.leave()
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	await server.wait_closed(closed + 1)
+	var leaves: Array[CoreContract.MatchmakerFrame] = server.frames_of(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE)
+	assert_eq(leaves.size(), 1, "MATCH_LEAVE came before the close of its connection")
+	assert_eq(leaves[0].match_id, "match-p2p")
+	assert_true(leaves[0].forfeit)
+	assert_eq(events.count("ended:match-p2p:LEFT"), 1)
+
+
+## RealtimeCore with the P2P transport in in-match rejoin, waiting for its rejoin delay: there is no matchmaker connection,
+## so `leave` in `Playing` sends no `MATCH_LEAVE` and opens no connection.
+func test_leave_in_playing_while_in_match_rejoin_waits_its_delay_sends_no_match_leave() -> void:
+	await _play_on_p2p()
+	p2p = RealtimeCore._transport as P2pRealtimeTransport
+	assert_true(RealtimeCoreDev.force_matchmaker_lost())
+	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_REJOIN, 1)
+	# The rejoin connection is lost before its rejoined: the next round waits for the rejoin delay.
+	server.drop()
+	while p2p._socket != null and _running():
+		await frames(1)
+	await frames(2)
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.PLAYING)
+	var accepted: int = server.accepted_count
+	RealtimeCore.leave()
+	assert_eq(RealtimeCore.match_state(), RealtimeCore.MatchState.NONE)
+	assert_eq(events.count("ended:match-p2p:LEFT"), 1)
+	await advance(RETRY_DELAY_MS)
+	await frames(10)
+	assert_eq(server.count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE), 0)
+	assert_eq(server.count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_REJOIN), 1, "the rejoin stopped")
+	assert_eq(server.accepted_count, accepted, "no new matchmaker connection")
 
 
 func test_relay_only_sends_and_takes_no_candidate_that_is_not_relay() -> void:
@@ -1420,6 +1465,7 @@ func test_relay_only_without_relays_leaves_the_match_and_fails_join_match() -> v
 	await server.wait_count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, 1)
 	await server.wait_closed(1)
 	assert_eq(server.count(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE), 1)
+	assert_false(server.frames_of(CoreContract.MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE)[0].forfeit)
 	assert_eq(warn_logs(), 1)
 
 
