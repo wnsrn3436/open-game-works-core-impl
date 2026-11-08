@@ -243,6 +243,34 @@ func test_load_keys_applies_the_saved_options() -> void:
 	assert_eq(errors(), 0)
 
 
+func test_load_keys_releases_the_sources_of_changed_axes() -> void:
+	pad_axis(JOY_AXIS_RIGHT_Y, -0.6)
+	pad_axis(JOY_AXIS_RIGHT_X, 0.5)
+	assert_true(InputCore.is_pressed(&"look_up"))
+	assert_true(InputCore.is_pressed(&"look_right"))
+	assert_true(InputCore.is_pressed(&"menu_right"))
+	LocalDataCore.set_array_string(DEVICE, INVERTED_KEY, PackedStringArray(["right_y"]))
+	LocalDataCore.set_array_string(DEVICE, SENSITIVITY_KEY, PackedStringArray(["right_x=2000"]))
+	InputCore.load_keys()
+	assert_true(InputCore.is_pad_axis_inverted("right_y"))
+	assert_eq(InputCore.get_pad_axis_sensitivity("right_x"), 2000)
+	assert_false(InputCore.is_pressed(&"look_up"), "the inversion of right_y releases look_up")
+	assert_false(InputCore.is_pressed(&"look_right"), "the sensitivity of right_x releases look_right")
+	assert_true(InputCore.is_pressed(&"menu_right"), "a Ui action keeps its source")
+	pad_axis(JOY_AXIS_RIGHT_X, 0.3)
+	assert_true(InputCore.is_pressed(&"look_right"))
+	assert_almost_eq(InputCore.get_strength(&"look_right"), 0.6, 0.0001)
+	pad_axis(JOY_AXIS_RIGHT_Y, 0.0)
+	pad_axis(JOY_AXIS_RIGHT_X, 0.0)
+	pad_axis(JOY_AXIS_RIGHT_Y, -0.6)
+	assert_true(InputCore.is_pressed(&"look_down"))
+	recorder.clear()
+	InputCore.load_keys()
+	assert_true(InputCore.is_pressed(&"look_down"), "load_keys with the current options releases nothing")
+	assert_eq(errors(), 0)
+	assert_eq(warns(), 0)
+
+
 func test_load_keys_skips_an_axis_saved_twice() -> void:
 	LocalDataCore.set_array_string(DEVICE, INVERTED_KEY, PackedStringArray(["right_y", "right_y", "left_x"]))
 	LocalDataCore.set_array_string(DEVICE, SENSITIVITY_KEY,
