@@ -102,6 +102,7 @@ export const MODULE_ADMIN_OPERATIONS: Readonly<Record<string, readonly string[]>
   'guild': ['get_guild', 'rename_guild', 'set_guild_description', 'set_guild_member_role', 'kick_guild_member', 'disband_guild', 'import_guild'],
   'iap': ['revoke_test_grant'],
   'logging': ['list_client_errors', 'list_client_events', 'list_server_events'],
+  'matchmaker': ['list_match_flags', 'get_match'],
   'migration': ['start_migration_batch', 'get_migration_batch', 'stop_migration_batch'],
   'nickname': ['rename_user', 'find_user_by_nickname'],
   'notice': ['put_notice', 'delete_notice', 'list_notices'],

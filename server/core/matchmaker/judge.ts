@@ -1,6 +1,7 @@
 /**
- * The result decision of `### result decision` over the stored reports. `Consensus` and `Majority` give the result
- * to confirm; `ServerReplay` gives the `input_log` to replay. The module checks the result and runs `replay_match`.
+ * The result decision of `### result decision` over the saved reports and the leaves the server observed, and the
+ * integrity events of `### integrity`. `Consensus` and `Majority` give the result to confirm; `ServerReplay` gives the
+ * `input_log` to replay. The module checks the result and runs `replay_match`.
  */
 import * as GameData from '../../generated/data/game_data.ts';
 
@@ -10,17 +11,21 @@ export interface ReportState {
   readonly result: Uint8Array;
   readonly input_log: Uint8Array;
   readonly left_at: bigint;
-  readonly disconnected_at: bigint;
 }
 
 export type Decision =
   | { readonly kind: 'PENDING' }
   | { readonly kind: 'MISMATCH' }
+  | { readonly kind: 'FORFEIT' }
   | { readonly kind: 'CONFIRMED'; readonly result: Uint8Array }
   | { readonly kind: 'REPLAY'; readonly input_log: Uint8Array };
 
+/** `MatchIntegrityKind`. */
+export type IntegrityKind = 'Disagree' | 'Forfeit' | 'Missing';
+
 const PENDING: Decision = { kind: 'PENDING' };
 const MISMATCH: Decision = { kind: 'MISMATCH' };
+const FORFEIT: Decision = { kind: 'FORFEIT' };
 
 function key(bytes: Uint8Array): string {
   return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString('base64');
@@ -28,6 +33,16 @@ function key(bytes: Uint8Array): string {
 
 function is_reported(p: ReportState): boolean {
   return p.reported_at !== 0n;
+}
+
+/** A participant whose `left_at` is not 0 and who has no saved report. */
+export function is_forfeiter(p: ReportState): boolean {
+  return p.left_at !== 0n && !is_reported(p);
+}
+
+/** Every participant has a saved report or is a forfeiter. */
+export function is_complete(participants: readonly ReportState[]): boolean {
+  return participants.every((p) => is_reported(p) || is_forfeiter(p));
 }
 
 /** Same bytes grouped: each distinct value with its count, in first report order. */
@@ -48,57 +63,72 @@ function largest(list: readonly { value: Uint8Array; count: number }[]): { value
   return best;
 }
 
-function consensus(participants: readonly ReportState[]): Decision {
-  const reported = participants.filter(is_reported);
-  const results = groups(reported.map((p) => p.result));
-  if (results.length >= 2) return MISMATCH;
-  const only = results[0];
-  if (only !== undefined && reported.length === participants.length) return { kind: 'CONFIRMED', result: only.value };
-  return PENDING;
+/** The compared value of a report: `input_log` for `ServerReplay`, `result` otherwise. */
+export function compared(rule: GameData.MatchResultRule, p: ReportState): Uint8Array {
+  return rule === GameData.MatchResultRule.ServerReplay ? p.input_log : p.result;
 }
 
-function majority(participants: readonly ReportState[]): Decision {
+/** The decision when the `CONFIRMED` condition of the rule holds, or null. */
+function confirmed(rule: GameData.MatchResultRule, participants: readonly ReportState[], final: boolean): Decision | null {
   const n = participants.length;
   const reported = participants.filter(is_reported);
-  const top = largest(groups(reported.map((p) => p.result)));
-  const c = top?.count ?? 0;
-  if (top !== null && 2 * c > n) return { kind: 'CONFIRMED', result: top.value };
-  const m = c + (n - reported.length);
-  if (2 * m <= n) return MISMATCH;
-  return PENDING;
-}
-
-/** The `input_log` to replay, or null when there is none. */
-function replay_log(participants: readonly ReportState[]): Uint8Array | null {
-  const reported = participants.filter(is_reported);
-  if (participants.length === 2) {
-    const logs = groups(reported.map((p) => p.input_log));
-    return logs.length === 1 ? (logs[0]?.value ?? null) : null;
-  }
-  const staying = reported.filter((p) => p.left_at === 0n);
-  const top = largest(groups(staying.map((p) => p.input_log)));
-  return top !== null && 2 * top.count > staying.length ? top.value : null;
-}
-
-function server_replay(participants: readonly ReportState[]): Decision {
-  const reported = participants.filter(is_reported);
-  if (participants.length === 2 && groups(reported.map((p) => p.input_log)).length >= 2) return MISMATCH;
-  const present = participants.filter((p) => p.left_at === 0n && p.disconnected_at === 0n);
-  if (!present.every(is_reported)) return PENDING;
-  const log = replay_log(participants);
-  return log === null ? MISMATCH : { kind: 'REPLAY', input_log: log };
-}
-
-/** The decision of a `PENDING` match from its reports, by the `result_rule` of its mode. */
-export function decide(rule: GameData.MatchResultRule, participants: readonly ReportState[]): Decision {
   switch (rule) {
-    case GameData.MatchResultRule.Consensus:
-      return consensus(participants);
-    case GameData.MatchResultRule.Majority:
-      return majority(participants);
-    case GameData.MatchResultRule.ServerReplay:
-      return server_replay(participants);
+    case GameData.MatchResultRule.Consensus: {
+      const results = groups(reported.map((p) => p.result));
+      const only = results[0];
+      return results.length === 1 && only !== undefined && reported.length === n ? { kind: 'CONFIRMED', result: only.value } : null;
+    }
+    case GameData.MatchResultRule.Majority: {
+      const top = largest(groups(reported.map((p) => p.result)));
+      return top !== null && 2 * top.count > n ? { kind: 'CONFIRMED', result: top.value } : null;
+    }
+    case GameData.MatchResultRule.ServerReplay: {
+      // 2c > k with k the participants that are not forfeiters; in the final decision 2c > r with r the reports.
+      const k = final ? reported.length : participants.filter((p) => !is_forfeiter(p)).length;
+      const top = largest(groups(reported.map((p) => p.input_log)));
+      return top !== null && top.count >= 2 && 2 * top.count > k ? { kind: 'REPLAY', input_log: top.value } : null;
+    }
     default:
-      return MISMATCH;
+      return null;
   }
+}
+
+/**
+ * The decision of a `PENDING` match. `at_deadline`: the decision at `deadline_at`. A complete record and a record at
+ * `deadline_at` get the final decision; otherwise only the `CONFIRMED` condition decides.
+ */
+export function decide(rule: GameData.MatchResultRule | null, participants: readonly ReportState[], at_deadline: boolean): Decision {
+  const final = at_deadline || is_complete(participants);
+  if (rule === null) return final ? MISMATCH : PENDING;
+  const decision = confirmed(rule, participants, final);
+  if (decision !== null) return decision;
+  if (!final) return PENDING;
+  const forfeiter = participants.some(is_forfeiter);
+  const reporter = participants.some((p) => is_reported(p) && !is_forfeiter(p));
+  return forfeiter && reporter ? FORFEIT : MISMATCH;
+}
+
+/**
+ * The integrity event of each index of a judged match, or null. `confirmed_value`: the confirmed compared value
+ * (`replayed_input_log` for `ServerReplay`, the confirmed result otherwise) when the judgement is `CONFIRMED`.
+ * `at_deadline`: the final decision at `deadline_at`, which gives `Missing`.
+ */
+export function integrity_events(
+  rule: GameData.MatchResultRule | null,
+  participants: readonly ReportState[],
+  status: 'CONFIRMED' | 'FORFEIT' | 'MISMATCH',
+  confirmed_value: Uint8Array | null,
+  at_deadline: boolean,
+): (IntegrityKind | null)[] {
+  if (!participants.some((p) => is_reported(p) && !is_forfeiter(p))) return participants.map(() => null);
+  const value = (p: ReportState): Uint8Array => (rule === null ? p.result : compared(rule, p));
+  const reported_values = participants.filter(is_reported).map(value);
+  const split = groups(reported_values).length >= 2;
+  const confirmed_key = confirmed_value === null ? null : key(confirmed_value);
+  return participants.map((p): IntegrityKind | null => {
+    if (is_forfeiter(p)) return 'Forfeit';
+    if (!is_reported(p)) return at_deadline ? 'Missing' : null;
+    if (status === 'CONFIRMED') return confirmed_key !== null && key(value(p)) !== confirmed_key ? 'Disagree' : null;
+    return split ? 'Disagree' : null;
+  });
 }

@@ -1,51 +1,69 @@
 /**
- * Match records after creation: `ReportMatchResult` (`### ReportMatchResult`), the result decision, the apply of
- * each index (`### apply`), participant changes, and the work of job `matchmaker_sweep`.
+ * Match records after creation: `ReportMatchResult` (`### ReportMatchResult`), the result decision
+ * (`### result decision`) with its integrity events (`### integrity`), the apply of each index (`### apply`),
+ * participant changes with the decision after a `left_at` write (`### connection`), and the work of job
+ * `matchmaker_sweep`.
  */
 import * as CoreContract from '../../generated/contract/core_contract.ts';
 import * as GameContract from '../../generated/contract/game_contract.ts';
+import type * as GameData from '../../generated/data/game_data.ts';
 import type { GameTx, RequestCtx } from '../storage/index.ts';
 import type { ParticipantChange } from './deps.ts';
-import { decide } from './judge.ts';
+import { decide, integrity_events, type IntegrityKind } from './judge.ts';
 import {
+  INTEGRITY_TABLE,
   MATCH_TABLE,
   due_applies,
   due_deadlines,
+  flag_count,
+  insert_integrity,
   insert_record,
   read_record,
   record_input,
+  status_value,
   write_apply_state,
   write_match,
   write_participant,
   type MatchRecord,
   type ParticipantRecord,
 } from './records.ts';
-import { CoreError, log_error, retry_delay, type Env } from './shared.ts';
+import { CoreError, log_core, log_error, retry_delay, type Env } from './shared.ts';
 
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const Status = CoreContract.MatchJudgeStatus;
 
-/** A judged report: the record stays `PENDING`, or it is decided, or a hook failed (the request fails). */
-type Judged = 'PENDING' | 'DECIDED' | { readonly hook_failure: string };
+/** A hook failure (a throw or a wrong output): the message of its error log. */
+interface HookFailure {
+  readonly hook_failure: string;
+}
+
+/**
+ * A judgement: the record stays `PENDING`, or it is decided, or a hook failed (the request fails), or an integrity
+ * lock was `FAILED` (the judging transaction fails).
+ */
+type Judged = 'PENDING' | 'DECIDED' | 'LOCK_FAILED' | HookFailure;
 
 /** The apply hook's outcome in a savepoint: `pass`, a `GameError` (rolled back), or a hook failure. */
-type Applied = 'pass' | 'rejected' | { readonly hook_failure: string };
+type Applied = 'pass' | 'rejected' | HookFailure;
+
+/**
+ * Where a judgement runs: in `ReportMatchResult` a throw or a wrong output of `replay_match` fails the request; in
+ * the decision transaction after a `left_at` write and in job `matchmaker_sweep` it makes the match `MISMATCH`.
+ */
+type ReplayFailure = 'fail' | 'mismatch';
 
 export interface Results {
   /** The core `rpc` handler `ReportMatchResult`. */
   report(ctx: RequestCtx, request: CoreContract.ReportMatchResultRequest): CoreContract.ReportMatchResultResponse | number;
   /** Saves a new match record in one game transaction; false when it failed. */
   create(record: MatchRecord): Promise<boolean>;
-  /** Writes a participant change of `p2p-signaling` to a `PENDING` record. */
+  /**
+   * Writes a participant change of `p2p-signaling` to a `PENDING` record, after the earlier changes of that match.
+   * Resolves when the first attempt ended; the retries of a failed `LEFT` run behind.
+   */
   participant_change(change: ParticipantChange): Promise<void>;
   /** The work of job `matchmaker_sweep`: deadline decisions, then the applies that are due. */
   sweep(): Promise<void>;
-}
-
-function status_value(record: MatchRecord): CoreContract.MatchJudgeStatus {
-  if (record.status === 'CONFIRMED') return Status.MATCH_JUDGE_STATUS_CONFIRMED;
-  if (record.status === 'MISMATCH') return Status.MATCH_JUDGE_STATUS_MISMATCH;
-  return Status.MATCH_JUDGE_STATUS_PENDING;
 }
 
 function response(status: CoreContract.MatchJudgeStatus): CoreContract.ReportMatchResultResponse {
@@ -58,14 +76,27 @@ function message_of(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function is_hook_failure(value: unknown): value is HookFailure {
+  return typeof value === 'object' && value !== null && 'hook_failure' in value;
+}
+
 export function create_results(env: Env): Results {
   const { storage, server_time, settings } = env;
   /** Applies running in this server instance, by `<match_id>:<index>`. */
   const running = new Set<string>();
-  /** The participant changes of each match, written one after another. */
+  /** The first attempts of the participant changes of each match, written one after another. */
   const change_chains = new Map<string, Promise<void>>();
 
   const now = (): bigint => server_time.clock_now();
+
+  /** `matchmaker.recordRetentionMs`, or the larger of it and `matchmaker.flagWindowMs` with an integrity event. */
+  const retention_of = (record: MatchRecord): bigint =>
+    record.integrity && settings.flag_window_ms > settings.record_retention_ms ? settings.flag_window_ms : settings.record_retention_ms;
+
+  const mode_rule = (record: MatchRecord): GameData.MatchResultRule | null => {
+    const table = env.server.data.MatchModeTable;
+    return table.has_row(record.mode_id) ? table.get_row(record.mode_id).result_rule : null;
+  };
 
   /** A `CONFIRMED` result must decode as `MatchResult` and pass `validation.validate_message`. */
   const valid_result = (result: Uint8Array): boolean => {
@@ -79,7 +110,7 @@ export function create_results(env: Env): Results {
     return message !== null && env.validation.validate_message('MatchInputLog', message) === 'pass';
   };
 
-  const decided = (record: MatchRecord, status: 'CONFIRMED' | 'MISMATCH', at: bigint, result: Uint8Array = new Uint8Array(0)): void => {
+  const decided = (record: MatchRecord, status: 'CONFIRMED' | 'MISMATCH' | 'FORFEIT', at: bigint, result: Uint8Array = new Uint8Array(0)): void => {
     record.status = status;
     record.decided_at = at;
     record.result = result;
@@ -89,13 +120,13 @@ export function create_results(env: Env): Results {
   /** Writes a decision made in this transaction: the match row, each index's `next_attempt_at`, the apply state. */
   const write_decision = (ctx_or_tx: RequestCtx | GameTx, record: MatchRecord, at: bigint): void => {
     const db = storage.db(ctx_or_tx);
-    write_match(db, record, ['status', 'decided_at', 'result', 'replayed_input_log']);
+    write_match(db, record, ['status', 'decided_at', 'result', 'replayed_input_log', 'integrity']);
     for (const p of record.participants) write_participant(db, record, p, ['next_attempt_at', 'applied', 'last_failure']);
-    write_apply_state(db, record, at, settings.record_retention_ms);
+    write_apply_state(db, record, at, retention_of);
   };
 
   /** `replay_match` with the replay `input_log`: the result to confirm, `reject`, or a hook failure. */
-  const replay = (record: MatchRecord, input_log: Uint8Array): Uint8Array | 'reject' | { readonly hook_failure: string } => {
+  const replay = (record: MatchRecord, input_log: Uint8Array): Uint8Array | 'reject' | HookFailure => {
     const hook = env.hooks.replay_match;
     if (hook === null) return 'reject';
     record.replayed_input_log = input_log;
@@ -110,46 +141,94 @@ export function create_results(env: Env): Results {
     return { hook_failure: 'replay_match returned a value that is neither result bytes nor reject' };
   };
 
-  /** The result decision of a `PENDING` record after a report was stored. */
-  const judge = (record: MatchRecord, at: bigint): Judged => {
-    const mode = env.server.data.MatchModeTable;
-    const rule = mode.has_row(record.mode_id) ? mode.get_row(record.mode_id).result_rule : null;
-    const decision = rule === null ? { kind: 'MISMATCH' as const } : decide(rule, record.participants);
+  /**
+   * Writes the integrity events of a judgement, each user's key `(user_id, "")` of `matchmaker_integrity` locked
+   * first in ascending order of user ID, and registers the flag notice of a user whose flag count reached its key.
+   * False when a lock was `FAILED`.
+   */
+  const write_integrity = (ctx_or_tx: RequestCtx | GameTx, record: MatchRecord, kinds: readonly (IntegrityKind | null)[], at: bigint): boolean => {
+    const events = record.participants
+      .map((p, i) => ({ user_id: p.user_id, kind: kinds[i] ?? null }))
+      .filter((e): e is { user_id: bigint; kind: IntegrityKind } => e.kind !== null)
+      .sort((a, b) => (a.user_id < b.user_id ? -1 : a.user_id > b.user_id ? 1 : 0));
+    if (events.length === 0) return true;
+    for (const e of events) {
+      if (storage.lock_game_row(ctx_or_tx, INTEGRITY_TABLE, [e.user_id, '']) === 'FAILED') return false;
+    }
+    const db = storage.db(ctx_or_tx);
+    for (const e of events) insert_integrity(db, { user_id: e.user_id, match_id: record.match_id, kind: e.kind, at }, settings.flag_window_ms);
+    record.integrity = true;
+    for (const e of events) {
+      const count = flag_count(db, e.user_id, e.kind, at, settings.flag_window_ms);
+      if (count !== settings.flag_counts[e.kind]) continue;
+      storage.on_commit(ctx_or_tx, () => {
+        log_core(env, 'warn', 'match integrity flag', { module: 'matchmaker', integrity_kind: e.kind, flag_count: count }, e.user_id);
+      });
+    }
+    return true;
+  };
+
+  /**
+   * The result decision of a `PENDING` record (`### result decision`), with its integrity events. `at_deadline`: the
+   * final decision at `deadline_at`.
+   */
+  const judge = (ctx_or_tx: RequestCtx | GameTx, record: MatchRecord, at: bigint, at_deadline: boolean, on_replay_failure: ReplayFailure): Judged => {
+    const rule = mode_rule(record);
+    const decision = decide(rule, record.participants, at_deadline);
+    let confirmed_value: Uint8Array | null = null;
     switch (decision.kind) {
       case 'PENDING':
         return 'PENDING';
       case 'MISMATCH':
-        decided(record, 'MISMATCH', at);
-        return 'DECIDED';
+      case 'FORFEIT':
+        decided(record, decision.kind, at);
+        break;
       case 'CONFIRMED':
-        if (valid_result(decision.result)) decided(record, 'CONFIRMED', at, decision.result);
-        else decided(record, 'MISMATCH', at);
-        return 'DECIDED';
-      case 'REPLAY': {
-        if (!valid_input_log(record, decision.input_log)) {
+        if (valid_result(decision.result)) {
+          decided(record, 'CONFIRMED', at, decision.result);
+          confirmed_value = decision.result;
+        } else {
           decided(record, 'MISMATCH', at);
-          return 'DECIDED';
         }
-        const out = replay(record, decision.input_log);
-        if (typeof out === 'object' && !(out instanceof Uint8Array)) return out;
-        if (out instanceof Uint8Array && valid_result(out)) decided(record, 'CONFIRMED', at, out);
-        else decided(record, 'MISMATCH', at);
-        return 'DECIDED';
+        break;
+      case 'REPLAY': {
+        const out = valid_input_log(record, decision.input_log) ? replay(record, decision.input_log) : 'reject';
+        if (is_hook_failure(out)) {
+          if (on_replay_failure === 'fail') return out;
+          log_error(env, out.hook_failure, { match_id: record.match_id });
+          decided(record, 'MISMATCH', at);
+        } else if (out instanceof Uint8Array && valid_result(out)) {
+          decided(record, 'CONFIRMED', at, out);
+          confirmed_value = record.replayed_input_log;
+        } else {
+          decided(record, 'MISMATCH', at);
+        }
+        break;
       }
     }
+    const status = record.status === 'PENDING' ? 'MISMATCH' : record.status;
+    const kinds = integrity_events(rule, record.participants, status, confirmed_value, at_deadline);
+    return write_integrity(ctx_or_tx, record, kinds, at) ? 'DECIDED' : 'LOCK_FAILED';
   };
 
-  /** Calls the apply hook of the record's status for one index in a savepoint, with change source `Match`. */
+  /** The apply hook of the record's status for one index, in a savepoint, with change source `Match`. */
   const apply_in = (ctx: RequestCtx, record: MatchRecord, p: ParticipantRecord): Applied => {
     const input = record_input(record);
-    const result_hook = env.hooks.apply_match_result;
-    const mismatch_hook = env.hooks.apply_match_mismatch;
+    const { apply_match_result, apply_match_forfeit, apply_match_mismatch } = env.hooks;
     let call: (() => unknown) | null = null;
-    if (record.status === 'CONFIRMED' && result_hook !== null) call = () => result_hook(ctx, input, p.index, record.result);
-    if (record.status === 'MISMATCH' && mismatch_hook !== null) call = () => mismatch_hook(ctx, input, p.index);
+    let name = '';
+    if (record.status === 'CONFIRMED' && apply_match_result !== null) {
+      name = 'apply_match_result';
+      call = () => apply_match_result(ctx, input, p.index, record.result);
+    } else if (record.status === 'FORFEIT' && apply_match_forfeit !== null) {
+      name = 'apply_match_forfeit';
+      call = () => apply_match_forfeit(ctx, input, p.index);
+    } else if (record.status === 'MISMATCH' && apply_match_mismatch !== null) {
+      name = 'apply_match_mismatch';
+      call = () => apply_match_mismatch(ctx, input, p.index);
+    }
     if (call === null) return 'pass';
     const run = call;
-    const name = record.status === 'CONFIRMED' ? 'apply_match_result' : 'apply_match_mismatch';
     const state: { failure: string | null } = { failure: null };
     const out = storage.run_savepoint(ctx, () =>
       storage.with_hook_change_source(ctx, CoreContract.ItemChangeSource.ITEM_CHANGE_SOURCE_MATCH, record.match_id, () => {
@@ -182,12 +261,30 @@ export function create_results(env: Env): Results {
     };
   };
 
-  /** Starts the out-of-request apply of these indices after the transaction of `ctx` commits. */
-  const apply_after_commit = (ctx: RequestCtx, match_id: string, indices: readonly number[]): void => {
+  /** Starts the out-of-request apply of these indices after the transaction commits. */
+  const apply_after_commit = (ctx_or_tx: RequestCtx | GameTx, match_id: string, indices: readonly number[]): void => {
     if (indices.length === 0) return;
-    storage.after_commit(ctx, async () => {
+    storage.after_commit(ctx_or_tx, async () => {
       await Promise.all(indices.map((index) => apply_index(match_id, index)));
     });
+  };
+
+  const all_indices = (record: MatchRecord): number[] => record.participants.map((p) => p.index);
+
+  /**
+   * Step 5 of `### ReportMatchResult`: the final decision with the saved reports, without saving this report; every
+   * participant is applied out of request after the commit.
+   */
+  const report_after_deadline = (ctx: RequestCtx, record: MatchRecord, at: bigint): CoreContract.ReportMatchResultResponse | number => {
+    const judged = judge(ctx, record, at, true, 'fail');
+    if (judged === 'LOCK_FAILED') return CoreError.CORE_ERROR_INTERNAL;
+    if (is_hook_failure(judged)) {
+      log_error(env, judged.hook_failure, { match_id: record.match_id }, null, ctx);
+      return CoreError.CORE_ERROR_INTERNAL;
+    }
+    write_decision(ctx, record, at);
+    apply_after_commit(ctx, record.match_id, all_indices(record));
+    return response(status_value(record.status));
   };
 
   const report = (ctx: RequestCtx, request: CoreContract.ReportMatchResultRequest): CoreContract.ReportMatchResultResponse | number => {
@@ -199,26 +296,24 @@ export function create_results(env: Env): Results {
     if (record === null) return CoreError.CORE_ERROR_MATCH_NOT_FOUND;
     const me = record.participants.find((p) => p.user_id === ctx.user_id);
     if (me === undefined) return CoreError.CORE_ERROR_MATCH_NOT_PARTICIPANT;
-    if (record.status !== 'PENDING') return response(status_value(record));
-    if (record.deadline_at <= at) {
-      decided(record, 'MISMATCH', at);
-      write_decision(ctx, record, at);
-      apply_after_commit(ctx, record.match_id, record.participants.map((p) => p.index));
-      return response(Status.MATCH_JUDGE_STATUS_MISMATCH);
-    }
+    if (record.status !== 'PENDING') return response(status_value(record.status));
+    if (record.deadline_at <= at) return report_after_deadline(ctx, record, at);
+    // A participant that left before reporting is a forfeiter, and no report of it is judged.
+    if (me.left_at !== 0n) return response(Status.MATCH_JUDGE_STATUS_PENDING);
     if (me.reported_at !== 0n) return CoreError.CORE_ERROR_MATCH_ALREADY_REPORTED;
     me.reported_at = at;
     me.result = request.result;
     me.input_log = request.input_log;
     write_participant(db, record, me, ['reported_at', 'result', 'input_log']);
-    const judged = judge(record, at);
-    if (typeof judged === 'object') {
+    const judged = judge(ctx, record, at, false, 'fail');
+    if (judged === 'LOCK_FAILED') return CoreError.CORE_ERROR_INTERNAL;
+    if (is_hook_failure(judged)) {
       log_error(env, judged.hook_failure, { match_id: record.match_id }, null, ctx);
       return CoreError.CORE_ERROR_INTERNAL;
     }
     if (judged === 'PENDING') return response(Status.MATCH_JUDGE_STATUS_PENDING);
     const applied = apply_in(ctx, record, me);
-    if (typeof applied === 'object') {
+    if (is_hook_failure(applied)) {
       log_error(env, applied.hook_failure, { match_id: record.match_id, index: me.index }, null, ctx);
       return CoreError.CORE_ERROR_INTERNAL;
     }
@@ -228,22 +323,27 @@ export function create_results(env: Env): Results {
     write_decision(ctx, record, at);
     log_rejected();
     apply_after_commit(ctx, record.match_id, record.participants.filter((p) => p !== me).map((p) => p.index));
-    return response(status_value(record));
+    return response(status_value(record.status));
   };
 
   /**
-   * Runs one game transaction on a locked record; nothing when the record is missing. A lock wait over the limit
-   * changes nothing and, like a failed transaction, leaves an error log.
+   * Runs one game transaction on the locked record; nothing when the record is missing. `fn` returns `ROLLBACK` to
+   * roll back. The result is false when the lock was `FAILED`, `fn` rolled back, or the transaction failed or threw.
    */
-  const on_locked = async (match_id: string, fn: (tx: GameTx, record: MatchRecord, at: bigint) => void): Promise<void> => {
-    const out = await storage.run_game_transaction((tx) => {
-      if (storage.lock_game_row(tx, MATCH_TABLE, [match_id]) === 'FAILED') return 'LOCK_FAILED' as const;
-      const at = now();
-      const record = read_record(storage.db(tx), match_id, at);
-      if (record !== null) fn(tx, record, at);
-      return 'DONE' as const;
-    });
-    if (out !== 'DONE') log_error(env, 'match record transaction failed', { match_id });
+  const on_locked = async (match_id: string, fn: (tx: GameTx, record: MatchRecord, at: bigint) => 'ROLLBACK' | undefined): Promise<boolean> => {
+    try {
+      const out = await storage.run_game_transaction((tx) => {
+        if (storage.lock_game_row(tx, MATCH_TABLE, [match_id]) === 'FAILED') return CoreError.CORE_ERROR_INTERNAL;
+        const at = now();
+        const record = read_record(storage.db(tx), match_id, at);
+        if (record !== null && fn(tx, record, at) === 'ROLLBACK') return CoreError.CORE_ERROR_INTERNAL;
+        return { done: true };
+      });
+      return typeof out === 'object';
+    } catch (error) {
+      if (!env.stopped()) log_error(env, `match record transaction threw: ${message_of(error)}`, { match_id });
+      return false;
+    }
   };
 
   /**
@@ -252,7 +352,7 @@ export function create_results(env: Env): Results {
    */
   const mark_failed = async (match_id: string, index: number, hook_failure: string | null): Promise<void> => {
     const logs: (() => void)[] = [];
-    await on_locked(match_id, (tx, record, at) => {
+    const ok = await on_locked(match_id, (tx, record, at) => {
       const p = record.participants[index];
       if (p === undefined || p.applied) return;
       const before = p.last_failure;
@@ -262,7 +362,7 @@ export function create_results(env: Env): Results {
       else p.next_attempt_at = at + retry_delay(settings, p.attempts);
       const db = storage.db(tx);
       write_participant(db, record, p, ['attempts', 'last_failure', 'applied', 'next_attempt_at']);
-      write_apply_state(db, record, at, settings.record_retention_ms);
+      write_apply_state(db, record, at, retention_of);
       const fields = { match_id, index, attempts: p.attempts };
       if (before !== 'FAILED') {
         logs.push(() => {
@@ -275,18 +375,21 @@ export function create_results(env: Env): Results {
         });
       }
     });
+    if (!ok && !env.stopped()) log_error(env, 'match record transaction failed', { match_id });
     for (const log of logs) log();
   };
 
   /** A withdrawn user's index: marked without applying. */
-  const mark_withdrawn = (match_id: string, index: number): Promise<void> =>
-    on_locked(match_id, (tx, record, at) => {
+  const mark_withdrawn = async (match_id: string, index: number): Promise<void> => {
+    const ok = await on_locked(match_id, (tx, record, at) => {
       const p = record.participants[index];
       if (p === undefined || p.applied) return;
       p.applied = true;
       write_participant(storage.db(tx), record, p, ['applied']);
-      write_apply_state(storage.db(tx), record, at, settings.record_retention_ms);
+      write_apply_state(storage.db(tx), record, at, retention_of);
     });
+    if (!ok && !env.stopped()) log_error(env, 'match record transaction failed', { match_id });
+  };
 
   /** The out-of-request apply of one index: one `run_user_transaction` of that user. */
   const apply_index = async (match_id: string, index: number): Promise<void> => {
@@ -336,26 +439,24 @@ export function create_results(env: Env): Results {
       const p = record?.participants[index];
       if (record === null || p === undefined || p.applied || record.status === 'PENDING') return 'pass';
       const applied = apply_in(ctx, record, p);
-      if (typeof applied === 'object') {
+      if (is_hook_failure(applied)) {
         state.failure = applied.hook_failure;
         return CoreError.CORE_ERROR_INTERNAL;
       }
       if (applied === 'rejected') state.log_rejected = mark_rejected(record, p, null);
       else p.applied = true;
       write_participant(db, record, p, ['applied', 'last_failure']);
-      write_apply_state(db, record, at, settings.record_retention_ms);
+      write_apply_state(db, record, at, retention_of);
       return 'pass';
     });
 
   /** The user ID of an index of a decided record not yet marked, read outside a transaction; null otherwise. */
   const participant_user = (match_id: string, index: number): bigint | null => {
-    const record = read_record(read_db(), match_id, now());
+    const record = read_record(storage.read_db(), match_id, now());
     const p = record?.participants[index];
     if (record === null || p === undefined || p.applied || record.status === 'PENDING') return null;
     return p.user_id;
   };
-
-  const read_db = (): ReturnType<typeof storage.read_db> => storage.read_db();
 
   const create = async (record: MatchRecord): Promise<boolean> => {
     try {
@@ -369,24 +470,82 @@ export function create_results(env: Env): Results {
     }
   };
 
-  const write_change = (change: ParticipantChange): Promise<void> =>
+  /**
+   * The decision transaction after a `left_at` write commits: a `PENDING` record gets the result decision, and when
+   * it decides, every participant is applied out of request after the commit. It is not retried.
+   */
+  const decide_after_left = async (match_id: string): Promise<void> => {
+    if (env.stopped()) return;
+    const ok = await on_locked(match_id, (tx, record, at) => {
+      if (record.status !== 'PENDING') return;
+      const judged = judge(tx, record, at, record.deadline_at <= at, 'mismatch');
+      if (judged === 'LOCK_FAILED') return 'ROLLBACK';
+      if (judged !== 'DECIDED') return undefined;
+      write_decision(tx, record, at);
+      apply_after_commit(tx, record.match_id, all_indices(record));
+    });
+    if (!ok && !env.stopped()) log_error(env, 'match decision after a leave failed', { match_id });
+  };
+
+  /** One attempt of a participant change; false when its game transaction failed. */
+  const write_change = (change: ParticipantChange): Promise<boolean> =>
     on_locked(change.match_id, (tx, record, at) => {
       if (record.status !== 'PENDING') return;
       const p = record.participants[change.index];
       if (p === undefined) return;
-      // `ENDED` (`MATCH_LEAVE` with `forfeit` `false`) is written as a leave, as every `MATCH_LEAVE` was before the kind existed.
-      if (change.kind === 'LEFT' || change.kind === 'ENDED') {
-        p.left_at = at;
-        write_participant(storage.db(tx), record, p, ['left_at']);
-      } else {
-        p.disconnected_at = change.kind === 'DISCONNECTED' ? at : 0n;
-        write_participant(storage.db(tx), record, p, ['disconnected_at']);
+      const db = storage.db(tx);
+      switch (change.kind) {
+        case 'LEFT':
+          p.left_at = at;
+          write_participant(db, record, p, ['left_at']);
+          storage.after_commit(tx, () => decide_after_left(change.match_id));
+          return;
+        case 'ENDED':
+          p.ended_at = at;
+          write_participant(db, record, p, ['ended_at']);
+          return;
+        case 'DISCONNECTED':
+        case 'REJOINED':
+          p.disconnected_at = change.kind === 'DISCONNECTED' ? at : 0n;
+          write_participant(db, record, p, ['disconnected_at']);
+          return;
       }
     });
 
+  /** The retries of a `LEFT` whose first attempt failed: after g(a), until `matchmaker.applyRetryMaxAttempts` in all. */
+  const retry_left = async (change: ParticipantChange): Promise<void> => {
+    const fields = { match_id: change.match_id, index: change.index, change: change.kind };
+    for (let failed = 1; failed < settings.apply_retry_max_attempts; failed += 1) {
+      await server_time.sleep(retry_delay(settings, failed));
+      if (env.stopped()) return;
+      if (await write_change(change)) return;
+    }
+    if (!env.stopped()) log_error(env, 'participant change dropped', { ...fields, attempts: settings.apply_retry_max_attempts });
+  };
+
+  /** The first attempt of a change; a failed `LEFT` starts its retries behind and the next change goes on. */
+  const first_attempt = async (change: ParticipantChange): Promise<void> => {
+    if (env.stopped()) return;
+    if (await write_change(change)) return;
+    if (env.stopped()) return;
+    const fields = { match_id: change.match_id, index: change.index, change: change.kind };
+    if (change.kind !== 'LEFT') {
+      log_error(env, 'participant change failed', fields);
+      return;
+    }
+    log_error(env, 'participant change failed', { ...fields, attempts: 1 });
+    if (settings.apply_retry_max_attempts <= 1) {
+      log_error(env, 'participant change dropped', { ...fields, attempts: 1 });
+      return;
+    }
+    void retry_left(change).catch((error: unknown) => {
+      if (!env.stopped()) log_error(env, `participant change retry threw: ${message_of(error)}`, fields);
+    });
+  };
+
   const participant_change = (change: ParticipantChange): Promise<void> => {
     const before = change_chains.get(change.match_id) ?? Promise.resolve();
-    const next = before.then(() => write_change(change)).catch((error: unknown) => {
+    const next = before.then(() => first_attempt(change)).catch((error: unknown) => {
       if (!env.stopped()) log_error(env, `participant change failed: ${message_of(error)}`, { match_id: change.match_id, index: change.index });
     });
     change_chains.set(change.match_id, next);
@@ -406,17 +565,20 @@ export function create_results(env: Env): Results {
   };
 
   const run_sweep = async (): Promise<void> => {
-    for (const match_id of due_deadlines(read_db(), now())) {
+    for (const match_id of due_deadlines(storage.read_db(), now())) {
       if (env.stopped()) return;
-      await on_locked(match_id, (tx, record, at) => {
+      const ok = await on_locked(match_id, (tx, record, at) => {
         if (record.status !== 'PENDING' || record.deadline_at > at) return;
-        decided(record, 'MISMATCH', at);
+        if (judge(tx, record, at, true, 'mismatch') === 'LOCK_FAILED') return 'ROLLBACK';
         write_decision(tx, record, at);
+        return undefined;
       });
+      // A judgement that failed is made again at the next run of the job.
+      if (!ok && !env.stopped()) log_error(env, 'match deadline decision failed', { match_id });
     }
-    for (const match_id of due_applies(read_db(), now())) {
+    for (const match_id of due_applies(storage.read_db(), now())) {
       if (env.stopped()) return;
-      const record = read_record(read_db(), match_id, now());
+      const record = read_record(storage.read_db(), match_id, now());
       if (record === null) continue;
       const at = now();
       for (const p of record.participants) {

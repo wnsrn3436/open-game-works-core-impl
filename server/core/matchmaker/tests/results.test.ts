@@ -18,6 +18,8 @@ import {
   hold_next_transaction,
   hold_until_waiter,
   hold_writes,
+  integrity,
+  leave_frame,
   log_bytes,
   match_request,
   matched,
@@ -54,7 +56,7 @@ function replayed(_record: MatchRecordInput, input_log: Uint8Array): Uint8Array 
   return result_bytes(inputs[0] ?? 0, inputs.reduce((a, b) => a + b, 0));
 }
 
-const HOOKS: Hooks = { apply_result: () => 'pass', apply_mismatch: () => 'pass', replay: replayed };
+const HOOKS: Hooks = { apply_result: () => 'pass', apply_forfeit: () => 'pass', apply_mismatch: () => 'pass', replay: replayed };
 
 function rejoin(match_id: string): Frame {
   return frame(K.MATCHMAKER_FRAME_KIND_MATCH_REJOIN, (f) => {
@@ -62,10 +64,8 @@ function rejoin(match_id: string): Frame {
   });
 }
 
-function leave(match_id: string): Frame {
-  return frame(K.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, (f) => {
-    f.match_id = match_id;
-  });
+function leave(match_id: string, forfeit: boolean): Frame {
+  return leave_frame(match_id, forfeit);
 }
 
 /** The `MATCH_REJOINED` of the match among the frames. */
@@ -86,7 +86,7 @@ async function test_match(h: Harness, mode_id: number, n: number, seed = 42n): P
 
 function applied(h: Harness): { hook: string; index: number; out_of_request: boolean }[] {
   return h.calls
-    .filter((c) => c.hook === 'apply_match_result' || c.hook === 'apply_match_mismatch')
+    .filter((c) => c.hook === 'apply_match_result' || c.hook === 'apply_match_forfeit' || c.hook === 'apply_match_mismatch')
     .map((c) => ({ hook: c.hook, index: c.index, out_of_request: c.ctx?.request_name === '' }))
     .sort((a, b) => a.index - b.index);
 }
@@ -188,22 +188,24 @@ describe('ServerReplay with leaving participants', () => {
     return matched(h, REP3.id, 3);
   }
 
-  it('waits for a staying participant after a MATCH_LEAVE, confirms on its report, and applies to the one who left too', async () => {
+  it('waits for a staying participant after a MATCH_LEAVE with forfeit true, confirms on its report with replay_match, applies apply_match_result to the one who left too, and gives it a Forfeit integrity event', async () => {
     const h = await harness({ modes: MODES, hooks: HOOKS });
     const { players, found } = await three(h);
     const id = found[0]?.match_id ?? '';
     const [a, b, c] = players;
     if (a === undefined || b === undefined || c === undefined) throw new Error('players');
-    await send_and_wait(c.conn, frame(K.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, (f) => {
-      f.match_id = id;
-    }));
+    await send_and_wait(c.conn, leave(id, true));
+    await until_participants(h, id, (rows) => rows[2]?.left_at !== 0n);
+    await settled(h);
     expect((await report(a.session, id, result_bytes(0), log_bytes([5]))).status).toBe(Judge.MATCH_JUDGE_STATUS_PENDING);
     expect((await report(b.session, id, result_bytes(0), log_bytes([5]))).status).toBe(Judge.MATCH_JUDGE_STATUS_CONFIRMED);
     await settled(h);
-    expect(applied(h).map((x) => x.index)).toEqual([0, 1, 2]);
+    expect(calls_of(h, 'replay_match')).toHaveLength(1);
+    expect(applied(h).map((x) => [x.hook, x.index])).toEqual([['apply_match_result', 0], ['apply_match_result', 1], ['apply_match_result', 2]]);
+    expect(integrity(h, id)).toEqual(new Map([[c.session.user_id, 'Forfeit']]));
   });
 
-  it('confirms a 2-player match on the report after the other matchmaker connection closed, and makes MISMATCH when the one who left reported another log', async () => {
+  it('keeps a 2-player match PENDING on a report saved while the other matchmaker connection is closed, and confirms it when that participant rejoins and reports the same log', async () => {
     const h = await harness({ modes: MODES, hooks: HOOKS });
     const one = await matched(h, REP2.id, 2);
     const id = one.found[0]?.match_id ?? '';
@@ -211,19 +213,28 @@ describe('ServerReplay with leaving participants', () => {
     if (a === undefined || b === undefined) throw new Error('players');
     await close_and_wait(b.conn);
     await until_participants(h, id, (rows) => rows.some((p) => p.disconnected_at !== 0n));
-    expect((await report(a.session, id, result_bytes(0), log_bytes([1]))).status).toBe(Judge.MATCH_JUDGE_STATUS_CONFIRMED);
-    const two = await matched(h, REP2.id, 2);
-    const id2 = two.found[0]?.match_id ?? '';
-    const [x, y] = two.players;
-    if (x === undefined || y === undefined) throw new Error('players');
-    await send_and_wait(y.conn, frame(K.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, (f) => {
-      f.match_id = id2;
-    }));
-    await report(y.session, id2, result_bytes(0), log_bytes([2]));
-    expect((await report(x.session, id2, result_bytes(0), log_bytes([1]))).status).toBe(Judge.MATCH_JUDGE_STATUS_MISMATCH);
+    expect((await report(a.session, id, result_bytes(0), log_bytes([1]))).status).toBe(Judge.MATCH_JUDGE_STATUS_PENDING);
+    const back = await online(h, b.session);
+    expect(rejoined(await send_and_wait(back, rejoin(id)), id)?.ok).toBe(true);
+    expect((await report(b.session, id, result_bytes(0), log_bytes([1]))).status).toBe(Judge.MATCH_JUDGE_STATUS_CONFIRMED);
+    expect(calls_of(h, 'replay_match')).toHaveLength(1);
   });
 
-  it('logs a participant change whose transaction waits past storage.userLockWaitMs for the match record lock, and leaves the record as it was (PostgreSQL)', async () => {
+  it('makes a 2-player match MISMATCH when the participant that reported another log then sends MATCH_LEAVE with forfeit true', async () => {
+    const h = await harness({ modes: MODES, hooks: HOOKS });
+    const two = await matched(h, REP2.id, 2);
+    const id = two.found[0]?.match_id ?? '';
+    const [x, y] = two.players;
+    if (x === undefined || y === undefined) throw new Error('players');
+    expect((await report(y.session, id, result_bytes(0), log_bytes([2]))).status).toBe(Judge.MATCH_JUDGE_STATUS_PENDING);
+    await send_and_wait(y.conn, leave(id, true));
+    await until_participants(h, id, (rows) => rows.some((p) => p.left_at !== 0n));
+    await settled(h);
+    expect((await report(x.session, id, result_bytes(0), log_bytes([1]))).status).toBe(Judge.MATCH_JUDGE_STATUS_MISMATCH);
+    expect(integrity(h, id)).toEqual(new Map([[x.session.user_id, 'Disagree'], [y.session.user_id, 'Disagree']]));
+  });
+
+  it('logs an ENDED participant change whose transaction waits past storage.userLockWaitMs for the match record lock, does not retry it, and leaves the record as it was (PostgreSQL)', async () => {
     const h = await harness({ modes: MODES, hooks: HOOKS, db: 'postgresql', settings: { 'storage.userLockWaitMs': 300 } });
     const { found, players } = await matched(h, CONS2.id, 2);
     const id = found[0]?.match_id ?? '';
@@ -233,29 +244,30 @@ describe('ServerReplay with leaving participants', () => {
     // at storage.userLockWaitMs, with lock_game_row FAILED.
     const release = await hold_game_row_lock(h.server, 'matchmaker_match', [id]);
     try {
-      await send_and_wait(a.conn, frame(K.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, (f) => {
-        f.match_id = id;
-      }));
-      await until(() => read_logs(h.server, 'error').some((l) => l['message'] === 'match record transaction failed' && l['match_id'] === id));
+      await send_and_wait(a.conn, leave(id, false));
+      await until(() => read_logs(h.server, 'error').some((l) => l['message'] === 'participant change failed' && l['match_id'] === id));
     } finally {
       await release();
     }
-    expect(participants(h, id).map((p) => p.left_at)).toEqual([0n, 0n]);
+    await tick(h, 60_000n);
+    expect(participants(h, id).map((p) => [p.left_at, p.ended_at])).toEqual([[0n, 0n], [0n, 0n]]);
+    expect(read_logs(h.server, 'error').filter((l) => l['match_id'] === id).map((l) => l['message'])).toEqual(['participant change failed']);
   });
 
-  it('does not count the report of a participant who left when it picks the log to replay with 3', async () => {
+  it('does not save the report of a forfeiter, so with 3 the split of the two other logs is FORFEIT without replay_match', async () => {
     const h = await harness({ modes: MODES, hooks: HOOKS });
     const { players, found } = await three(h);
     const id = found[0]?.match_id ?? '';
     const [a, b, c] = players;
     if (a === undefined || b === undefined || c === undefined) throw new Error('players');
-    await send_and_wait(c.conn, frame(K.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, (f) => {
-      f.match_id = id;
-    }));
-    await report(c.session, id, result_bytes(0), log_bytes([2]));
-    await report(a.session, id, result_bytes(0), log_bytes([1]));
+    await send_and_wait(c.conn, leave(id, true));
+    await until_participants(h, id, (rows) => rows[2]?.left_at !== 0n);
+    await settled(h);
+    expect((await report(c.session, id, result_bytes(0), log_bytes([2]))).status).toBe(Judge.MATCH_JUDGE_STATUS_PENDING);
+    expect(participants(h, id)[2]?.reported_at).toBe(0n);
+    expect((await report(a.session, id, result_bytes(0), log_bytes([1]))).status).toBe(Judge.MATCH_JUDGE_STATUS_PENDING);
     // Counting c, [2] would have 2 of 3 reports; without it, [1] and [2] split the two staying reports.
-    expect((await report(b.session, id, result_bytes(0), log_bytes([2]))).status).toBe(Judge.MATCH_JUDGE_STATUS_MISMATCH);
+    expect((await report(b.session, id, result_bytes(0), log_bytes([2]))).status).toBe(Judge.MATCH_JUDGE_STATUS_FORFEIT);
     expect(calls_of(h, 'replay_match')).toEqual([]);
   });
 });
@@ -469,6 +481,14 @@ describe('change source', () => {
   });
 });
 
+/** A `MISMATCH` record input whose index 0 ended without a report and whose index 1 reported `result_bytes(1)`. */
+function expect_ended_and_reported(record: MatchRecordInput | null): void {
+  const [left, stayed] = record?.participants ?? [];
+  expect(record?.status).toBe(Judge.MATCH_JUDGE_STATUS_MISMATCH);
+  expect([left?.left_at, left?.ended_at !== 0n, left?.reported_at, stayed?.reported_at !== 0n]).toEqual([0n, true, 0n, true]);
+  expect(bytes_equal(stayed?.result ?? new Uint8Array(0), result_bytes(1))).toBe(true);
+}
+
 describe('participants', () => {
   it('writes the close time to disconnected_at, 0 after MATCH_REJOIN, and nothing after the decision', async () => {
     const hooks: Hooks = {
@@ -553,7 +573,7 @@ describe('participants', () => {
     await vi.waitFor(() => {
       expect(held.calls()).toBe(1);
     });
-    await send_and_wait(back, leave(id));
+    await send_and_wait(back, leave(id, false));
     await close_and_wait(back);
     held.open();
     await released;
@@ -613,32 +633,43 @@ describe('participants', () => {
     await tick(h, 5_000n);
     const second = await next(a.conn, K.MATCHMAKER_FRAME_KIND_MATCH_FOUND);
     const bound_at = second.start_at - CONS2.prepare_time;
-    await report(a.session, id, result_bytes(0));
-    await report(b.session, id, result_bytes(1));
+    // The MATCH_FOUND of the new match comes after the left_at write of the previous match committed.
+    expect(participants(h, id).map((p) => p.left_at)).toEqual([bound_at, 0n]);
+    // a left by being bound to a new match: a forfeiter, whose report is not saved.
+    expect((await report(a.session, id, result_bytes(0))).status).toBe(Judge.MATCH_JUDGE_STATUS_PENDING);
+    expect((await report(b.session, id, result_bytes(1))).status).toBe(Judge.MATCH_JUDGE_STATUS_FORFEIT);
     await settled(h);
-    const record = calls_of(h, 'apply_match_mismatch').find((c) => c.record?.match_id === id)?.record;
+    const record = calls_of(h, 'apply_match_forfeit').find((c) => c.record?.match_id === id)?.record;
     expect(record?.participants.map((p) => p.left_at)).toEqual([bound_at, 0n]);
   });
 
-  it('gives apply_match_mismatch of a 2-player Consensus match the left_at and missing report of the one who left, after deadline_at', async () => {
+  it('writes ended_at and leaves left_at 0 for MATCH_LEAVE with forfeit false, makes a 2-player Consensus match without that report MISMATCH at deadline_at with a Missing event, and judges a report sent after it', async () => {
     const h = await harness({ modes: MODES, hooks: HOOKS, settings: { 'matchmaker.reportMarginMs': 1_000, 'matchmaker.sweepIntervalMs': 1 } });
     const { players, found } = await matched(h, CONS2.id, 2);
     const id = found[0]?.match_id ?? '';
     const [a, b] = players;
     if (a === undefined || b === undefined) throw new Error('players');
-    await send_and_wait(a.conn, frame(K.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, (f) => {
-      f.match_id = id;
-    }));
-    await report(b.session, id, result_bytes(1));
+    await send_and_wait(a.conn, leave(id, false));
+    await until_participants(h, id, (rows) => rows[0]?.ended_at !== 0n);
+    expect(participants(h, id)[0]?.left_at).toBe(0n);
+    expect((await report(b.session, id, result_bytes(1))).status).toBe(Judge.MATCH_JUDGE_STATUS_PENDING);
     await tick(h, CONS2.prepare_time + CONS2.max_duration + 1_000n);
     const records = calls_of(h, 'apply_match_mismatch').map((c) => c.record);
     expect(records).toHaveLength(2);
-    for (const record of records) {
-      expect(record?.participants[0]?.left_at).not.toBe(0n);
-      expect(record?.participants[0]?.reported_at).toBe(0n);
-      expect(record?.participants[1]?.reported_at).not.toBe(0n);
-      expect(bytes_equal(record?.participants[1]?.result ?? new Uint8Array(0), result_bytes(1))).toBe(true);
-    }
+    for (const record of records) expect_ended_and_reported(record);
+    expect(integrity(h, id)).toEqual(new Map([[a.session.user_id, 'Missing']]));
+  });
+
+  it('saves and judges a report sent after MATCH_LEAVE with forfeit false', async () => {
+    const h = await harness({ modes: MODES, hooks: HOOKS });
+    const next_match = await matched(h, CONS2.id, 2);
+    const id2 = next_match.found[0]?.match_id ?? '';
+    const [x, y] = next_match.players;
+    if (x === undefined || y === undefined) throw new Error('players');
+    await send_and_wait(x.conn, leave(id2, false));
+    await until_participants(h, id2, (rows) => rows[0]?.ended_at !== 0n);
+    expect((await report(x.session, id2, result_bytes(1))).status).toBe(Judge.MATCH_JUDGE_STATUS_PENDING);
+    expect((await report(y.session, id2, result_bytes(1))).status).toBe(Judge.MATCH_JUDGE_STATUS_CONFIRMED);
   });
 });
 
