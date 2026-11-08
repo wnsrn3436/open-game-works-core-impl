@@ -5,6 +5,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import type * as CoreContract from '../../generated/contract/core_contract.ts';
 import type * as GameData from '../../generated/data/game_data.ts';
 import { DbError, type DbAdapter, type DbTxConn, type DbValue, type Row } from './db/types.ts';
+import type { DbMeter } from './db/meter.ts';
 import type { KindClass, KindRegistry } from './kinds.ts';
 import type { Random } from './random.ts';
 import type { HookChangeSource, RequestCtx } from './request_ctx.ts';
@@ -226,6 +227,9 @@ export function mark_broken(state: TxState, error: unknown): void {
   state.broken_by = error;
 }
 
+/** The seed provider of `set_seed_provider`: request ID, user ID and request name to a random seed, or none. */
+export type SeedProvider = (request_id: string, user_id: bigint, request_name: string) => bigint | null;
+
 /** Everything one `storage` instance holds. */
 export interface StorageCore {
   readonly settings: StorageSettings;
@@ -243,7 +247,9 @@ export interface StorageCore {
   readonly states: WeakMap<object, TxState>;
   readonly open: Set<TxState>;
   readonly background: Set<Promise<void>>;
-  seed_provider: ((request_id: string) => bigint | null) | null;
+  seed_provider: SeedProvider | null;
+  /** The DB wait state and the DB metrics of this server instance. */
+  readonly meter: DbMeter;
   phase: 'created' | 'starting' | 'started' | 'stopped';
   readonly start_errors: string[];
 }

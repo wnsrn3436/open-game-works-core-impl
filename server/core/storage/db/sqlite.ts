@@ -1,5 +1,6 @@
 import { DatabaseSync, type SQLInputValue, type StatementSync } from 'node:sqlite';
 import { network_time_limit } from '../../server-time/network_time_limit.ts';
+import type { DbMeter } from './meter.ts';
 import { TimedQueue } from './timed_queue.ts';
 import { check_text_param, DbError, type BeginOptions, type Begun, type DbAdapter, type DbConn, type DbTxConn, type DbValue, type Row, type Statement } from './types.ts';
 
@@ -91,16 +92,19 @@ class Mutex {
   }
 }
 
+/** One node:sqlite connection: every statement is a synchronous DB call of the meter. */
 class Connection implements DbConn {
   private readonly db: DatabaseSync;
+  private readonly meter: DbMeter | null;
   private readonly cache = new Map<string, StatementSync>();
 
-  constructor(db: DatabaseSync) {
+  constructor(db: DatabaseSync, meter: DbMeter | null) {
     this.db = db;
+    this.meter = meter;
   }
 
   query(sql: string, params: readonly DbValue[] = []): Row[] {
-    try {
+    return this.call(() => {
       const statement = this.prepare(sql);
       const columns = statement.columns();
       return statement.all(...params.map(param)).map((raw) => {
@@ -108,23 +112,23 @@ class Connection implements DbConn {
         for (const column of columns) row[column.name] = value_of(raw[column.name], column.type);
         return row;
       });
-    } catch (error) {
-      throw db_error(error);
-    }
+    });
   }
 
   /** Runs one statement; the number of rows it changed. */
   run(sql: string, params: readonly DbValue[] = []): number {
-    try {
-      return Number(this.prepare(sql).run(...params.map(param)).changes);
-    } catch (error) {
-      throw db_error(error);
-    }
+    return this.call(() => Number(this.prepare(sql).run(...params.map(param)).changes));
   }
 
   exec(sql: string): void {
-    try {
+    this.call(() => {
       this.db.exec(sql);
+    });
+  }
+
+  private call<T>(fn: () => T): T {
+    try {
+      return this.meter === null ? fn() : this.meter.sync(fn);
     } catch (error) {
       throw db_error(error);
     }
@@ -216,9 +220,12 @@ export class SqliteAdapter implements DbAdapter {
   private reader: Connection | null = null;
   private handles: DatabaseSync[] = [];
   private readonly mutex = new Mutex();
+  private readonly meter: DbMeter | null;
 
-  constructor(path: string) {
+  /** `meter`: where the synchronous DB calls go (`DbMeter`). */
+  constructor(path: string, meter: DbMeter | null = null) {
     this.path = path;
+    this.meter = meter;
   }
 
   open(): void {
@@ -229,8 +236,8 @@ export class SqliteAdapter implements DbAdapter {
       write.exec('PRAGMA journal_mode = WAL');
       const read = new DatabaseSync(this.path, { readOnly: true, readBigInts: true });
       this.handles.push(read);
-      this.writer = new Connection(write);
-      this.reader = new Connection(read);
+      this.writer = new Connection(write, this.meter);
+      this.reader = new Connection(read, this.meter);
     } catch (error) {
       this.close();
       const failure = db_error(error);

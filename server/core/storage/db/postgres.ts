@@ -13,6 +13,7 @@ import {
   type WorkerRequest,
   type WorkerResult,
 } from './pg_messages.ts';
+import type { DbMeter } from './meter.ts';
 import { check_text_param, DbError, type BeginOptions, type Begun, type DbAdapter, type DbConn, type DbTxConn, type DbValue, type Row, type Statement } from './types.ts';
 
 /**
@@ -63,6 +64,7 @@ interface Pending {
 class Bridge {
   private readonly worker: Worker;
   private readonly limits: PgLimits;
+  private readonly meter: DbMeter | null;
   private readonly signal: Int32Array;
   private readonly sync_port: MessagePort;
   private readonly async_port: MessagePort;
@@ -72,9 +74,10 @@ class Bridge {
   /** Why the worker is gone, or null while it runs. */
   private dead: string | null = null;
 
-  constructor(connection_string: string, limits: PgLimits, worker_url: URL) {
+  constructor(connection_string: string, limits: PgLimits, worker_url: URL, meter: DbMeter | null) {
     const config = parse_connection_string(connection_string);
     this.limits = limits;
+    this.meter = meter;
     const shared = new SharedArrayBuffer(4);
     this.signal = new Int32Array(shared);
     const sync = new MessageChannel();
@@ -101,8 +104,16 @@ class Bridge {
     return this.dead !== null;
   }
 
-  /** A blocking call whose lock wait limit is `wait_ms`, in a transaction whose answer wait is `answer_wait_ms`. */
+  /**
+   * A blocking call whose lock wait limit is `wait_ms`, in a transaction whose answer wait is `answer_wait_ms`. Every
+   * call but the connect of `open` and the `close` of the worker is a synchronous DB call of the meter.
+   */
   call_sync(request: WorkerRequest, wait_ms: number, answer_wait_ms: number = this.limits.answer_wait_ms): Answer {
+    if (this.meter === null || request.op === 'open' || request.op === 'close') return this.blocking(request, wait_ms, answer_wait_ms);
+    return this.meter.sync(() => this.blocking(request, wait_ms, answer_wait_ms));
+  }
+
+  private blocking(request: WorkerRequest, wait_ms: number, answer_wait_ms: number): Answer {
     const id = this.message_id();
     // A worker that ended already stored SIGNAL_DEAD: only an earlier answer's signal goes back to waiting.
     Atomics.compareExchange(this.signal, 0, SIGNAL_ANSWERED, SIGNAL_WAITING);
@@ -279,18 +290,23 @@ export class PostgresAdapter implements DbAdapter {
   private readonly connection_string: string;
   private readonly limits: PgLimits;
   private readonly worker_url: URL;
+  private readonly meter: DbMeter | null;
   private bridge: Bridge | null = null;
 
-  /** `worker_url`: the worker thread file; a core test gives one that runs the worker with a fault. */
-  constructor(connection_string: string, limits: PgLimits, worker_url: URL = WORKER_URL) {
+  /**
+   * `worker_url`: the worker thread file; a core test gives one that runs the worker with a fault. `meter`: where the
+   * synchronous DB calls go (`DbMeter`).
+   */
+  constructor(connection_string: string, limits: PgLimits, worker_url: URL = WORKER_URL, meter: DbMeter | null = null) {
     this.connection_string = connection_string;
     this.limits = limits;
     this.worker_url = worker_url;
+    this.meter = meter;
   }
 
   open(): void {
     try {
-      this.bridge = new Bridge(this.connection_string, this.limits, this.worker_url);
+      this.bridge = new Bridge(this.connection_string, this.limits, this.worker_url, this.meter);
       this.bridge.call_sync({ op: 'open' }, this.limits.read_wait_ms);
     } catch (error) {
       this.close();
@@ -342,7 +358,7 @@ export class PostgresAdapter implements DbAdapter {
     if (this.bridge === null) throw new DbError('connection', 'CONN', 'the PostgreSQL database is not open');
     if (this.bridge.gone) {
       this.bridge.close();
-      this.bridge = new Bridge(this.connection_string, this.limits, this.worker_url);
+      this.bridge = new Bridge(this.connection_string, this.limits, this.worker_url, this.meter);
     }
     return this.bridge;
   }

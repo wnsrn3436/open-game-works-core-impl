@@ -1,4 +1,5 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
+import { StorageMisuse } from '../index.ts';
 import { core_settings, fields, instance, new_user, stop_all } from './helpers.ts';
 
 afterEach(() => {
@@ -48,6 +49,80 @@ describe('random', () => {
     expect(b).toEqual(a);
     const other = (await draw('other')) as { seed: bigint };
     expect(typeof other.seed).toBe('bigint');
+  });
+
+  it('a seed provider receives, for a core/Resync request of user U, its request ID, U and core/Resync, and the seed of that ctx is the value it returned', async () => {
+    const calls: [string, bigint, string][] = [];
+    const { storage } = await instance({
+      seed: (request_id, user_id, request_name) => {
+        calls.push([request_id, user_id, request_name]);
+        return 777n;
+      },
+    });
+    const user = await new_user(storage);
+    const seed = await storage.run_request_transaction(user, { ...fields('resync-1'), request_name: 'core/Resync' }, (ctx) => ctx.seed);
+    expect(seed).toBe(777n);
+    expect(calls).toEqual([['resync-1', user, 'core/Resync']]);
+  });
+
+  it('a seed provider is called once per request transaction, not for one that is WITHDRAWN, nor for run_user_transaction and run_rollback_transaction', async () => {
+    const calls: string[] = [];
+    const { storage } = await instance({
+      seed: (request_id) => {
+        calls.push(request_id);
+        return null;
+      },
+    });
+    const user = await new_user(storage);
+    const seed = await storage.run_request_transaction(user, fields('a'), (ctx) => ctx.seed);
+    expect(typeof seed).toBe('bigint');
+    expect(await storage.run_request_transaction(user + 1n, fields('withdrawn'), () => 'ran')).toBe('WITHDRAWN');
+    expect(await storage.run_user_transaction(user, () => 'pass')).toBe('COMMITTED');
+    await storage.run_rollback_transaction(user, () => 'ran');
+    expect(calls).toEqual(['a']);
+  });
+
+  it('make_seed: without a seed provider, 1000 calls give 1000 different values', async () => {
+    const { storage } = await instance();
+    const values = new Set(Array.from({ length: 1000 }, () => storage.make_seed('match')));
+    expect(values.size).toBe(1000);
+    for (const value of values) {
+      expect(value >= -(2n ** 63n) && value < 2n ** 63n).toBe(true);
+    }
+  });
+
+  it('make_seed: a provider that returns the number of its earlier calls with the same user ID and request name gives 0, 0 and 1 for match, room and match; it gets user ID 0 and an empty request ID, and a request in between does not change them', async () => {
+    const counts = new Map<string, bigint>();
+    const calls: [string, bigint, string][] = [];
+    const { storage } = await instance({
+      seed: (request_id, user_id, request_name) => {
+        calls.push([request_id, user_id, request_name]);
+        const key = `${String(user_id)} ${request_name}`;
+        const count = counts.get(key) ?? 0n;
+        counts.set(key, count + 1n);
+        return count;
+      },
+    });
+    const user = await new_user(storage);
+    const first = storage.make_seed('match');
+    expect(await storage.run_request_transaction(user, { ...fields('between'), request_name: 'match' }, (ctx) => ctx.seed)).toBe(0n);
+    const room = storage.make_seed('room');
+    const second = storage.make_seed('match');
+    expect([first, room, second]).toEqual([0n, 0n, 1n]);
+    expect(calls.filter((c) => c[1] === 0n)).toEqual([
+      ['', 0n, 'match'],
+      ['', 0n, 'room'],
+      ['', 0n, 'match'],
+    ]);
+  });
+
+  it('make_seed: with a provider that returns none, a secure random value; Match, 1match and the empty string throw', async () => {
+    const { storage } = await instance({ seed: () => null });
+    const values = new Set(Array.from({ length: 100 }, () => storage.make_seed('match')));
+    expect(values.size).toBe(100);
+    for (const bad of ['Match', '1match', '', 'match-1']) {
+      expect(() => storage.make_seed(bad), bad).toThrow(StorageMisuse);
+    }
   });
 
   it('throws on random input violations', async () => {

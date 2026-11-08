@@ -60,6 +60,19 @@ function secure_seed(): bigint {
   return randomBytes(8).readBigInt64BE();
 }
 
+const PURPOSE_NAME = /^[a-z][a-z0-9_]*$/;
+
+/**
+ * `make_seed` (seed source of `### ctx`): a random seed made outside a user transaction. With a seed provider, the value
+ * it returns for request ID empty string, user ID 0 and the purpose name as the request name; otherwise, or when it
+ * returns none, a value from secure random. A purpose name that is not snake_case throws.
+ */
+export function make_seed(core: StorageCore, purpose: unknown): bigint {
+  if (typeof purpose !== 'string' || !PURPOSE_NAME.test(purpose)) throw new StorageMisuse(`storage: make_seed of ${JSON.stringify(purpose)}: the purpose name is not snake_case`);
+  const provider = core.seed_provider;
+  return (provider === null ? null : provider('', 0n, purpose)) ?? secure_seed();
+}
+
 /** Runs the synchronous function in the transaction's async context; a thenable result is a misuse. */
 function in_context<T>(core: StorageCore, state: TxState, fn: () => T): T {
   const result = core.als.run(state, fn);
@@ -168,6 +181,15 @@ async function open_user(core: StorageCore, user_id: bigint, fields: RequestFiel
     await begun.conn.rollback();
     return 'WITHDRAWN';
   }
+  let seed: bigint;
+  try {
+    // The seed provider (`## DEV`) is called once per request transaction, before its ctx is made.
+    const provider = core.seed_provider;
+    seed = (fields === null || provider === null ? null : provider(fields.request_id, user_id, fields.request_name)) ?? secure_seed();
+  } catch (error) {
+    await begun.conn.rollback();
+    throw error;
+  }
   const ctx = new Ctx(core.data, core.data_version);
   const state = new TxState('user', begun.conn, user_id, ctx);
   core.open.add(state);
@@ -176,8 +198,7 @@ async function open_user(core: StorageCore, user_id: bigint, fields: RequestFiel
     Object.assign(ctx, fields ?? {});
     ctx.user_id = user_id;
     ctx.request_time = core.time.user_now(user_id, handle_of(state));
-    const provided = fields === null || core.seed_provider === null ? null : core.seed_provider(fields.request_id);
-    ctx.seed = provided ?? secure_seed();
+    ctx.seed = seed;
     state.random = new Random(ctx.seed);
   } catch (error) {
     await rollback(core, state);
