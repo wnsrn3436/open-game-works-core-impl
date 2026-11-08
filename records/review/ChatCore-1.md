@@ -1,4 +1,4 @@
-# review ChatCore round 1
+# ChatCore review round 1
 
 ## findings
 
@@ -22,6 +22,7 @@ none
 
 ## unknown
 
-- The commit range de482eec..9069447b changes no file under `client/godot/core/chat_core/` and none of the modules in `## dependency` of the ChatCore spec (LogCore, EventCore, TimeCore, LocalDataCore, NetworkCore, BadgeCore), nor the server `chat` module. The changed code (CameraCore, PoolCore, QACore, ScreenEffectCore, SoundCore, TweenCore, and the new `QACore.frameIntervalMaxCount` and `QACore.rewardPresentationWindowMs` core settings keys) is not called by ChatCore code; ChatCore code was not reviewed beyond confirming that, because no change of the range reaches it
-- PoolCore, SoundCore and TweenCore are only initialized by the ChatCore test support (`client/godot/core/chat_core/tests/support/chat_test_case.gd:89`, `:94`, `:97`) to build the NetworkCore stack. `ogw core test godot ChatCore` and `ogw core test godot ChatCore --web` on 9069447b both pass
-- `records/1793983617747-update-core-mw57iymre530bb.md` notes ChatCore core tests failing with `test time limit 30000 ms passed` and init-order errors when a godot run and a `--web` run ran at the same time. That was not reproduced here: the two runs above ran one after the other, so whether ChatCore tests fail under concurrent runs was not checked
+- The commit range 85f6b36d..9808fd47 changes no file under `client/godot/core/chat_core/`, no ChatCore spec (`core-spec/ChatCore.json` unchanged, input `## spec changes` is `none`) and no server `chat` module or `tools/data-tool/src/checks/ChatCore.ts`. The review checked the changes of that range that ChatCore calls: `TimeCore.get_real_time` (`client/godot/core/time_core/time_core.gd:324`; the new DEV frame step at `client/godot/core/time_core/time_core.gd:421` only changes the real increment per engine frame, which ChatCore polling reads at `client/godot/core/chat_core/chat_core.gd:870` and `client/godot/core/chat_core/chat_core.gd:896` as real elapsed time, as the ChatCore spec sets), `LogCore` (comment-only changes in `client/godot/core/log_core/log_core.gd`), the generated contract (`client/godot/generated/contract/core_contract.gd` adds only `LogoutOtherDevicesRequest`/`LogoutOtherDevicesResponse`, no chat message), and the generated core settings (no `ChatCore.*` key changed). `NetworkCore`, `EventCore`, `LocalDataCore`, `BadgeCore` and `UtilCore` have no change in the range. None of these changes alter a behavior ChatCore relies on
+- ChatCore code and tests that the range does not reach were not reviewed again, as the commit range is not `none`
+- `ogw core test godot ChatCore` passed on this checkout (job mw7toaocbc8330); it left no test record because the checkout has an uncommitted change (the deleted earlier `records/review/ChatCore-1.md`)
+- Whether `TimeCore` real time keeps increasing during background under the new frame step was not checked: it is a `TimeCore` behavior outside this target
