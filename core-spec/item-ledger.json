@@ -17,6 +17,12 @@
       "owner": "content"
     },
     {
+      "key": "item-ledger.onceKeyRetentionMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
       "key": "item-ledger.bigMaxDigits",
       "type": "integer",
       "source": "core",

@@ -166,6 +166,12 @@
     {
       "name": "get_last_background_ms",
       "inputs": []
+    },
+    {
+      "name": "make_random_seed",
+      "inputs": [
+        "other"
+      ]
     }
   ]
 }

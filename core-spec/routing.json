@@ -106,9 +106,33 @@
       "type": "integer",
       "source": "core",
       "owner": "content"
+    },
+    {
+      "key": "routing.requestWorkers",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "routing.opsReportIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "routing.readyMaxReportAgeMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
     }
   ],
-  "settingsConstraints": [],
+  "settingsConstraints": [
+    {
+      "left": "routing.opsReportIntervalMs",
+      "factor": 2,
+      "right": "routing.readyMaxReportAgeMs"
+    }
+  ],
   "tables": [],
   "usedTables": [],
   "enums": [],
@@ -153,6 +177,13 @@
         "other",
         "other",
         "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "run_server_process",
+      "inputs": [
         "other"
       ]
     }

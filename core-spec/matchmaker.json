@@ -152,6 +152,30 @@
       "owner": "human"
     },
     {
+      "key": "matchmaker.flagWindowMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.flagDisagreeCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.flagForfeitCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "matchmaker.flagMissingCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
       "key": "admin-api.switchCacheMs",
       "type": "integer",
       "source": "core",
@@ -266,7 +290,45 @@
   "invariants": [],
   "reserved": [],
   "formatArguments": [],
-  "collectedData": [],
+  "collectedData": [
+    {
+      "dataType": "gameplay_content",
+      "description": "match reports, the leave and disconnect times the server observed, and the integrity events of disagreeing reports and leaves",
+      "source": "module",
+      "purposes": [
+        "app_functionality",
+        "fraud_prevention"
+      ],
+      "linked": true,
+      "tracking": false,
+      "shared": false,
+      "optional": true,
+      "platforms": [
+        "android",
+        "ios",
+        "web",
+        "windows",
+        "macos",
+        "linux"
+      ],
+      "condition": null
+    }
+  ],
   "adapters": [],
-  "operations": []
+  "operations": [
+    {
+      "name": "list_match_flags",
+      "inputs": [
+        "other",
+        "other",
+        "other"
+      ]
+    },
+    {
+      "name": "get_match",
+      "inputs": [
+        "other"
+      ]
+    }
+  ]
 }

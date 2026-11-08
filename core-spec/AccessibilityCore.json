@@ -103,6 +103,12 @@
       "inputs": []
     },
     {
+      "name": "list_text_scales",
+      "inputs": [
+        "other"
+      ]
+    },
+    {
       "name": "set_text_scale",
       "inputs": [
         "other"
@@ -131,6 +137,10 @@
       "inputs": [
         "other"
       ]
+    },
+    {
+      "name": "reset_settings",
+      "inputs": []
     },
     {
       "name": "play_voice",

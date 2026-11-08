@@ -146,6 +146,48 @@
       "type": "boolean",
       "source": "game",
       "owner": "none"
+    },
+    {
+      "key": "logging.metricsDurationBucketsMs",
+      "type": "array<integer>",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "logging.alertWindowMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "logging.alertMinRequests",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "logging.alertErrorRatioPermille",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "logging.alertSlowRequestMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "logging.alertSlowRatioPermille",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
+    },
+    {
+      "key": "logging.alertErrorLogCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "human"
     }
   ],
   "settingsConstraints": [],
@@ -392,6 +434,10 @@
         "other",
         "other"
       ]
+    },
+    {
+      "name": "read_metrics",
+      "inputs": []
     }
   ]
 }

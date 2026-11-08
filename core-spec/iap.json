@@ -53,6 +53,36 @@
       "owner": "content"
     },
     {
+      "key": "iap.refundLookupIntervalMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "iap.refundLookupBackMs",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "iap.refundLookupPageCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "iap.refundRetryCount",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
+      "key": "iap.refundRetryBatchSize",
+      "type": "integer",
+      "source": "core",
+      "owner": "content"
+    },
+    {
       "key": "iap.withdrawnRecordRetentionMs",
       "type": "integer",
       "source": "core",
@@ -173,7 +203,13 @@
       "owner": "content"
     }
   ],
-  "settingsConstraints": [],
+  "settingsConstraints": [
+    {
+      "left": "iap.refundLookupIntervalMs",
+      "factor": 2,
+      "right": "iap.refundLookupBackMs"
+    }
+  ],
   "tables": [
     {
       "name": "iap_product",

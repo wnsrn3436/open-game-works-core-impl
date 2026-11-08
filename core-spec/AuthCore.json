@@ -518,6 +518,10 @@
       "inputs": []
     },
     {
+      "name": "logout_other_devices",
+      "inputs": []
+    },
+    {
       "name": "withdraw",
       "inputs": []
     },

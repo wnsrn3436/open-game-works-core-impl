@@ -134,6 +134,10 @@
       ]
     },
     {
+      "name": "reset_volume_settings",
+      "inputs": []
+    },
+    {
       "name": "play_bgm",
       "inputs": [
         "other",
