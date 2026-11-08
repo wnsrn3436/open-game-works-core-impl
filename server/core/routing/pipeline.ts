@@ -478,7 +478,7 @@ export class Pipeline {
       return;
     }
     if (core !== undefined && NO_ACCESS_TOKEN_RPC.has(name)) {
-      await this.process_tokenless(exchange, info, core.handler as TokenlessHandler, (m) => deps.validation.validate_request(name, m), true);
+      await this.process_tokenless(exchange, info, core.handler as TokenlessHandler, (m) => deps.validation.validate_request(name, m));
       return;
     }
     const target = core !== undefined ? this.core_target(name, core) : this.game_target(name, info, (game as { handler: CoreRpcHandler }).handler);
@@ -527,12 +527,12 @@ export class Pipeline {
   }
 
   /**
-   * A token-less core `rpc` or `DevLogin`: the IP counter, the minimum app version judgement of step 7 (`min_version`;
-   * not for a cheat request), 10, 11, then the handler of `auth`.
+   * A token-less core `rpc` or `DevLogin` (a `NoAccessTokenRpc` that is not a `NoUserRpc`): the IP counter, the minimum
+   * app version judgement of step 7, 10, 11, then the handler of `auth`.
    */
-  async process_tokenless(exchange: Exchange, info: CoreContract.RpcInfo, handler: TokenlessHandler, validate: (m: Message) => 'pass' | CoreContract.ValidationFailure, min_version: boolean): Promise<void> {
+  async process_tokenless(exchange: Exchange, info: CoreContract.RpcInfo, handler: TokenlessHandler, validate: (m: Message) => 'pass' | CoreContract.ValidationFailure): Promise<void> {
     if (!(await this.count_ip(exchange))) return;
-    if (min_version && !this.check_min_version(exchange)) return;
+    if (!this.check_min_version(exchange)) return;
     const message = this.decode(exchange, info, validate);
     if (message === null) return;
     const output = await handler({ headers: exchange.headers as CommonHeaders, body: exchange.body ?? new Uint8Array(0), request: message, client_ip: exchange.client_ip });

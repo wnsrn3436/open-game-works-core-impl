@@ -153,7 +153,7 @@ export function dev_login_request(account_name: string): CoreCheatContract.DevLo
   return request;
 }
 
-function client_data_version(): string {
+export function client_data_version(): string {
   return readFileSync(`${testing.core_test_server_paths().data_folder}/client_data_version`, 'utf8').trim();
 }
 
