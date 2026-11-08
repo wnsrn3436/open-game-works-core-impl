@@ -3,6 +3,7 @@
  * elapsed time, so a handler that waits for a row that `testing.hold_db` holds is slow, and a test clock moved
  * during a request does not change it.
  */
+import { randomUUID } from 'node:crypto';
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import * as GameContract from '../../../generated/contract/game_contract.ts';
 import * as testing from '../../testing/dev/index.ts';
@@ -121,6 +122,31 @@ describe('duration_ms of the request log', () => {
         }
       }
     }
+  });
+});
+
+describe('the request label of cheat paths', () => {
+  it('counts POST /cheat/a and POST /core/cheat/b of a STG server without DEV code under request cheat, and the log lines keep their request fields', async () => {
+    const server = await testing.start_test_server(undefined, undefined, 'STG');
+    running.push(server);
+    // A test server of STG is a server instance without DEV code (`dev: false`, no `registerDev`).
+    expect(server.environment).toBe('STG');
+    const headers = { 'Content-Type': 'application/x-protobuf' };
+    for (const path of ['/cheat/a', '/core/cheat/b']) {
+      const response = await testing.send_raw(server, 'POST', path, { ...headers, 'X-Ogw-Request-Id': randomUUID() }, new Uint8Array(0));
+      expect(response.status).toBe(200);
+    }
+    const lines = testing.read_logs(server, 'request');
+    expect(lines.filter((line) => line.request === 'cheat/a')).toHaveLength(1);
+    expect(lines.filter((line) => line.request === 'core/cheat/b')).toHaveLength(1);
+    const code = String(CoreError.CORE_ERROR_UNAUTHORIZED);
+    expect(lines.filter((line) => line.request === 'cheat/a' || line.request === 'core/cheat/b').map((line) => String(line.error_code))).toEqual([code, code]);
+    const families = logging_of(server).read_metrics();
+    const requests = families.find((f) => f.name === 'ogw_requests_total')?.samples ?? [];
+    expect(requests.filter((s) => s.labels.request === 'cheat')).toEqual([{ name: 'ogw_requests_total', labels: { request: 'cheat', error_code: code }, value: 2 }]);
+    const durations = families.find((f) => f.name === 'ogw_request_duration_seconds')?.samples ?? [];
+    expect(durations.find((s) => s.name === 'ogw_request_duration_seconds_count' && s.labels.request === 'cheat')?.value).toBe(2);
+    for (const f of [...requests, ...durations]) expect(f.labels.request).not.toMatch(/cheat\//);
   });
 });
 
