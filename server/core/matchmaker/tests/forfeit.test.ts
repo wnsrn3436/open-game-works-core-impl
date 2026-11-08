@@ -10,13 +10,17 @@ import type { MatchRecordInput } from '../index.ts';
 import {
   Judge,
   K,
+  barrier,
   bytes_equal,
   calls_of,
-  close,
   close_and_wait,
+  close_code,
+  connect,
   harness,
+  hello,
   hold_next_transaction,
   integrity,
+  kinds,
   leave_frame,
   log_bytes,
   match_request,
@@ -597,7 +601,7 @@ describe('LEFT write', () => {
     expect((await report(m.at(0).session, m.id, result_bytes(1))).status).toBe(Judge.MATCH_JUDGE_STATUS_FORFEIT);
   });
 
-  it('handles a MATCH_LEAVE with forfeit true that arrived before the close of its connection, while that connection waited in its frame handling, as LEFT and writes no disconnected_at', async () => {
+  it('handles a MATCH_LEAVE with forfeit true that arrived before the close of its connection, while that connection waited in its frame handling, as LEFT after the wait and writes no disconnected_at', async () => {
     const h = await harness({ modes: MODES, hooks: HOOKS });
     const m = await live_match(h, CONS2.id, 2);
     const conn = m.at(1).conn;
@@ -608,10 +612,47 @@ describe('LEFT write', () => {
       expect(held.calls()).toBe(1);
     });
     send_frame(conn, leave_frame(m.id, true));
-    close(conn);
-    await until_participants(h, m.id, (rows) => rows[1]?.left_at !== 0n);
+    // The server closes its side when it handles the close, after the MATCH_LEAVE arrived.
+    await close_and_wait(conn);
+    // While the hold is in place, the MATCH_LEAVE waits behind the MATCH_REQUEST: no PEER_LEFT, no left_at.
+    expect(kinds(await barrier(m.at(0).conn))).not.toContain(K.MATCHMAKER_FRAME_KIND_PEER_LEFT);
+    expect(participants(h, m.id)[1]?.left_at).toBe(0n);
     held.open();
     await held.done();
+    await until_participants(h, m.id, (rows) => rows[1]?.left_at !== 0n);
+    await settled(h);
+    expect(participants(h, m.id)[1]?.disconnected_at).toBe(0n);
+    expect(kinds(await barrier(m.at(0).conn))).toContain(K.MATCHMAKER_FRAME_KIND_PEER_LEFT);
+  });
+
+  it('sends HELLO_ACK of a new connection of that user after the MATCH_LEAVE waiting behind the frame handling of the replaced connection was handled', async () => {
+    const h = await harness({ modes: MODES, hooks: HOOKS });
+    const m = await live_match(h, CONS2.id, 2);
+    const p = m.at(1);
+    const held = hold_next_transaction(h, 'run_rollback_transaction');
+    send_frame(p.conn, match_request(CONS2.id));
+    await vi.waitFor(() => {
+      expect(held.calls()).toBe(1);
+    });
+    send_frame(p.conn, leave_frame(m.id, true));
+    // The MATCH_LEAVE must arrive before the replaced connection closes. A barrier on that connection is answered only
+    // after the hold, so a round trip on the other participant's connection lets the server read it first.
+    await barrier(m.at(0).conn);
+    const fresh = await connect(h.server);
+    let acked = false;
+    const ack = next(fresh, K.MATCHMAKER_FRAME_KIND_HELLO_ACK).then((f) => {
+      acked = true;
+      return f;
+    });
+    send_frame(fresh, hello(p.session, h.client_data_version));
+    expect(await close_code(p.conn)).toBe(CoreContract.CoreError.CORE_ERROR_SESSION_REPLACED);
+    expect(kinds(await barrier(m.at(0).conn))).not.toContain(K.MATCHMAKER_FRAME_KIND_PEER_LEFT);
+    expect(acked).toBe(false);
+    expect(participants(h, m.id)[1]?.left_at).toBe(0n);
+    held.open();
+    await held.done();
+    await ack;
+    await until_participants(h, m.id, (rows) => rows[1]?.left_at !== 0n);
     await settled(h);
     expect(participants(h, m.id)[1]?.disconnected_at).toBe(0n);
   });

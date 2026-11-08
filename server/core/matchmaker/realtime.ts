@@ -54,12 +54,14 @@ class Client implements Connection {
   chain: Promise<void> = Promise.resolve();
   /** The frames that arrived and whose handling has not started, in arrival order. */
   readonly pending: { readonly payload: Uint8Array; taken: boolean }[] = [];
+  /** The handling of the connection close, set at the close; it ends after the frames handled before it. */
+  close_handled: Promise<void> | null = null;
   /** The count of matches being made that take this connection for its user (step 2 of `### match creation`). */
   making = 0;
   readonly ip: string;
-  readonly #drop: (client: Client) => void;
+  readonly #drop: (client: Client) => Promise<void>;
 
-  constructor(ip: string, drop: (client: Client) => void) {
+  constructor(ip: string, drop: (client: Client) => Promise<void>) {
     this.ip = ip;
     this.#drop = drop;
   }
@@ -69,7 +71,7 @@ class Client implements Connection {
   }
 
   close(): void {
-    this.#drop(this);
+    void this.#drop(this);
   }
 }
 
@@ -240,12 +242,12 @@ export function create_realtime(env: Env, results: Results): Realtime {
    * Sends `CLOSE` with the code, then closes the connection with WebSocket close code 4000 and the code as its decimal
    * reason, so a client that drops the `CLOSE` frame at the close still gets the code.
    */
-  const close_with = (client: Client, code: number): void => {
+  const close_with = (client: Client, code: number): Promise<void> => {
     client.send(frame_of(FrameKind.MATCHMAKER_FRAME_KIND_CLOSE, (f) => {
       f.code = code;
     }));
     if (!client.closed) client.ws?.close(CLOSE_WITH_CODE, String(code));
-    drop(client);
+    return drop(client);
   };
 
   // ----- queues
@@ -321,38 +323,62 @@ export function create_realtime(env: Env, results: Results): Realtime {
   };
 
   /**
-   * The `MATCH_LEAVE` frames that arrived before the close of the connection and whose handling has not started are
-   * handled before that connection close; the other waiting frames are dropped.
+   * The connection close. No frame handling starts after it, and the frames whose handling has not started are dropped,
+   * except the `MATCH_LEAVE` frames that arrived before it. Without such frames the close is handled at once. With them,
+   * they are handled on the frame chain of the connection, each after the handling of the previous frame ends, and the
+   * close handling (queue and room removal, `connection_closed`) comes after them. The returned promise ends when the
+   * close handling ends; it is the same for every call on one connection.
    */
-  const leave_before_close = (client: Client): void => {
-    for (const item of client.pending.splice(0)) {
-      item.taken = true;
-      if (!client.authed || env.stopped()) continue;
-      const frame = CoreContract.MatchmakerFrame.decode(item.payload);
-      if (frame?.kind === FrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE) forward(client, frame);
-    }
-  };
-
-  function drop(client: Client): void {
-    if (client.closed) return;
-    leave_before_close(client);
+  function drop(client: Client): Promise<void> {
+    if (client.close_handled !== null) return client.close_handled;
     client.closed = true;
     clients.delete(client);
     client.ws?.close();
-    if (!client.authed) {
-      release_pre_auth(client.ip);
-      return;
+    const leaves: CoreContract.MatchmakerFrame[] = [];
+    for (const item of client.pending.splice(0)) {
+      item.taken = true;
+      if (!client.authed) continue;
+      const frame = CoreContract.MatchmakerFrame.decode(item.payload);
+      if (frame?.kind === FrameKind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE) leaves.push(frame);
     }
+    if (!client.authed || leaves.length === 0) {
+      client.close_handled = Promise.resolve();
+      if (!client.authed) release_pre_auth(client.ip);
+      else connection_close(client);
+      return client.close_handled;
+    }
+    client.close_handled = client.chain.then(() => {
+      for (const frame of leaves) {
+        if (env.stopped()) return;
+        try {
+          forward(client, frame);
+        } catch (error) {
+          log_error(env, `realtime frame handling threw: ${error instanceof Error ? error.message : String(error)}`, {}, client.user_id);
+        }
+      }
+      connection_close(client);
+    }).catch((error: unknown) => {
+      if (!env.stopped()) log_error(env, `realtime connection close threw: ${error instanceof Error ? error.message : String(error)}`, {}, client.user_id);
+    });
+    client.chain = client.close_handled;
+    return client.close_handled;
+  }
+
+  /** The handling of an authenticated connection close: queue and room removal, then `connection_closed`. */
+  const connection_close = (client: Client): void => {
     const slot = users.get(client.user_id);
     if (slot?.client === client) {
-      if (slot.room !== null) leave_room(client.user_id);
-      else if (slot.entry !== null) remove_entry(slot.entry);
-      users.delete(client.user_id);
+      try {
+        if (slot.room !== null) leave_room(client.user_id);
+        else if (slot.entry !== null) remove_entry(slot.entry);
+      } finally {
+        users.delete(client.user_id);
+      }
     }
     if (env.stopped()) return;
     const change = env.p2p.connection_closed(client);
     if (change !== null) void results.participant_change(change);
-  }
+  };
 
   /** The data version decision of `routing` request processing order 7 without the core `rpc` exception. */
   const data_version_error = (data_version: string, client_version: string): number | null => {
@@ -407,14 +433,24 @@ export function create_realtime(env: Env, results: Results): Realtime {
     return version_error === null ? verified.user_id : { code: version_error };
   };
 
-  const hello = (client: Client, frame: CoreContract.MatchmakerFrame): void => {
+  /**
+   * The previous connection of the user is closed and its close handled before `HELLO_ACK`. When that close waits for
+   * `MATCH_LEAVE` frames behind the frame being handled on that connection (`drop`), this `HELLO` waits for it too.
+   */
+  const hello = async (client: Client, frame: CoreContract.MatchmakerFrame): Promise<void> => {
     const user_id = hello_user(client, frame);
     if (typeof user_id === 'object') {
-      close_with(client, user_id.code);
+      void close_with(client, user_id.code);
       return;
     }
-    const before = users.get(user_id);
-    if (before !== undefined) close_with(before.client, CoreError.CORE_ERROR_SESSION_REPLACED);
+    for (let before = users.get(user_id); before !== undefined; before = users.get(user_id)) {
+      const handled = close_with(before.client, CoreError.CORE_ERROR_SESSION_REPLACED);
+      if (users.get(user_id) !== before) continue;
+      await handled;
+      if (client.closed || env.stopped()) return;
+      // A close handling that failed before its queue and room removal does not keep the user's slot.
+      if (users.get(user_id) === before) users.delete(user_id);
+    }
     release_pre_auth(client.ip);
     client.authed = true;
     client.user_id = user_id;
@@ -429,11 +465,11 @@ export function create_realtime(env: Env, results: Results): Realtime {
   /** Maintenance and ban before `MATCH_REQUEST`, `ROOM_CREATE`, `ROOM_JOIN`, `ROOM_START`; false closed it. */
   const admitted = (client: Client): boolean => {
     if (env.admin.is_maintenance()) {
-      close_with(client, CoreError.CORE_ERROR_MAINTENANCE);
+      void close_with(client, CoreError.CORE_ERROR_MAINTENANCE);
       return false;
     }
     if (is_banned(env, client.user_id)) {
-      close_with(client, CoreError.CORE_ERROR_BANNED);
+      void close_with(client, CoreError.CORE_ERROR_BANNED);
       return false;
     }
     return true;
@@ -535,7 +571,7 @@ export function create_realtime(env: Env, results: Results): Realtime {
     if (banned.length === 0) return false;
     for (const id of banned) {
       const client = client_of(id);
-      if (client !== null) close_with(client, CoreError.CORE_ERROR_BANNED);
+      if (client !== null) void close_with(client, CoreError.CORE_ERROR_BANNED);
     }
     fail_room(room, CoreError.CORE_ERROR_BANNED, request);
     return true;
@@ -855,8 +891,8 @@ export function create_realtime(env: Env, results: Results): Realtime {
     if (client.closed) return;
     const frame = CoreContract.MatchmakerFrame.decode(payload);
     if (!client.authed) {
-      if (frame === null || frame.kind !== FrameKind.MATCHMAKER_FRAME_KIND_HELLO) drop(client);
-      else hello(client, frame);
+      if (frame === null || frame.kind !== FrameKind.MATCHMAKER_FRAME_KIND_HELLO) void drop(client);
+      else await hello(client, frame);
       return;
     }
     const handler = frame === null ? undefined : handlers.get(frame.kind);
@@ -869,12 +905,12 @@ export function create_realtime(env: Env, results: Results): Realtime {
     if (client.authed) {
       if (user_frames.add(client.user_id, at) <= settings.frames_per_second) return true;
       log_security(env, 'rate_limited', client.ip, client.user_id);
-      close_with(client, CoreError.CORE_ERROR_RATE_LIMITED);
+      void close_with(client, CoreError.CORE_ERROR_RATE_LIMITED);
       return false;
     }
     if (ip_frames.add(client.ip, at) <= settings.pre_auth_frames_per_second) return true;
     log_security(env, 'pre_auth_frame_limit', client.ip, null);
-    drop(client);
+    void drop(client);
     return false;
   };
 
@@ -928,19 +964,19 @@ export function create_realtime(env: Env, results: Results): Realtime {
           });
       },
       text: () => {
-        if (!client.authed) drop(client);
+        if (!client.authed) void drop(client);
       },
       violation: (reason) => {
         violation(client, reason);
       },
       closed: () => {
-        drop(client);
+        void drop(client);
       },
     });
     server_time.network_time_limit(settings.hello_timeout_ms).addEventListener('abort', () => {
       if (client.authed || client.closed) return;
       log_security(env, 'hello_timeout', ip, null);
-      drop(client);
+      void drop(client);
     }, { once: true });
     return null;
   };
