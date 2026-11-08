@@ -14,7 +14,11 @@ none
 
 ## debt
 
-none
+| id | result | finding | evidence |
+|---|---|---|---|
+| D1 | fixed | none | `_engine_frame_step_fps` and every read of `--fixed-fps` / the Movie Maker fps are gone (commit 279c6798). `init` sets `_frame_step_fps = _set_frame_step_fps` (client/godot/core/time_core/time_core.gd:108), and only `TimeCoreDev.set_frame_step` writes `_set_frame_step_fps` (client/godot/core/time_core/dev/time_core_dev.gd:131). So a DEV run started with `--fixed-fps 30` and no `set_frame_step` call has `_frame_step_fps` 0, and `_on_engine_frame` uses the monotonic difference (time_core.gd:410-414). client/godot/core/time_core/tests/test_frame_step.gd:95 checks that `get_frame_step_fps` is 0 after `release` and another `init` without `set_frame_step` |
+| D2 | fixed | none | The DEV operation is now `TimeCoreDev.set_frame_step` (client/godot/core/time_core/dev/time_core_dev.gd:124), which matches the time-core.md `## DEV` table under the godot.md naming rule (spec DEV operation → `static func` of the same name in `<Module>Dev`). `BootstrapCoreDev` calls it with `OGW_FRAME_STEP_FPS` (client/godot/core/bootstrap_core/dev/bootstrap_core_dev.gd:109-111). No `.gd` or `.md` file in the checkout still has `set_test_frame_step` |
+| D3 | fixed | none | Same cause as D1, removed in commit 279c6798: without a `set_frame_step` call before `init`, `_set_frame_step_fps` is 0 (set at time_core.gd:82 and cleared by `_reset`, time_core.gd:708), so `init` turns on no frame step and `get_frame_step_fps` is 0, as time-core.md `## DEV` requires |
 
 ## must fix
 
@@ -22,7 +26,6 @@ none
 
 ## unknown
 
-- Checked in the range: `make_random_seed` (per-purpose count, random base or device time, snake_case failure not counted, error log before `init`), `_add_int64` (64-bit wrap in 32-bit halves, including int64 max + 1 and int64 min − 1), `TimeCoreDev.set_random_base` / `set_frame_step` / `get_frame_step_fps` (before-init only per core/SKILL.md `init` rules, fps < 1 ignored with an `error` log), the frame step increment in `_on_engine_frame` (n-th frame ⌊n·1000/f⌋ − ⌊(n−1)·1000/f⌋, not applied while a test clock is in use, passed through time scale, pause, carry and step mode by `_game_increment`), `_reset` clearing the random base, frame step and seed counts, and the callers `BootstrapCoreDev.pass_time_launch_values` (called in `InitModules` 2 before module `init` of every boot) and `UnitTestCore._clear_pre_init_values`. Each `## test` item of time-core.md about random seed and frame step has a test in client/godot/core/time_core/tests/test_random_seed.gd, test_frame_step.gd and test_lifecycle.gd. `ogw core test godot TimeCore` (without `--web`) passed on 05283fbf
-- Not checked: a real dev run under the engine movie maker with `OGW_FRAME_STEP_FPS`, and a game's DEV export with `OGW_RANDOM_BASE`; no core test starts the engine at a fixed frame rate
-- Not checked: whether `UnitTestCore._clear_pre_init_values` at the end of a nested run (client/godot/core/unit_test_core/dev/unit_test_core.gd:397) leaves the outer test without its TimeCore test clock when the outer test has not initialized TimeCore. That is UnitTestCore code, outside this target; its fix report says `_pop_run` registers the outer clock again
-- Not run with a restored defect: the mutation sensitivity of the frame step tests was judged by reading (e.g. `probe.real_time[0] == 16` fails without the frame step, `get_real_frame_ms() >= 40` fails if `release` kept it), not by running a modified copy
+- The commit range 625ae189..625ae189 is empty, so no change in a range could cause new findings. Only the input `## debt` items were checked: by reading `init`, `_on_engine_frame`, `_frame_step_increment` and `_reset` of client/godot/core/time_core/time_core.gd, `set_frame_step` / `get_frame_step_fps` of client/godot/core/time_core/dev/time_core_dev.gd, the `BootstrapCoreDev` caller, and test_frame_step.gd / test_lifecycle.gd
+- Not run: `ogw core test godot TimeCore` was not run in this review, and no test was run against a copy with the defect restored. The debt results are from reading the code
+- Not checked: a real dev run started with `--fixed-fps` or under the engine Movie Maker. No core test starts the engine at a fixed frame rate
