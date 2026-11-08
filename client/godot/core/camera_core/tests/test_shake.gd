@@ -147,6 +147,42 @@ func test_same_seed_and_same_shake_calls_give_the_same_offset_every_frame() -> v
 	assert_eq(first, second)
 
 
+func test_init_seeds_the_noise_with_the_camera_shake_random_seed_of_time_core() -> void:
+	TimeCoreDev.set_random_base(42)
+	assert_true(start())
+	var expected: UtilRandom = UtilCore.create_random(UtilCore.make_purpose_seed("camera_shake", 42))
+	assert_eq(CameraCore._noise_from, _draw_noise(expected), "first noise value of the camera_shake seed")
+	assert_eq(CameraCore._noise_to, _draw_noise(expected), "second noise value of the camera_shake seed")
+	assert_eq(_draw_noise(CameraCore._random), _draw_noise(expected), "the noise random goes on from that seed")
+	CameraCore.release()
+	assert_true(CameraCore.init())
+	var second: UtilRandom = UtilCore.create_random(UtilCore.make_purpose_seed("camera_shake", 43))
+	assert_eq(CameraCore._noise_from, _draw_noise(second), "the next init takes the next camera_shake random seed")
+	assert_eq(CameraCore._noise_to, _draw_noise(second))
+	assert_eq(errors(), 0)
+
+
+func test_shake_without_set_shake_seed_follows_the_random_base_of_the_run() -> void:
+	TimeCoreDev.set_random_base(7)
+	assert_true(start())
+	assert_true(CameraCore.attach_camera(camera_2d()))
+	CameraCore.shake(1.0)
+	var seeded_at_init: PackedVector3Array = PackedVector3Array()
+	for frame: int in 20:
+		await advance(16)
+		seeded_at_init.append(shake_offset())
+	CameraCore.detach_camera()
+	assert_ne(seeded_at_init[0], Vector3.ZERO, "the camera shook")
+	assert_true(CameraCore.attach_camera(camera_2d()))
+	CameraCoreDev.set_shake_seed(UtilCore.make_purpose_seed("camera_shake", 7))
+	CameraCore.shake(1.0)
+	var seeded_by_dev: PackedVector3Array = PackedVector3Array()
+	for frame: int in 20:
+		await advance(16)
+		seeded_by_dev.append(shake_offset())
+	assert_eq(seeded_at_init, seeded_by_dev, "the offsets of a run with random base 7 are the same on every run")
+
+
 func test_stop_shake_removes_the_offset_and_rotation_at_once() -> void:
 	assert_true(start())
 	var camera: Camera2D = camera_2d()
