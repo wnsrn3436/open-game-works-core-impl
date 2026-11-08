@@ -230,6 +230,22 @@ export function create_apple_adapter(options: AppleAdapterOptions): StoreAdapter
     return notification_of(payload.notificationUUID, type, tx);
   };
 
+  /**
+   * The refund transaction IDs of notification history elements, in list order, and the number of elements left out
+   * because their `signedPayload` did not pass the check. A key source failure fails the whole page.
+   */
+  const refunds_of = async (history: readonly unknown[], now: bigint): Promise<{ transaction_ids: string[]; unverified: number } | AdapterFailure> => {
+    const transaction_ids: string[] = [];
+    let unverified = 0;
+    for (const element of history) {
+      const read = await signed_notification(is_object(element) ? element.signedPayload : undefined, now);
+      if (read === 'bad_signature' || read === 'bad_format') unverified += 1;
+      else if (typeof read === 'string') return read;
+      else if (read.kind === 'REFUND') transaction_ids.push(read.value);
+    }
+    return { transaction_ids, unverified };
+  };
+
   /** The subscription snapshot of a `lastTransactions` item of the status lookup. */
   const snapshot_of = async (item: Record<string, unknown>, now: bigint): Promise<SubscriptionSnapshot | AdapterFailure> => {
     const state = typeof item.status === 'number' ? STATUS_STATES.get(item.status) : undefined;
@@ -287,17 +303,10 @@ export function create_apple_adapter(options: AppleAdapterOptions): StoreAdapter
       if (typeof got === 'string') return got;
       if (got.status === 400) return 'rejected';
       if (got.status !== 200 || !is_object(got.json)) return 'communication_failure';
-      const history = Array.isArray(got.json.notificationHistory) ? (got.json.notificationHistory as unknown[]) : [];
-      const transaction_ids: string[] = [];
-      let unverified = 0;
-      for (const element of history) {
-        const read = await signed_notification(is_object(element) ? element.signedPayload : undefined, call.now);
-        if (read === 'timeout' || read === 'communication_failure' || read === 'rejected' || read === 'bad_response') return read;
-        if (read === 'bad_signature' || read === 'bad_format') unverified += 1;
-        else if (read.kind === 'REFUND') transaction_ids.push(read.value);
-      }
+      const read = await refunds_of(Array.isArray(got.json.notificationHistory) ? (got.json.notificationHistory as unknown[]) : [], call.now);
+      if (typeof read === 'string') return read;
       const more = got.json.hasMore === true && typeof got.json.paginationToken === 'string';
-      return { transaction_ids, next_page_token: more ? (got.json.paginationToken as string) : '', unverified };
+      return { ...read, next_page_token: more ? (got.json.paginationToken as string) : '' };
     },
 
     async parse_notification(_headers, body, call): Promise<StoreNotification | 'bad_signature' | 'bad_format' | AdapterFailure> {

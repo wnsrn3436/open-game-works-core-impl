@@ -6,7 +6,7 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import * as testing from '../../testing/dev/index.ts';
 import type { StoreAdapter } from '../adapter.ts';
-import type { Storage } from '../../storage/index.ts';
+import type { DbHandle, Storage } from '../../storage/index.ts';
 import { select_cursor, select_retries, type CursorRow, type RetryRow } from '../refund_lookup.ts';
 import {
   account_token,
@@ -46,7 +46,7 @@ function retries(server: TestServer, store: CoreContract.IapStore = APPLE): Retr
 }
 
 /** Runs one statement of the test in a game transaction. */
-async function sql(server: TestServer, text: string, params: readonly unknown[]): Promise<void> {
+async function sql(server: TestServer, text: string, params: NonNullable<Parameters<DbHandle['query']>[1]>): Promise<void> {
   const storage = storage_of(server);
   const result = await storage.run_game_transaction((tx) => {
     storage.db(tx).query(text, params);

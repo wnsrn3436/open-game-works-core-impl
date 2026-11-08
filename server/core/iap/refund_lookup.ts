@@ -12,6 +12,9 @@ import { REFUND_CURSOR, REFUND_RETRY } from './tables.ts';
 
 export const REFUND_LOOKUP_JOB = 'iap_refund_lookup';
 
+/** The parameters of a statement of a DB handle. */
+type Params = NonNullable<Parameters<DbHandle['query']>[1]>;
+
 /** The order in which a run handles the stores. */
 const STORES: readonly Store[] = [IapStore.IAP_STORE_APPLE, IapStore.IAP_STORE_GOOGLE];
 
@@ -80,7 +83,7 @@ function stack_of(error: unknown): string {
 }
 
 /** One statement in one game transaction; false when the transaction is `FAILED` or throws. */
-async function write(c: IapContext, sql: string, params: readonly unknown[]): Promise<boolean> {
+async function write(c: IapContext, sql: string, params: Params): Promise<boolean> {
   try {
     const result = await c.m.storage.run_game_transaction((tx) => {
       c.m.storage.db(tx).query(sql, params);
@@ -160,7 +163,7 @@ async function pages_of_store(c: IapContext, store: Store, binding: StoreBinding
   }
   const window = window_of(c, store, binding, cursor, now);
   if (window === null) return;
-  const cursor_row = (token: string, done: boolean): unknown[] => [name, binding.name, window.start, window.end, token, done, c.m.time.clock_now()];
+  const cursor_row = (token: string, done: boolean): Params => [name, binding.name, window.start, window.end, token, done, c.m.time.clock_now()];
   let token = window.token;
   for (let page = 0; page < c.settings.refund_lookup_page_count; page += 1) {
     const listed = await call_adapter(c, (call) => binding.adapter.list_refunds(window.start, window.end, token, call));

@@ -135,10 +135,12 @@ function refund_setting(result: unknown): RefundPage {
   if (result === null) return { transaction_ids: [], next_page_token: '', unverified: 0 };
   const wrong = new TypeError('fake iap: the list_refunds result is {transaction_ids, next_page_token}');
   if (!is_object(result)) throw wrong;
-  const ids = result.transaction_ids ?? [];
+  const ids: unknown = result.transaction_ids ?? [];
   const token = result.next_page_token ?? '';
-  if (!Array.isArray(ids) || !ids.every((id) => typeof id === 'string') || typeof token !== 'string') throw wrong;
-  return { transaction_ids: [...(ids as string[])], next_page_token: token, unverified: 0 };
+  if (!Array.isArray(ids) || typeof token !== 'string') throw wrong;
+  const transaction_ids = ids.filter((id): id is string => typeof id === 'string');
+  if (transaction_ids.length !== ids.length) throw wrong;
+  return { transaction_ids, next_page_token: token, unverified: 0 };
 }
 
 /** A whole snapshot from a part over the base store transaction; `rejected` without a SKU, transaction ID or purchase time. */
