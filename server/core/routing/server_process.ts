@@ -9,7 +9,7 @@ import type { Duplex } from 'node:stream';
 import { MessageChannel, Worker, type MessagePort } from 'node:worker_threads';
 import type { MetricFamily } from '../logging/index.ts';
 import type { ServerArgs } from './context.ts';
-import { own_bytes, post_bytes, type Peer, type ToFront, type ToWorker } from './front_link.ts';
+import { FRONT_WINDOW_BYTES, own_bytes, post_bytes, type Peer, type ToFront, type ToWorker } from './front_link.ts';
 import { listen_port, type Listening } from './loopback.ts';
 import { create_system_clock } from '../server-time/adapters/system_clock.ts';
 import { network_time_limit } from '../server-time/network_time_limit.ts';
@@ -45,8 +45,11 @@ interface OpsReport {
   readonly received: bigint;
 }
 
-/** A request or an upgraded connection that the front handed to a worker instance. */
-type Handed = { readonly kind: 'request'; readonly res: ServerResponse } | { readonly kind: 'upgrade'; readonly socket: Duplex };
+/**
+ * A request or an upgraded connection that the front handed to a worker instance. `source` is what the front reads
+ * the client bytes from, and `in_flight` the bytes sent in `data` messages that the worker instance has not pulled.
+ */
+type Handed = ({ readonly kind: 'request'; readonly req: IncomingMessage; readonly res: ServerResponse } | { readonly kind: 'upgrade'; readonly socket: Duplex }) & { readonly source: IncomingMessage | Duplex; in_flight: number };
 
 /** A worker thread and its server instance, as the front sees it. */
 class WorkerThread {
@@ -85,6 +88,12 @@ class WorkerThread {
 
 function peer_of(socket: Socket): Peer {
   return { address: socket.remoteAddress ?? null, port: socket.remotePort ?? null };
+}
+
+/** The headers with `Connection: close` in place of any `Connection` header. */
+function closing(headers: Readonly<Record<string, string | number | string[]>>): Record<string, string | number | string[]> {
+  const kept = Object.fromEntries(Object.entries(headers).filter(([name]) => name.toLowerCase() !== 'connection'));
+  return { ...kept, Connection: 'close' };
 }
 
 function path_of(url: string | undefined): string {
@@ -377,15 +386,16 @@ class Front {
     const worker = this.choose(req.method, req.url);
     const id = this.next_id++;
     worker.in_progress += 1;
-    worker.handed.set(id, { kind: 'request', res });
+    const handed: Handed = { kind: 'request', req, res, source: req, in_flight: 0 };
+    worker.handed.set(id, handed);
     const head: ToWorker = { t: 'req', id, method: req.method ?? '', url: req.url ?? '/', headers: req.headers, distinct: req.headersDistinct, peer: peer_of(req.socket), upgrade: null };
     worker.link.postMessage(head);
+    // After the answer the request is no longer handed: its later bytes are not sent.
     req.on('data', (chunk: Buffer) => {
-      const bytes = own_bytes(chunk);
-      post_bytes(worker.link, { t: 'data', id, chunk: bytes }, bytes);
+      if (worker.handed.has(id)) this.send_data(worker, id, handed, chunk);
     });
     req.on('end', () => {
-      worker.link.postMessage({ t: 'end', id } satisfies ToWorker);
+      if (worker.handed.has(id)) worker.link.postMessage({ t: 'end', id } satisfies ToWorker);
     });
     res.on('close', () => {
       if (!res.writableEnded && worker.handed.has(id)) worker.link.postMessage({ t: 'abort', id } satisfies ToWorker);
@@ -409,13 +419,13 @@ class Front {
     const worker = this.choose(req.method, req.url);
     const id = this.next_id++;
     worker.in_progress += 1;
-    worker.handed.set(id, { kind: 'upgrade', socket });
+    const handed: Handed = { kind: 'upgrade', socket, source: socket, in_flight: 0 };
+    worker.handed.set(id, handed);
     const bytes = own_bytes(head);
     const message: ToWorker = { t: 'req', id, method: req.method ?? '', url: req.url ?? '/', headers: req.headers, distinct: req.headersDistinct, peer: peer_of(req.socket), upgrade: bytes };
     post_bytes(worker.link, message, bytes);
     socket.on('data', (chunk: Buffer) => {
-      const data = own_bytes(chunk);
-      if (worker.handed.has(id)) post_bytes(worker.link, { t: 'data', id, chunk: data }, data);
+      if (worker.handed.has(id)) this.send_data(worker, id, handed, chunk);
     });
     socket.on('end', () => {
       if (worker.handed.has(id)) worker.link.postMessage({ t: 'end', id } satisfies ToWorker);
@@ -430,6 +440,14 @@ class Front {
     });
   }
 
+  /** Sends client bytes to the worker instance, and stops reading the client while `FRONT_WINDOW_BYTES` are in flight. */
+  private send_data(worker: WorkerThread, id: number, handed: Handed, chunk: Buffer): void {
+    const bytes = own_bytes(chunk);
+    handed.in_flight += bytes.byteLength;
+    post_bytes(worker.link, { t: 'data', id, chunk: bytes }, bytes);
+    if (handed.in_flight >= FRONT_WINDOW_BYTES) handed.source.pause();
+  }
+
   private done(worker: WorkerThread, id: number): void {
     if (worker.handed.delete(id)) worker.in_progress -= 1;
   }
@@ -441,12 +459,19 @@ class Front {
     }
     const handed = worker.handed.get(message.id);
     if (handed === undefined) return;
+    if (message.t === 'pull') {
+      handed.in_flight -= message.bytes;
+      if (handed.in_flight < FRONT_WINDOW_BYTES && handed.source.isPaused()) handed.source.resume();
+      return;
+    }
     if (handed.kind === 'request') {
       if (message.t !== 'res') return;
       this.done(worker, message.id);
       const res = handed.res;
       if (res.destroyed || res.writableEnded) return;
-      res.writeHead(message.status, message.headers as Record<string, string | number | string[]>);
+      const headers = message.headers as Record<string, string | number | string[]>;
+      // A body the worker instance did not read to its end is not read further: the connection closes after the answer.
+      res.writeHead(message.status, handed.req.complete ? headers : closing(headers));
       res.end(message.body === null ? undefined : Buffer.from(message.body));
       return;
     }

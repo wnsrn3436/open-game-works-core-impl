@@ -10,7 +10,9 @@ import { join } from 'node:path';
 import { MessageChannel, Worker, type MessagePort } from 'node:worker_threads';
 import { core_test_register, core_test_server_paths, new_core_test_server_input, type CoreTestServerInput } from '../../testing/dev/index.ts';
 import { real_delay } from '../../testing/dev/real_time.ts';
-import type { ToFront, ToWorker } from '../front_link.ts';
+import type { IncomingMessage } from 'node:http';
+import { FrontAttachment, type ToFront, type ToWorker } from '../front_link.ts';
+import { read_body } from '../http.ts';
 import { create_server } from '../index.ts';
 import { accepts, free_port, get } from './process_support.ts';
 
@@ -131,6 +133,68 @@ describe('front link', () => {
     } finally {
       await worker.terminate();
       await db.remove();
+    }
+  });
+});
+
+describe('front link flow', () => {
+  const CHUNK = 64 * 1024;
+  const data = (id: number): ToWorker => ({ t: 'data', id, chunk: new Uint8Array(CHUNK) });
+  /** Lets the messages posted so far reach the other port. */
+  const settle = (): Promise<void> => real_delay(50n);
+
+  it('pulls only the body bytes the request took, takes none while it does not read, and drops the bytes after the answer', async () => {
+    const channel = new MessageChannel();
+    const pulled = new Map<number, number>();
+    const answers = new Map<number, string>();
+    channel.port1.on('message', (message: ToFront) => {
+      if (message.t === 'pull') pulled.set(message.id, (pulled.get(message.id) ?? 0) + message.bytes);
+      if (message.t === 'res') answers.set(message.id, message.body === null ? '' : Buffer.from(message.body).toString());
+    });
+    const requests = new Map<string, IncomingMessage>();
+    let read_held: () => void = () => undefined;
+    const attachment = new FrontAttachment(channel.port2, {
+      handle: (req, res) => {
+        requests.set(req.url ?? '', req);
+        const answer = (max: number): void => {
+          void read_body(req, max, new AbortController().signal).then((body) => {
+            res.writeHead(200);
+            res.end(body === null ? 'null' : String(body.byteLength));
+          });
+        };
+        if (req.url === '/limit') answer(10);
+        else
+          read_held = () => {
+            answer(16 * CHUNK);
+          };
+      },
+      handle_upgrade: (_req, socket) => {
+        socket.destroy();
+      },
+    });
+    try {
+      // A body over the limit: the answer comes at the first chunk, and the later chunks are not buffered.
+      channel.port1.postMessage(request(1, 'POST', '/limit', {}));
+      for (let i = 0; i < 8; i += 1) channel.port1.postMessage(data(1));
+      await settle();
+      expect(answers.get(1)).toBe('null');
+      expect(requests.get('/limit')?.readableLength).toBe(0);
+      expect(pulled.get(1) ?? 0).toBeLessThanOrEqual(CHUNK);
+
+      // A request that does not read its body pulls nothing, so the front stops at its window; it pulls when it reads.
+      channel.port1.postMessage(request(2, 'POST', '/held', {}));
+      for (let i = 0; i < 4; i += 1) channel.port1.postMessage(data(2));
+      await settle();
+      expect(pulled.get(2) ?? 0).toBe(0);
+      read_held();
+      await settle();
+      expect(pulled.get(2)).toBe(4 * CHUNK);
+      channel.port1.postMessage({ t: 'end', id: 2 } satisfies ToWorker);
+      await settle();
+      expect(answers.get(2)).toBe(String(4 * CHUNK));
+    } finally {
+      attachment.detach();
+      channel.port1.close();
     }
   });
 });
