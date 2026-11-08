@@ -45,7 +45,7 @@ async function start(settings: Record<string, unknown>, db: 'sqlite' | 'postgres
 function logging_of(server: TestServer): Logging {
   const logging = server.running().instance.modules().get('logging');
   if (logging === undefined) throw new Error('the server instance has no logging module');
-  return logging as Logging;
+  return logging as unknown as Logging;
 }
 
 function slow_firing(families: readonly MetricFamily[]): number | undefined {
