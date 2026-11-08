@@ -9,6 +9,8 @@ type TableColumn = { readonly name: string; readonly type: ColumnType };
 
 export const HISTORY_TABLE = 'item_ledger_history';
 export const ONCE_KEY_TABLE = 'item_ledger_once_key';
+/** The history counter: the last `seq` given per user. */
+export const HISTORY_SEQ_TABLE = 'item_ledger_history_seq';
 
 const HISTORY_COLUMNS: readonly TableColumn[] = [
   { name: 'user_id', type: 'int64' },
@@ -31,6 +33,11 @@ const HISTORY_COLUMNS: readonly TableColumn[] = [
   { name: 'expires_at', type: 'int64' },
 ];
 
+const HISTORY_SEQ_COLUMNS: readonly TableColumn[] = [
+  { name: 'user_id', type: 'int64' },
+  { name: 'last_seq', type: 'int64' },
+];
+
 const ONCE_KEY_COLUMNS: readonly TableColumn[] = [
   { name: 'user_id', type: 'int64' },
   { name: 'once_key', type: 'string' },
@@ -42,6 +49,7 @@ export const HISTORY_TIME_INDEX: readonly string[] = ['user_id', 'time'];
 
 export function register_tables(storage: Storage): void {
   storage.register_table(HISTORY_TABLE, 'user', HISTORY_COLUMNS, ['user_id', 'seq'], 'expires_at', false, null, [HISTORY_TIME_INDEX]);
+  storage.register_table(HISTORY_SEQ_TABLE, 'user', HISTORY_SEQ_COLUMNS, ['user_id'], null, false);
   storage.register_table(ONCE_KEY_TABLE, 'user', ONCE_KEY_COLUMNS, ['user_id', 'once_key'], 'expires_at', true);
 }
 
@@ -88,28 +96,42 @@ function join(small: DbValue | undefined, big: DbValue | undefined): bigint {
   return v;
 }
 
-/** The `SET` list of the history upsert: every column outside the key `(user_id, seq)`. */
-const HISTORY_UPSERT_SET = HISTORY_COLUMNS.filter((c) => c.name !== 'user_id' && c.name !== 'seq').map((c) => `${c.name} = excluded.${c.name}`).join(', ');
+const HISTORY_INSERT =
+  `INSERT INTO ${HISTORY_TABLE} (user_id, seq, time, item_id, delta, balance_after, overflow, shortfall, source, ref, once_key, request_id, ends_at_after, big_delta, big_balance_after, big_overflow, big_shortfall, expires_at) ` +
+  'VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)';
 
 /**
- * Writes rows in the given order, each in one upsert whose `seq` is the largest `seq` of the user's rows that have not
- * expired at `now` + 1 (1 when there is none), so no value read before is written back while the expiry sweep may delete
- * rows. An expired row with that key that the sweep has not removed yet is written over.
+ * Takes `count` `seq` values from the history counter in one upsert and returns the last one. A user without a counter
+ * row starts from `now`, so the first `seq` is `now` + 1. No history row is read.
+ */
+function take_seq(db: DbHandle, user_id: bigint, count: bigint, now: bigint): bigint {
+  const rows = db.query(
+    `INSERT INTO ${HISTORY_SEQ_TABLE} (user_id, last_seq) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET last_seq = ${HISTORY_SEQ_TABLE}.last_seq + $3 RETURNING last_seq`,
+    [user_id, now + count, count],
+  ) as readonly DbRow[];
+  const last = rows[0]?.['last_seq'];
+  if (last === undefined) throw new Error('item-ledger: the history counter upsert returned no row');
+  return int64(last);
+}
+
+/**
+ * Appends rows in the given order with the `seq` values the history counter gives, each with a plain insert: the history
+ * is never written over, and a row that already has a key to write fails the statement, so the transaction rolls back.
  */
 export function insert_history(
   db: DbHandle, user_id: bigint, time: bigint, request_id: string | null, expires_at: bigint, now: bigint, rows: readonly NewHistoryRow[],
 ): void {
+  if (rows.length === 0) return;
+  const count = BigInt(rows.length);
+  let seq = take_seq(db, user_id, count, now) - count;
   for (const r of rows) {
+    seq += 1n;
     const [delta, big_delta] = split(r.delta);
     const [balance_after, big_balance_after] = split(r.balance_after);
     const [overflow, big_overflow] = split(r.overflow);
     const [shortfall, big_shortfall] = split(r.shortfall);
-    db.query(
-      `INSERT INTO ${HISTORY_TABLE} (user_id, seq, time, item_id, delta, balance_after, overflow, shortfall, source, ref, once_key, request_id, ends_at_after, big_delta, big_balance_after, big_overflow, big_shortfall, expires_at) VALUES ($1, (SELECT COALESCE(MAX(seq), 0) + 1 FROM ${HISTORY_TABLE} WHERE user_id = $1 AND expires_at > $18), $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) ` +
-        `ON CONFLICT (user_id, seq) DO UPDATE SET ${HISTORY_UPSERT_SET}`,
-      [user_id, time, r.item_id, delta, balance_after, overflow, shortfall, r.source, r.ref, r.once_key, request_id, r.ends_at_after,
-        big_delta, big_balance_after, big_overflow, big_shortfall, expires_at, now],
-    );
+    db.query(HISTORY_INSERT, [user_id, seq, time, r.item_id, delta, balance_after, overflow, shortfall, r.source, r.ref, r.once_key, request_id,
+      r.ends_at_after, big_delta, big_balance_after, big_overflow, big_shortfall, expires_at]);
   }
 }
 

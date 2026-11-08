@@ -227,7 +227,9 @@ function input_problem(id: number, amount: bigint | null, info: ItemInfo | null,
 
 export class Ledger {
   /** `item-ledger.historyRetentionMs`. */
-  readonly retention_ms: bigint;
+  readonly history_retention_ms: bigint;
+  /** `item-ledger.onceKeyRetentionMs`. */
+  readonly once_key_retention_ms: bigint;
   readonly storage: Storage;
   readonly time: ServerTimeApi;
   readonly logging: Logging;
@@ -241,8 +243,9 @@ export class Ledger {
   /** Recovery items by their `cap_bonus_item`, by `DataSet`. */
   private readonly dependent_cache = new WeakMap<GameData.DataSet, Map<number, number[]>>();
 
-  constructor(retention_ms: bigint, modules: LedgerModules, dev: boolean) {
-    this.retention_ms = retention_ms;
+  constructor(history_retention_ms: bigint, once_key_retention_ms: bigint, modules: LedgerModules, dev: boolean) {
+    this.history_retention_ms = history_retention_ms;
+    this.once_key_retention_ms = once_key_retention_ms;
     this.storage = modules.storage;
     this.time = modules['server-time'];
     this.logging = modules.logging;
@@ -805,10 +808,9 @@ export class Change {
     rows.push(...this.entry_rows());
     const db = ledger.storage.db(ctx);
     const now = ledger.time.clock_now();
-    const expires = now + ledger.retention_ms;
-    insert_history(db, ctx.user_id, t, ctx.request_id === '' ? null : ctx.request_id, expires, now, rows);
+    insert_history(db, ctx.user_id, t, ctx.request_id === '' ? null : ctx.request_id, now + ledger.history_retention_ms, now, rows);
     for (const e of this.entries) if (e.item_change) ledger.storage.add_item_change(ctx, item_change(e));
-    if (source.once_key !== '') put_once_key(db, ctx.user_id, source.once_key, expires);
+    if (source.once_key !== '') put_once_key(db, ctx.user_id, source.once_key, now + ledger.once_key_retention_ms);
   }
 
   /** The recovery items to reflect: the touched ones and those whose `cap_bonus_item` is touched. */
