@@ -7,7 +7,7 @@ import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import type { DbMetrics } from '../../storage/index.ts';
 import { new_db } from '../../storage/tests/helpers.ts';
 import { ALERT_SIGNALS, type MetricFamily, type MetricSample } from '../index.ts';
-import { advance, CoreError, new_user, request, start, stop_all, type Server } from './helpers.ts';
+import { advance, CoreError, logs, new_user, request, start, stop_all, type Server } from './helpers.ts';
 
 afterEach(() => {
   stop_all();
@@ -48,6 +48,20 @@ async function resync(server: Server, user_id: bigint, outcome: 'ok' | 'internal
 }
 
 describe('read_metrics', () => {
+  it('labels a request field that starts with cheat/ or core/cheat/ as cheat, and keeps any other request field, cheat elsewhere in it included', async () => {
+    const server = await start();
+    const write = (request: string): void => {
+      server.logging.write({ kind: 'request', level: null, message: 'request', user_id: null, request_id: null, request, fields: { error_code: 0, duration_ms: 3, client_version: null, platform: null, seed: null } });
+    };
+    for (const request of ['cheat/a', 'core/cheat/b', 'cheat/', 'Cheater', 'core/cheatsheet', 'game/cheat/x', 'cheat']) write(request);
+    const families = server.logging.read_metrics();
+    const counts: Record<string, number> = {};
+    for (const sample of family(families, 'ogw_requests_total').samples) counts[sample.labels.request ?? ''] = sample.value;
+    expect(counts).toEqual({ cheat: 4, Cheater: 1, 'core/cheatsheet': 1, 'game/cheat/x': 1 });
+    expect(value_of(families, 'ogw_request_duration_seconds', 'ogw_request_duration_seconds_count', { request: 'cheat' })).toBe(4);
+    expect(logs(server, 'request').map((line) => line.request)).toEqual(['cheat/a', 'core/cheat/b', 'cheat/', 'Cheater', 'core/cheatsheet', 'game/cheat/x', 'cheat']);
+  });
+
   it('counts request lines by request and error code, their durations in buckets, and log lines by kind and level, with no user ID or IP in a label', async () => {
     const server = await start();
     const user_id = await new_user(server);

@@ -49,10 +49,19 @@ interface DurationHistogram {
 
 /** A request line as the metrics read it. */
 export interface RequestLine {
-  /** The `request` field; null is the empty string label. */
+  /** The `request` field; `request_label` makes its label. */
   readonly request: string | null;
   readonly error_code: number;
   readonly duration_ms: number;
+}
+
+/**
+ * The `request` label of a request line: `cheat` for a `request` field that starts with `cheat/` or `core/cheat/` (its
+ * cheat name comes from the URL that the client chose), the empty string for null, otherwise the field.
+ */
+function request_label(request: string | null): string {
+  if (request === null) return '';
+  return request.startsWith('cheat/') || request.startsWith('core/cheat/') ? 'cheat' : request;
 }
 
 /** The label key of a label set of one or two values: the values joined by a byte no label value holds. */
@@ -106,7 +115,7 @@ export class Metrics {
   }
 
   #request(line: RequestLine): void {
-    const request = line.request ?? '';
+    const request = request_label(line.request);
     const error_code = String(line.error_code);
     const request_key = key_of(request, error_code);
     const counted = this.#requests.get(request_key);
