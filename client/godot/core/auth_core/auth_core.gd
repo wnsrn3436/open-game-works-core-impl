@@ -2,8 +2,8 @@ class_name AuthCore
 extends RefCounted
 ## Terms, age, privacy choice, ad push consent and tracking permission flows; guest, social and auto login, the login
 ## token storage, the install marker, account recovery, the access token refresh, account link and switch, logout,
-## withdrawal, the web guest storage request and link prompt, and the web account deletion code. Hands the login
-## session to `NetworkCore` and the analytics consent to `LogCore`.
+## logout of the other devices, withdrawal, the web guest storage request and link prompt, and the web account
+## deletion code. Hands the login session to `NetworkCore` and the analytics consent to `LogCore`.
 
 enum TermsStatus { AGREED, REFUSED, FAILED }
 enum LoginStatus { SUCCESS, NO_TOKEN, CANCELLED, REJECTED, CONSENT_REQUIRED, BANNED, AGE_BLOCKED, FAILED }
@@ -1484,15 +1484,21 @@ static func link_account(provider: CoreContract.LoginProvider) -> LinkStatus:
 	var response: CoreContract.LinkAccountResponse = call.response as CoreContract.LinkAccountResponse
 	if response == null or _session == null:
 		return LinkStatus.FAILED
-	_session.linked_providers = response.linked_providers
-	var token: String = _session.login_token
-	if _pending_token == token:
+	var session: _SESSION = _session
+	session.linked_providers = response.linked_providers
+	var token: String = session.login_token
+	if not _pending_token.is_empty():
 		_pending_linked = response.linked_providers
 	if await _write_item(token, response.linked_providers):
 		if life == _life and _pending_token == token:
 			_clear_pending()
 	elif life == _life:
 		LogCore.log_error(_TAG, "link_account: storage item was not written again")
+		# The pending token rules write the item again until a write succeeds.
+		if _pending_token.is_empty() and _session == session:
+			_pending_token = token
+			_pending_sent_token = token
+			_pending_linked = response.linked_providers
 	return LinkStatus.SUCCESS
 
 
@@ -1552,6 +1558,18 @@ static func logout() -> void:
 	if life != _life:
 		return
 	await _forget_account(SessionEndReason.LOGOUT)
+
+
+## Ends the login of the other devices. The session, the pending token and the storage item stay as they are.
+static func logout_other_devices() -> bool:
+	if not _check("logout_other_devices"):
+		return false
+	if _session == null:
+		LogCore.log_error(_TAG, "logout_other_devices: no session")
+		return false
+	var life: RefCounted = _life
+	var call: _CALL = await _send(CoreContract.LogoutOtherDevicesRequest.new(), true)
+	return life == _life and call != null and call.ok
 
 
 static func withdraw() -> bool:

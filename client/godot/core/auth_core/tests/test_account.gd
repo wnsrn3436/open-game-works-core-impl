@@ -1,5 +1,5 @@
 extends UnitTestCase
-## `logout`, `withdraw`, `switch_account`, `link_account` and `issue_deletion_code`.
+## `logout`, `logout_other_devices`, `withdraw`, `switch_account`, `link_account` and `issue_deletion_code`.
 
 const Env := preload("res://core/auth_core/tests/support/auth_test_env.gd")
 const Flow := preload("res://core/auth_core/tests/support/flow.gd")
@@ -42,6 +42,75 @@ func test_logout_removes_item_and_restarts_whatever_the_request_result() -> void
 	assert_eq(env.recorder.restarts, 1)
 	assert_eq(_terms_version(), 1)
 	assert_eq(_privacy_terms_version(), 1)
+
+
+func test_logout_other_devices_keeps_session_and_storage_item() -> void:
+	await _login()
+	var writes: int = env.storage.count("write")
+	var removes: int = env.storage.count("remove")
+	Env.respond("core/LogoutOtherDevices", CoreContract.LogoutOtherDevicesResponse.new())
+	assert_true(await AuthCore.logout_other_devices())
+	assert_eq(Env.request_count("core/LogoutOtherDevices"), 1)
+	assert_true(AuthCore.is_logged_in())
+	assert_eq(AuthCore.get_user_id(), 301)
+	assert_eq(env.stored_token(), "token-a")
+	assert_eq(env.storage.count("write"), writes)
+	assert_eq(env.storage.count("remove"), removes)
+	assert_eq(AuthCore._pending_token, "")
+	assert_eq(env.recorder.session_ends.size(), 0)
+	assert_eq(env.recorder.restarts, 0)
+	Env.respond_error("core/LogoutOtherDevices", CoreContract.CoreError.CORE_ERROR_INVALID_REQUEST)
+	assert_false(await AuthCore.logout_other_devices())
+	assert_eq(Env.request_count("core/LogoutOtherDevices"), 2)
+	assert_true(AuthCore.is_logged_in())
+	assert_eq(env.stored_token(), "token-a")
+	assert_eq(env.recorder.restarts, 0)
+
+
+func test_logout_other_devices_keeps_the_pending_token() -> void:
+	assert_true(await env.boot())
+	env.storage.script("write", Storage.Status.FAILED)
+	var result: LoginResult = await env.boot_auto(305, "token-old", "token-new")
+	assert_eq(result.status, AuthCore.LoginStatus.SUCCESS)
+	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 1)
+	Env.respond("core/LogoutOtherDevices", CoreContract.LogoutOtherDevicesResponse.new())
+	assert_true(await AuthCore.logout_other_devices())
+	assert_eq(AuthCore._pending_token, "token-new")
+	assert_eq(AuthCore._pending_sent_token, "token-old")
+	assert_eq(env.stored_token(), "token-old")
+	assert_true(AuthCore.is_logged_in())
+	EventCore.publish(EventCore.acquire(AppBackgroundEnteredEvent))
+	await UnitTestCore.wait_frames(3)
+	assert_eq(env.stored_token(), "token-new")
+
+
+func test_logout_other_devices_without_session_fails_without_request() -> void:
+	assert_true(await env.boot())
+	assert_false(await AuthCore.logout_other_devices())
+	assert_eq(Env.request_count("core/LogoutOtherDevices"), 0)
+	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 1)
+
+
+func test_guest_whose_login_token_was_deleted_gets_guest_recovery() -> void:
+	assert_true(await env.boot())
+	Env.mark_installed()
+	Env.agree_terms()
+	env.store("token-deleted")
+	Env.respond_terms()
+	Env.respond_error("core/AutoLogin", CoreContract.CoreError.CORE_ERROR_UNAUTHORIZED)
+	var flow: Flow = Flow.new()
+	flow.start(func(f: Flow) -> void:
+		f.result = await AuthCore.boot_login()
+		f.finish())
+	await UnitTestCore.wait_frames(5)
+	assert_false(flow.finished)
+	assert_true(Env.shows(ReservedString.auth_recover_guest()))
+	assert_null(Env.find_button(ReservedString.auth_recover_login_google()))
+	assert_null(Env.find_button(ReservedString.auth_recover_login_apple()))
+	assert_not_null(Env.find_button(ReservedString.auth_recover_new()))
+	assert_eq(env.stored_token(), "token-deleted")
+	AuthCore.release()
+	await flow.wait()
 
 
 func test_withdraw_success_removes_versions_and_restarts() -> void:
@@ -214,6 +283,53 @@ func test_pending_token_is_written_with_the_providers_link_account_changed() -> 
 	await UnitTestCore.wait_frames(3)
 	assert_eq(env.stored_token(), "token-new")
 	assert_eq(env.stored_linked(), "[\"LOGIN_PROVIDER_GOOGLE\"]")
+
+
+func test_link_account_write_failure_keeps_session_token_pending_until_a_write_succeeds() -> void:
+	await _login()
+	var response: CoreContract.LinkAccountResponse = CoreContract.LinkAccountResponse.new()
+	response.linked_providers = PackedInt32Array([CoreContract.LoginProvider.LOGIN_PROVIDER_GOOGLE])
+	Env.respond("core/LinkAccount", response)
+	env.storage.script("write", Storage.Status.FAILED)
+	var status: AuthCore.LinkStatus = await AuthCore.link_account(CoreContract.LoginProvider.LOGIN_PROVIDER_GOOGLE)
+	assert_eq(status, AuthCore.LinkStatus.SUCCESS)
+	# The failed write and the log of `link_account`.
+	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 2)
+	assert_eq(env.stored_token(), "token-a")
+	assert_eq(env.stored_linked(), "[]")
+	# The write of the refresh success fails too, so the background event is the one that writes.
+	env.storage.script("write", Storage.Status.FAILED)
+	Env.respond_refresh("access-x")
+	var refreshed: GetAccessTokenResult = await AuthCore.refresh_access_token()
+	assert_true(refreshed.ok)
+	assert_eq(Env.request_header("core/RefreshToken", "Authorization"), "Bearer token-a")
+	await UnitTestCore.wait_frames(3)
+	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 1)
+	assert_eq(env.stored_linked(), "[]")
+	EventCore.publish(EventCore.acquire(AppBackgroundEnteredEvent))
+	await UnitTestCore.wait_frames(3)
+	assert_eq(env.stored_token(), "token-a")
+	assert_eq(env.stored_linked(), "[\"LOGIN_PROVIDER_GOOGLE\"]")
+	assert_eq(AuthCore._pending_token, "")
+	AuthCore.release()
+	assert_true(env.start_auth())
+	Env.respond_terms()
+	Env.respond_error("core/AutoLogin", CoreContract.CoreError.CORE_ERROR_UNAUTHORIZED)
+	var flow: Flow = Flow.new()
+	flow.start(func(f: Flow) -> void:
+		f.result = await AuthCore.boot_login()
+		f.finish())
+	await UnitTestCore.wait_frames(5)
+	assert_false(flow.finished)
+	assert_eq(Env.request_header("core/AutoLogin", "Authorization"), "Bearer token-a")
+	assert_true(Env.shows(ReservedString.auth_recover_linked()))
+	assert_not_null(Env.find_button(ReservedString.auth_recover_login_google()))
+	Env.respond_login(301, "token-b")
+	assert_true(await Env.press(ReservedString.auth_recover_login_google()))
+	await flow.wait()
+	var result: LoginResult = flow.result as LoginResult
+	assert_eq(result.status, AuthCore.LoginStatus.SUCCESS)
+	assert_eq(result.user_id, 301)
 
 
 func test_guest_link_and_switch_fail_without_request() -> void:
