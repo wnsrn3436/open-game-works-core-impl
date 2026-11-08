@@ -185,6 +185,16 @@ export function login_tokens_of_session(db: DbHandle, user_id: bigint, session_i
   return rows.map(login_token_row);
 }
 
+/** Deletes every login token row of the user whose `session_id` is not the given one (`LogoutOtherDevices`). */
+export function delete_login_tokens_of_other_sessions(db: DbHandle, user_id: bigint, session_id: string): void {
+  db.query('DELETE FROM auth_login_token WHERE user_id = $1 AND session_id <> $2', [user_id, session_id]);
+}
+
+/** Deletes every login token row of the user (`revoke_login_tokens`). */
+export function delete_login_tokens_of_user(db: DbHandle, user_id: bigint): void {
+  db.query('DELETE FROM auth_login_token WHERE user_id = $1', [user_id]);
+}
+
 /** The latest `last_used_at` of the user's login token rows; null when there is none. */
 export function last_token_use(db: DbHandle, user_id: bigint): bigint | null {
   const rows = db.query('SELECT MAX(last_used_at) AS last_used_at FROM auth_login_token WHERE user_id = $1', [user_id]);

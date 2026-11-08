@@ -93,7 +93,7 @@ export const BAN_EXEMPT_RPC = 'core/IssueDeletionCode';
 
 /** Admin operations other modules export (`admin-api`'s collected operations; `caller` `operator`). */
 export const MODULE_ADMIN_OPERATIONS: Readonly<Record<string, readonly string[]>> = {
-  'auth': ['withdraw_user', 'find_user_by_social_account', 'find_user_by_public_code'],
+  'auth': ['withdraw_user', 'revoke_login_tokens', 'find_user_by_social_account', 'find_user_by_public_code'],
   'block-report': ['list_reports', 'resolve_report'],
   'chat': ['list_chat_messages', 'delete_chat_message', 'mute_chat_user', 'unmute_chat_user'],
   'coupon': ['create_coupon', 'get_coupon', 'list_coupon_codes', 'disable_coupon'],
@@ -114,7 +114,7 @@ export const MODULE_ADMIN_OPERATIONS: Readonly<Record<string, readonly string[]>
 export const MODULE_CORE_RPCS: Readonly<Record<string, readonly string[]>> = {
   'ads-reward': ['BeginAdReward', 'ClaimAdReward'],
   'attendance': ['ClaimAttendance'],
-  'auth': ['Login', 'AutoLogin', 'RefreshToken', 'Logout', 'LinkAccount', 'Withdraw', 'IssueDeletionCode', 'GetTerms', 'ConfirmAge', 'UpdateConsent', 'UpdatePushConsent'],
+  'auth': ['Login', 'AutoLogin', 'RefreshToken', 'Logout', 'LogoutOtherDevices', 'LinkAccount', 'Withdraw', 'IssueDeletionCode', 'GetTerms', 'ConfirmAge', 'UpdateConsent', 'UpdatePushConsent'],
   'block-report': ['BlockUser', 'UnblockUser', 'GetBlockedUsers', 'ReportUser'],
   'chat': ['SendChatMessage', 'GetChatMessages', 'ReportChatMessage', 'GetChatChannels', 'DeleteGuildChatMessage'],
   'coupon': ['RedeemCoupon'],

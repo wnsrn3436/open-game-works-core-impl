@@ -1,7 +1,7 @@
 /**
- * The core `rpc`s that go through `routing`'s request processing order (`Logout`, `LinkAccount`, `Withdraw`,
- * `IssueDeletionCode`, `ConfirmAge`, `UpdateConsent`, `UpdatePushConsent`) and the internal operations
- * `verify_access_token` and `prepare_link_account`.
+ * The core `rpc`s that go through `routing`'s request processing order (`Logout`, `LogoutOtherDevices`,
+ * `LinkAccount`, `Withdraw`, `IssueDeletionCode`, `ConfirmAge`, `UpdateConsent`, `UpdatePushConsent`) and the internal
+ * operations `verify_access_token` and `prepare_link_account`.
  */
 import { randomInt } from 'node:crypto';
 import * as CoreContract from '../../generated/contract/core_contract.ts';
@@ -14,6 +14,7 @@ import {
   append_consent_records,
   birth_year_month,
   delete_login_token,
+  delete_login_tokens_of_other_sessions,
   find_social_link,
   insert_age,
   insert_social_link,
@@ -49,6 +50,19 @@ export function logout(a: AuthState, ctx: Ctx): CoreContract.LogoutResponse {
   }
   session.end_session(ctx);
   return new CoreContract.LogoutResponse();
+}
+
+/**
+ * `LogoutOtherDevices`: in the request transaction, `session.check_current` of the request's session first (another
+ * login of that user may have committed after `routing` step 5); when it passes, deletes every login token row of
+ * the user of another session. The session and the login token rows of the request's session stay.
+ */
+export function logout_other_devices(a: AuthState, ctx: Ctx): CoreContract.LogoutOtherDevicesResponse | CoreErrorCode {
+  const { storage, session } = a.modules;
+  const current = session.check_current(ctx.user_id, ctx.session_id);
+  if (current !== 'pass') return current;
+  delete_login_tokens_of_other_sessions(storage.db(ctx), ctx.user_id, ctx.session_id);
+  return new CoreContract.LogoutOtherDevicesResponse();
 }
 
 /** `prepare_link_account`: the social account of the credential, checked outside the transaction. */

@@ -11,6 +11,7 @@ export interface TermsEntry {
 
 export interface AuthSettings {
   readonly access_token_ttl_ms: bigint;
+  readonly login_token_idle_ttl_ms: bigint;
   readonly max_token_bytes: number;
   readonly max_credential_bytes: number;
   readonly terms: { readonly TERMS: TermsEntry; readonly PRIVACY: TermsEntry };
@@ -115,6 +116,7 @@ export function read_settings(settings: Settings): AuthSettings {
   const { TERMS, PRIVACY } = terms as { TERMS?: unknown; PRIVACY?: unknown };
   return {
     access_token_ttl_ms: BigInt(integer(settings, 'auth.accessTokenTtlMs')),
+    login_token_idle_ttl_ms: BigInt(integer(settings, 'auth.loginTokenIdleTtlMs')),
     max_token_bytes: integer(settings, 'auth.maxTokenBytes'),
     max_credential_bytes: integer(settings, 'auth.maxCredentialBytes'),
     terms: { TERMS: terms_entry(TERMS, 'TERMS'), PRIVACY: terms_entry(PRIVACY, 'PRIVACY') },

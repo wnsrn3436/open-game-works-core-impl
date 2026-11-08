@@ -5,7 +5,7 @@
 import type { AuthState } from './context.ts';
 import { is_public_code_input } from '../storage/index.ts';
 import type { Ctx, GameTx } from './deps.ts';
-import { find_social_link } from './tables.ts';
+import { delete_login_tokens_of_user, find_social_link, has_social_link } from './tables.ts';
 import { withdraw } from './withdraw.ts';
 
 export type AdminFailure = 'bad_request' | 'not_found' | 'conflict' | 'external_failed' | 'internal';
@@ -31,6 +31,20 @@ export function withdraw_user(a: AuthState, ctx: Ctx): Record<string, unknown> |
   return withdraw(a, ctx) === 'done' ? {} : 'internal';
 }
 
+/**
+ * `revoke_login_tokens` (`### login token revocation`): in the target user's out-of-request change, `conflict` for a
+ * user without an `auth_social_link` row (the login token is the only credential of a guest account); otherwise
+ * deletes every login token row of the user and closes the session.
+ */
+export function revoke_login_tokens(a: AuthState, ctx: Ctx): Record<string, unknown> | AdminFailure {
+  const { storage, session } = a.modules;
+  const db = storage.db(ctx);
+  if (!has_social_link(db, ctx.user_id)) return 'conflict';
+  delete_login_tokens_of_user(db, ctx.user_id);
+  session.end_session(ctx);
+  return {};
+}
+
 /** `find_user_by_social_account`: the linked user and `linked_at` of `(provider, provider_account_id)`. */
 export function find_user_by_social_account(a: AuthState, input: Readonly<Record<string, unknown>>, tx: GameTx): Record<string, unknown> | AdminFailure {
   const { provider, provider_account_id } = input;
@@ -51,7 +65,12 @@ export function find_user_by_public_code(a: AuthState, input: Readonly<Record<st
   return { user_id, withdrawn_at: storage.get_user_record(db, user_id)?.withdrawn_at ?? null };
 }
 
-export function admin_operations(a: AuthState): { withdraw_user: AdminOperation; find_user_by_social_account: AdminOperation; find_user_by_public_code: AdminOperation } {
+export function admin_operations(a: AuthState): {
+  withdraw_user: AdminOperation;
+  revoke_login_tokens: AdminOperation;
+  find_user_by_social_account: AdminOperation;
+  find_user_by_public_code: AdminOperation;
+} {
   return {
     withdraw_user: {
       name: 'withdraw_user',
@@ -61,6 +80,17 @@ export function admin_operations(a: AuthState): { withdraw_user: AdminOperation;
       input: { user_id: { type: { kind: 'int64' }, optional: false } },
       user_target: 'user_id',
       handler: (_input, ctx) => withdraw_user(a, ctx as Ctx),
+      prepare: null,
+      audit_args: null,
+    },
+    revoke_login_tokens: {
+      name: 'revoke_login_tokens',
+      role: 'ops',
+      body: 'json',
+      max_body_bytes: null,
+      input: { user_id: { type: { kind: 'int64' }, optional: false } },
+      user_target: 'user_id',
+      handler: (_input, ctx) => revoke_login_tokens(a, ctx as Ctx),
       prepare: null,
       audit_args: null,
     },
