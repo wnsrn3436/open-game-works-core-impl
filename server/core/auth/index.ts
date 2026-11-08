@@ -9,6 +9,7 @@ import {
   issue_deletion_code,
   link_account,
   logout,
+  logout_other_devices,
   prepare_link_account,
   update_consent,
   update_push_consent,
@@ -58,6 +59,7 @@ export interface Auth {
   GetTerms: Tokenless<CoreContract.GetTermsRequest, CoreContract.GetTermsResponse>;
 
   Logout(ctx: Ctx, request: CoreContract.LogoutRequest): CoreContract.LogoutResponse;
+  LogoutOtherDevices(ctx: Ctx, request: CoreContract.LogoutOtherDevicesRequest): CoreContract.LogoutOtherDevicesResponse | CoreErrorCode;
   LinkAccount(ctx: Ctx, request: CoreContract.LinkAccountRequest, prepare: SocialAccount): CoreContract.LinkAccountResponse | CoreErrorCode;
   Withdraw(ctx: Ctx, request: CoreContract.WithdrawRequest): CoreContract.WithdrawResponse | CoreErrorCode;
   IssueDeletionCode(ctx: Ctx, request: CoreContract.IssueDeletionCodeRequest): CoreContract.IssueDeletionCodeResponse;
@@ -72,6 +74,7 @@ export interface Auth {
 
   /** The admin operations auth exports, by name. */
   readonly withdraw_user: AdminOperation;
+  readonly revoke_login_tokens: AdminOperation;
   readonly find_user_by_social_account: AdminOperation;
   readonly find_user_by_public_code: AdminOperation;
 
@@ -176,6 +179,7 @@ export function create_auth(input: AuthInput): Auth {
     GetTerms: () => Promise.resolve(get_terms(a)),
 
     Logout: (ctx) => logout(a, ctx),
+    LogoutOtherDevices: (ctx) => logout_other_devices(a, ctx),
     LinkAccount: (ctx, _request, prepare) => link_account(a, ctx, prepare),
     Withdraw: (ctx) => withdraw_request(a, ctx),
     IssueDeletionCode: (ctx) => issue_deletion_code(a, ctx),
@@ -189,6 +193,7 @@ export function create_auth(input: AuthInput): Auth {
     'POST /account/deletion': (request, client_ip) => deletion_post(a, texts, request, client_ip),
 
     withdraw_user: operations.withdraw_user,
+    revoke_login_tokens: operations.revoke_login_tokens,
     find_user_by_social_account: operations.find_user_by_social_account,
     find_user_by_public_code: operations.find_user_by_public_code,
 

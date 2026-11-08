@@ -114,7 +114,7 @@ describe('Login', () => {
     expect((await auto_login(server, dev.login_token)).code).toBe(E.CORE_ERROR_CONSENT_REQUIRED);
   });
 
-  it('a login token keeps working however far the clock moves', async () => {
+  it('the login token of a user without an auth_social_link row keeps working however far the clock moves', async () => {
     const user = await guest(server);
     testing.advance_time(server, 10n * 365n * 86_400_000n);
     const reply = await auto_login(server, user.result.login_token);

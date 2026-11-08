@@ -28,6 +28,7 @@ import {
   find_login_token,
   find_social_link,
   has_agreement,
+  has_social_link,
   insert_agreement,
   insert_login_token,
   insert_social_link,
@@ -317,12 +318,23 @@ function unknown_login_token(a: AuthState, input: TokenlessInput<unknown>, reque
   return failure(E.CORE_ERROR_UNAUTHORIZED);
 }
 
+/**
+ * Login token expiry (`### token`): the login token of a user with an `auth_social_link` row is expired once
+ * `server-time.user_now` reaches `last_used_at` + `auth.loginTokenIdleTtlMs`. Judged on the row first read with
+ * `storage.read_db`, and the link is read with that same handle. A guest's login token does not expire.
+ */
+function login_token_expired(a: AuthState, read: DbHandle, row: LoginTokenRow): boolean {
+  if (!has_social_link(read, row.user_id)) return false;
+  return row.last_used_at + a.settings.login_token_idle_ttl_ms <= a.modules['server-time'].user_now(row.user_id, read);
+}
+
 /** `AutoLogin`. */
 export async function auto_login(a: AuthState, input: TokenlessInput<CoreContract.AutoLoginRequest>): Promise<TokenlessOutput<CoreContract.AutoLoginResponse>> {
   const token_hash = sha256_hex(input.authorization);
   const read = a.modules.storage.read_db();
   const row = input.authorization === '' ? null : find_login_token(read, token_hash);
   if (row === null) return unknown_login_token(a, input, 'core/AutoLogin');
+  if (login_token_expired(a, read, row)) return failure(E.CORE_ERROR_UNAUTHORIZED, row.user_id);
   const agreements = input.request.agreements;
   const terms = agreements.length > 0 ? agreements_error(a, agreements) : stored_agreements_error(a, read, row.user_id);
   if (terms !== null) return failure(terms, row.user_id);
@@ -342,8 +354,10 @@ export async function auto_login(a: AuthState, input: TokenlessInput<CoreContrac
 export async function refresh_token(a: AuthState, input: TokenlessInput<CoreContract.RefreshTokenRequest>): Promise<TokenlessOutput<CoreContract.RefreshTokenResponse>> {
   const { storage, session } = a.modules;
   const token_hash = sha256_hex(input.authorization);
-  const row = input.authorization === '' ? null : find_login_token(storage.read_db(), token_hash);
+  const read = storage.read_db();
+  const row = input.authorization === '' ? null : find_login_token(read, token_hash);
   if (row === null) return unknown_login_token(a, input, 'core/RefreshToken');
+  if (login_token_expired(a, read, row)) return failure(E.CORE_ERROR_UNAUTHORIZED, row.user_id);
   const target = { user_id: row.user_id, request_id: input.request_id, request: 'core/RefreshToken' };
   const current = session.check_current(row.user_id, row.session_id);
   if (current !== 'pass') {
