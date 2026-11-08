@@ -17,6 +17,7 @@ import {
   type ParamList,
 } from './analytics.ts';
 import { annotation_problem, split_fields, type FieldObject } from './fields.ts';
+import { Metrics, type MetricFamily } from './metrics.ts';
 import { format_line, higher_level, is_level, SecurityWindows, truncate_ip, type Level, type LogEntry, type LogFields, type LogValue, type SecuritySummary } from './log_line.ts';
 import {
   CLIENT_ERROR,
@@ -42,6 +43,8 @@ export type { AdapterFailure, AnalyticsAdapter, AnalyticsSendEvent, ParamList, P
 export type { HttpFetch } from './adapters/analytics_ga4.ts';
 export type { Level, LogEntry, LogFields, LogKind, LogValue } from './log_line.ts';
 export { truncate_ip } from './log_line.ts';
+export type { AlertSignal, MetricFamily, MetricSample } from './metrics.ts';
+export { ALERT_SIGNALS } from './metrics.ts';
 
 const CoreError = CoreContract.CoreError;
 type CoreErrorValue = CoreContract.CoreError;
@@ -121,6 +124,8 @@ export interface Logging {
   readonly list_client_errors: AdminOperation;
   readonly list_client_events: AdminOperation;
   readonly list_server_events: AdminOperation;
+  /** The metric families of `### metrics`, with the alert signals judged at the `server-time.clock_now` of the call. */
+  read_metrics(): MetricFamily[];
   begin_start(): void;
   complete_start(): string | null;
   stop(): void;
@@ -132,6 +137,18 @@ function integer_setting(settings: Readonly<Record<string, unknown>>, key: strin
   const value = settings[key];
   if (typeof value !== 'number' || !Number.isSafeInteger(value)) throw new TypeError(`logging: setting ${key} is not an integer`);
   return value;
+}
+
+function integer_list_setting(settings: Readonly<Record<string, unknown>>, key: string): number[] {
+  const value = settings[key];
+  if (!Array.isArray(value) || !value.every((item) => typeof item === 'number' && Number.isSafeInteger(item))) throw new TypeError(`logging: setting ${key} is not an integer array`);
+  return value as number[];
+}
+
+/** A number field of a log entry: a bigint as a number, anything else not a number as 0. */
+function number_field(value: LogValue | undefined): number {
+  if (typeof value === 'bigint') return Number(value);
+  return typeof value === 'number' ? value : 0;
 }
 
 function string_setting(settings: Readonly<Record<string, unknown>>, key: string): string {
@@ -183,6 +200,18 @@ export function create_logging(input: LoggingInput): Logging {
   };
   const adapter_name = settings['environments.<ENV>.adapters.analytics'];
   const debug_allowed = server.env !== 'STG' && server.env !== 'PROD';
+  const metrics = new Metrics(
+    {
+      duration_buckets_ms: integer_list_setting(settings, 'logging.metricsDurationBucketsMs'),
+      alert_window_ms: BigInt(integer_setting(settings, 'logging.alertWindowMs')),
+      alert_min_requests: integer_setting(settings, 'logging.alertMinRequests'),
+      alert_error_ratio_permille: integer_setting(settings, 'logging.alertErrorRatioPermille'),
+      alert_slow_request_ms: integer_setting(settings, 'logging.alertSlowRequestMs'),
+      alert_slow_ratio_permille: integer_setting(settings, 'logging.alertSlowRatioPermille'),
+      alert_error_log_count: integer_setting(settings, 'logging.alertErrorLogCount'),
+    },
+    CoreError.CORE_ERROR_INTERNAL,
+  );
 
   const windows = new SecurityWindows(max_repeated_ips);
   const annotations = new WeakMap<object, RequestLogAnnotation>();
@@ -196,7 +225,9 @@ export function create_logging(input: LoggingInput): Logging {
   const summary_line = (summary: SecuritySummary): void => {
     const entry: LogEntry = { kind: 'security', level: 'warn', message: summary.reason, user_id: summary.user_id, request_id: null, request: null, fields: null };
     const fields: LogFields = { ip: null, reason: 'repeated', count: summary.count, ips: summary.ips };
-    server.write_log_line(format_line(time.clock_now(), 'warn', entry, fields));
+    const now = time.clock_now();
+    server.write_log_line(format_line(now, 'warn', entry, fields));
+    metrics.line(now, 'security', 'warn', null);
   };
 
   /**
@@ -243,7 +274,10 @@ export function create_logging(input: LoggingInput): Logging {
     const level: Level =
       entry.kind === 'request' ? higher_level(fields.error_code === CoreError.CORE_ERROR_INTERNAL ? 'error' : 'info', entry.min_level ?? 'debug') : (entry.level ?? 'info');
     if (level === 'debug' && !debug_allowed) return null;
-    if (kind_fields(entry, fields, now)) server.write_log_line(format_line(now, level, entry, fields));
+    if (!kind_fields(entry, fields, now)) return null;
+    server.write_log_line(format_line(now, level, entry, fields));
+    const request = entry.kind === 'request' ? { request: entry.request, error_code: number_field(fields.error_code), duration_ms: number_field(fields.duration_ms) } : null;
+    metrics.line(now, entry.kind, level, request);
     return null;
   };
 
@@ -503,6 +537,10 @@ export function create_logging(input: LoggingInput): Logging {
     list_client_errors: admin_operation('list_client_errors', CLIENT_ERROR, LIST_INPUT),
     list_client_events: admin_operation('list_client_events', CLIENT_EVENT, LIST_EVENT_INPUT),
     list_server_events: admin_operation('list_server_events', SERVER_EVENT, LIST_EVENT_INPUT),
+    read_metrics() {
+      const db = storage.read_db_metrics();
+      return metrics.read(time.clock_now(), db);
+    },
     begin_start() {
       register_tables(storage);
       adapter = pick_adapter();
@@ -515,6 +553,7 @@ export function create_logging(input: LoggingInput): Logging {
     },
     stop() {
       windows.clear();
+      metrics.clear();
       last_send_failure = null;
     },
     include_dev_code(code) {

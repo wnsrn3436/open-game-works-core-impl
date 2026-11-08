@@ -195,6 +195,8 @@ export interface RequestOptions {
   readonly platform?: string;
   /** The decoded request message, checked by the contract's field validator before the transaction. */
   readonly message?: unknown;
+  /** The `duration_ms` of the `request` line, which `routing` measures. Default: 1. */
+  readonly duration_ms?: number;
 }
 
 export interface RequestResult<T> {
@@ -271,7 +273,7 @@ export async function request<T>(server: Server, user_id: bigint, name: string, 
     user_id,
     request_id,
     request: request_name,
-    fields: { error_code: run.code, duration_ms: 1, client_version: fields.client_version, platform: fields.platform, seed, ...annotation.fields },
+    fields: { error_code: run.code, duration_ms: options.duration_ms ?? 1, client_version: fields.client_version, platform: fields.platform, seed, ...annotation.fields },
     min_level: annotation.min_level,
     request_body: options.body ?? null,
     sensitive: options.sensitive ?? false,
