@@ -11,6 +11,11 @@ func make_dev_build_info() -> BuildInfo:
 	return null
 
 
+## Passes the random base and the frame step of the launch values of a dev run to `TimeCore` in `InitModules` 2.
+func pass_time_launch_values() -> void:
+	pass
+
+
 ## Passes the held test replacements in `InitModules` 2: test clock, `NetworkTransport`, log listener.
 func apply_test_replacements() -> void:
 	pass

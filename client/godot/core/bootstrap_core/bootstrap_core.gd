@@ -112,6 +112,14 @@ static var _pending_log_messages: PackedStringArray = PackedStringArray()
 ## DEV state. Launch values by name, read once from the launch value file.
 static var _launch_values: Dictionary[String, String] = {}
 static var _launch_values_read: bool = false
+## DEV state. The error of the first launch value that is not a JSON string, empty when there is none. A dev run with
+## it is fatal in `InitModules` 1.
+static var _launch_value_error: String = ""
+## DEV state. The random base and the frame step fps of the launch values of a dev run, set with its build info and
+## passed to `TimeCore` in `InitModules` 2 of every boot. fps 0 is no frame step.
+static var _has_random_base: bool = false
+static var _random_base: int = 0
+static var _frame_step_fps: int = 0
 ## Core test state. When true, a process end request is counted instead of sent to the engine.
 static var _test_hold_quit: bool = false
 static var _quit_request_count: int = 0
@@ -136,6 +144,12 @@ static var _test_downloads: _UPDATE_SET = null
 ## Core test state. When not empty, `InitModules` 1 reads the build info file at this path instead of the build info
 ## file of the build.
 static var _test_build_info_path: String = ""
+## Core test state. When not empty, the launch values are read from the launch value file at this path instead of the
+## one of the command line.
+static var _test_launch_values_path: String = ""
+## Core test state. When not empty, the launch values the export holds are read from this path instead of
+## `res://generated/launch_values.json`.
+static var _test_export_launch_values_path: String = ""
 ## Core test state. When not empty, `start_boot` takes the current scene of this scene file as the boot entry scene
 ## instead of the current scene of the project main scene.
 static var _test_main_scene_path: String = ""
@@ -797,6 +811,7 @@ static func _pass_adapters() -> void:
 	if _has("NativeUiCore"):
 		_pass_native_adapter()
 	if _dev != null:
+		_dev.pass_time_launch_values()
 		_dev.apply_test_replacements()
 
 
@@ -1297,6 +1312,12 @@ static func _shutdown() -> void:
 	_is_update_reboot = false
 	_launch_values.clear()
 	_launch_values_read = false
+	_launch_value_error = ""
+	_has_random_base = false
+	_random_base = 0
+	_frame_step_fps = 0
+	_test_launch_values_path = ""
+	_test_export_launch_values_path = ""
 	_test_downloads = null
 	_test_build_info_path = ""
 	_trace_enabled = false
