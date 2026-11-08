@@ -217,6 +217,11 @@ export function trio(): [TestConnection, TestConnection, TestConnection] {
   return [new TestConnection(new_user_id()), new TestConnection(new_user_id()), new TestConnection(new_user_id())];
 }
 
+/** Connections of four new users. */
+export function quartet(): [TestConnection, TestConnection, TestConnection, TestConnection] {
+  return [new TestConnection(new_user_id()), new TestConnection(new_user_id()), new TestConnection(new_user_id()), new TestConnection(new_user_id())];
+}
+
 /** Prepares the transport and opens the match session of a match the way `matchmaker`'s match creation does. */
 export async function open_match<C extends readonly TestConnection[]>(server: Server, match_id: string, connections: C, start_at: bigint = server.clock.now()): Promise<Match<C>> {
   const players = connections.map((c, index) => player(c.user_id, index));
@@ -241,8 +246,11 @@ export function match_frame(kind: CoreContract.MatchmakerFrameKind, match_id: st
   return f;
 }
 
-export function leave(match_id: string): CoreContract.MatchmakerFrame {
-  return match_frame(Kind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, match_id);
+/** `MATCH_LEAVE` of that match. `forfeit` `true` (a leave before the match end) unless given. */
+export function leave(match_id: string, forfeit = true): CoreContract.MatchmakerFrame {
+  const f = match_frame(Kind.MATCHMAKER_FRAME_KIND_MATCH_LEAVE, match_id);
+  f.forfeit = forfeit;
+  return f;
 }
 
 export function rejoin(match_id: string): CoreContract.MatchmakerFrame {

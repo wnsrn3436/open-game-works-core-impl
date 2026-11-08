@@ -1,4 +1,4 @@
-import { bytes, Kind, kinds, leave, new_user_id, open_match, pair, rejoin, signal, started, stop_all, TestConnection, trio } from './helpers.ts';
+import { bytes, Kind, kinds, leave, new_user_id, open_match, pair, quartet, rejoin, signal, started, stop_all, TestConnection, trio } from './helpers.ts';
 
 afterEach(() => {
   stop_all();
@@ -76,12 +76,18 @@ describe('leave and disconnect', () => {
     expect(server.p2p.is_bound(c2)).toBe(true);
   });
 
-  it('returns LEFT, DISCONNECTED and REJOINED participant changes, and none for a connection bound to no session', async () => {
+  it('returns LEFT for MATCH_LEAVE with forfeit true, ENDED for MATCH_LEAVE with forfeit false, DISCONNECTED and REJOINED participant changes, and none for a connection bound to no session', async () => {
     const server = await started();
-    const match = await open_match(server, 'm-changes', trio());
+    const match = await open_match(server, 'm-changes', quartet());
     expect(match.changes).toEqual([]);
-    const [, c1, c2] = match.connections;
-    expect(server.p2p.handle_frame(c2, leave('m-changes'))).toEqual({ match_id: 'm-changes', index: 2, kind: 'LEFT' });
+    const [c0, c1, c2, c3] = match.connections;
+    expect(server.p2p.handle_frame(c2, leave('m-changes', true))).toEqual({ match_id: 'm-changes', index: 2, kind: 'LEFT' });
+    expect(server.p2p.handle_frame(c3, leave('m-changes', false))).toEqual({ match_id: 'm-changes', index: 3, kind: 'ENDED' });
+    // MATCH_LEAVE with forfeit false also sends PEER_LEFT to the others
+    expect(kinds(c0.take())).toEqual([
+      { kind: Kind.MATCHMAKER_FRAME_KIND_PEER_LEFT, index: 2 },
+      { kind: Kind.MATCHMAKER_FRAME_KIND_PEER_LEFT, index: 3 },
+    ]);
     expect(server.p2p.connection_closed(c1)).toEqual({ match_id: 'm-changes', index: 1, kind: 'DISCONNECTED' });
     const back = new TestConnection(c1.user_id);
     expect(server.p2p.handle_frame(back, rejoin('m-changes'))).toEqual({ match_id: 'm-changes', index: 1, kind: 'REJOINED' });
@@ -90,8 +96,10 @@ describe('leave and disconnect', () => {
     expect(server.p2p.handle_frame(loose, leave('m-changes'))).toBeNull();
     expect(server.p2p.handle_frame(loose, signal(0, bytes(1)))).toBeNull();
     expect(server.p2p.connection_closed(loose)).toBeNull();
-    // c2 left and c1 was closed: neither is bound any more
+    // c2 and c3 left and c1 was closed: none is bound any more
     expect(server.p2p.connection_closed(c2)).toBeNull();
+    expect(server.p2p.connection_closed(c3)).toBeNull();
     expect(server.p2p.connection_closed(c1)).toBeNull();
+    expect(server.p2p.handle_frame(c3, leave('m-changes', false))).toBeNull();
   });
 });

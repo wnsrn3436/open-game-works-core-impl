@@ -1,5 +1,5 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
-import { bytes, encoded, Kind, kinds, leave, MAX_DURATION, new_user_id, open_match, pair, rejoin, signal, started, stop_all, TestConnection, trio } from './helpers.ts';
+import { bytes, encoded, Kind, kinds, leave, MAX_DURATION, new_user_id, open_match, pair, quartet, rejoin, signal, started, stop_all, TestConnection, trio } from './helpers.ts';
 
 afterEach(() => {
   stop_all();
@@ -97,6 +97,32 @@ describe('MATCH_REJOIN', () => {
     const g = only_frame(back2);
     expect(g.ok).toBe(true);
     expect(g.left_indices).toEqual([0, 2]);
+  });
+
+  it('after MATCH_LEAVE of either forfeit value, MATCH_REJOIN of that participant is ok false and its index is in left_indices of a later MATCH_REJOINED of another participant', async () => {
+    const server = await started();
+    const match = await open_match(server, 'm-left-kinds', quartet());
+    const [c0, c1, c2, c3] = match.connections;
+    expect(server.p2p.handle_frame(c2, leave('m-left-kinds', true))?.kind).toBe('LEFT');
+    expect(server.p2p.handle_frame(c3, leave('m-left-kinds', false))?.kind).toBe('ENDED');
+    c3.take();
+
+    for (const gone of [c2, c3]) {
+      const again = new TestConnection(gone.user_id);
+      expect(server.p2p.handle_frame(again, rejoin('m-left-kinds'))).toBeNull();
+      expect_failed(only_frame(again), 'm-left-kinds');
+      // also from the connection that sent MATCH_LEAVE
+      expect(server.p2p.handle_frame(gone, rejoin('m-left-kinds'))).toBeNull();
+      expect_failed(only_frame(gone), 'm-left-kinds');
+    }
+
+    server.p2p.connection_closed(c1);
+    c0.take();
+    const back = new TestConnection(c1.user_id);
+    expect(server.p2p.handle_frame(back, rejoin('m-left-kinds'))?.kind).toBe('REJOINED');
+    const f = only_frame(back);
+    expect(f.ok).toBe(true);
+    expect(f.left_indices).toEqual([2, 3]);
   });
 
   it('fails for a participant that left, a user not in the match and a match whose expires_at has passed', async () => {

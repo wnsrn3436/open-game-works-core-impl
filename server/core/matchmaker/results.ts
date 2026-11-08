@@ -374,7 +374,8 @@ export function create_results(env: Env): Results {
       if (record.status !== 'PENDING') return;
       const p = record.participants[change.index];
       if (p === undefined) return;
-      if (change.kind === 'LEFT') {
+      // `ENDED` (`MATCH_LEAVE` with `forfeit` `false`) is written as a leave, as every `MATCH_LEAVE` was before the kind existed.
+      if (change.kind === 'LEFT' || change.kind === 'ENDED') {
         p.left_at = at;
         write_participant(storage.db(tx), record, p, ['left_at']);
       } else {

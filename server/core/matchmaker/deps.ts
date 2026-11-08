@@ -54,7 +54,7 @@ export interface Connection {
 export interface ParticipantChange {
   readonly match_id: string;
   readonly index: number;
-  readonly kind: 'LEFT' | 'DISCONNECTED' | 'REJOINED';
+  readonly kind: 'LEFT' | 'ENDED' | 'DISCONNECTED' | 'REJOINED';
 }
 
 export interface MatchmakerP2pSignaling {
