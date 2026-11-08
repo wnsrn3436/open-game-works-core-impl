@@ -267,7 +267,7 @@ static func _format_line(time: int, level: Level, tag: String, message: String, 
 
 
 ## `\`, tab, LF and CR as `\\`, `\t`, `\n`, `\r`. A Godot `String` never holds U+0000: the engine turns it into
-## U+FFFD when it makes the string.
+## U+FFFD when it makes the string, so there is no U+0000 to escape as `\0` here.
 static func _escape(text: String) -> String:
 	return text.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n").replace("\r", "\\r")
 
@@ -347,6 +347,7 @@ static func _event_problem(event_name: String, params: Array[LogEventParam]) -> 
 				if is_nan(param.float_value) or is_inf(param.float_value):
 					return "parameter %s is NaN or infinite" % param.name
 			LogEventParam.ValueType.STRING:
+				# No U+0000 check: a Godot `String` cannot hold U+0000 (the engine makes it U+FFFD), and U+FFFD is valid.
 				if param.string_value.length() > _event_string_max_length:
 					return "parameter %s is longer than LogCore.eventStringMaxLength" % param.name
 			_:
@@ -355,6 +356,8 @@ static func _event_problem(event_name: String, params: Array[LogEventParam]) -> 
 
 
 ## Puts the message, stack trace and tag cut to the send lengths into the error queue, or counts it as dropped.
+## The entry already holds U+FFFD in place of each U+0000 that the caller wrote, because a Godot `String` cannot
+## hold U+0000 (the engine replaces it when it makes the string), which is what the server needs.
 static func _enqueue_error(entry: LogEntry) -> void:
 	if _errors.size() >= _error_queue_max_count:
 		_dropped_errors += 1
