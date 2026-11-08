@@ -60,7 +60,7 @@
   "game-update.fileMaxAgeMs": 31536000000,
   "game-update.cacheRefreshMs": 30000,
   "game-update.cdnTimeoutMs": 120000,
-  "item-ledger.historyRetentionMs": 34560000000,
+  "item-ledger.historyRetentionMs": 7776000000,
   "mailbox.defaultExpireMs": 2592000000,
   "mailbox.maxExpireMs": 31536000000,
   "mailbox.maxArgs": 8,
