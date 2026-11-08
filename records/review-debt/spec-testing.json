@@ -1,0 +1,12 @@
+{
+  "target": "spec testing",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/server-core/SKILL.md:238",
+      "problem": "The server process entry point is said to call `routing.create_server` \"with the server start arguments below\", but `create_server` also needs the server module list, the server build data folder, the merged core settings, the game settings values and `register`/`registerDev` (skills/server-core/modules/routing.md:44), and no defining document sets where the entry point reads each of them (e.g. `server/generated/server_modules.json`, `server/build/data/`, `server/main.ts`); the existing `## test` item skills/server-core/modules/testing.md:288 already starts the entry point in a server core test",
+      "foundBy": "spec testing"
+    }
+  ]
+}
