@@ -5,7 +5,17 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import * as GameContract from '../../../generated/contract/game_contract.ts';
-import { core_test_register, login, restart_test_server, send, send_admin, start_test_server, stop_test_server, type TestServer } from '../dev/index.ts';
+import * as CoreCheatContract from '../../../dev/generated/contract/core_cheat_contract.ts';
+import { core_test_register, login, restart_test_server, send, send_admin, send_cheat, start_peer_server, start_test_server, stop_test_server, type TestServer } from '../dev/index.ts';
+
+// The core test data has no `service Cheat` `rpc`: the game cheat contract holds `cheat/Break`, which lists
+// `GAME_ERROR_CORE_TEST`, with the request and response of `core/cheat/SetTimeOffset`.
+vi.mock('../../../dev/generated/contract/game_cheat_contract.ts', async () => {
+  const core_cheat = await import('../../../dev/generated/contract/core_cheat_contract.ts');
+  const base = core_cheat.RPCS.find((rpc) => rpc.name === 'core/cheat/SetTimeOffset');
+  if (base === undefined) throw new Error('the base proto has no core/cheat/SetTimeOffset');
+  return { RPCS: [{ ...base, name: 'cheat/Break', errors: [1000], validate: null }] };
+});
 
 let folder = '';
 let file = '';
@@ -19,7 +29,8 @@ beforeEach(() => {
 
 afterEach(async () => {
   delete process.env.OGW_TEST_RECORD;
-  for (const server of servers.splice(0)) await stop_test_server(server);
+  // Peers were pushed after their test server: stop them first.
+  for (const server of servers.splice(0).reverse()) await stop_test_server(server);
   rmSync(folder, { recursive: true, force: true });
 });
 
@@ -40,8 +51,17 @@ function register(core: Readonly<Record<string, unknown>>): void {
   routing.register_admin_operation({ name: 'game_probe', role: 'read', body: 'json', input: {}, user_target: null, handler: () => ({}) });
 }
 
+/** What the content cheat `cheat/Break` of `register_dev` returns next. */
+let cheat_outcome: 'ok' | 'game_error' = 'ok';
+
+/** `registerDev` with the content cheat `cheat/Break` by `cheat_outcome`. */
+function register_dev(core: Readonly<Record<string, unknown>>): void {
+  const cheat = core.cheat as { register_cheat_handler(name: string, handler: () => unknown): void };
+  cheat.register_cheat_handler('Break', () => (cheat_outcome === 'game_error' ? GameContract.GameError.GAME_ERROR_CORE_TEST : new CoreCheatContract.SetTimeOffsetResponse()));
+}
+
 async function start(): Promise<TestServer> {
-  const server = await start_test_server(undefined, undefined, undefined, undefined, undefined, undefined, register);
+  const server = await start_test_server(undefined, undefined, undefined, undefined, undefined, undefined, register, register_dev);
   servers.push(server);
   return server;
 }
@@ -72,6 +92,30 @@ describe('test record', () => {
       { kind: 'admin_operation', operation: 'game_probe' },
       { kind: 'game_error', request: 'RunCoreTest', error: 'GAME_ERROR_CORE_TEST' },
       { kind: 'admin', operation: 'game_probe', status: admin.status },
+      { kind: 'admin_operation', operation: 'game_probe' },
+    ]);
+  });
+
+  it('records game_error of a send_cheat whose response is a GameError only', async () => {
+    const server = await start();
+    const session = await login(server, 'cheat_record_user');
+    cheat_outcome = 'game_error';
+    const failed = await send_cheat(session, 'cheat/Break', new CoreCheatContract.SetTimeOffsetRequest());
+    expect(failed.envelope.error?.code).toBe(GameContract.GameError.GAME_ERROR_CORE_TEST);
+    cheat_outcome = 'ok';
+    expect((await send_cheat(session, 'cheat/Break', new CoreCheatContract.SetTimeOffsetRequest())).envelope.error).toBeNull();
+    expect(lines()).toEqual([
+      { kind: 'admin_operation', operation: 'game_probe' },
+      { kind: 'game_error', request: 'cheat/Break', error: 'GAME_ERROR_CORE_TEST' },
+    ]);
+  });
+
+  it('records admin_operation once more at start_peer_server', async () => {
+    const server = await start();
+    expect(lines()).toEqual([{ kind: 'admin_operation', operation: 'game_probe' }]);
+    servers.push(await start_peer_server(server));
+    expect(lines()).toEqual([
+      { kind: 'admin_operation', operation: 'game_probe' },
       { kind: 'admin_operation', operation: 'game_probe' },
     ]);
   });
