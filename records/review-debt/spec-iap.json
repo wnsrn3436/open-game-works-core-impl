@@ -1,0 +1,12 @@
+{
+  "target": "spec iap",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/server-core/modules/iap.md:368",
+      "problem": "Store notification path, existing before this diff. A `GOOGLE` `REFUND` notification of a `Subscription` whose purchase token `purchases.subscriptionsv2` answers with HTTP 410 (subscription expired more than 60 days earlier, e.g. a late chargeback) gets a subscription status lookup failure. The lookup rule at iap.md:368 makes every non-200 answer an adapter call failure, and that failure is HTTP 500 (iap.md:235). The store retries until it gives up, and the refund is never revoked. R1-1 is the same cause on the refund lookup path",
+      "foundBy": "spec iap"
+    }
+  ]
+}
