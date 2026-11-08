@@ -167,6 +167,15 @@ describe('background work', () => {
   describe('a job run of server start that does not end within testing.backgroundWaitTimeoutMs', () => {
     /** A short wait limit: each case waits it out in real time. */
     const SHORT_WAIT = { 'testing.backgroundWaitTimeoutMs': 1000 };
+    /**
+     * The modules these cases need: `testing` and its dependencies. The short limit also bounds the starts that must
+     * succeed (the test server of the restart and peer cases), and a start waits for the server start job runs of
+     * every module in the list, `storage_sweep` over each table with an expiry column among them, which take real DB
+     * time that grows with the load of the host. With every module, that wait came close to the short limit under
+     * load; with these modules, it holds only the job runs these cases are about.
+     */
+    const MODULES = ['admin-api', 'auth', 'cheat', 'game-update', 'idempotency', 'item-ledger', 'logging', 'mailbox', 'routing', 'server-time', 'session', 'storage', 'testing', 'validation'];
+    const start = (db?: 'sqlite' | 'postgresql'): ReturnType<typeof start_test_server> => start_test_server(undefined, db, undefined, undefined, undefined, SHORT_WAIT, register, undefined, MODULES);
     const TIMED_OUT = /wait_background did not end within 1000 ms/;
     let finish = (): void => undefined;
     let held = Promise.resolve();
@@ -193,7 +202,7 @@ describe('background work', () => {
       const databases = await list_databases();
       const listening = listening_servers();
       holding = true;
-      await expect(start_test_server(undefined, db, undefined, undefined, undefined, SHORT_WAIT, register)).rejects.toThrow(TIMED_OUT);
+      await expect(start(db)).rejects.toThrow(TIMED_OUT);
       expect(added(folders, server_folders())).toEqual([]);
       expect(added(databases, await list_databases())).toEqual([]);
       expect(await settled_listening(listening)).toBeLessThanOrEqual(listening);
@@ -201,7 +210,7 @@ describe('background work', () => {
 
     it('makes restart_test_server throw and leaves no temporary folder, PostgreSQL database or port', async () => {
       const listening = listening_servers();
-      const server = await start_test_server(undefined, 'postgresql', undefined, undefined, undefined, SHORT_WAIT, register);
+      const server = await start('postgresql');
       const { port } = server;
       const folder = server.shared.folder;
       const name = server.shared.database.name;
@@ -214,7 +223,7 @@ describe('background work', () => {
     });
 
     it('makes start_peer_server throw and leaves no peer port, while the test server keeps its folder and DB and takes requests', async () => {
-      const server = await start_test_server(undefined, undefined, undefined, undefined, undefined, SHORT_WAIT, register);
+      const server = await start();
       try {
         const listening = listening_servers();
         holding = true;

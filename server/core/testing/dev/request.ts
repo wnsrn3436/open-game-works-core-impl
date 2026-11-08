@@ -8,6 +8,7 @@ import type { ClockAdapter } from '../../server-time/clock.ts';
 import { sign_request } from '../../session/index.ts';
 import { NO_ACCESS_TOKEN_RPC } from '../../storage/index.ts';
 import { client_data_version } from './runner_input.ts';
+import { record, record_game_error } from './test_record.ts';
 import type { TestServer } from './test_server.ts';
 
 /** A message of the contract: something with `encode`. */
@@ -224,7 +225,13 @@ export async function send(session: TestSession, name: string, message: Message,
   const info = rpc_info(name, false);
   // Header overrides and the raw body apply after the signature of the encoded message (`### request`).
   const spec = { name, body: message.encode(), raw_body: options.raw_body, request_id, timestamp: options.timestamp, session, dev_access: null, overrides: options.headers };
-  return post(server, spec, info);
+  return recorded(name, await post(server, spec, info));
+}
+
+/** Records the `game_error` line of a `send` or `send_cheat` result (`### test run`), and returns the result. */
+function recorded(name: string, result: SendResult): SendResult {
+  record_game_error(name, result.envelope.error?.code ?? null);
+  return result;
 }
 
 function dev_access_of(server: RequestServer): string {
@@ -239,7 +246,7 @@ export async function send_cheat(session: TestSession, name: string, message: Me
   check_running(server);
   const dev_access = dev_access_of(server);
   const info = rpc_info(name, true);
-  return post(server, { name, body: message.encode(), request_id: randomUUID(), timestamp: undefined, session, dev_access, overrides: undefined }, info);
+  return recorded(name, await post(server, { name, body: message.encode(), request_id: randomUUID(), timestamp: undefined, session, dev_access, overrides: undefined }, info));
 }
 
 function auth_result(result: SendResult, name: string): CoreContract.AuthResult {
@@ -344,6 +351,7 @@ export async function send_admin(server: TestServer, operation: string, body: un
     body: binary === null ? text : binary.binary,
   });
   const bytes = new Uint8Array(await reply.arrayBuffer());
+  record({ kind: 'admin', operation, status: reply.status });
   return { status: reply.status, headers: header_object(reply.headers), body: bytes, json: parse_json(bytes) };
 }
 

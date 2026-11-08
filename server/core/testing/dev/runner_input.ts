@@ -32,6 +32,7 @@ export const runner = {
   shared_fixtures: (): string | null => env('OGW_SHARED_FIXTURES'),
   core_fixtures: (): string | null => env('OGW_CORE_FIXTURES'),
   postgresql: (): string | null => env('OGW_POSTGRESQL'),
+  test_record: (): string | null => env('OGW_TEST_RECORD'),
   default_db: (): DbKind => {
     const value = env('OGW_DEFAULT_DB');
     if (value === 'sqlite' || value === 'postgresql') return value;

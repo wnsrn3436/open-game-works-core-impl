@@ -29,7 +29,9 @@ import {
   type ServerInstance,
   type TestEnvironment,
 } from './server_binding.ts';
+import type { SeedProvider } from '../../storage/index.ts';
 import { TestClock } from './test_clock.ts';
+import { record } from './test_record.ts';
 
 /**
  * What `set_key_source` gives a key source: the value it returns (the public key list or root certificate of the
@@ -125,6 +127,7 @@ export class TestServer {
    */
   async start_instance(): Promise<void> {
     const seeds = new Map<string, bigint>();
+    const admin_operations: string[] = [];
     const first_line = this.log_lines.length;
     const instance = await new_test_instance({
       environment: this.shared.environment,
@@ -137,10 +140,11 @@ export class TestServer {
       overrides: this.shared.overrides,
       key_sources: key_sources(this.shared),
       fake_adapters: Object.fromEntries([...this.shared.fakes].map(([key, pair]) => [key, pair.adapter])),
-      register: this.register,
+      register: recording_register(this.register, admin_operations),
       registerDev: this.registerDev,
       clock: this.shared.clock,
-      seed_of: (request_id) => seeds.get(request_id) ?? null,
+      // A seed given to `send` is the seed of its request ID; `make_seed` (request ID empty string) gets secure random.
+      seed_of: (request_id) => (request_id === '' ? null : (seeds.get(request_id) ?? null)),
       log_writer: (line) => {
         this.log_lines.push(line);
       },
@@ -152,6 +156,7 @@ export class TestServer {
       throw stopped === null ? failure : with_cleanup_failure(failure, 'stopping the server instance', stopped);
     }
     this.own = { instance, port: started, seeds };
+    for (const operation of admin_operations) record({ kind: 'admin_operation', operation });
     if (this.shared.environment !== 'LOCAL') return;
     // A LOCAL test server returns after the job runs of server start: a test that moves the clock next does not overlap them.
     const waited = await wait_instance_background(this).then(() => null, (error: unknown) => error);
@@ -166,6 +171,24 @@ export class TestServer {
     this.own = null;
     if (own !== null) await own.instance.stop();
   }
+}
+
+/**
+ * `register` with a `core.routing.register_admin_operation` that also keeps the name of each content admin operation it
+ * registers in `names`, for the `admin_operation` lines of the test record (`### test run`).
+ */
+function recording_register(register: RegisterFunction, names: string[]): RegisterFunction {
+  return (core) => {
+    const routing = core.routing as Readonly<Record<string, unknown>> | undefined;
+    const original = routing?.register_admin_operation;
+    if (routing === undefined || typeof original !== 'function') return register(core);
+    const register_admin_operation = (operation: unknown): unknown => {
+      const name = (operation as { name?: unknown } | null)?.name;
+      if (typeof name === 'string') names.push(name);
+      return (original as (operation: unknown) => unknown)(operation);
+    };
+    return register({ ...core, routing: { ...routing, register_admin_operation } });
+  };
 }
 
 /**
@@ -222,8 +245,8 @@ export interface TestInstanceParts {
   readonly registerDev: RegisterFunction;
   /** Set on a `LOCAL` instance with `server-time.set_clock`. */
   readonly clock: ClockAdapter;
-  /** The seed of a request ID, set on a `LOCAL` instance with `storage.set_seed_provider`. */
-  readonly seed_of: (request_id: string) => bigint | null;
+  /** The seed provider (request ID, user ID, request name), set on a `LOCAL` instance with `storage.set_seed_provider`. */
+  readonly seed_of: SeedProvider;
   readonly log_writer: (line: string) => void;
 }
 
