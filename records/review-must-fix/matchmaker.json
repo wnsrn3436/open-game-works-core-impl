@@ -1,0 +1,13 @@
+{
+  "target": "matchmaker",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "M1",
+      "severity": "high",
+      "location": "server/core/matchmaker/records.ts:60",
+      "problem": "`MatchRecordInput`, the match record input that the apply hooks get, has no `status` (and `record_input` at server/core/matchmaker/records.ts:356 sets none). open-game-works-core/skills/server-core/modules/matchmaker.md:273-274 defines `status` in the match record input, and open-game-works-core/skills/server-core/modules/rating.md `## API` reads `status` from it. Content code that does what open-game-works-core/skills/server-core/modules/rating.md says (calls `rating.apply_match_outcome` inside `matchmaker.apply_match_result` with the received record) fails the type check, because `rating.MatchRecord.status` is required. At runtime it gets `status` `undefined`, `is_valid_input` (server/core/rating/index.ts:287-294) returns false, and every apply gives `INVALID_INPUT` with an `error` log and no rating change. The rating integration test hides this with `status: record.status ?? MATCH_JUDGE_STATUS_CONFIRMED` (server/core/rating/tests/matchmaker.test.ts:15)",
+      "foundBy": "rating round 1"
+    }
+  ]
+}

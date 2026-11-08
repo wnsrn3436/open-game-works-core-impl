@@ -1,6 +1,6 @@
 {
   "target": "matchmaker",
-  "nextId": 3,
+  "nextId": 4,
   "items": [
     {
       "id": "D1",
@@ -13,6 +13,12 @@
       "location": "server/core/matchmaker/realtime.ts:382",
       "problem": "`HELLO` handling runs only `data_version_error(frame.data_version, frame.client_version)` (server/core/matchmaker/realtime.ts:342-348), which never calls `game-update.is_below_min_version`, and the matchmaker reads neither a `platform` field of the frame nor that operation (`grep platform server/core/matchmaker/*.ts` finds nothing; server/core/matchmaker/index.ts:118 binds only `is_data_update_ready`). The matchmaker spec `HELLO` handling (skills/server-core/modules/matchmaker.md:114) and its `## test` item (matchmaker.md:399) require `CLOSE`(`APP_UPDATE_REQUIRED`) for `client_version` `1.1.9` and `platform` `android` under a deploy list with android `min_version` `1.2.0`, and `CLOSE`(`INVALID_REQUEST`) for a non-empty `platform` that `validation.is_platform` rejects; with this code that `HELLO` gets `HELLO_ACK`. game-update.md lists `matchmaker` as a caller of `is_below_min_version`",
       "foundBy": "game-update round 1"
+    },
+    {
+      "id": "D3",
+      "location": "server/core/matchmaker/shared.ts:136",
+      "problem": "matchmaker has no `FORFEIT` judgement and no `apply_match_forfeit` hook (`decide` in server/core/matchmaker/judge.ts returns only `CONFIRMED` or `MISMATCH`; `apply_in` in server/core/matchmaker/results.ts:143-152 calls only `apply_match_result` or `apply_match_mismatch`; `grep -i forfeit server/core/matchmaker/*.ts` finds only a comment). open-game-works-core/skills/server-core/modules/matchmaker.md:208-209 and :215 define them, so the `FORFEIT` path of `rating.apply_match_outcome` (open-game-works-core/skills/server-core/modules/rating.md `### match outcome` steps 3-4) cannot be reached from matchmaker, and no match is judged `FORFEIT`",
+      "foundBy": "rating round 1"
     }
   ]
 }
