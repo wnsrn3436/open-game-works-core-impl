@@ -1,5 +1,5 @@
 /**
- * A test server instance of `game-update` with its dependencies `server-time`, `storage` and `logging` on SQLite or
+ * A test server instance of `game-update` with its dependencies `server-time`, `storage`, `logging` and `validation` on SQLite or
  * PostgreSQL by the run's DB kind. `admin` plays the part of `admin-api`'s processing step (input fields, the
  * prepare function outside the transaction, the handler function in a game tx, `run_read_only` for role `read`,
  * rollback on a failure reason) and `get` the part of `routing` that hands a path to a route method.
@@ -14,6 +14,7 @@ import { create_server_time, type ServerTime } from '../../server-time/index.ts'
 import { create_storage_dev, type StorageDev } from '../../storage/dev/index.ts';
 import { create_storage, type GameTx, type Storage } from '../../storage/index.ts';
 import { core_test_server_paths } from '../../testing/dev/index.ts';
+import { create_validation } from '../../validation/index.ts';
 import { core_settings, new_db, stop_all as stop_holders, test_server, TestClock, type DbTarget } from '../../storage/tests/helpers.ts';
 import { create_fake_adapter, create_game_update_dev, type FakeCdnController } from '../dev/index.ts';
 import { create_game_update, type AdminOperation, type GameUpdate, type OutgoingHttp, type RouteResponse } from '../index.ts';
@@ -125,7 +126,7 @@ function launch(shared: Shared): TestServer | StartFailure {
   const base_server = test_server(db, {
     env,
     dev,
-    server_modules: ['server-time', 'storage', 'logging', 'game-update'],
+    server_modules: ['server-time', 'storage', 'logging', 'validation', 'game-update'],
     secrets,
     write_log_line: (line) => lines.push(line),
     fake_adapters: dev ? { cdn: shared.fake.adapter } : {},
@@ -136,9 +137,10 @@ function launch(shared: Shared): TestServer | StartFailure {
   const storage_dev = create_storage_dev(storage);
   const logging = create_logging({ settings, modules: { storage, 'server-time': time }, server: input_server });
   if (dev) create_logging_dev(logging);
-  const game_update = create_game_update({ settings, modules: { storage, 'server-time': time, logging }, server: input_server });
+  const validation = create_validation({ settings, modules: { storage, 'item-ledger': {} }, server: input_server });
+  const game_update = create_game_update({ settings, modules: { validation, storage, 'server-time': time, logging }, server: input_server });
   if (dev) create_game_update_dev(game_update);
-  const modules = [time, storage, logging, game_update];
+  const modules = [time, storage, logging, validation, game_update];
   for (const module of modules) module.begin_start();
   let failure: string | null = null;
   for (const module of modules) failure ??= module.complete_start();

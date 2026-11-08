@@ -1,10 +1,11 @@
 /**
- * What game-update uses of its dependencies (`storage`, `server-time`, `logging`) and of the module input `server`
+ * What game-update uses of its dependencies (`validation`, `storage`, `server-time`, `logging`) and of the module input `server`
  * (`server-core` `## module`). Only these operations and fields are read.
  */
 import type { Logging } from '../logging/index.ts';
 import type { ServerTimeApi } from '../server-time/index.ts';
 import type { Storage } from '../storage/index.ts';
+import type { Validation } from '../validation/index.ts';
 import type { OutgoingHttp } from './cdn.ts';
 import type { Environment } from './deploy_list.ts';
 
@@ -18,6 +19,9 @@ export type GameUpdateStorage = Pick<Storage, 'register_table' | 'run_game_trans
 
 /** The `server-time` operations game-update calls. */
 export type GameUpdateServerTime = Pick<ServerTimeApi, 'clock_now' | 'schedule_job' | 'network_time_limit'>;
+
+/** The `validation` operations game-update calls. */
+export type GameUpdateValidation = Pick<Validation, 'parse_version' | 'compare_versions'>;
 
 /** The `logging` operations game-update calls. */
 export type GameUpdateLogging = Pick<Logging, 'write'>;
