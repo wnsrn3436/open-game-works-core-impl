@@ -252,6 +252,17 @@ describe('alert signals', () => {
     expect(firing(server.logging.read_metrics(), 'error_logs')).toBe(1);
   });
 
+  it('error_logs counts a line in the alert window of a read_metrics after a read_metrics at a later time, when the test clock went back', async () => {
+    const window_ms = 60_000n;
+    const server = await start({ settings: { 'logging.alertErrorLogCount': 1, 'logging.alertWindowMs': Number(window_ms) } });
+    server.logging.write({ kind: 'error', level: 'error', message: 'failed', user_id: null, request_id: null, request: null, fields: { stack_trace: null } });
+    expect(firing(server.logging.read_metrics(), 'error_logs')).toBe(1);
+    await advance(server, 2n * window_ms);
+    expect(firing(server.logging.read_metrics(), 'error_logs')).toBe(0);
+    await advance(server, -2n * window_ms + window_ms / 2n);
+    expect(firing(server.logging.read_metrics(), 'error_logs')).toBe(1);
+  });
+
   it('wal_archive is 0 while storage.read_db_metrics gives wal_archive_failing false, and 1 while it gives true', async () => {
     const server = await start();
     expect(firing(server.logging.read_metrics(), 'wal_archive')).toBe(0);
