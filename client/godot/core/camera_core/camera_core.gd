@@ -31,6 +31,8 @@ const _PARALLEL_EPSILON: float = 0.000001
 const _TRAUMA_EPSILON: float = 0.000000001
 ## Most noise values drawn in one frame: values older than the last two are not used.
 const _MAX_NOISE_DRAWS: int = 2
+## Purpose name of the `TimeCore.make_random_seed` that seeds the shake noise at `init`.
+const _SHAKE_SEED_PURPOSE: String = "camera_shake"
 
 static var _is_initialized: bool = false
 ## New at every `init`; an async operation that comes back to another session returns `FAILED`.
@@ -131,7 +133,7 @@ static func init() -> bool:
 	_session = RefCounted.new()
 	_last_real_ms = TimeCore.get_real_time()
 	_last_game_ms = TimeCore.get_game_time()
-	_reseed(TimeCore.get_device_time() ^ TimeCore.get_monotonic_time())
+	_reseed(TimeCore.make_random_seed(_SHAKE_SEED_PURPOSE))
 	var node: _CORE_NODE = _CORE_NODE.new()
 	_node = node
 	_is_initialized = true
