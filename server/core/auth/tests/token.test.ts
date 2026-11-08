@@ -92,6 +92,26 @@ describe('login token rotation', () => {
     expect((await auto_login(server, user.result.login_token)).code).toBe(E.CORE_ERROR_UNAUTHORIZED);
   });
 
+  it('a Logout of S1 past routing step 5 keeps session S2 and the login token rows of an AutoLogin that committed before its transaction', async () => {
+    const user = await guest(server);
+    const hold = hold_next_transaction(server, 'core/Logout');
+    const pending = call(user.session, 'core/Logout', new CoreContract.LogoutRequest());
+    await hold.reached;
+    // Another device logs in with the same login token and commits S2 while the Logout of S1 waits.
+    const back = await auto_login(server, user.result.login_token);
+    expect(back.code).toBe(0);
+    const next = await session_from(back.response.result ?? null);
+    const rows = await login_token_rows(server, user.result.user_id);
+    hold.release();
+    expect((await pending).code).toBe(0);
+    expect(await login_token_rows(server, user.result.user_id)).toEqual(rows);
+    expect(rows.map((row) => row.token_hash)).toContain(token_hash(next.login_token));
+    expect(await probe(next)).toBe(0);
+    expect(await probe(user.session)).toBe(E.CORE_ERROR_SESSION_REPLACED);
+    expect((await refresh(next)).code).toBe(0);
+    expect((await auto_login(server, next.login_token)).code).toBe(0);
+  });
+
   it('an AutoLogin or RefreshToken that read its login token row before a Logout of it commits is UNAUTHORIZED and leaves no login token row', async () => {
     for (const request of ['core/AutoLogin', 'core/RefreshToken'] as const) {
       const user = await guest(server);
