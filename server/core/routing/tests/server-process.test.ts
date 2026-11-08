@@ -113,6 +113,41 @@ function held_upgrade(port: number, path: string, key = true): HeldUpgrade {
   };
 }
 
+/** A client of an upgrade request that reads nothing until `read_to_close`. */
+interface PausedUpgrade {
+  /** Starts reading: the bytes received in all and whether the server ended its side, once the connection closed. */
+  read_to_close(): Promise<{ bytes: number; ended: boolean }>;
+  destroy(): void;
+}
+
+/** Sends an upgrade request of `GET <path>` on a connection whose client reads nothing until `read_to_close`. */
+function paused_upgrade(port: number, path: string): PausedUpgrade {
+  const socket = connect(port, '127.0.0.1');
+  socket.pause();
+  socket.on('error', () => undefined);
+  socket.on('connect', () => {
+    socket.write(`GET ${path} HTTP/1.1\r\nHost: 127.0.0.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n`);
+  });
+  return {
+    read_to_close: () =>
+      new Promise((resolve) => {
+        let bytes = 0;
+        let ended = false;
+        socket.on('data', (chunk: Buffer) => {
+          bytes += chunk.length;
+        });
+        socket.on('end', () => {
+          ended = true;
+        });
+        socket.on('close', () => {
+          resolve({ bytes, ended });
+        });
+        socket.resume();
+      }),
+    destroy: () => socket.destroy(),
+  };
+}
+
 /**
  * A `POST` to `path` with a `Content-Length` of `total` bytes that sends 1 KiB, waits for the answer head, then sends
  * the rest in 1 MiB chunks until the connection closes: the answer head and the bytes sent in all.
@@ -275,6 +310,23 @@ describe('server process', () => {
       await until(() => refused.closed());
     } finally {
       refused.destroy();
+    }
+  }, TEST_MS);
+
+  it('relays every byte a worker instance wrote to an upgraded connection before it closed it, to a client that read nothing until then, then ends the connection', async () => {
+    const made = await game('sqlite');
+    // More than the socket buffers of the kernel and of the front stream hold: most of it waits in the front when the worker instance closes.
+    const total = 32 * 1024 * 1024;
+    const { process: running, port, ops_port } = await run_process(made, { port: 0, ops_port: 0 }, { OGW_TEST_MODE: 'flood', OGW_TEST_FLOOD_BYTES: String(total) });
+    const in_progress = async (): Promise<number | null> => sample((await get(ops_port as number, '/metrics')).text, 'ogw_requests_in_progress');
+    const client = paused_upgrade(port, '/account/deletion');
+    try {
+      // The probe line comes after the front handed the upgrade; then no request in progress means the front took the close.
+      await until(() => running.lines().some((l) => l.probe === 'flood'));
+      await until(async () => (await in_progress()) === 0);
+      expect(await client.read_to_close()).toEqual({ bytes: total, ended: true });
+    } finally {
+      client.destroy();
     }
   }, TEST_MS);
 
