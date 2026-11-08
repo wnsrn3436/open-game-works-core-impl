@@ -1,0 +1,12 @@
+{
+  "target": "spec auth",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/server-core/modules/auth.md:176",
+      "problem": "`Logout` has the same race as R1-1, and it existed before this diff. It acts on \"the current session\" after `routing` step 5 checked the session outside the transaction. When another device's `AutoLogin` commits in between, the spec does not say whether `session.end_session`(ctx) closes that newer session (skills/server-core/modules/session.md:29 and :45 do not say whether `end_session` compares the session ID). It also does not say whether the deleted login token rows are those of ctx `session_id` or of the session record",
+      "foundBy": "spec auth"
+    }
+  ]
+}
