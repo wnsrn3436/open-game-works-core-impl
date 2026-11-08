@@ -1,12 +1,5 @@
 {
   "target": "LocalizationCore",
   "nextId": 2,
-  "items": [
-    {
-      "id": "D1",
-      "location": "client/godot/core/localization_core/localization_core.gd:642",
-      "problem": "The changed `open-game-works-core/skills/client-core/modules/localization-core.md:106` says a weight of 0 draws the font at the weight the font of the font key is drawn with by itself, e.g. the `wght` of a `FontVariation`, and the new test item at localization-core.md:260 says a first font that sets its own `wght` 700 is drawn at 700 with weight 0. `_weighted_chain` always wraps `fonts[0]` in a new outer `FontVariation` (`chain.base_font = fonts[0]`) and sets no `wght` on it when `_takes_weight` is `false` for weight 0 (localization_core.gd:658-661). By the changed godot.md:406 the engine draws only the outermost `variation_opentype`, so such a font is drawn at its axis default, not 700. LocalizationCore code, not QACore code",
-      "foundBy": "QACore round 3"
-    }
-  ]
+  "items": []
 }
