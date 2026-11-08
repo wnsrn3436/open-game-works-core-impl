@@ -26,6 +26,7 @@ export type { RemoteServer, TestSession } from './request.ts';
 export { load_data, non_integer_values, read_core_fixture, read_fixture, read_shared_fixture, type LoadedData } from './fixtures.ts';
 export { close, connect, read_frame, send_frame, type RealtimeConnection } from './realtime.ts';
 export { start_peer_server, stop_test_server, StartFailure, type TestServer, type KeySourceSetting } from './test_server.ts';
+export { start_local_server } from './local_server.ts';
 export { gates_of, start_peer_process, stop_peer_processes, wait_at_gate, type Gates, type PeerContext, type PeerProcess, type PeerRegister, type PeerRegisterExport } from './peer_process.ts';
 export { hold_db, hold_lock_key, until_blocked_by, type HeldStatement, type Holder } from './pg_hold.ts';
 export { http1_connect, start_http2_test_server, type Http2Reply, type Http2Request, type Http2TestServer } from './http2_test_server.ts';
