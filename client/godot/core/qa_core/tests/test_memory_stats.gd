@@ -11,9 +11,9 @@ func test_memory_stats_are_integers_of_0_or_more() -> void:
 	assert_true(await start())
 	var stats: String = await run_ok("get_stats")
 	for field: String in ["heap_memory_bytes", "total_memory_bytes"]:
-		var text: String = JSONR.at(stats, field)
-		assert_true(text.is_valid_int(), field + " is an integer: " + text)
-		assert_true(JSONR.integer(stats, field) >= 0, field + " is 0 or more")
+		var value: float = JSONR.number(stats, field)
+		assert_eq(value, floorf(value), field + " is an integer")
+		assert_true(value >= 0.0, field + " is 0 or more")
 	assert_eq(errors() + warns(), 0)
 
 

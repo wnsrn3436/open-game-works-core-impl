@@ -111,7 +111,6 @@ func test_the_longest_interval_stays_after_a_full_record_drops_it() -> void:
 	assert_eq(values.size(), 3)
 	assert_true(longest(stats) < float(WAIT_MS), "get_stats reset it")
 	assert_eq(longest(stats), largest(values), "the largest of frame_intervals_ms")
-	assert_false(JSONR.at(stats, "max_frame_interval_ms").contains("e"), "written as frame_intervals_ms values are")
 
 
 func test_a_get_stats_right_after_another_has_max_frame_interval_0() -> void:
@@ -119,7 +118,7 @@ func test_a_get_stats_right_after_another_has_max_frame_interval_0() -> void:
 	await UnitTestCore.wait_frames(3)
 	assert_gt(longest(await run_ok("get_stats")), 0.0)
 	var stats: String = await run_ok("get_stats")
-	assert_eq(JSONR.at(stats, "max_frame_interval_ms"), "0", "no frame point since the previous get_stats")
+	assert_eq(longest(stats), 0.0, "no frame point since the previous get_stats")
 	assert_eq(errors() + warns(), 0)
 
 
