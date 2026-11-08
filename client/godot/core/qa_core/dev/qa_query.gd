@@ -28,6 +28,21 @@ const SOUND_BUS_NAMES: PackedStringArray = ["Master", "Bgm", "Sfx", "Voice", "Ui
 const HAPTIC_TARGET_NAMES: PackedStringArray = ["Device", "Gamepad"]
 const _MS_PER_S: float = 1000.0
 const _SYSTEM_POPUP_OWNER: String = "system_popup_%d"
+const _WEB: String = "web"
+## The OpenType weight axis, what `_variation_weight` gives for a `FontVariation` that sets no weight, what
+## `_weight_axis` gives for a font without the axis (a minimum above the maximum), and the most nested
+## `FontVariation`s `_font_weight` follows.
+const _WGHT: String = "wght"
+const _NO_WEIGHT: int = -1
+const _NO_WEIGHT_AXIS: Vector3i = Vector3i(1, 0, 0)
+const _FONT_VARIATION_DEPTH_MAX: int = 64
+const _BYTES_PER_KB: int = 1024
+## The process status file of `android` and `linux`, and its field of resident memory in kB.
+const _PROC_STATUS_PATH: String = "/proc/self/status"
+const _RESIDENT_FIELD: String = "VmRSS:"
+## The WebAssembly memory size and the used JavaScript heap, `<bytes>,<bytes>`. `wasmMemory` is a name of the engine's
+## runtime script, which the direct eval of `JavaScriptBridge.eval` sees.
+const _PAGE_MEMORY_JS: String = "(function(){var w=0,h=0;try{w=wasmMemory.buffer.byteLength}catch(e){}try{if(performance.memory){h=performance.memory.usedJSHeapSize}}catch(e){}return String(w)+','+String(h)})()"
 
 
 # --- QAState ---
@@ -55,6 +70,7 @@ static func state_json() -> String:
 		_JSON.pair("time_scale", _JSON.integer(TimeCore.get_time_scale() if TimeCore.is_initialized() else 1000)),
 		_JSON.pair("step_mode", _JSON.boolean(TimeCore.is_initialized() and TimeCoreDev.is_step_mode())),
 		_JSON.pair("step_budget_ms", _JSON.integer(TimeCoreDev.get_step_budget() if TimeCore.is_initialized() else 0)),
+		_JSON.pair("frame_step_fps", _JSON.integer(TimeCoreDev.get_frame_step_fps() if TimeCore.is_initialized() else 0)),
 		_JSON.pair("window_size", _JSON.size(ResolutionCore.get_window_size() if ResolutionCore.is_initialized() else Vector2i.ZERO)),
 		_JSON.pair("game_area", _JSON.rect(_window_rect(ResolutionCore.get_game_area() if ResolutionCore.is_initialized() else Rect2()))),
 		_JSON.pair("visible_game_area", _JSON.rect(_window_rect(ResolutionCore.get_visible_game_area() if ResolutionCore.is_initialized() else Rect2()))),
@@ -155,11 +171,24 @@ static func _window_rect(game_rect: Rect2) -> Rect2:
 ## Stats. A headless run draws nothing, so its stats of drawing are 0. Empties the frame interval record.
 static func stats_json() -> String:
 	var drawn: bool = not QACore.is_headless()
+	# The longest interval is read before the intervals, whose take empties the record and resets it.
+	var max_interval: String = QACore._max_frame_interval_json()
+	var intervals: String = QACore._take_frame_intervals_json()
+	var static_memory: int = int(Performance.get_monitor(Performance.MEMORY_STATIC))
+	var heap_memory: int = static_memory
+	var total_memory: int = resident_memory_bytes()
+	if CoreBuildInfo.platform == _WEB:
+		var page: PackedInt64Array = _page_memory()
+		heap_memory = page[0]
+		total_memory = page[0] + page[1]
 	return _JSON.object(PackedStringArray([
 		_JSON.pair("fps", _JSON.number(Performance.get_monitor(Performance.TIME_FPS))),
 		_JSON.pair("frame_ms", _JSON.number(Performance.get_monitor(Performance.TIME_PROCESS) * _MS_PER_S)),
-		_JSON.pair("frame_intervals_ms", QACore._take_frame_intervals_json()),
-		_JSON.pair("static_memory_bytes", _JSON.integer(int(Performance.get_monitor(Performance.MEMORY_STATIC)))),
+		_JSON.pair("frame_intervals_ms", intervals),
+		_JSON.pair("max_frame_interval_ms", max_interval),
+		_JSON.pair("static_memory_bytes", _JSON.integer(static_memory)),
+		_JSON.pair("heap_memory_bytes", _JSON.integer(heap_memory)),
+		_JSON.pair("total_memory_bytes", _JSON.integer(total_memory)),
 		_JSON.pair("video_memory_bytes", _JSON.integer(_drawn_monitor(drawn, Performance.RENDER_VIDEO_MEM_USED))),
 		_JSON.pair("draw_calls", _JSON.integer(_drawn_monitor(drawn, Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))),
 		_JSON.pair("primitives", _JSON.integer(_drawn_monitor(drawn, Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))),
@@ -172,6 +201,45 @@ static func stats_json() -> String:
 
 static func _drawn_monitor(drawn: bool, monitor: Performance.Monitor) -> int:
 	return int(Performance.get_monitor(monitor)) if drawn else 0
+
+
+## The size of the WebAssembly memory of the engine instance and the used JavaScript heap of the page, in bytes. The
+## direct eval runs in the scope of the engine's runtime script, which holds that memory. Each is 0 when it cannot be
+## read, the heap also when the page has no `performance.memory`.
+# ogw:input_boundary
+static func _page_memory() -> PackedInt64Array:
+	var values: PackedInt64Array = PackedInt64Array([0, 0])
+	var reply: Variant = JavaScriptBridge.eval(_PAGE_MEMORY_JS, false)
+	if not reply is String:
+		return values
+	var text: String = reply
+	var parts: PackedStringArray = text.split(",")
+	for i: int in mini(parts.size(), values.size()):
+		if parts[i].is_valid_int():
+			values[i] = maxi(parts[i].to_int(), 0)
+	return values
+
+
+## The resident memory of the client process in bytes: `VmRSS` of `/proc/self/status` on `android` and `linux`. 0 on
+## the other platforms and when it cannot be read.
+static func resident_memory_bytes() -> int:
+	var os_platform: String = CoreBuildInfo.os_platform()
+	if os_platform != "android" and os_platform != "linux":
+		return 0
+	var file: FileAccess = FileAccess.open(_PROC_STATUS_PATH, FileAccess.READ)
+	if file == null:
+		return 0
+	# The file reports a length of 0, so it is read a line at a time up to its end.
+	while true:
+		var line: String = file.get_line()
+		if line.begins_with(_RESIDENT_FIELD):
+			var value: String = line.trim_prefix(_RESIDENT_FIELD).strip_edges().trim_suffix("kB").strip_edges()
+			file.close()
+			return value.to_int() * _BYTES_PER_KB if value.is_valid_int() else 0
+		if file.eof_reached():
+			break
+	file.close()
+	return 0
 
 
 ## Element name of `QualityCore.get_level`; empty when `QualityCore` is not in the module list.
@@ -262,6 +330,7 @@ static func list_ui_json() -> String:
 			_JSON.pair("rect", _JSON.rect(element_rect(element))),
 			_JSON.pair("text", _JSON.text(text)),
 			_JSON.pair("font_size", _JSON.number(_font_size(element) if not text.is_empty() else 0.0)),
+			_JSON.pair("font_weight", _JSON.integer(_font_weight(element) if not text.is_empty() else 0)),
 			_JSON.pair("clipped", _JSON.boolean(not text.is_empty() and _is_clipped(element, text))),
 			_JSON.pair("anchor", _JSON.text(anchor.anchor_name if anchor != null else "")),
 			_JSON.pair("anchor_key", _JSON.integer(anchor.anchor_key if anchor != null else 0)),
@@ -314,6 +383,61 @@ static func _font_size(element: Control) -> float:
 	if not ResolutionCore.is_initialized():
 		return size
 	return ResolutionCore.game_to_window(Vector2(0.0, size)).y
+
+
+## The OpenType `wght` at which `element` draws its text with the first font of its font chain: the theme font, or the
+## `base_font` of a `FontVariation`, followed through nested `FontVariation`s. On a `wght` axis of that font, the `wght`
+## of the outermost `FontVariation` that sets one, clamped to the axis, else the axis default; without the axis, the
+## weight class of that font. The axes and the weight class are those of the first text server font of `get_rids()`,
+## the font the engine draws with: the same as `get_supported_variation_list()` and `get_font_weight()` for a font with
+## a text server font of its own, and the engine default font for a `SystemFont` that found no system font (as in the
+## browser runtime), whose `get_supported_variation_list()` is an engine error. 0 when there is no font.
+static func _font_weight(element: Control) -> int:
+	var first: Font = element.get_theme_font(_font_name(element))
+	var tag: int = TextServerManager.get_primary_interface().name_to_tag(_WGHT)
+	var weight: int = _NO_WEIGHT
+	for i: int in _FONT_VARIATION_DEPTH_MAX:
+		var variation: FontVariation = first as FontVariation
+		if variation == null:
+			break
+		if weight == _NO_WEIGHT:
+			weight = _variation_weight(variation, tag)
+		first = variation.base_font if variation.base_font != null else ThemeDB.fallback_font
+	if first == null or first is FontVariation:
+		return 0
+	var rids: Array[RID] = first.get_rids()
+	if rids.is_empty():
+		return 0
+	var axis: Vector3i = _weight_axis(rids[0], tag)
+	if axis == _NO_WEIGHT_AXIS:
+		return TextServerManager.get_primary_interface().font_get_weight(rids[0])
+	return clampi(weight, axis.x, axis.y) if weight != _NO_WEIGHT else axis.z
+
+
+## The `wght` that `variation_opentype` of `variation` sets, by tag or by axis name; `_NO_WEIGHT` when it sets none.
+# ogw:input_boundary
+static func _variation_weight(variation: FontVariation, tag: int) -> int:
+	var coordinates: Dictionary = variation.variation_opentype
+	var value: Variant = coordinates.get(tag, coordinates.get(_WGHT, null))
+	if value is int:
+		var whole: int = value
+		return whole
+	if value is float:
+		var real: float = value
+		return roundi(real)
+	return _NO_WEIGHT
+
+
+## The minimum, maximum and default of the variation axis `tag` of the text server font `rid`; `_NO_WEIGHT_AXIS` when
+## it has none.
+# ogw:input_boundary
+static func _weight_axis(rid: RID, tag: int) -> Vector3i:
+	var axes: Dictionary = TextServerManager.get_primary_interface().font_supported_variation_list(rid)
+	var axis: Variant = axes.get(tag, null)
+	if not axis is Vector3i:
+		return _NO_WEIGHT_AXIS
+	var range_of: Vector3i = axis
+	return range_of
 
 
 ## Whether the text of `element` is not fully shown.

@@ -170,6 +170,9 @@ static var _frame_interval_first: int = 0
 static var _frame_interval_count: int = 0
 static var _last_frame_point_usec: int = -1
 static var _skip_frame_interval: bool = false
+## The longest interval in microseconds put into the record since it was last emptied, also when the record no longer
+## holds it. 0 when none was put in since then.
+static var _frame_interval_max_usec: int = 0
 
 ## The two switches of the feedback switch, whether the reward window is open, and the telemetry time of its last
 ## reward moment.
@@ -337,6 +340,7 @@ static func _cleanup() -> void:
 	_frame_interval_count = 0
 	_last_frame_point_usec = -1
 	_skip_frame_interval = false
+	_frame_interval_max_usec = 0
 	_reward_moment_time = 0
 	# The commands waiting for a frame see the new session and stop.
 	if is_instance_valid(node):
@@ -1161,7 +1165,9 @@ static func _record_frame_point(point_usec: int) -> void:
 			_frame_interval_first = (_frame_interval_first + 1) % size
 		else:
 			_frame_interval_count += 1
-		_frame_intervals[index] = point_usec - _last_frame_point_usec
+		var interval: int = point_usec - _last_frame_point_usec
+		_frame_intervals[index] = interval
+		_frame_interval_max_usec = maxi(_frame_interval_max_usec, interval)
 	_skip_frame_interval = false
 	_last_frame_point_usec = point_usec
 
@@ -1171,10 +1177,12 @@ static func _on_foreground_returned() -> void:
 	_skip_frame_interval = true
 
 
-## Empties the record and keeps the last frame point, so the interval that spans this moment goes into the record.
+## Empties the record and resets its longest interval, and keeps the last frame point, so the interval that spans
+## this moment goes into the record.
 static func _empty_frame_intervals() -> void:
 	_frame_interval_first = 0
 	_frame_interval_count = 0
+	_frame_interval_max_usec = 0
 
 
 ## `frame_intervals_ms` of `get_stats`: the intervals of the record, oldest first, in ms rounded half up to 0.01 ms with
@@ -1183,18 +1191,27 @@ static func _take_frame_intervals_json() -> String:
 	var items: PackedStringArray = PackedStringArray()
 	var size: int = _frame_intervals.size()
 	for i: int in _frame_interval_count:
-		var usec: int = _frame_intervals[(_frame_interval_first + i) % size]
-		var centi_ms: int = (usec + _USEC_PER_CENTI_MS / 2) / _USEC_PER_CENTI_MS
-		var whole: int = centi_ms / 100
-		var fraction: int = centi_ms % 100
-		if fraction == 0:
-			items.append(str(whole))
-		elif fraction % 10 == 0:
-			items.append("%d.%d" % [whole, fraction / 10])
-		else:
-			items.append("%d.%02d" % [whole, fraction])
+		items.append(_interval_ms_text(_frame_intervals[(_frame_interval_first + i) % size]))
 	_empty_frame_intervals()
 	return _JSON.array(items)
+
+
+## `max_frame_interval_ms` of `get_stats`: the longest interval since the record was last emptied, written as the
+## values of `frame_intervals_ms` are. Read before `_take_frame_intervals_json`, which resets it.
+static func _max_frame_interval_json() -> String:
+	return _interval_ms_text(_frame_interval_max_usec)
+
+
+## An interval of `usec` microseconds in ms, rounded half up to 0.01 ms, with at most two decimals.
+static func _interval_ms_text(usec: int) -> String:
+	var centi_ms: int = (usec + _USEC_PER_CENTI_MS / 2) / _USEC_PER_CENTI_MS
+	var whole: int = centi_ms / 100
+	var fraction: int = centi_ms % 100
+	if fraction == 0:
+		return str(whole)
+	if fraction % 10 == 0:
+		return "%d.%d" % [whole, fraction / 10]
+	return "%d.%02d" % [whole, fraction]
 
 
 # --- feedback switch ---

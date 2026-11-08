@@ -1,7 +1,8 @@
 extends "res://core/qa_core/tests/support/qa_test_case.gd"
-## `frame_intervals_ms` of `get_stats`: one interval a frame since the previous `get_stats`, the record size, the real
-## time under the test clock, time scale and step mode, the interval of a background return, and the emptying on an
-## automation channel connection.
+## `frame_intervals_ms` and `max_frame_interval_ms` of `get_stats`: one interval a frame since the previous
+## `get_stats`, the record size, the longest interval also after the record dropped it, the real time under the test
+## clock, time scale and step mode, the interval of a background return, and the emptying on an automation channel
+## connection.
 
 const SERVER := preload("res://core/qa_core/tests/support/qa_loopback_server.gd")
 const NATIVE: PackedStringArray = ["android", "ios", "windows", "macos", "linux"]
@@ -35,6 +36,10 @@ func intervals(stats: String) -> PackedFloat64Array:
 	for i: int in JSONR.count(stats, "frame_intervals_ms"):
 		values.append(JSONR.number(stats, "frame_intervals_ms.%d" % i))
 	return values
+
+
+func longest(stats: String) -> float:
+	return JSONR.number(stats, "max_frame_interval_ms")
 
 
 func largest(values: PackedFloat64Array) -> float:
@@ -85,6 +90,37 @@ func test_a_full_record_keeps_the_newest_intervals_without_growing() -> void:
 	assert_eq(values.size(), SMALL_MAX_COUNT, "the newest intervals")
 	assert_true(values.size() == SMALL_MAX_COUNT and values[2] >= float(WAIT_MS),
 		"the 15th of 20 intervals is the third of the 8 newest: %s" % values)
+
+
+func test_the_longest_interval_stays_after_a_full_record_drops_it() -> void:
+	set_int("QACore.frameIntervalMaxCount", SMALL_MAX_COUNT)
+	assert_true(await start())
+	await UnitTestCore.wait_frames(1)
+	await run_ok("get_stats")
+	await UnitTestCore.wait_frames(2)
+	wait_real(WAIT_MS)
+	await UnitTestCore.wait_frames(18)
+	var stats: String = await run_ok("get_stats")
+	var values: PackedFloat64Array = intervals(stats)
+	assert_eq(values.size(), SMALL_MAX_COUNT)
+	assert_true(largest(values) < float(WAIT_MS), "the record dropped the long interval: %s" % values)
+	assert_true(longest(stats) >= float(WAIT_MS), "max_frame_interval_ms keeps it: " + JSONR.at(stats, "max_frame_interval_ms"))
+	await UnitTestCore.wait_frames(3)
+	stats = await run_ok("get_stats")
+	values = intervals(stats)
+	assert_eq(values.size(), 3)
+	assert_true(longest(stats) < float(WAIT_MS), "get_stats reset it")
+	assert_eq(longest(stats), largest(values), "the largest of frame_intervals_ms")
+	assert_false(JSONR.at(stats, "max_frame_interval_ms").contains("e"), "written as frame_intervals_ms values are")
+
+
+func test_a_get_stats_right_after_another_has_max_frame_interval_0() -> void:
+	assert_true(await start())
+	await UnitTestCore.wait_frames(3)
+	assert_gt(longest(await run_ok("get_stats")), 0.0)
+	var stats: String = await run_ok("get_stats")
+	assert_eq(JSONR.at(stats, "max_frame_interval_ms"), "0", "no frame point since the previous get_stats")
+	assert_eq(errors() + warns(), 0)
 
 
 func test_putting_intervals_into_a_full_record_allocates_no_memory() -> void:
@@ -139,9 +175,11 @@ func test_the_interval_that_ends_at_the_first_frame_point_after_a_background_ret
 	# The test clock goes to the background and back: TimeCore publishes `AppForegroundReturnedEvent` now.
 	UnitTestCore.advance_clock(1000, true)
 	await UnitTestCore.wait_frames(3)
-	var values: PackedFloat64Array = intervals(await run_ok("get_stats"))
+	var stats: String = await run_ok("get_stats")
+	var values: PackedFloat64Array = intervals(stats)
 	assert_eq(values.size(), 4, "5 frames, the interval of the return left out")
 	assert_true(largest(values) < float(WAIT_MS), "the interval with the background time is not in: %s" % values)
+	assert_true(longest(stats) < float(WAIT_MS), "nor in max_frame_interval_ms")
 	await UnitTestCore.wait_frames(2)
 	assert_eq(intervals(await run_ok("get_stats")).size(), 2, "the intervals after it are in")
 
