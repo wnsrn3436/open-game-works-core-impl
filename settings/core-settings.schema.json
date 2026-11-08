@@ -1306,7 +1306,8 @@
       "type": "array",
       "items": {
         "type": "integer",
-        "minimum": 1
+        "minimum": 1,
+        "maximum": 10000
       },
       "minItems": 1,
       "maxItems": 10,

@@ -113,7 +113,8 @@ func test_list_pad_axis_sensitivities() -> void:
 func test_init_fails_with_sensitivities_out_of_range() -> void:
 	var cases: Array[PackedInt64Array] = [
 		PackedInt64Array(), PackedInt64Array([500, 2000]), PackedInt64Array([1000, 0]),
-		PackedInt64Array([1000, -500]), PackedInt64Array([1000, 500, 500]),
+		PackedInt64Array([1000, -500]), PackedInt64Array([1000, 500, 500]), PackedInt64Array([1000, 10001]),
+		PackedInt64Array([1000, 3000000000]),
 	]
 	for values: PackedInt64Array in cases:
 		InputCore.release()
@@ -124,6 +125,16 @@ func test_init_fails_with_sensitivities_out_of_range() -> void:
 	InputCore.release()
 	assert_true(UnitTestCore.set_test_settings("InputCore.padAxisSensitivities", PackedInt64Array([1000])))
 	assert_true(InputCore.init(), "1000 alone")
+	InputCore.release()
+	assert_true(UnitTestCore.set_test_settings("InputCore.padAxisSensitivities", PackedInt64Array([1, 1000, 10000])))
+	assert_true(InputCore.init(), "1 and 10000 are allowed")
+	var bounds: PackedInt32Array = PackedInt32Array()
+	bounds.resize(3)
+	assert_eq(InputCore.list_pad_axis_sensitivities(bounds), 3)
+	assert_eq(bounds, PackedInt32Array([1, 1000, 10000]))
+	assert_true(InputCore.set_pad_axis_sensitivity("right_x", 10000))
+	assert_eq(InputCore.get_pad_axis_sensitivity("right_x"), 10000)
+	assert_eq(errors(), 0)
 
 
 func test_wrong_axis_names_and_sensitivities_change_nothing() -> void:
