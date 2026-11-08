@@ -204,10 +204,10 @@ static func init() -> bool:
 		_haptic_log_keys.resize(_haptic_log_count)
 		_haptic_log_played.resize(_haptic_log_count)
 		_haptic_log_targets.resize(_haptic_log_count)
-	var seed_value: int = UtilCore.make_purpose_seed(_VARIANT_PURPOSE, TimeCore.get_device_time())
+	var seed_value: int = TimeCore.make_random_seed(_VARIANT_PURPOSE)
 	_variant_random = UtilCore.create_random(seed_value)
 	LogCore.log_debug(_TAG, "random " + _VARIANT_PURPOSE + " seed " + str(seed_value))
-	var variation_seed: int = UtilCore.make_purpose_seed(_VARIATION_PURPOSE, TimeCore.get_device_time())
+	var variation_seed: int = TimeCore.make_random_seed(_VARIATION_PURPOSE)
 	_variation_random = UtilCore.create_random(variation_seed)
 	LogCore.log_debug(_TAG, "random " + _VARIATION_PURPOSE + " seed " + str(variation_seed))
 	_game_paused = TimeCore.is_paused()
@@ -289,6 +289,21 @@ static func get_mute(bus: SoundBus) -> bool:
 		LogCore.log_error(_TAG, "get_mute got a bus that is not a SoundBus element")
 		return false
 	return _mutes[bus]
+
+
+## Sets the volume and mute of every bus and haptics on to the default, applies them, and removes the keys of these
+## values from the `device` file. DEV mute does not change.
+static func reset_volume_settings() -> void:
+	if not _check_initialized("reset_volume_settings"):
+		return
+	for bus: int in _BUS_NAMES.size():
+		_volumes[bus] = 1.0
+		_mutes[bus] = false
+		_apply_bus(bus)
+		LocalDataCore.remove_value(LocalDataCore.FileKind.DEVICE, _VOLUME_KEYS[bus])
+		LocalDataCore.remove_value(LocalDataCore.FileKind.DEVICE, _MUTE_KEYS[bus])
+	_haptic_enabled = true
+	LocalDataCore.remove_value(LocalDataCore.FileKind.DEVICE, _HAPTIC_ENABLED_KEY)
 
 
 ## Plays `key` as the BGM. `scope` null omits the scope: the request loads with a BGM scope.
