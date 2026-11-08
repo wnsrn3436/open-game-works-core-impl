@@ -124,11 +124,11 @@ describe('alert window', () => {
     const metrics = new Metrics(settings_of(100n, 0, 0, 0, 2), INTERNAL);
     metrics.line(1001n, 'error', 'error', null);
     metrics.line(1002n, 'error', 'error', null);
-    expect(metrics.alerts(1101n, DB).error_logs).toBe(true);
-    expect(metrics.alerts(1102n, DB).error_logs).toBe(false);
+    expect(metrics.alerts(1100n, DB).error_logs).toBe(true);
+    expect(metrics.alerts(1101n, DB).error_logs).toBe(false);
     metrics.line(1050n, 'error', 'error', null);
     metrics.line(1060n, 'error', 'error', null);
-    expect(metrics.alerts(1102n, DB).error_logs).toBe(true);
+    expect(metrics.alerts(1101n, DB).error_logs).toBe(true);
     expect(metrics.alerts(1150n, DB).error_logs).toBe(false);
   });
 
