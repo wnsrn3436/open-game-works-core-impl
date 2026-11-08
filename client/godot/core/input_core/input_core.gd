@@ -50,6 +50,8 @@ const _STICK_AXES: int = 4
 const _DEFAULT_SENSITIVITY: int = 1000
 ## Most elements `InputCore.padAxisSensitivities` has.
 const _MAX_SENSITIVITIES: int = 10
+## Largest allowed element of `InputCore.padAxisSensitivities`.
+const _MAX_SENSITIVITY: int = 10000
 ## Parts of a lower case `Input.get_joy_name` that decide the gamepad family.
 const _XBOX_NAMES: Array[String] = ["xbox", "xinput"]
 const _PLAY_STATION_NAMES: Array[String] = ["playstation", "ps3", "ps4", "ps5", "dualshock", "dualsense"]
@@ -2197,7 +2199,8 @@ static func _read_settings() -> bool:
 
 
 ## `InputCore.padAxisSensitivities` in ascending order; empty with an error log when it is missing, has no element or
-## more than `_MAX_SENSITIVITIES`, has no 1000, an element less than 1 or a repeated element.
+## more than `_MAX_SENSITIVITIES`, has no 1000, an element less than 1 or more than `_MAX_SENSITIVITY`, or a repeated
+## element.
 static func _read_sensitivities() -> PackedInt64Array:
 	var none: PackedInt64Array = PackedInt64Array()
 	var prefix: String = "init: " + _SETTING_PAD_AXIS_SENSITIVITIES
@@ -2214,6 +2217,9 @@ static func _read_sensitivities() -> PackedInt64Array:
 	for i: int in values.size():
 		if values[i] < 1:
 			LogCore.log_error(_TAG, prefix + " has an element less than 1")
+			return none
+		if values[i] > _MAX_SENSITIVITY:
+			LogCore.log_error(_TAG, prefix + " has an element more than " + str(_MAX_SENSITIVITY))
 			return none
 		if values.find(values[i]) != i:
 			LogCore.log_error(_TAG, prefix + " has a repeated element")
