@@ -1,0 +1,12 @@
+{
+  "target": "GameUpdateCore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "client/godot/core/game_update_core/deploy_list.gd:13",
+      "problem": "`is_version` rejects a version part longer than `_VERSION_PART_MAX_DIGITS` (18) digits, a bound that `game-update-core.md` `### deploy list` (version is `<major>.<minor>.<patch>`) does not set and that server `game-update` publish does not apply (`validation.parse_version`, `server/core/validation/helper.ts:108`, reads any number of digits). A deploy list published with `min_version` `1.0.1000000000000000000` for a platform makes `_check_platform_entry` (`deploy_list.gd:223`) fail with \"platform entry version form\", so every client of that platform gets `[game_update_invalid_file]` and the fetch failure popup on each retry until the operator publishes again. Present since 301b3dd8, not changed in the range",
+      "foundBy": "GameUpdateCore round 1"
+    }
+  ]
+}
