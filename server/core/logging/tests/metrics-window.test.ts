@@ -78,6 +78,27 @@ function write(metrics: Metrics, line: Line): void {
   else metrics.line(line.time, line.kind, line.level, null);
 }
 
+/**
+ * A judgement time at or after `latest_line`: on a clock that moved on from the latest line, or (the test clock went
+ * back after a judgement) between the latest line and the latest judgement.
+ */
+function judgement_time(random: () => number, latest_line: bigint, latest_judged: bigint): bigint {
+  if (random() < 0.5) return latest_line + BigInt(Math.floor(random() * 120));
+  return latest_line + BigInt(Math.floor(random() * Number(latest_judged - latest_line + 1n)));
+}
+
+/**
+ * A line at a time from `latest_line` that `roll` (at least 0.1) sets: mostly forward, sometimes the same ms, sometimes
+ * back by up to the window and a bit more.
+ */
+function random_line(random: () => number, roll: number, latest_line: bigint): Line {
+  const move = roll < 0.75 ? Math.floor(random() * 4) : roll < 0.95 ? 0 : -Math.floor(random() * 60);
+  const time = latest_line + BigInt(move);
+  const kind_roll = random();
+  if (kind_roll < 0.6) return { time, kind: 'request', level: 'info', error_code: random() < 0.3 ? INTERNAL : 0, duration_ms: Math.floor(random() * 20) };
+  return { time, kind: kind_roll < 0.8 ? 'error' : 'game', level: kind_roll < 0.9 ? 'error' : 'warn', error_code: 0, duration_ms: 0 };
+}
+
 describe('alert window', () => {
   it('judges each signal as counted from every line later than the judgement time − the window, with the test clock going back between lines and between judgements', () => {
     const window_ms = 50n;
@@ -99,13 +120,8 @@ describe('alert window', () => {
     for (let step = 0; step < 3000; step += 1) {
       const roll = random();
       if (roll < 0.1) {
-        // A judgement at or after every line time written: the time of `read_metrics` on a clock that moved on from the
-        // latest line, or (the test clock went back after a judgement) a time between the latest line and the latest
-        // judgement.
-        const judgement =
-          random() < 0.5
-            ? latest_line + BigInt(Math.floor(random() * 120))
-            : latest_line + BigInt(Math.floor(random() * Number(latest_judged - latest_line + 1n)));
+        // A judgement at or after every line time written, which then counts every line in its window.
+        const judgement = judgement_time(random, latest_line, latest_judged);
         if (judgement < latest_judged) judged_back += 1;
         else latest_judged = judgement;
         const counts = counts_of(lines, judgement, window_ms, 10);
@@ -116,15 +132,8 @@ describe('alert window', () => {
         judged += 1;
         continue;
       }
-      // Mostly forward, sometimes the same ms, sometimes back by up to the window and a bit more.
-      const move = roll < 0.75 ? Math.floor(random() * 4) : roll < 0.95 ? 0 : -Math.floor(random() * 60);
-      const time = latest_line + BigInt(move);
-      if (time > latest_line) latest_line = time;
-      const kind_roll = random();
-      const line: Line =
-        kind_roll < 0.6
-          ? { time, kind: 'request', level: 'info', error_code: random() < 0.3 ? INTERNAL : 0, duration_ms: Math.floor(random() * 20) }
-          : { time, kind: kind_roll < 0.8 ? 'error' : 'game', level: kind_roll < 0.9 ? 'error' : 'warn', error_code: 0, duration_ms: 0 };
+      const line = random_line(random, roll, latest_line);
+      if (line.time > latest_line) latest_line = line.time;
       lines.push(line);
       for (const metrics of instances) write(metrics, line);
     }
