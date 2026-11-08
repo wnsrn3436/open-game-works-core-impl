@@ -1,7 +1,8 @@
 class_name TimeCore
 extends RefCounted
-## Estimates the server time, tells reach, game day and reset cycle boundaries, and keeps the game time with its time
-## scale and pause and the background entry and return of the app. Time judgments use the server time only.
+## Estimates the server time, tells reach, game day and reset cycle boundaries, keeps the game time with its time
+## scale and pause and the background entry and return of the app, and gives the random seeds of the purposes that need
+## no reproduction. Time judgments use the server time only.
 
 const _TAG: String = "TimeCore"
 const _REACH_MARGIN_KEY: String = "TimeCore.reachMarginMs"
@@ -14,6 +15,14 @@ const _DAY_MS: int = 86400000
 const _DEFAULT_TIME_SCALE: int = 1000
 ## The core node processes before the other nodes, so every frame code of a frame reads the time of that frame.
 const _PROCESS_PRIORITY: int = -1000000
+## Engine command line argument whose next argument is the fixed frame rate of the engine.
+const _FIXED_FPS_ARG: String = "--fixed-fps"
+## Project setting of the Movie Maker frame rate.
+const _MOVIE_FPS_SETTING: String = "editor/movie_writer/fps"
+# 64-bit two's complement addition in 32-bit halves, so no operation relies on signed overflow.
+const _MASK32: int = 0xFFFFFFFF
+const _TWO_32: int = 0x100000000
+const _SIGN_32: int = 0x80000000
 
 static var _is_initialized: bool = false
 ## Replaced by every `init`; work that sees another session after an event delivery stops.
@@ -53,6 +62,10 @@ static var _background_device_ms: int = 0
 static var _resume_count: int = 0
 static var _last_background_ms: int = 0
 
+# Random seed.
+## `make_random_seed` calls counted since `init`, by purpose name.
+static var _random_seed_counts: Dictionary[String, int] = {}
+
 ## DEV: `set_test_clock`. The test clock, and the static functions of `TimeCoreDev` that read its monotonic time and
 ## device time.
 static var _test_clock: RefCounted = null
@@ -66,6 +79,15 @@ static var _pending_game_ms: int = 0
 ## DEV: step mode and its budget.
 static var _step_mode: bool = false
 static var _step_budget_ms: int = 0
+## DEV: `set_random_base`. Kept from before `init` until `release`.
+static var _has_random_base: bool = false
+static var _random_base: int = 0
+## DEV: `set_test_frame_step`. 0 when it was not called. Kept from before `init` until `release`.
+static var _test_frame_step_fps: int = 0
+## DEV: fps of the frame step that `init` decided. 0 without a frame step.
+static var _frame_step_fps: int = 0
+## DEV: engine frames run at the frame step after `init`.
+static var _frame_step_frames: int = 0
 
 
 static func init() -> bool:
@@ -87,6 +109,12 @@ static func init() -> bool:
 		LogCore.log_error(_TAG, "init: game settings dailyResetOffsetMs %d is not between -1 day and 1 day; 0 is used" % _offset_ms)
 		_offset_ms = 0
 	_session = RefCounted.new()
+	_frame_step_fps = _test_frame_step_fps
+	if _frame_step_fps == 0 and CoreBuildInfo.has_dev_code:
+		_frame_step_fps = _engine_frame_step_fps(
+			OS.get_cmdline_args(), Engine.get_write_movie_path(), ProjectSettings.get_setting(_MOVIE_FPS_SETTING, 0)
+		)
+	_frame_step_frames = 0
 	_last_frame_monotonic_ms = _monotonic_now()
 	Engine.time_scale = 1.0
 	tree.paused = false
@@ -358,6 +386,22 @@ static func get_last_background_ms() -> int:
 	return _last_background_ms
 
 
+## Random seed of a purpose that needs no reproduction: `UtilCore.make_purpose_seed`(purpose, r + k), where r is the
+## DEV random base or else the device time now, and k the number of earlier calls with that purpose since `init`. 0 for
+## a purpose name that is not snake_case, which is not counted.
+static func make_random_seed(purpose_name: String) -> int:
+	if not _is_initialized:
+		LogCore.log_error(_TAG, "make_random_seed: not initialized")
+		return 0
+	if not UtilCore.is_snake_case(purpose_name):
+		LogCore.log_error(_TAG, "make_random_seed: purpose name %s is not snake_case" % purpose_name)
+		return 0
+	var count: int = _random_seed_counts.get(purpose_name, 0)
+	_random_seed_counts[purpose_name] = count + 1
+	var base: int = _random_base if _has_random_base else _device_now()
+	return UtilCore.make_purpose_seed(purpose_name, _add_int64(base, count))
+
+
 # Internal: core node and DEV code.
 
 ## Frame code. One engine frame: the real and game increments, then the day check. With the test clock the engine
@@ -374,12 +418,37 @@ static func _on_engine_frame() -> void:
 		var now: int = Time.get_ticks_msec()
 		var real_increment: int = maxi(now - _last_frame_monotonic_ms, 0)
 		_last_frame_monotonic_ms = now
+		if _frame_step_fps > 0:
+			real_increment = _frame_step_increment()
 		var game_increment: int = _game_increment(real_increment)
 		_real_frame_ms = real_increment
 		_game_frame_ms = game_increment
 		_real_time_ms += real_increment
 		_game_time_ms += game_increment
 	_check_day()
+
+
+## DEV: real increment of the next engine frame at the frame step: ⌊n × 1000 ÷ f⌋ − ⌊(n − 1) × 1000 ÷ f⌋ for the n-th
+## engine frame after `init`.
+static func _frame_step_increment() -> int:
+	_frame_step_frames += 1
+	var n: int = _frame_step_frames
+	return UtilCore.floor_div(n * 1000, _frame_step_fps) - UtilCore.floor_div((n - 1) * 1000, _frame_step_fps)
+
+
+## DEV: fps of an engine that runs at a fixed frame rate: the integer after `--fixed-fps` in the engine arguments, and
+## without it the Movie Maker fps when the movie path is not empty. 0 when neither gives an fps of 1 or more.
+# ogw:input_boundary
+static func _engine_frame_step_fps(args: PackedStringArray, movie_path: String, movie_fps: Variant) -> int:
+	var index: int = args.find(_FIXED_FPS_ARG)
+	if index >= 0:
+		if index + 1 >= args.size() or not args[index + 1].is_valid_int():
+			return 0
+		return maxi(args[index + 1].to_int(), 0)
+	if movie_path.is_empty() or not movie_fps is int:
+		return 0
+	var fps: int = movie_fps
+	return maxi(fps, 0)
 
 
 ## The engine told the background entry.
@@ -613,6 +682,16 @@ static func _days_from_civil(year: int, month: int, day_of_month: int) -> int:
 	return era * 146097 + day_of_era - 719468
 
 
+## a + b in 64-bit two's complement (modulo 2^64), added in 32-bit halves.
+static func _add_int64(a: int, b: int) -> int:
+	var lo: int = (a & _MASK32) + (b & _MASK32)
+	var hi: int = (((a >> 32) & _MASK32) + ((b >> 32) & _MASK32) + (lo >> 32)) & _MASK32
+	lo = lo & _MASK32
+	if hi >= _SIGN_32:
+		return (hi - _TWO_32) * _TWO_32 + lo
+	return hi * _TWO_32 + lo
+
+
 ## Back to the state before `init`. The engine time scale and pause go back to their defaults.
 static func _reset() -> void:
 	var was_initialized: bool = _is_initialized
@@ -638,6 +717,7 @@ static func _reset() -> void:
 	_background_device_ms = 0
 	_resume_count = 0
 	_last_background_ms = 0
+	_random_seed_counts.clear()
 	_test_clock = null
 	_test_monotonic_ms = Callable()
 	_test_device_time_ms = Callable()
@@ -646,6 +726,11 @@ static func _reset() -> void:
 	_pending_game_ms = 0
 	_step_mode = false
 	_step_budget_ms = 0
+	_has_random_base = false
+	_random_base = 0
+	_test_frame_step_fps = 0
+	_frame_step_fps = 0
+	_frame_step_frames = 0
 	if was_initialized:
 		Engine.time_scale = 1.0
 		var tree: SceneTree = Engine.get_main_loop() as SceneTree
