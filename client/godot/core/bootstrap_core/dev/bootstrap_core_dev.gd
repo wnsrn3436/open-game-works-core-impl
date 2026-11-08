@@ -277,9 +277,9 @@ static func _is_fps_text(text: String) -> bool:
 
 
 ## Reads the launch values once: the launch value file of the command line (in the browser runtime, the file the page
-## passed), then the launch values a DEV export holds for the names that file did not give. Only an export holds
-## `res://generated/launch_values.json`: the harness tool writes it into the copy of the project it exports and the
-## DEV preset excludes it otherwise, so a dev run of the project as it is finds no such file.
+## passed), then the values of `res://generated/launch_values.json` for the names that file did not give. Only the
+## check export of the harness tool holds that file (the DEV preset excludes it otherwise), so it is read whenever it
+## exists.
 static func _read_launch_values() -> void:
 	if BootstrapCore._launch_values_read:
 		return
@@ -294,17 +294,18 @@ static func _read_launch_values() -> void:
 	_merge_launch_values(export_path if not export_path.is_empty() else _EXPORT_LAUNCH_VALUES_PATH)
 
 
-## Adds the values of the launch value file at `path` whose names are not read yet. A value that is not a JSON string
-## keeps the first such error for `InitModules` 1.
+## Adds the values of the launch value file at `path` whose names are not read yet. A file that is not a JSON object
+## and a value that is not a JSON string keep the first such error for `InitModules` 1.
 # ogw:input_boundary
 static func _merge_launch_values(path: String) -> void:
 	if path.is_empty() or not FileAccess.file_exists(path):
 		return
-	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
-	if not parsed is Dictionary:
-		BootstrapCore._log_error("launch value file %s is not a JSON object" % path)
+	var json: JSON = JSON.new()
+	if json.parse(FileAccess.get_file_as_string(path)) != OK or not json.data is Dictionary:
+		if BootstrapCore._launch_value_error.is_empty():
+			BootstrapCore._launch_value_error = "launch value file %s is not a JSON object" % path
 		return
-	var values: Dictionary = parsed
+	var values: Dictionary = json.data
 	for value_name: Variant in values.keys():
 		var value: Variant = values[value_name]
 		if not value_name is String:
