@@ -4,7 +4,7 @@
  * Receipt data is the Play Billing `Purchase.getOriginalJson()` text.
  */
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
-import { is_object, parse_json, read_limited, type AckKind, type AdapterCall, type AdapterFailure, type HttpFetch, type KeySource, type StoreAdapter, type StoreNotification, type StoreTransaction, type SubscriptionSnapshot, type Verification } from '../adapter.ts';
+import { is_object, parse_json, read_limited, type AckKind, type AdapterCall, type AdapterFailure, type HttpFetch, type KeySource, type RefundPage, type StoreAdapter, type StoreNotification, type StoreTransaction, type SubscriptionSnapshot, type Verification } from '../adapter.ts';
 import { sign_rs256, verify_rs256_jwks } from './jws.ts';
 
 const API = 'https://androidpublisher.googleapis.com/androidpublisher/v3/applications';
@@ -373,6 +373,27 @@ export function create_google_adapter(options: GoogleAdapterOptions): StoreAdapt
       const json = is_object(state.json) ? state.json : {};
       const settled = kind === 'consume' ? json.consumptionState === 1 : kind === 'acknowledge' ? json.acknowledgementState === 1 : json.acknowledgementState === 'ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED';
       return state.status === 200 && settled ? null : 'rejected';
+    },
+
+    async list_refunds(window_start, window_end, page_token, call): Promise<RefundPage | AdapterFailure> {
+      const access = await access_token(call);
+      // A refused access token is an adapter call failure: only the API's own HTTP 400 is `rejected`.
+      if (typeof access === 'string') return access === 'rejected' ? 'communication_failure' : access;
+      const query = new URLSearchParams({ startTime: window_start.toString(), endTime: window_end.toString(), type: '1' });
+      if (page_token !== '') query.set('token', page_token);
+      const got = await fetch_json(options.fetch, max, `${app}/purchases/voidedpurchases?${query.toString()}`, { method: 'GET', headers: { authorization: `Bearer ${access.token}` }, signal: call.signal });
+      if (typeof got === 'string') return got;
+      if (got.status === 400) return 'rejected';
+      if (got.status !== 200 || !is_object(got.json)) return 'communication_failure';
+      const voided = Array.isArray(got.json.voidedPurchases) ? (got.json.voidedPurchases as unknown[]) : [];
+      const transaction_ids: string[] = [];
+      for (const element of voided) {
+        if (!is_object(element)) continue;
+        const id = text_of(element.orderId) || text_of(element.purchaseToken);
+        if (id !== '') transaction_ids.push(id);
+      }
+      const pagination = is_object(got.json.tokenPagination) ? got.json.tokenPagination : {};
+      return { transaction_ids, next_page_token: text_of(pagination.nextPageToken), unverified: 0 };
     },
 
     async parse_notification(headers, body, call): Promise<StoreNotification | 'bad_signature' | 'bad_format' | AdapterFailure> {

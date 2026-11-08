@@ -1,7 +1,8 @@
 /**
- * The five iap tables (`### grant order`): payment record, binding of an original transaction ID to a user,
- * subscription record, account token mapping and `OTHER_USER` record. A row whose `delete_at` is at or before
- * `server-time.clock_now` counts as absent before `storage.sweep_expired` removes it.
+ * The five iap tables of user records (`### grant order`): payment record, binding of an original transaction ID to a
+ * user, subscription record, account token mapping and `OTHER_USER` record. A row whose `delete_at` is at or before
+ * `server-time.clock_now` counts as absent before `storage.sweep_expired` removes it. Also the registration of the two
+ * refund lookup tables (`refund_lookup.ts` reads and writes them).
  */
 import type { DbHandle } from '../storage/index.ts';
 import type { IapStorage } from './deps.ts';
@@ -12,6 +13,9 @@ export const SUBSCRIPTION = 'iap_subscription';
 export const ACCOUNT_TOKEN = 'iap_account_token';
 export const OTHER_USER = 'iap_other_user';
 export const TABLES = [PAYMENT, BINDING, SUBSCRIPTION, ACCOUNT_TOKEN, OTHER_USER] as const;
+/** The refund lookup tables (`### refund lookup`): no user column, no expiry column. */
+export const REFUND_CURSOR = 'iap_refund_cursor';
+export const REFUND_RETRY = 'iap_refund_retry';
 
 export type PaymentResult = 'GRANTED' | 'INVALID' | 'REFUNDED';
 
@@ -69,8 +73,42 @@ function live(sql: string, now_param: number): string {
   return sql.split('$LIVE').join(`(delete_at IS NULL OR delete_at > $${String(now_param)})`);
 }
 
-/** Registers the five tables (`storage.register_table`). Indexes serve the queries by user and by original transaction ID. */
+/**
+ * Registers the seven tables (`storage.register_table`). Indexes serve the queries by user and by original transaction
+ * ID, and the retry query by store in `failed_at` order.
+ */
 export function register_tables(storage: IapStorage): void {
+  storage.register_table(
+    REFUND_CURSOR,
+    'game',
+    [
+      { name: 'store', type: 'string' },
+      { name: 'adapter', type: 'string' },
+      { name: 'window_start', type: 'int64' },
+      { name: 'window_end', type: 'int64' },
+      { name: 'page_token', type: 'string' },
+      { name: 'done', type: 'bool' },
+      { name: 'updated_at', type: 'int64' },
+    ],
+    ['store'],
+    null,
+    null,
+  );
+  storage.register_table(
+    REFUND_RETRY,
+    'game',
+    [
+      { name: 'store', type: 'string' },
+      { name: 'transaction_id', type: 'string' },
+      { name: 'attempts', type: 'int32' },
+      { name: 'failed_at', type: 'int64' },
+    ],
+    ['store', 'transaction_id'],
+    null,
+    null,
+    null,
+    [['store', 'failed_at']],
+  );
   storage.register_table(
     PAYMENT,
     'game',

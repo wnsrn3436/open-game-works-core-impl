@@ -5,11 +5,11 @@
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import * as CoreContract from '../../../../generated/contract/core_contract.ts';
-import { is_object, parse_json, type AckKind, type AdapterFailure, type StoreAdapter, type StoreNotification, type StoreTransaction, type SubscriptionSnapshot, type Verification, type VerifyStatus } from '../../adapter.ts';
+import { is_object, parse_json, type AckKind, type AdapterFailure, type RefundPage, type StoreAdapter, type StoreNotification, type StoreTransaction, type SubscriptionSnapshot, type Verification, type VerifyStatus } from '../../adapter.ts';
 
 /** One call the fake adapter received. */
 export interface FakeCall {
-  readonly operation: 'verify' | 'lookup_subscription' | 'acknowledge';
+  readonly operation: 'verify' | 'lookup_subscription' | 'acknowledge' | 'list_refunds';
   readonly input: Readonly<Record<string, unknown>>;
 }
 
@@ -24,8 +24,10 @@ export interface FakeCall {
  *   verified for that original transaction ID: `ACTIVE`, purchase time + `iap.fakeSubscriptionPeriodMs`, `true`
  * - `acknowledge`: no result. Its calls carry `{transaction_id, kind}` (`consume`, `acknowledge`,
  *   `subscription_acknowledge`)
- * - `hold(on)`: with `true`, every later `verify` and `lookup_subscription` call waits until `release(n)` lets it go;
- *   `false` lets every waiting call go
+ * - `list_refunds`: result `{transaction_ids, next_page_token}` (both optional), or null to unset; unset is an empty list
+ *   and the empty string. Its calls carry `{window_start, window_end, page_token}`
+ * - `hold(on)`: with `true`, every later `verify`, `lookup_subscription` and `list_refunds` call waits until
+ *   `release(n)` lets it go; `false` lets every waiting call go
  * - `release(n)`: lets the first n waiting calls go, in the order they came; a call that comes later while fewer than n
  *   were waiting goes at once
  */
@@ -45,7 +47,7 @@ export interface FakeStoreAdapter extends StoreAdapter {
   set_snapshot(original_transaction_id: string, snapshot: unknown): void;
 }
 
-const OPERATIONS: ReadonlySet<string> = new Set(['verify', 'lookup_subscription', 'acknowledge']);
+const OPERATIONS: ReadonlySet<string> = new Set(['verify', 'lookup_subscription', 'acknowledge', 'list_refunds']);
 const FAILURES: ReadonlySet<unknown> = new Set(['timeout', 'communication_failure', 'rejected', null]);
 const STATUSES: ReadonlySet<unknown> = new Set(['VALID', 'INVALID', 'PENDING', 'FAILED']);
 
@@ -128,6 +130,19 @@ function verify_setting(result: unknown): VerifySetting {
   };
 }
 
+/** A `list_refunds` result from a controller value; throws for a value that is not one. */
+function refund_setting(result: unknown): RefundPage {
+  if (result === null) return { transaction_ids: [], next_page_token: '', unverified: 0 };
+  const wrong = new TypeError('fake iap: the list_refunds result is {transaction_ids, next_page_token}');
+  if (!is_object(result)) throw wrong;
+  const ids: unknown = result.transaction_ids ?? [];
+  const token = result.next_page_token ?? '';
+  if (!Array.isArray(ids) || typeof token !== 'string') throw wrong;
+  const transaction_ids = ids.filter((id): id is string => typeof id === 'string');
+  if (transaction_ids.length !== ids.length) throw wrong;
+  return { transaction_ids, next_page_token: token, unverified: 0 };
+}
+
 /** A whole snapshot from a part over the base store transaction; `rejected` without a SKU, transaction ID or purchase time. */
 function snapshot_from(part: Partial<SubscriptionSnapshot>, base: StoreTransaction | null | undefined, period_ms: number): SubscriptionSnapshot | AdapterFailure {
   const purchased_at = part.purchased_at ?? base?.purchased_at;
@@ -153,6 +168,7 @@ export function create_fake_adapter(adapter_key: string): { adapter: FakeStoreAd
   const failures = new Map<string, AdapterFailure>();
   let verify: VerifySetting = { status: 'VALID', test: true, purchased_at: null, app_id: null, device_receipt: true };
   let lookup: Partial<SubscriptionSnapshot> | null = null;
+  let refunds: RefundPage = refund_setting(null);
   const snapshots = new Map<string, Partial<SubscriptionSnapshot>>();
   const verified = new Map<string, StoreTransaction>();
   let holding = false;
@@ -192,6 +208,13 @@ export function create_fake_adapter(adapter_key: string): { adapter: FakeStoreAd
       calls.push({ operation: 'acknowledge', input: { transaction_id: transaction.transaction_id, kind } });
       return Promise.resolve(failures.get('acknowledge') ?? null);
     },
+    async list_refunds(window_start, window_end, page_token) {
+      calls.push({ operation: 'list_refunds', input: { window_start, window_end, page_token } });
+      await wait();
+      const failure = failures.get('list_refunds');
+      if (failure !== undefined) return failure;
+      return { ...refunds, transaction_ids: [...refunds.transaction_ids] };
+    },
     set_snapshot(original_transaction_id, snapshot) {
       if (snapshot === null || snapshot === undefined) snapshots.delete(original_transaction_id);
       else snapshots.set(original_transaction_id, snapshot_part(snapshot));
@@ -218,6 +241,8 @@ export function create_fake_adapter(adapter_key: string): { adapter: FakeStoreAd
         verify = verify_setting(result);
       } else if (operation === 'lookup_subscription') {
         lookup = result === null ? null : snapshot_part(result);
+      } else if (operation === 'list_refunds') {
+        refunds = refund_setting(result);
       } else {
         throw new TypeError(`fake iap: operation ${operation} has no result to set`);
       }

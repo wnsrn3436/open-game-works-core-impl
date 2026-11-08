@@ -199,6 +199,33 @@ describe('fake adapter', () => {
     }).toThrow();
   });
 
+  it('gives the list_refunds result the controller sets, an empty page when unset, records its input and holds it like verify', async () => {
+    const { adapter, controller } = create_fake_adapter('iap-google');
+    expect(await adapter.list_refunds(1n, 2n, '', call())).toEqual({ transaction_ids: [], next_page_token: '', unverified: 0 });
+    controller.set_result('list_refunds', { transaction_ids: ['r-1', 'r-2'], next_page_token: 'P' });
+    expect(await adapter.list_refunds(1n, 2n, 'P0', call())).toEqual({ transaction_ids: ['r-1', 'r-2'], next_page_token: 'P', unverified: 0 });
+    controller.set_result('list_refunds', { transaction_ids: ['r-3'] });
+    expect(await adapter.list_refunds(1n, 2n, '', call())).toEqual({ transaction_ids: ['r-3'], next_page_token: '', unverified: 0 });
+    controller.set_failure('list_refunds', 'rejected');
+    expect(await adapter.list_refunds(1n, 2n, '', call())).toBe('rejected');
+    controller.set_failure('list_refunds', null);
+    controller.set_result('list_refunds', null);
+    expect(controller.calls().filter((c) => c.operation === 'list_refunds')[1]?.input).toEqual({ window_start: 1n, window_end: 2n, page_token: 'P0' });
+    expect(() => {
+      controller.set_result('list_refunds', { transaction_ids: [1] });
+    }).toThrow();
+    controller.hold(true);
+    let done = false;
+    const held = adapter.list_refunds(3n, 4n, '', call()).then(() => {
+      done = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(done).toBe(false);
+    controller.release(1);
+    await held;
+    expect(done).toBe(true);
+  });
+
   it('reads a fake notification body only in the JSON form and with the HMAC-SHA256 signature of the key', () => {
     const key = Buffer.alloc(32, 7);
     const body = Buffer.from(JSON.stringify({ notification_id: 'n-1', kind: 'REFUND', transaction_id: 't-1' }));
@@ -317,6 +344,29 @@ describe('iap-apple', () => {
     const forged = Buffer.from(JSON.stringify({ signedPayload: signed({ notificationType: 'REFUND', notificationUUID: 'x' }, chain.plain_leaf) }));
     expect(await adapter.parse_notification?.({}, forged, call())).toBe('bad_signature');
     expect(await adapter.parse_notification?.({}, Buffer.from('{}'), call())).toBe('bad_format');
+  });
+
+  it('list_refunds posts the REFUND notification history request to production (iap-apple) or sandbox (iap-apple-sandbox), with paginationToken only for a page token', async () => {
+    const element = (type: string, tx: Record<string, unknown> = TX, leaf = chain.leaf) => ({
+      signedPayload: signed({ notificationType: type, notificationUUID: `u-${type}-${String(tx.transactionId)}`, data: { bundleId: 'com.example.app', environment: 'Sandbox', signedTransactionInfo: signed(tx) } }, leaf),
+    });
+    const history = {
+      notificationHistory: [element('REFUND'), element('REFUND', { ...TX, transactionId: '2000002' }, chain.plain_leaf), element('DID_RENEW'), element('REFUND', { ...TX, transactionId: '2000003' })],
+      hasMore: true,
+      paginationToken: 'page-2',
+    };
+    const prod = http(() => json_response(200, history));
+    expect(await apple(prod.fetch).list_refunds(1_000n, 2_000n, '', call())).toEqual({ transaction_ids: ['2000001', '2000003'], next_page_token: 'page-2', unverified: 1 });
+    expect(prod.requests[0]?.url).toBe('https://api.storekit.itunes.apple.com/inApps/v1/notifications/history');
+    expect(prod.requests[0]?.init.method).toBe('POST');
+    expect(JSON.parse(prod.requests[0]?.init.body as string)).toEqual({ startDate: 1000, endDate: 2000, notificationType: 'REFUND' });
+    expect((prod.requests[0]?.init.headers as Record<string, string>).authorization).toMatch(/^Bearer /);
+    const sandbox = http(() => json_response(200, { notificationHistory: [], hasMore: false, paginationToken: 'x' }));
+    expect(await apple(sandbox.fetch, 'iap-apple-sandbox').list_refunds(1_000n, 2_000n, 'page 2', call())).toEqual({ transaction_ids: [], next_page_token: '', unverified: 0 });
+    expect(sandbox.requests.map((r) => r.url)).toEqual(['https://api.storekit-sandbox.itunes.apple.com/inApps/v1/notifications/history?paginationToken=page%202']);
+    expect(await apple(http(() => json_response(400, {})).fetch).list_refunds(1n, 2n, 'p', call())).toBe('rejected');
+    expect(await apple(http(() => json_response(500, {})).fetch).list_refunds(1n, 2n, '', call())).toBe('communication_failure');
+    expect(await apple(http(() => new Response('[]', { status: 200 })).fetch).list_refunds(1n, 2n, '', call())).toBe('communication_failure');
   });
 });
 
@@ -596,5 +646,27 @@ describe('iap-google', () => {
     expect(await adapter.parse_notification?.(headers(good), push({ packageName: 'com.other' }), call())).toBe('bad_signature');
     expect(await adapter.parse_notification?.(headers(good), Buffer.from('{}'), call())).toBe('bad_format');
     expect(verify_rs256_jwks(oidc(good), JWKS)).toEqual(good);
+  });
+
+  it('list_refunds gets purchases.voidedpurchases.list with startTime, endTime, type 1 and token only for a page token; orderId, else purchaseToken, is the transaction ID', async () => {
+    const page = {
+      voidedPurchases: [{ orderId: 'GPA.1', purchaseToken: 'tok-1' }, { purchaseToken: 'tok-2' }, { orderId: '', purchaseToken: 'tok-3' }, { kind: 'x' }],
+      tokenPagination: { nextPageToken: 'next-1' },
+    };
+    const { fetch, requests } = http((url) => (url.endsWith('/token') ? json_response(200, { access_token: 'at-1' }) : json_response(200, page)));
+    const adapter = google(fetch);
+    expect(await adapter.list_refunds(1_000n, 2_000n, '', call())).toEqual({ transaction_ids: ['GPA.1', 'tok-2', 'tok-3'], next_page_token: 'next-1', unverified: 0 });
+    expect(requests[1]?.url).toBe('https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.example.app/purchases/voidedpurchases?startTime=1000&endTime=2000&type=1');
+    expect(requests[1]?.init.method).toBe('GET');
+    expect((requests[1]?.init.headers as Record<string, string>).authorization).toBe('Bearer at-1');
+    await adapter.list_refunds(1_000n, 2_000n, 'next-1', call());
+    expect(requests[2]?.url).toBe('https://androidpublisher.googleapis.com/androidpublisher/v3/applications/com.example.app/purchases/voidedpurchases?startTime=1000&endTime=2000&type=1&token=next-1');
+    const answer = (status: number, body: unknown) => http((url) => (url.endsWith('/token') ? json_response(200, { access_token: 'at' }) : json_response(status, body))).fetch;
+    expect(await google(answer(200, {})).list_refunds(1n, 2n, '', call())).toEqual({ transaction_ids: [], next_page_token: '', unverified: 0 });
+    expect(await google(answer(400, {})).list_refunds(1n, 2n, 't', call())).toBe('rejected');
+    expect(await google(answer(500, {})).list_refunds(1n, 2n, '', call())).toBe('communication_failure');
+    expect(await google(answer(200, [1])).list_refunds(1n, 2n, '', call())).toBe('communication_failure');
+    const no_token = http(() => json_response(401, {})).fetch;
+    expect(await google(no_token).list_refunds(1n, 2n, '', call())).toBe('communication_failure');
   });
 });

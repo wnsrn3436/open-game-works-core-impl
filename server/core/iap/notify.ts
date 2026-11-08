@@ -1,4 +1,7 @@
-/** Route `POST /iap/notify/<store>` (`### store notification`). */
+/**
+ * Route `POST /iap/notify/<store>` (`### store notification`), and refund apply of the refund lookup: the handling of
+ * a `REFUND` notification without `idempotency.claim_notify`.
+ */
 import type * as CoreContract from '../../generated/contract/core_contract.ts';
 import type { GameTx, RequestCtx } from '../storage/index.ts';
 import { is_failure, type StoreNotification, type SubscriptionSnapshot } from './adapter.ts';
@@ -66,6 +69,16 @@ interface Work {
   /** The original transaction ID: of the payment record read outside the transaction (`REFUND`), or of the notification. */
   readonly original_transaction_id: string;
   readonly snapshot: SubscriptionSnapshot | null;
+  /** False for refund apply of the refund lookup, which has no notification ID to claim. */
+  readonly claim: boolean;
+  /** The `reason` of the `audit` log of the `REFUND` processing order. */
+  readonly audit_reason: 'iap_refund' | 'iap_refund_lookup';
+}
+
+/** `idempotency.claim_notify` of the work's notification ID; refund apply claims nothing and is never a duplicate. */
+function claim(c: IapContext, ctx_or_tx: RequestCtx | GameTx, w: Work): 'FIRST' | 'DUPLICATE' {
+  if (!w.claim) return 'FIRST';
+  return c.m.idempotency.claim_notify(ctx_or_tx, w.source, w.notification.notification_id) === 'DUPLICATE' ? 'DUPLICATE' : 'FIRST';
 }
 
 /** The records that record recheck reads. */
@@ -113,12 +126,12 @@ function fail(set: SetOutcome, outcome: Outcome, code: number = CoreError.CORE_E
 /** `REFUND` in the record user's transaction: claim only for a record that is not `GRANTED`, else the `REFUND` processing order. */
 function refund_user(c: IapContext, ctx: RequestCtx, w: Work, rec: PaymentRow | null, set: SetOutcome): 'pass' | number {
   if (rec === null || rec.result !== 'GRANTED') {
-    c.m.idempotency.claim_notify(ctx, w.source, w.notification.notification_id);
+    claim(c, ctx, w);
     return 'pass';
   }
   if (rec.user_id !== ctx.user_id) return fail(set, 'mismatch');
-  if (c.m.idempotency.claim_notify(ctx, w.source, w.notification.notification_id) === 'DUPLICATE') return 'pass';
-  const refunded = refund_record(c, ctx, w.store, rec, 'iap_refund');
+  if (claim(c, ctx, w) === 'DUPLICATE') return 'pass';
+  const refunded = refund_record(c, ctx, w.store, rec, w.audit_reason);
   if (refunded !== 'pass') return fail(set, 'failed', refunded);
   const product = product_of_record(ctx.data, w.store, rec);
   if (product === null || product.type !== ProductType.Subscription || w.snapshot === null) return 'pass';
@@ -129,7 +142,7 @@ function refund_user(c: IapContext, ctx: RequestCtx, w: Work, rec: PaymentRow | 
 /** `SUBSCRIPTION` in the record user's transaction: subscription apply. */
 function subscription_user(c: IapContext, ctx: RequestCtx, w: Work, sub: SubscriptionRow | null, set: SetOutcome): 'pass' | number {
   if (sub === null || sub.user_id !== ctx.user_id) return fail(set, 'mismatch');
-  if (c.m.idempotency.claim_notify(ctx, w.source, w.notification.notification_id) === 'DUPLICATE' || w.snapshot === null) return 'pass';
+  if (claim(c, ctx, w) === 'DUPLICATE' || w.snapshot === null) return 'pass';
   const applied = subscription_apply(c, ctx, w.store, w.original_transaction_id, w.snapshot);
   return applied === 'pass' ? 'pass' : fail(set, 'failed', applied);
 }
@@ -167,11 +180,11 @@ function write_withdrawn_subscription(c: IapContext, tx: GameTx, sub: Subscripti
 function withdrawn_refund(c: IapContext, tx: GameTx, w: Work, read: Recheck): SubscriptionRow | null | RouteResponse | number {
   const rec = read.payment;
   if (rec === null || rec.result !== 'GRANTED') {
-    c.m.idempotency.claim_notify(tx, w.source, w.notification.notification_id);
+    claim(c, tx, w);
     return OK;
   }
   if (rec.user_id !== w.user_id) return CoreError.CORE_ERROR_INTERNAL;
-  if (c.m.idempotency.claim_notify(tx, w.source, w.notification.notification_id) === 'DUPLICATE') return OK;
+  if (claim(c, tx, w) === 'DUPLICATE') return OK;
   upsert_payment(c.m.storage.db(tx), { ...rec, result: 'REFUNDED' });
   const product = product_of_record(c.data, w.store, rec);
   const subscription = product !== null && product.type === ProductType.Subscription ? read.subscription : null;
@@ -195,7 +208,7 @@ function change_withdrawn(c: IapContext, tx: GameTx, w: Work): RouteResponse | n
     sub = refunded;
   } else {
     if (read.subscription === null || read.subscription.user_id !== w.user_id) return CoreError.CORE_ERROR_INTERNAL;
-    if (c.m.idempotency.claim_notify(tx, w.source, w.notification.notification_id) === 'DUPLICATE') return OK;
+    if (claim(c, tx, w) === 'DUPLICATE') return OK;
     sub = w.snapshot === null ? null : with_snapshot(c, read.subscription, w.snapshot);
   }
   if (sub !== null && w.snapshot !== null) write_withdrawn_subscription(c, tx, sub, w.snapshot.state);
@@ -203,12 +216,13 @@ function change_withdrawn(c: IapContext, tx: GameTx, w: Work): RouteResponse | n
 }
 
 async function process(c: IapContext, w: Work): Promise<RouteResponse> {
+  const what = w.claim ? 'iap store notification processing' : 'iap refund apply of the refund lookup';
   let outcome = 'ok' as Outcome;
   let result;
   try {
     result = await c.m.storage.run_user_transaction(w.user_id, (ctx) => change_user(c, ctx, w, (o) => (outcome = o)));
   } catch (error) {
-    log_user(c, w.user_id, 'error', 'error', 'iap store notification processing threw', { stack_trace: error instanceof Error ? (error.stack ?? error.message) : String(error) });
+    log_user(c, w.user_id, 'error', 'error', `${what} threw`, { stack_trace: error instanceof Error ? (error.stack ?? error.message) : String(error) });
     return FAILED;
   }
   if (result === 'COMMITTED') return OK;
@@ -217,12 +231,12 @@ async function process(c: IapContext, w: Work): Promise<RouteResponse> {
     try {
       done = await c.m.storage.run_game_transaction((tx) => change_withdrawn(c, tx, w));
     } catch (error) {
-      log_user(c, w.user_id, 'error', 'error', 'iap store notification processing threw', { stack_trace: error instanceof Error ? (error.stack ?? error.message) : String(error) });
+      log_user(c, w.user_id, 'error', 'error', `${what} threw`, { stack_trace: error instanceof Error ? (error.stack ?? error.message) : String(error) });
       return FAILED;
     }
     return typeof done === 'object' ? done : FAILED;
   }
-  if (outcome === 'failed' || result === 'FAILED') log_user(c, w.user_id, 'error', 'error', 'iap store notification processing failed', { kind: w.notification.kind });
+  if (outcome === 'failed' || result === 'FAILED') log_user(c, w.user_id, 'error', 'error', `${what} failed`, { kind: w.notification.kind });
   return FAILED;
 }
 
@@ -237,7 +251,7 @@ export async function handle_notify(c: IapContext, request: RouteRequest): Promi
 }
 
 /** The work of a `REFUND` notification: the `GRANTED` payment record outside the transaction and, for a subscription, the lookup. */
-async function refund_work(c: IapContext, store: Store, binding: StoreBinding, notification: StoreNotification): Promise<Work | RouteResponse> {
+async function refund_work(c: IapContext, store: Store, binding: StoreBinding, notification: StoreNotification, lookup: boolean): Promise<Work | RouteResponse> {
   const rec = select_payment(c.m.storage.read_db(), store_name(store), notification.value, c.m.time.clock_now());
   if (rec === null || rec.result !== 'GRANTED') return OK;
   const product = product_of_record(c.data, store, rec);
@@ -246,7 +260,17 @@ async function refund_work(c: IapContext, store: Store, binding: StoreBinding, n
     snapshot = await lookup_subscription(c, binding, store, rec.original_transaction_id, null, rec.user_id);
     if (snapshot === null) return FAILED;
   }
-  return { store, source: binding.name, notification, user_id: rec.user_id, transaction_id: rec.transaction_id, original_transaction_id: rec.original_transaction_id, snapshot };
+  return {
+    store,
+    source: binding.name,
+    notification,
+    user_id: rec.user_id,
+    transaction_id: rec.transaction_id,
+    original_transaction_id: rec.original_transaction_id,
+    snapshot,
+    claim: !lookup,
+    audit_reason: lookup ? 'iap_refund_lookup' : 'iap_refund',
+  };
 }
 
 /** The work of a `SUBSCRIPTION` notification: the subscription record outside the transaction and the lookup. */
@@ -255,7 +279,17 @@ async function subscription_work(c: IapContext, store: Store, binding: StoreBind
   if (sub === null) return OK;
   const snapshot = await lookup_subscription(c, binding, store, notification.value, null, sub.user_id);
   if (snapshot === null) return FAILED;
-  return { store, source: binding.name, notification, user_id: sub.user_id, transaction_id: snapshot.latest_transaction_id, original_transaction_id: notification.value, snapshot };
+  return {
+    store,
+    source: binding.name,
+    notification,
+    user_id: sub.user_id,
+    transaction_id: snapshot.latest_transaction_id,
+    original_transaction_id: notification.value,
+    snapshot,
+    claim: true,
+    audit_reason: 'iap_refund',
+  };
 }
 
 async function notify(c: IapContext, request: RouteRequest): Promise<RouteResponse> {
@@ -271,6 +305,23 @@ async function notify(c: IapContext, request: RouteRequest): Promise<RouteRespon
   const id_bytes = Buffer.byteLength(notification.notification_id, 'utf8');
   if (id_bytes < 1 || id_bytes > c.settings.max_notify_id_bytes) return BAD_REQUEST;
   if (notification.kind === 'OTHER' || notification.value === '') return OK;
-  const work = notification.kind === 'REFUND' ? await refund_work(c, store, binding, notification) : await subscription_work(c, store, binding, notification);
+  const work = notification.kind === 'REFUND' ? await refund_work(c, store, binding, notification, false) : await subscription_work(c, store, binding, notification);
   return 'status' in work ? work : process(c, work);
+}
+
+/**
+ * Refund apply of a transaction ID (`### refund lookup`): the handling of a `REFUND` notification of that transaction
+ * ID after its signature check, without `idempotency.claim_notify`. True for an outcome a notification answers with HTTP
+ * 200 (a refund already handled, no payment record, a record that is not `GRANTED` among them), false for HTTP 500.
+ */
+export async function refund_apply(c: IapContext, store: Store, binding: StoreBinding, transaction_id: string): Promise<boolean> {
+  try {
+    const notification: StoreNotification = { notification_id: '', kind: 'REFUND', value: transaction_id };
+    const work = await refund_work(c, store, binding, notification, true);
+    const response = 'status' in work ? work : await process(c, work);
+    return response.status === 200;
+  } catch (error) {
+    log_user(c, null, 'error', 'error', 'iap refund apply of the refund lookup threw', { store: store_name(store), transaction_id, stack_trace: error instanceof Error ? (error.stack ?? error.message) : String(error) });
+    return false;
+  }
 }
