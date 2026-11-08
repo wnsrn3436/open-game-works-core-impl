@@ -1,0 +1,12 @@
+{
+  "target": "spec InputCore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/client-core/modules/input-core.md:58",
+      "problem": "`list_pad_axis_sensitivities` has the same two gaps as R1-1 and R1-2: content code cannot read `InputCore.padAxisSensitivities` (skills/client-content/SKILL.md:41), the setting has no maximum element count (input-core.md:261) and no operation gives the count, so the buffer length that avoids the overflow error log of skills/client-core/engines/godot.md:482 is not set; and the Godot buffer type of this integer list is set nowhere in godot.md",
+      "foundBy": "spec AccessibilityCore"
+    }
+  ]
+}
