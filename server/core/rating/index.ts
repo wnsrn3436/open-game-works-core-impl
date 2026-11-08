@@ -36,8 +36,15 @@ export interface RatingInput {
   readonly server: RatingServer;
 }
 
-/** The fields of a `matchmaker` match record input that `rating` reads. */
-export type MatchRecord = Pick<MatchRecordInput, 'mode_id' | 'user_ids' | 'ratings' | 'teams'>;
+/** The fields of a `matchmaker` match record input that `rating` reads (`## API` match record). */
+export interface MatchRecord extends Pick<MatchRecordInput, 'mode_id' | 'user_ids' | 'ratings' | 'teams'> {
+  /** The `MatchJudgeStatus` of the judgement. */
+  readonly status: CoreContract.MatchJudgeStatus;
+  /** Index order; a forfeiter has `left_at` not 0 and `reported_at` 0. */
+  readonly participants: readonly { readonly reported_at: bigint; readonly left_at: bigint }[];
+}
+
+const Status = CoreContract.MatchJudgeStatus;
 
 export interface RatingView {
   readonly rating: bigint;
@@ -61,13 +68,14 @@ export const RatingResult = {
   OK: 'OK',
   NO_RATING: 'NO_RATING',
   INVALID_INPUT: 'INVALID_INPUT',
+  VOID: 'VOID',
 } as const;
 export type RatingResult = (typeof RatingResult)[keyof typeof RatingResult];
 
 /** The output of `apply_match_outcome`: `OK` with the `RatingChange`, or the failure element in `result`. */
 export type MatchOutcome =
   | { readonly result: typeof RatingResult.OK; readonly change: RatingChange }
-  | { readonly result: typeof RatingResult.NO_RATING | typeof RatingResult.INVALID_INPUT };
+  | { readonly result: typeof RatingResult.NO_RATING | typeof RatingResult.INVALID_INPUT | typeof RatingResult.VOID };
 
 /** The operations of `## API` whose caller has content code: the member `content` (`server-core` `## module`). */
 export interface RatingContent {
@@ -142,6 +150,34 @@ function tiers_by_rule(data: GameData.DataSet): Map<number, GameData.RatingTierR
   }
   for (const list of out.values()) list.sort((a, b) => (a.min_rating > b.min_rating ? -1 : a.min_rating < b.min_rating ? 1 : 0));
   return out;
+}
+
+/** A forfeiter (`### result decision` of `matchmaker`): `left_at` not 0 and no saved report. */
+function is_forfeiter(record: MatchRecord, j: number): boolean {
+  const p = record.participants[j];
+  return p !== undefined && p.left_at !== 0n && p.reported_at === 0n;
+}
+
+/**
+ * The opponents of a participant (step 3 of `### match outcome`): the other participants, or those of another team; in a
+ * `FORFEIT` match only those whose outcome against it is known.
+ */
+function opponents_of(record: MatchRecord, index: number, team_size: number): number[] {
+  const team = BigInt(record.teams[index] ?? 0);
+  const forfeit = record.status === Status.MATCH_JUDGE_STATUS_FORFEIT;
+  const forfeited = forfeit && is_forfeiter(record, index);
+  return record.user_ids
+    .map((_, j) => j)
+    .filter((j) => j !== index && (team_size === 0 || BigInt(record.teams[j] ?? 0) !== team))
+    .filter((j) => !forfeit || is_forfeiter(record, j) !== forfeited);
+}
+
+/** S of a participant against opponent j (step 4 of `### match outcome`), in permille. */
+function score_of(record: MatchRecord, index: number, j: number, placements: readonly (bigint | number)[]): bigint {
+  if (record.status === Status.MATCH_JUDGE_STATUS_FORFEIT) return is_forfeiter(record, index) ? 0n : 1000n;
+  const mine = BigInt(placements[index] ?? 0);
+  const theirs = BigInt(placements[j] ?? 0);
+  return mine < theirs ? 1000n : mine === theirs ? 500n : 0n;
 }
 
 export function create_rating(input: RatingInput): Rating {
@@ -248,13 +284,26 @@ export function create_rating(input: RatingInput): Rating {
     const count = record.user_ids.length;
     if (!Number.isInteger(index) || index < 0 || index >= count) return false;
     if (record.user_ids[index] !== ctx.user_id) return false;
-    if (placements.length !== count) return false;
+    if (record.status === Status.MATCH_JUDGE_STATUS_CONFIRMED) {
+      if (placements.length !== count) return false;
+    } else if (record.status === Status.MATCH_JUDGE_STATUS_FORFEIT) {
+      if (placements.length !== 0) return false;
+    } else if (record.status !== Status.MATCH_JUDGE_STATUS_MISMATCH) {
+      // `PENDING`, and any value that is not a judgement.
+      return false;
+    }
     return placements.every((p) => (typeof p === 'bigint' ? p >= 0n : Number.isInteger(p) && p >= 0));
   };
 
   const apply_match_outcome = (ctx: RequestCtx, record: MatchRecord, index: number, placements: readonly (bigint | number)[]): MatchOutcome => {
     if (!is_valid_input(ctx, record, index, placements)) {
-      log_error(ctx, 'rating match outcome input is invalid', { mode_id: record.mode_id, index, players: record.user_ids.length, placements: placements.length });
+      log_error(ctx, 'rating match outcome input is invalid', {
+        mode_id: record.mode_id,
+        status: record.status,
+        index,
+        players: record.user_ids.length,
+        placements: placements.length,
+      });
       return { result: RatingResult.INVALID_INPUT };
     }
     const mode = ctx.data.MatchModeTable.get_row(record.mode_id);
@@ -262,24 +311,18 @@ export function create_rating(input: RatingInput): Rating {
       log_error(ctx, 'rating match outcome for a match mode without a rating rule', { mode_id: record.mode_id });
       return { result: RatingResult.NO_RATING };
     }
+    // A match the server could not decide changes no rating, and is not an error.
+    if (record.status === Status.MATCH_JUDGE_STATUS_MISMATCH) return { result: RatingResult.VOID };
     const rule = rule_of(ctx, mode.rating_rule);
     const read = read_row(ctx, rule);
     const before = read.row.rating;
     const tier_before = read.row.tier_id;
-    const team = BigInt(record.teams[index] ?? 0);
-    const opponents = record.user_ids
-      .map((_, j) => j)
-      .filter((j) => j !== index && (mode.team_size === 0 || BigInt(record.teams[j] ?? 0) !== team));
+    const opponents = opponents_of(record, index, mode.team_size);
     const m = BigInt(opponents.length);
     if (m > 0n) {
-      const mine = BigInt(placements[index] ?? 0);
       const rating_i = BigInt(record.ratings[index] ?? 0);
       let sum = 0n;
-      for (const j of opponents) {
-        const theirs = BigInt(placements[j] ?? 0);
-        const score = mine < theirs ? 1000n : mine === theirs ? 500n : 0n;
-        sum += score - expected_score(rating_i, BigInt(record.ratings[j] ?? 0), rule.scale);
-      }
+      for (const j of opponents) sum += score_of(record, index, j, placements) - expected_score(rating_i, BigInt(record.ratings[j] ?? 0), rule.scale);
       const k = BigInt(read.row.season_games < rule.placement_matches ? rule.placement_k_factor : rule.k_factor);
       const delta = validation.floor_div(2n * k * sum + 1000n * m, 2000n * m);
       const after = read.row.rating + delta;

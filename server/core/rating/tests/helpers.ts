@@ -28,7 +28,10 @@ export type TestServer = Awaited<ReturnType<typeof start_test_server>>;
 export type TestSession = Awaited<ReturnType<typeof login>>;
 
 /** A `matchmaker` hook `apply_match_result` as `routing.register_hook` takes it. */
-export type ApplyMatchResultHook = (ctx: RequestCtx, record: MatchRecord, index: number, result: Uint8Array) => 'pass' | number;
+export type ApplyMatchResultHook = (ctx: RequestCtx, record: MatchHookRecord, index: number, result: Uint8Array) => 'pass' | number;
+
+/** The match record input of a `matchmaker` apply hook: `status` may be missing while `matchmaker` does not pass it yet. */
+export type MatchHookRecord = Omit<MatchRecord, 'status'> & Partial<Pick<MatchRecord, 'status'>>;
 
 /** The part of the content `register(core)` view that the tests use. */
 export interface RegisterView {
@@ -130,7 +133,24 @@ export async function mails(kit: Kit, user_id: bigint): Promise<CoreContract.Mai
 
 /** A match record of the given match mode with the users, ratings and teams by index. */
 export function match(kit: Kit, mode: string, user_ids: readonly bigint[], ratings: readonly bigint[], teams: readonly number[] = user_ids.map(() => 0)): MatchRecord {
-  return { mode_id: kit.id(mode), user_ids, ratings, teams };
+  return judged(kit, mode, CoreContract.MatchJudgeStatus.MATCH_JUDGE_STATUS_CONFIRMED, user_ids, ratings, [], teams);
+}
+
+/**
+ * A match record of a judgement `status`: every participant reported, except the indexes in `forfeiters`, which left
+ * without reporting.
+ */
+export function judged(
+  kit: Kit,
+  mode: string,
+  status: CoreContract.MatchJudgeStatus,
+  user_ids: readonly bigint[],
+  ratings: readonly bigint[],
+  forfeiters: readonly number[] = [],
+  teams: readonly number[] = user_ids.map(() => 0),
+): MatchRecord {
+  const participants = user_ids.map((_, i) => (forfeiters.includes(i) ? { reported_at: 0n, left_at: 1000n } : { reported_at: 1000n, left_at: 0n }));
+  return { mode_id: kit.id(mode), status, user_ids, ratings, teams, participants };
 }
 
 /** `set_rating` of a user through `testing.call_dev`. */
