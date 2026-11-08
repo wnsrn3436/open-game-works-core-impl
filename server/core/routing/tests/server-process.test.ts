@@ -9,6 +9,8 @@ import * as GameContract from '../../../generated/contract/game_contract.ts';
 import { open_pg_session } from '../../storage/dev/index.ts';
 import * as testing from '../../testing/dev/index.ts';
 import { real_delay } from '../../testing/dev/real_time.ts';
+import type { MetricFamily } from '../../logging/index.ts';
+import { metrics_text } from '../server_process.ts';
 import { accepts, driver, free_port, game_server, get, local_args, sample, start_point, until, type GameServer, type RunningProcess } from './process_support.ts';
 
 const E = CoreContract.CoreError;
@@ -68,6 +70,27 @@ function realtime_upgrade(port: number): Promise<string> {
     socket.on('error', () => undefined);
   });
 }
+
+describe('metrics_text', () => {
+  it('sums each sample name and label set, puts families in byte order of name, samples in byte order of label text and then of sample name', () => {
+    const report = (count: number): MetricFamily[] => [
+      { name: 'zeta', type: 'gauge', samples: [{ name: 'zeta', labels: {}, value: 1 }] },
+      {
+        name: 'alpha_ms',
+        type: 'histogram',
+        samples: [
+          { name: 'alpha_ms_count', labels: {}, value: count },
+          { name: 'alpha_ms_sum', labels: {}, value: 10 },
+          { name: 'alpha_ms_bucket', labels: { le: '+Inf' }, value: count },
+          { name: 'alpha_ms_bucket', labels: { le: '10' }, value: 1 },
+        ],
+      },
+    ];
+    expect(metrics_text([...report(2), ...report(3)])).toBe(
+      ['# TYPE alpha_ms histogram', 'alpha_ms_count 5', 'alpha_ms_sum 20', 'alpha_ms_bucket{le="+Inf"} 5', 'alpha_ms_bucket{le="10"} 2', '# TYPE zeta gauge', 'zeta 2', ''].join('\n'),
+    );
+  });
+});
 
 describe('server process', () => {
   it('returns two ports with --port 0 and --ops-port 0, answers GET /health/live on ops_port, and puts port into the deletion page address of BANNED', async () => {
@@ -185,6 +208,23 @@ describe('server process', () => {
     expect(errors).toHaveLength(1);
     expect(String(errors[0]?.message)).toContain('--ops-port');
     expect(await accepts(port)).toBe(false);
+  }, TEST_MS);
+
+  it('runs the settings check on server/generated/core_settings.json before any worker starts, and returns its reason with one error log line on failure', async () => {
+    const made = await game('sqlite', { 'routing.requestWorkers': 0, 'routing.readyMaxReportAgeMs': 'soon' });
+    const port = await free_port();
+    const running = keep(start_point(made, local_args(made, ['--port', String(port)])));
+    expect(await running.exited).toBe(1);
+    const lines = running.lines();
+    const errors = lines.filter((l) => l.kind === 'error');
+    expect(errors).toHaveLength(1);
+    expect(String(errors[0]?.message)).toBe('settings check failed: routing.readyMaxReportAgeMs (type), routing.requestWorkers (minimum)');
+    expect(lines.filter((l) => l.kind !== undefined || l.probe !== undefined)).toHaveLength(1);
+    expect(await accepts(port)).toBe(false);
+
+    const failed = await driver(made, { port: 0 });
+    keep(failed.process);
+    expect(failed.output).toBe('settings check failed: routing.readyMaxReportAgeMs (type), routing.requestWorkers (minimum)');
   }, TEST_MS);
 
   it('ends with exit code 1 and one error log line naming the thread when the thread of a request worker ends while the process runs', async () => {

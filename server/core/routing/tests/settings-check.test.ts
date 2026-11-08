@@ -121,6 +121,18 @@ describe('check_settings', () => {
     expect(check_settings(schema, { b: 1 }, null)).toEqual([{ key: 'a', keyword: 'required' }]);
   });
 
+  it('does not check the other keywords of the settings schema (enum, maxItems, uniqueItems, contains, nested properties)', () => {
+    const others = {
+      properties: {
+        f: { type: 'string', enum: ['x'] },
+        g: { type: 'array', maxItems: 1, uniqueItems: true, contains: { const: 9 } },
+        h: { type: 'object', properties: { k: { type: 'integer' } }, required: ['k'], additionalProperties: false },
+      },
+      required: [],
+    } as unknown as SettingsSchema;
+    expect(check_settings(others, { f: 'y', g: [1, 1], h: { k: 'text', z: 1 } }, null)).toEqual([]);
+  });
+
   it('passes values of their property, a null of a type with null, and an <ENV> override of its DEV property', () => {
     expect(check_settings(schema, { a: 1, b: 0.5, c: [0, 3], d: null }, { 'environments.<ENV>.e': { k: 1 } })).toEqual([]);
   });

@@ -474,7 +474,7 @@ export class Pipeline {
     }
     // 4. maintenance
     if (deps.admin_api.is_maintenance()) {
-      this.fail(exchange, E.CORE_ERROR_MAINTENANCE, 'step 4 maintenance');
+      this.fail(exchange, E.CORE_ERROR_MAINTENANCE, 'step 4 maintenance: admin-api.is_maintenance is true');
       return;
     }
     if (core !== undefined && NO_ACCESS_TOKEN_RPC.has(name)) {
@@ -509,7 +509,7 @@ export class Pipeline {
     }
     const result = validate(message);
     if (result !== 'pass') {
-      this.fail(exchange, E.CORE_ERROR_INVALID_REQUEST, `step 11 field validation: ${result.path} ${result.rule}`);
+      this.fail(exchange, E.CORE_ERROR_INVALID_REQUEST, `step 11 field validation: ${result.path}: ${result.rule}`);
       return null;
     }
     return message;
@@ -548,17 +548,17 @@ export class Pipeline {
 
   /** Step 5 failures: `security` log and the IP counter, except `TOKEN_EXPIRED`. */
   private async auth_failure(exchange: Exchange, code: ErrorCode, step: string): Promise<false> {
-    if (code === E.CORE_ERROR_TOKEN_EXPIRED) return this.fail(exchange, code, `step 5 ${step}: TOKEN_EXPIRED`);
+    if (code === E.CORE_ERROR_TOKEN_EXPIRED) return this.fail(exchange, code, `step 5 authentication: ${step} TOKEN_EXPIRED`);
     this.security_log(exchange, failure_reason(code));
     if (!(await this.count_ip(exchange))) return false;
-    return this.fail(exchange, code, `step 5 ${step}: ${core_error_name(code)}`);
+    return this.fail(exchange, code, `step 5 authentication: ${step} ${core_error_name(code)}`);
   }
 
   /** A stored response of step 5: answered, or `INVALID_REQUEST` for another request name. */
   private stored(exchange: Exchange, stored: Uint8Array | null | 'NAME_MISMATCH'): boolean {
     if (stored === 'NAME_MISMATCH') {
       this.security_log(exchange, 'request_name_mismatch');
-      return this.fail(exchange, E.CORE_ERROR_INVALID_REQUEST, 'step 5: the request ID has a stored response of another request');
+      return this.fail(exchange, E.CORE_ERROR_INVALID_REQUEST, 'step 5 authentication: the request ID has a stored response of another request');
     }
     if (stored !== null) return this.respond_bytes(exchange, stored);
     return true;
@@ -610,14 +610,14 @@ export class Pipeline {
       detail.until_at = ban.until_at;
       detail.deletion_url = this.deletion_url();
       detail.public_code = storage.get_user_record(storage.read_db(), user_id)?.public_code ?? '';
-      return this.fail(exchange, E.CORE_ERROR_BANNED, 'step 6 ban', detail);
+      return this.fail(exchange, E.CORE_ERROR_BANNED, 'step 6 ban: admin-api.is_banned is true', detail);
     }
     if (!this.check_min_version(exchange)) return false;
     const headers = exchange.headers as CommonHeaders;
     const server = this.s.server;
     const result = check_data_version(headers.data_version, server.client_data_version, server.compat_client_data_version, DATA_HASH_EXEMPT_RPC.has(target.name), headers.client_version, (v) => game_update.is_data_update_ready(v));
-    if (result === 'APP_UPDATE_REQUIRED') return this.fail(exchange, E.CORE_ERROR_APP_UPDATE_REQUIRED, 'step 7 data version: no data version with this protocol hash');
-    if (result === 'DATA_UPDATE_REQUIRED') return this.fail(exchange, E.CORE_ERROR_DATA_UPDATE_REQUIRED, 'step 7 data version: the data hash differs');
+    if (result === 'APP_UPDATE_REQUIRED') return this.fail(exchange, E.CORE_ERROR_APP_UPDATE_REQUIRED, 'step 7 app version and data version: no data version with this protocol hash');
+    if (result === 'DATA_UPDATE_REQUIRED') return this.fail(exchange, E.CORE_ERROR_DATA_UPDATE_REQUIRED, 'step 7 app version and data version: the data hash differs');
     return true;
   }
 
@@ -630,7 +630,7 @@ export class Pipeline {
     if (DATA_HASH_EXEMPT_RPC.has(exchange.name)) return true;
     const headers = exchange.headers as CommonHeaders;
     if (headers.client_version === '' || !this.s.deps.game_update.is_below_min_version(headers.client_version, headers.platform)) return true;
-    return this.fail(exchange, E.CORE_ERROR_APP_UPDATE_REQUIRED, 'step 7 app version: below min_version of the deploy list');
+    return this.fail(exchange, E.CORE_ERROR_APP_UPDATE_REQUIRED, 'step 7 app version and data version: below min_version of the deploy list');
   }
 
   /** Step 8. */
@@ -732,12 +732,12 @@ export class Pipeline {
   /** Step 17 of the transaction's outcome. */
   private finish(exchange: Exchange, outcome: TransactionOutcome, notes: TransactionNotes): void {
     if (outcome === 'WITHDRAWN') {
-      this.fail(exchange, E.CORE_ERROR_UNAUTHORIZED, 'step 13: the user is withdrawn');
+      this.fail(exchange, E.CORE_ERROR_UNAUTHORIZED, 'step 13 transaction start: the user is withdrawn');
       return;
     }
     if (outcome === 'FAILED') {
       this.error_log(exchange, 'request transaction failed', null);
-      this.fail(exchange, E.CORE_ERROR_INTERNAL, 'step 13: the request transaction failed');
+      this.fail(exchange, E.CORE_ERROR_INTERNAL, 'step 13 transaction start: the request transaction failed');
       return;
     }
     if (typeof outcome !== 'number') {
@@ -746,15 +746,15 @@ export class Pipeline {
     }
     if (notes.mismatch) {
       this.security_log(exchange, 'request_name_mismatch');
-      this.fail(exchange, outcome, 'step 14: the request ID has a stored response of another request');
+      this.fail(exchange, outcome, 'step 14 idempotency: the request ID has a stored response of another request');
       return;
     }
     if (notes.outside !== null) {
       this.error_log(exchange, `core rpc ${exchange.name} returned GameError ${String(notes.outside)}, which is not in its core_errors`, null);
-      this.fail(exchange, outcome, `step 15: GameError ${String(notes.outside)} is not in the core_errors of ${exchange.name}`);
+      this.fail(exchange, outcome, `step 15 handler run: GameError ${String(notes.outside)} is not in the core_errors of ${exchange.name}`);
       return;
     }
-    this.fail(exchange, outcome, `step 15 handler: ${outcome >= 1000 ? `GameError ${String(outcome)}` : core_error_name(outcome)}`);
+    this.fail(exchange, outcome, `step 15 handler run: ${outcome >= 1000 ? `GameError ${String(outcome)}` : core_error_name(outcome)}`);
   }
 
   /** Steps 5 to 17. */
@@ -767,7 +767,7 @@ export class Pipeline {
     if (!(await this.count_user(exchange, user_id))) return;
     // 9. kill switch
     if (!target.cheat && this.s.deps.admin_api.is_kill_switched(target.name)) {
-      this.fail(exchange, E.CORE_ERROR_FEATURE_DISABLED, 'step 9 kill switch');
+      this.fail(exchange, E.CORE_ERROR_FEATURE_DISABLED, 'step 9 kill switch: admin-api.is_kill_switched is true');
       return;
     }
     const message = this.decode(exchange, target.info, (m) => target.validate(m));

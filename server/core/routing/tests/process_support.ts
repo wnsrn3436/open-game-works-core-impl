@@ -115,15 +115,21 @@ function run(server: string, argv: readonly string[], env: Readonly<Record<strin
   child.stdout.on('data', (chunk: string) => {
     text += chunk;
   });
-  child.stderr.resume();
+  let errors = '';
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', (chunk: string) => {
+    errors = (errors + chunk).slice(-4000);
+  });
   const exited = new Promise<number | null>((resolve) => {
     child.once('exit', (code) => {
       resolve(code);
     });
   });
   let ended = false;
-  void exited.then(() => {
+  let exit_code: number | null = null;
+  void exited.then((code) => {
     ended = true;
+    exit_code = code;
   });
   const lines = (): Record<string, unknown>[] =>
     text
@@ -141,6 +147,7 @@ function run(server: string, argv: readonly string[], env: Readonly<Record<strin
     lines,
     exited,
     wait_line: async (match, timeout_ms = 30_000) => {
+      const started = Date.now();
       for (let waited = 0; waited < timeout_ms; waited += 20) {
         const found = lines().find(match);
         if (found !== undefined) return found;
@@ -149,7 +156,8 @@ function run(server: string, argv: readonly string[], env: Readonly<Record<strin
       }
       const found = lines().find(match);
       if (found !== undefined) return found;
-      throw new Error(`no matching line; the lines: ${JSON.stringify(lines()).slice(0, 2000)}`);
+      const state = ended ? `ended with exit code ${String(exit_code)}` : 'still running';
+      throw new Error(`no matching line after ${String(Date.now() - started)} ms, process ${state}; the lines: ${JSON.stringify(lines()).slice(0, 2000)}; stderr: ${errors}`);
     },
     kill: async () => {
       if (ended) return;

@@ -107,6 +107,18 @@ describe('isolation', () => {
     expect(String(failed[0]?.message)).toMatch(/register fails on purpose/);
   });
 
+  it('a start_test_server whose settings fail the settings check of routing.create_server throws a StartFailure with that reason and its error log line', async () => {
+    const thrown: unknown = await start_test_server(undefined, undefined, undefined, undefined, undefined, { 'routing.requestWorkers': 0 }).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    expect(thrown).toBeInstanceOf(StartFailure);
+    const failure = thrown as StartFailure;
+    expect(failure.message).toContain('routing.requestWorkers (minimum)');
+    const lines = failure.logs.filter((line) => line.kind === 'error' && String(line.message).includes('routing.requestWorkers (minimum)'));
+    expect(lines).toHaveLength(1);
+  });
+
   it('an operation called on a stopped test server throws', async () => {
     const server = await start_test_server();
     const session = await login(server, 'stopped');
