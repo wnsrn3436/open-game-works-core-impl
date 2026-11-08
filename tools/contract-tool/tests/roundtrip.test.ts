@@ -234,7 +234,7 @@ describe('encode and decode', () => {
     expect(request).not.toBeNull();
     expect(request?.note).toBe('a\u0000b');
     expect(request?.encode()).toEqual(bytes);
-    if (request === null || request === undefined) return;
+    if (request === null) throw new Error('the request did not decode');
     Object.assign(request, { quest_id: 7, details: [new (cls(gameNs, 'Detail'))()] });
     expect((gameNs.validate_ClaimQuestRequest as (m: Message, d: unknown) => Failure)(request, data)).toEqual({ path: 'note', rule: 'nul' });
   });
