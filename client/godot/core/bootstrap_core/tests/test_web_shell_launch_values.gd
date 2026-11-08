@@ -5,7 +5,10 @@ extends UnitTestCase
 ## `preloadLaunchValues` (the `ogw:launch-values` region) from it, and runs that code against a page with and without
 ## the marker, a `fetch` that answers the given HTTP status and an engine that counts the preloaded files.
 
-## Runs the cases of `_CASES` and puts their results as JSON text into `window.__ogwShellTest`.
+## Runs the cases of the JavaScript array literal in place of `%s` (`dev`: the `window.ogwDevExport` of the page, null
+## when the page does not set it; `search`: the query of the page URL; `status`: the HTTP status `fetch` answers) and
+## puts into `window.__ogwShellTest` one line per case, `<user arguments joined by spaces>|<rejection message>|<fetch
+## count>|<preloaded file count>`, or one line `error: <message>` when the shell code could not be taken from the page.
 const _RUN: String = """(function(cases){window.__ogwShellTest=null;
 fetch(window.location.pathname,{cache:"no-store"}).then(function(r){return r.text();}).then(function(html){
 var b=html.indexOf("// ogw:launch-values begin");var e=html.indexOf("// ogw:launch-values end");
@@ -16,17 +19,17 @@ if(c.dev!==null){w.ogwDevExport=c.dev;}
 var f=function(){calls.fetches++;return Promise.resolve({ok:c.status===200,status:c.status,
 arrayBuffer:function(){return Promise.resolve(new ArrayBuffer(2));}});};
 var en={preloadFile:function(){calls.preloads++;return Promise.resolve();}};
+var line=function(a,m){return a.join(" ")+"|"+m+"|"+calls.fetches+"|"+calls.preloads;};
 var p=new Function("window","engine","fetch",src+"\\nreturn preloadLaunchValues();")(w,en,f);
-return p.then(function(a){return {args:a,error:"",fetches:calls.fetches,preloads:calls.preloads};},
-function(err){return {args:[],error:String(err&&err.message),fetches:calls.fetches,preloads:calls.preloads};});}));
-}).then(function(rs){window.__ogwShellTest=JSON.stringify({results:rs,error:""});},
-function(err){window.__ogwShellTest=JSON.stringify({results:[],error:String(err&&err.message)});});
+return p.then(function(a){return line(a,"");},function(err){return line([],String(err&&err.message));});}));
+}).then(function(rs){window.__ogwShellTest=rs.join("\\n");},
+function(err){window.__ogwShellTest="error: "+String(err&&err.message);});
 return "0";})(%s)"""
-const _RESULT: String = """(window.__ogwShellTest===null||window.__ogwShellTest===undefined)?"":window.__ogwShellTest"""
+const _RESULT: String = """(typeof window.__ogwShellTest==="string")?"done:"+window.__ogwShellTest:"" """
 const _PUT_BACK: String = """(function(){delete window.__ogwShellTest;return "0";})()"""
 ## Longest wait for the cases to end.
 const _LIMIT_MS: int = 10000
-const _ARGS: Array = ["--launch-values=/tmp/ogw_launch_values.json"]
+const _ARGS: String = "--launch-values=/tmp/ogw_launch_values.json"
 
 
 func after_each() -> void:
@@ -44,29 +47,17 @@ func _js(code: String) -> String:
 	return ""
 
 
-## Runs `cases` (`dev`: the `window.ogwDevExport` of the page, null when the page does not set it; `search`: the query
-## of the page URL; `status`: the HTTP status `fetch` answers) and returns their results in order. Async.
-func _run_cases(cases: Array) -> Array:
-	assert_eq(_js(_RUN % JSON.stringify(cases)), "0")
+## Runs the cases of the JavaScript array literal `cases` (`_RUN`) and returns their result lines in order. Async.
+func _run_cases(cases: String) -> PackedStringArray:
+	assert_eq(_js(_RUN % cases), "0")
 	var until: int = Time.get_ticks_msec() + _LIMIT_MS
 	while _js(_RESULT).is_empty() and Time.get_ticks_msec() < until:
 		await UnitTestCore.wait_frames(1)
-	var parsed: Variant = JSON.parse_string(_js(_RESULT))
-	if not parsed is Dictionary:
+	var reply: String = _js(_RESULT)
+	if reply.is_empty():
 		fail_test("the cases did not end within %d ms" % _LIMIT_MS)
-		return []
-	var reply: Dictionary = parsed
-	assert_eq(str(reply.get("error", "")), "", "the shell code was taken from the page")
-	var results: Array = reply.get("results", [])
-	assert_eq(results.size(), cases.size())
-	return results
-
-
-func _check(result: Dictionary, args: Array, error: String, fetches: int, preloads: int, label: String) -> void:
-	assert_eq(result.get("args", []), args, label)
-	assert_eq(str(result.get("error", "")), error, label)
-	assert_eq(int(result.get("fetches", -1)), fetches, label + ": fetches")
-	assert_eq(int(result.get("preloads", -1)), preloads, label + ": preloaded files")
+		return PackedStringArray()
+	return reply.trim_prefix("done:").split("\n")
 
 
 func test_page_of_the_browser_run_is_a_dev_export() -> void:
@@ -78,34 +69,32 @@ func test_page_of_the_browser_run_is_a_dev_export() -> void:
 func test_export_without_the_marker_ignores_the_launch_value_parameter() -> void:
 	if not UnitTestCore.require_platform(PackedStringArray(["web"])) or OS.get_name() != "Web":
 		return
-	var results: Array = await _run_cases([
-		{"dev": null, "search": "?ogw_launch_values=x", "status": 200},
-		{"dev": null, "search": "?ogw_launch_values=/missing.json", "status": 404},
-		{"dev": null, "search": "?ogw_launch_values=/values.json", "status": 200},
-		{"dev": false, "search": "?ogw_launch_values=/values.json", "status": 200},
-		{"dev": "true", "search": "?ogw_launch_values=/values.json", "status": 200},
-	])
-	if results.size() != 5:
-		return
-	_check(results[0], [], "", 0, 0, "not a URL path, no marker")
-	_check(results[1], [], "", 0, 0, "a file that cannot be fetched, no marker")
-	_check(results[2], [], "", 0, 0, "an existing file, no marker")
-	_check(results[3], [], "", 0, 0, "an existing file, marker false")
-	_check(results[4], [], "", 0, 0, "an existing file, marker the text true")
+	var lines: PackedStringArray = await _run_cases("""[
+{"dev": null, "search": "?ogw_launch_values=x", "status": 200},
+{"dev": null, "search": "?ogw_launch_values=/missing.json", "status": 404},
+{"dev": null, "search": "?ogw_launch_values=/values.json", "status": 200},
+{"dev": false, "search": "?ogw_launch_values=/values.json", "status": 200},
+{"dev": "true", "search": "?ogw_launch_values=/values.json", "status": 200}]""")
+	assert_eq(lines, PackedStringArray([
+		"||0|0",
+		"||0|0",
+		"||0|0",
+		"||0|0",
+		"||0|0",
+	]), "no marker, marker false, marker the text true: no file is read, no user argument is added, the engine starts")
 
 
 func test_dev_export_reads_the_launch_value_parameter() -> void:
 	if not UnitTestCore.require_platform(PackedStringArray(["web"])) or OS.get_name() != "Web":
 		return
-	var results: Array = await _run_cases([
-		{"dev": true, "search": "?ogw_launch_values=/values.json", "status": 200},
-		{"dev": true, "search": "?ogw_launch_values=/missing.json", "status": 404},
-		{"dev": true, "search": "?ogw_launch_values=x", "status": 200},
-		{"dev": true, "search": "", "status": 200},
-	])
-	if results.size() != 4:
-		return
-	_check(results[0], _ARGS, "", 1, 1, "an existing file")
-	_check(results[1], [], "launch value file /missing.json could not be read: HTTP 404", 1, 0, "a missing file")
-	_check(results[2], [], "ogw_launch_values is not a URL path on the origin of the page: x", 0, 0, "not a URL path")
-	_check(results[3], [], "", 0, 0, "no parameter")
+	var lines: PackedStringArray = await _run_cases("""[
+{"dev": true, "search": "?ogw_launch_values=/values.json", "status": 200},
+{"dev": true, "search": "?ogw_launch_values=/missing.json", "status": 404},
+{"dev": true, "search": "?ogw_launch_values=x", "status": 200},
+{"dev": true, "search": "", "status": 200}]""")
+	assert_eq(lines, PackedStringArray([
+		_ARGS + "||1|1",
+		"|launch value file /missing.json could not be read: HTTP 404|1|0",
+		"|ogw_launch_values is not a URL path on the origin of the page: x|0|0",
+		"||0|0",
+	]), "an existing file, a missing file, not a URL path, no parameter")
