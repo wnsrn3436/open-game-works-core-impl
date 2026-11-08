@@ -9,6 +9,10 @@ const _PLATFORMS: PackedStringArray = ["android", "ios", "web", "windows", "maco
 const _DEV_ENVIRONMENTS: PackedStringArray = ["DEV", "STG", "PROD"]
 const _INSTANCE_ID_CHARS: String = "abcdefghijklmnopqrstuvwxyz0123456789_-"
 const _DEV_ACCOUNT_CHARS: String = "abcdefghijklmnopqrstuvwxyz0123456789_"
+const _DIGITS: String = "0123456789"
+## Digits of the largest int64 and of the absolute value of the smallest.
+const _INT64_MAX_DIGITS: String = "9223372036854775807"
+const _INT64_MIN_DIGITS: String = "9223372036854775808"
 ## DEV registration list the harness tool generates in the game.
 const _DEV_REGISTRATION_PATH: String = "res://dev/generated/dev_registration.gd"
 
@@ -32,6 +36,10 @@ static func shutdown() -> void:
 
 
 func make_dev_build_info() -> BuildInfo:
+	_read_launch_values()
+	if not BootstrapCore._launch_value_error.is_empty():
+		BootstrapCore._log_error(BootstrapCore._launch_value_error)
+		return null
 	var info := BuildInfo.new()
 	info.environment = "LOCAL"
 	var platform := get_launch_value("OGW_PLATFORM")
@@ -55,6 +63,14 @@ func make_dev_build_info() -> BuildInfo:
 	if not _only_chars(account, _DEV_ACCOUNT_CHARS):
 		BootstrapCore._log_error("launch value OGW_DEV_ACCOUNT has a character outside [a-z0-9_]")
 		return null
+	var random_base := get_launch_value("OGW_RANDOM_BASE")
+	if not random_base.is_empty() and not _is_int64_text(random_base):
+		BootstrapCore._log_error("launch value OGW_RANDOM_BASE %s is not an integer -?[0-9]{1,19} inside int64" % random_base)
+		return null
+	var frame_step := get_launch_value("OGW_FRAME_STEP_FPS")
+	if not frame_step.is_empty() and not _is_fps_text(frame_step):
+		BootstrapCore._log_error("launch value OGW_FRAME_STEP_FPS %s is not an integer [1-9][0-9]{0,3}" % frame_step)
+		return null
 	info.instance_id = instance_id
 	if not instance_id.is_empty() and not account.is_empty():
 		info.instance_id = "%s.%s" % [instance_id, account]
@@ -67,6 +83,9 @@ func make_dev_build_info() -> BuildInfo:
 			return null
 		for adapter_key: String in CoreSettings.get_string_map(key).keys():
 			info.adapters[adapter_key] = "fake"
+	BootstrapCore._has_random_base = not random_base.is_empty()
+	BootstrapCore._random_base = _int64_of(random_base) if not random_base.is_empty() else 0
+	BootstrapCore._frame_step_fps = frame_step.to_int() if not frame_step.is_empty() else 0
 	return info
 
 
@@ -79,6 +98,17 @@ func test_update_downloads() -> _UPDATE_SET:
 	downloads.translations = replacements.update_downloads.translations.duplicate()
 	downloads.bundles = replacements.update_downloads.bundles.duplicate()
 	return downloads
+
+
+func pass_time_launch_values() -> void:
+	if not BootstrapCore._is_dev_run or not BootstrapCore._has("TimeCore"):
+		return
+	if BootstrapCore._has_random_base:
+		BootstrapCore._trace_call("TimeCore.set_random_base")
+		TimeCoreDev.set_random_base(BootstrapCore._random_base)
+	if BootstrapCore._frame_step_fps > 0:
+		BootstrapCore._trace_call("TimeCore.set_frame_step")
+		TimeCoreDev.set_frame_step(BootstrapCore._frame_step_fps)
 
 
 func apply_test_replacements() -> void:
@@ -215,17 +245,57 @@ static func _only_chars(text: String, allowed: String) -> bool:
 	return true
 
 
+## Whether `text` is an integer of the syntax `-?[0-9]{1,19}` inside int64.
+static func _is_int64_text(text: String) -> bool:
+	var negative := text.begins_with("-")
+	var digits := text.substr(1) if negative else text
+	if digits.is_empty() or digits.length() > 19 or not _only_chars(digits, _DIGITS):
+		return false
+	var significant := digits.lstrip("0")
+	if significant.length() < 19:
+		return true
+	return significant <= (_INT64_MIN_DIGITS if negative else _INT64_MAX_DIGITS)
+
+
+## The int64 of `text`, which `_is_int64_text` accepted. A negative value is built downward, so the smallest int64
+## does not overflow.
+static func _int64_of(text: String) -> int:
+	var negative := text.begins_with("-")
+	var digits := text.substr(1) if negative else text
+	var value := 0
+	for i: int in digits.length():
+		var digit := _DIGITS.find(digits[i])
+		value = value * 10 - digit if negative else value * 10 + digit
+	return value
+
+
+## Whether `text` is an integer of the syntax `[1-9][0-9]{0,3}`.
+static func _is_fps_text(text: String) -> bool:
+	if text.is_empty() or text.length() > 4 or not _only_chars(text, _DIGITS):
+		return false
+	return not text.begins_with("0")
+
+
+## Reads the launch values once: the launch value file of the command line (in the browser runtime, the file the page
+## passed), then the launch values a DEV export holds for the names that file did not give. Only an export holds
+## `res://generated/launch_values.json`: the harness tool writes it into the copy of the project it exports and the
+## DEV preset excludes it otherwise, so a dev run of the project as it is finds no such file.
 static func _read_launch_values() -> void:
 	if BootstrapCore._launch_values_read:
 		return
 	BootstrapCore._launch_values_read = true
-	for arg: String in OS.get_cmdline_user_args():
-		if arg.begins_with(_LAUNCH_VALUES_ARG):
-			_merge_launch_values(arg.substr(_LAUNCH_VALUES_ARG.length()))
-	_merge_launch_values(_EXPORT_LAUNCH_VALUES_PATH)
+	if not BootstrapCore._test_launch_values_path.is_empty():
+		_merge_launch_values(BootstrapCore._test_launch_values_path)
+	else:
+		for arg: String in OS.get_cmdline_user_args():
+			if arg.begins_with(_LAUNCH_VALUES_ARG):
+				_merge_launch_values(arg.substr(_LAUNCH_VALUES_ARG.length()))
+	var export_path := BootstrapCore._test_export_launch_values_path
+	_merge_launch_values(export_path if not export_path.is_empty() else _EXPORT_LAUNCH_VALUES_PATH)
 
 
-## Adds the values of the launch value file at `path` whose names are not read yet.
+## Adds the values of the launch value file at `path` whose names are not read yet. A value that is not a JSON string
+## keeps the first such error for `InitModules` 1.
 # ogw:input_boundary
 static func _merge_launch_values(path: String) -> void:
 	if path.is_empty() or not FileAccess.file_exists(path):
@@ -237,7 +307,14 @@ static func _merge_launch_values(path: String) -> void:
 	var values: Dictionary = parsed
 	for value_name: Variant in values.keys():
 		var value: Variant = values[value_name]
-		if value_name is String and value is String and not BootstrapCore._launch_values.has(value_name):
-			var name_text: String = value_name
+		if not value_name is String:
+			continue
+		var name_text: String = value_name
+		if not value is String:
+			if BootstrapCore._launch_value_error.is_empty():
+				BootstrapCore._launch_value_error = (
+						"launch value %s of launch value file %s is not a JSON string" % [name_text, path])
+			continue
+		if not BootstrapCore._launch_values.has(name_text):
 			var value_text: String = value
 			BootstrapCore._launch_values[name_text] = value_text

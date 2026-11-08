@@ -5,6 +5,9 @@
 	resolves, before the worker is active, so the reloaded page is not isolated, and it then stops on any page that finds
 	a registration: a threaded export did not start on a first load, a hard reload or a new version folder. This shell
 	reloads once after navigator.serviceWorker.ready, guarded by localStorage. The template placeholders stay for the exporter.
+	Added: the launch value file of the page. When the page URL has the query parameter ogw_launch_values, the shell fetches
+	that same-origin URL path, puts the file into the engine file system before the engine starts and adds the user
+	argument --launch-values=<its path there>, so one export runs as many dev runs as pages opened with launch values.
 -->
 <html lang="en">
 	<head>
@@ -167,6 +170,41 @@ const engine = new Engine(GODOT_CONFIG);
 		initializing = false;
 	}
 
+	// The launch value file of the page: the same-origin URL path of the query parameter ogw_launch_values, put at
+	// LAUNCH_VALUES_PATH of the engine file system. Resolves to the user arguments that name it, none without the parameter.
+	const LAUNCH_VALUES_PATH = '/tmp/ogw_launch_values.json';
+	function preloadLaunchValues() {
+		const urlPath = new URLSearchParams(window.location.search).get('ogw_launch_values');
+		if (urlPath === null) {
+			return Promise.resolve([]);
+		}
+		let url = null;
+		try {
+			url = new URL(urlPath, window.location.href);
+		} catch (err) {
+			url = null;
+		}
+		if (url === null || url.origin !== window.location.origin || !urlPath.startsWith('/')) {
+			return Promise.reject(new Error('ogw_launch_values is not a URL path on the origin of the page: ' + urlPath));
+		}
+		return fetch(url.href, { 'cache': 'no-store' }).then((response) => {
+			if (!response.ok) {
+				throw new Error('launch value file ' + urlPath + ' could not be read: HTTP ' + response.status);
+			}
+			return response.arrayBuffer();
+		}).then((buffer) => engine.preloadFile(buffer, LAUNCH_VALUES_PATH))
+			.then(() => ['--launch-values=' + LAUNCH_VALUES_PATH]);
+	}
+
+	// The engine arguments `args` with `userArgs` added to the user arguments (after `--`).
+	function withUserArgs(args, userArgs) {
+		if (userArgs.length === 0) {
+			return args;
+		}
+		const separated = args.includes('--') || args.includes('++');
+		return args.concat(separated ? userArgs : ['--'].concat(userArgs));
+	}
+
 	const missing = Engine.getMissingFeatures({
 		threads: GODOT_THREADS_ENABLED,
 	});
@@ -203,7 +241,8 @@ const engine = new Engine(GODOT_CONFIG);
 		}
 	} else {
 		setStatusMode('progress');
-		engine.startGame({
+		preloadLaunchValues().then((userArgs) => engine.startGame({
+			'args': withUserArgs(GODOT_CONFIG['args'] || [], userArgs),
 			'onProgress': function (current, total) {
 				if (current > 0 && total > 0) {
 					statusProgress.value = current;
@@ -213,7 +252,7 @@ const engine = new Engine(GODOT_CONFIG);
 					statusProgress.removeAttribute('max');
 				}
 			},
-		}).then(() => {
+		})).then(() => {
 			setStatusMode('hidden');
 		}, displayFailureNotice);
 	}
