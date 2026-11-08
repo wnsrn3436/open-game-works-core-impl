@@ -170,10 +170,16 @@ const engine = new Engine(GODOT_CONFIG);
 		initializing = false;
 	}
 
+	// ogw:launch-values begin
 	// The launch value file of the page: the same-origin URL path of the query parameter ogw_launch_values, put at
 	// LAUNCH_VALUES_PATH of the engine file system. Resolves to the user arguments that name it, none without the parameter.
+	// Only a DEV export reads it: its page sets window.ogwDevExport to true (html/head_include). An STG or PROD export
+	// ignores the parameter and starts as a page without it.
 	const LAUNCH_VALUES_PATH = '/tmp/ogw_launch_values.json';
 	function preloadLaunchValues() {
+		if (window.ogwDevExport !== true) {
+			return Promise.resolve([]);
+		}
 		const urlPath = new URLSearchParams(window.location.search).get('ogw_launch_values');
 		if (urlPath === null) {
 			return Promise.resolve([]);
@@ -195,6 +201,7 @@ const engine = new Engine(GODOT_CONFIG);
 		}).then((buffer) => engine.preloadFile(buffer, LAUNCH_VALUES_PATH))
 			.then(() => ['--launch-values=' + LAUNCH_VALUES_PATH]);
 	}
+	// ogw:launch-values end
 
 	// The engine arguments `args` with `userArgs` added to the user arguments (after `--`).
 	function withUserArgs(args, userArgs) {
