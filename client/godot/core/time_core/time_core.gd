@@ -15,10 +15,6 @@ const _DAY_MS: int = 86400000
 const _DEFAULT_TIME_SCALE: int = 1000
 ## The core node processes before the other nodes, so every frame code of a frame reads the time of that frame.
 const _PROCESS_PRIORITY: int = -1000000
-## Engine command line argument whose next argument is the fixed frame rate of the engine.
-const _FIXED_FPS_ARG: String = "--fixed-fps"
-## Project setting of the Movie Maker frame rate.
-const _MOVIE_FPS_SETTING: String = "editor/movie_writer/fps"
 # 64-bit two's complement addition in 32-bit halves, so no operation relies on signed overflow.
 const _MASK32: int = 0xFFFFFFFF
 const _TWO_32: int = 0x100000000
@@ -82,8 +78,8 @@ static var _step_budget_ms: int = 0
 ## DEV: `set_random_base`. Kept from before `init` until `release`.
 static var _has_random_base: bool = false
 static var _random_base: int = 0
-## DEV: `set_test_frame_step`. 0 when it was not called. Kept from before `init` until `release`.
-static var _test_frame_step_fps: int = 0
+## DEV: `set_frame_step`. 0 when it was not called. Kept from before `init` until `release`.
+static var _set_frame_step_fps: int = 0
 ## DEV: fps of the frame step that `init` decided. 0 without a frame step.
 static var _frame_step_fps: int = 0
 ## DEV: engine frames run at the frame step after `init`.
@@ -109,11 +105,7 @@ static func init() -> bool:
 		LogCore.log_error(_TAG, "init: game settings dailyResetOffsetMs %d is not between -1 day and 1 day; 0 is used" % _offset_ms)
 		_offset_ms = 0
 	_session = RefCounted.new()
-	_frame_step_fps = _test_frame_step_fps
-	if _frame_step_fps == 0 and CoreBuildInfo.has_dev_code:
-		_frame_step_fps = _engine_frame_step_fps(
-			OS.get_cmdline_args(), Engine.get_write_movie_path(), ProjectSettings.get_setting(_MOVIE_FPS_SETTING, 0)
-		)
+	_frame_step_fps = _set_frame_step_fps
 	_frame_step_frames = 0
 	_last_frame_monotonic_ms = _monotonic_now()
 	Engine.time_scale = 1.0
@@ -436,21 +428,6 @@ static func _frame_step_increment() -> int:
 	return UtilCore.floor_div(n * 1000, _frame_step_fps) - UtilCore.floor_div((n - 1) * 1000, _frame_step_fps)
 
 
-## DEV: fps of an engine that runs at a fixed frame rate: the integer after `--fixed-fps` in the engine arguments, and
-## without it the Movie Maker fps when the movie path is not empty. 0 when neither gives an fps of 1 or more.
-# ogw:input_boundary
-static func _engine_frame_step_fps(args: PackedStringArray, movie_path: String, movie_fps: Variant) -> int:
-	var index: int = args.find(_FIXED_FPS_ARG)
-	if index >= 0:
-		if index + 1 >= args.size() or not args[index + 1].is_valid_int():
-			return 0
-		return maxi(args[index + 1].to_int(), 0)
-	if movie_path.is_empty() or not movie_fps is int:
-		return 0
-	var fps: int = movie_fps
-	return maxi(fps, 0)
-
-
 ## The engine told the background entry.
 static func _on_engine_background() -> void:
 	if not _is_initialized or _in_background:
@@ -728,7 +705,7 @@ static func _reset() -> void:
 	_step_budget_ms = 0
 	_has_random_base = false
 	_random_base = 0
-	_test_frame_step_fps = 0
+	_set_frame_step_fps = 0
 	_frame_step_fps = 0
 	_frame_step_frames = 0
 	if was_initialized:

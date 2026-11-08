@@ -55,14 +55,14 @@ func test_a_browser_run_gives_the_webassembly_memory_and_the_page_heap() -> void
 
 
 func test_frame_step_fps_with_a_test_clock() -> void:
-	TimeCoreDev.set_test_frame_step(FRAME_STEP_FPS)
+	TimeCoreDev.set_frame_step(FRAME_STEP_FPS)
 	assert_true(await start())
 	assert_eq(JSONR.integer(await state(), "frame_step_fps"), FRAME_STEP_FPS)
 
 
 func test_frame_step_fps_without_a_test_clock() -> void:
 	TimeCoreDev.set_test_clock(null)
-	TimeCoreDev.set_test_frame_step(FRAME_STEP_FPS)
+	TimeCoreDev.set_frame_step(FRAME_STEP_FPS)
 	assert_true(await start())
 	assert_eq(JSONR.integer(await state(), "frame_step_fps"), FRAME_STEP_FPS)
 

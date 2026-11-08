@@ -11,7 +11,7 @@ func _init_without_test_clock(fps: int) -> void:
 	TimeCore.release()
 	TimeCoreDev.set_test_clock(null)
 	if fps > 0:
-		TimeCoreDev.set_test_frame_step(fps)
+		TimeCoreDev.set_frame_step(fps)
 	assert_true(TimeCore.init())
 
 
@@ -66,7 +66,7 @@ func test_the_frame_step_follows_the_time_scale_and_pause() -> void:
 
 
 func test_a_test_clock_keeps_the_frame_step_from_changing_the_time() -> void:
-	TimeCoreDev.set_test_frame_step(60)
+	TimeCoreDev.set_frame_step(60)
 	init_modules()
 	assert_eq(TimeCoreDev.get_frame_step_fps(), 60)
 	await UnitTestCore.wait_frames(5)
@@ -105,26 +105,15 @@ func test_without_a_frame_step_and_after_release_the_frame_increment_is_the_mono
 	assert_gte(TimeCore.get_real_frame_ms(), WAIT_MS)
 
 
-func test_set_test_frame_step_below_1_or_after_init_is_an_error_and_ignored() -> void:
+func test_set_frame_step_below_1_or_after_init_is_an_error_and_ignored() -> void:
 	assert_true(LogCore.init())
 	assert_true(EventCore.init())
-	TimeCoreDev.set_test_frame_step(0)
-	TimeCoreDev.set_test_frame_step(-30)
+	TimeCoreDev.set_frame_step(0)
+	TimeCoreDev.set_frame_step(-30)
 	assert_eq(UnitTestCore.check_logs(ERROR, TAG), 2)
 	assert_true(TimeCore.init())
 	assert_eq(TimeCoreDev.get_frame_step_fps(), 0)
-	TimeCoreDev.set_test_frame_step(60)
+	TimeCoreDev.set_frame_step(60)
 	assert_eq(UnitTestCore.check_logs(ERROR, TAG), 1)
 	assert_eq(TimeCoreDev.get_frame_step_fps(), 0)
-	assert_eq(TimeCore._test_frame_step_fps, 0)
-
-
-func test_the_engine_fps_comes_from_fixed_fps_and_else_from_movie_maker() -> void:
-	assert_eq(TimeCore._engine_frame_step_fps(PackedStringArray(["--fixed-fps", "30"]), "", 60), 30)
-	assert_eq(TimeCore._engine_frame_step_fps(PackedStringArray(["--fixed-fps", "30"]), "a.avi", 60), 30, "--fixed-fps first")
-	assert_eq(TimeCore._engine_frame_step_fps(PackedStringArray(["--write-movie", "a.avi"]), "a.avi", 24), 24)
-	assert_eq(TimeCore._engine_frame_step_fps(PackedStringArray(), "", 60), 0, "neither")
-	assert_eq(TimeCore._engine_frame_step_fps(PackedStringArray(["--fixed-fps", "-1"]), "", 60), 0, "fps below 1")
-	assert_eq(TimeCore._engine_frame_step_fps(PackedStringArray(["--fixed-fps"]), "", 60), 0, "no value")
-	assert_eq(TimeCore._engine_frame_step_fps(PackedStringArray(["--fixed-fps", "x"]), "", 60), 0, "not an integer")
-	assert_eq(TimeCore._engine_frame_step_fps(PackedStringArray(), "a.avi", "60"), 0, "a setting that is not an int")
+	assert_eq(TimeCore._set_frame_step_fps, 0)

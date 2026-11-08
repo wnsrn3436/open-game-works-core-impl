@@ -121,14 +121,14 @@ static func set_random_base(base: int) -> void:
 
 ## Frame step of `fps` from the next `init`: every engine frame is one fixed step of time. Only before `init`;
 ## `TimeCore.release` deletes it. fps below 1 is ignored.
-static func set_test_frame_step(fps: int) -> void:
+static func set_frame_step(fps: int) -> void:
 	if TimeCore._is_initialized:
-		LogCore.log_error(_TAG, "set_test_frame_step: after init; ignored")
+		LogCore.log_error(_TAG, "set_frame_step: after init; ignored")
 		return
 	if fps < 1:
-		LogCore.log_error(_TAG, "set_test_frame_step: fps %d is below 1; ignored" % fps)
+		LogCore.log_error(_TAG, "set_frame_step: fps %d is below 1; ignored" % fps)
 		return
-	TimeCore._test_frame_step_fps = fps
+	TimeCore._set_frame_step_fps = fps
 
 
 ## fps of the frame step, also while a test clock is in use. 0 without a frame step.

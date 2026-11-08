@@ -128,7 +128,7 @@ func _assert_operations_fail() -> void:
 ## from changing the time values.
 func _set_before_init() -> void:
 	TimeCoreDev.set_random_base(5)
-	TimeCoreDev.set_test_frame_step(30)
+	TimeCoreDev.set_frame_step(30)
 
 
 ## Moves every state of TimeCore away from its initial value.
@@ -179,7 +179,7 @@ func _assert_initial_state() -> void:
 	assert_true(TimeCore._random_seed_counts.is_empty())
 	assert_false(TimeCore._has_random_base)
 	assert_eq(TimeCore._random_base, 0)
-	assert_eq(TimeCore._test_frame_step_fps, 0)
+	assert_eq(TimeCore._set_frame_step_fps, 0)
 	assert_eq(TimeCore._frame_step_fps, 0)
 	assert_eq(TimeCore._frame_step_frames, 0)
 	assert_eq(Engine.time_scale, 1.0)
