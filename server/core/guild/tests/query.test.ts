@@ -163,7 +163,7 @@ describe('SearchGuilds and ListJoinableGuilds', () => {
     expect(await search(e, ' ')).toEqual([]);
   }, T);
 
-  it('returns an empty list without an error log for a name that holds U+0000', async () => {
+  it('is INVALID_REQUEST without an error log for a name that holds U+0000 (validator rule nul)', async () => {
     const kit = await start();
     const [a, b] = await users(kit, 2);
     await create_guild(a, 'Alpha');
@@ -171,8 +171,7 @@ describe('SearchGuilds and ListJoinableGuilds', () => {
       const request = new CoreContract.SearchGuildsRequest();
       request.name = name;
       const sent = await rpc<CoreContract.SearchGuildsResponse>(b, 'SearchGuilds', request);
-      expect(sent.code, JSON.stringify(name)).toBe(0);
-      expect(sent.response?.guilds ?? []).toEqual([]);
+      expect(sent.code, JSON.stringify(name)).toBe(E.CORE_ERROR_INVALID_REQUEST);
     }
     expect(read_logs(kit.server, 'error', 'error')).toEqual([]);
   }, T);
