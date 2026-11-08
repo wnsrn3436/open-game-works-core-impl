@@ -8,7 +8,8 @@ import { advance_time, call_dev, login, read_logs, send, start_peer_server, stop
 import { CoreError, Judge, RECORDING, calls_of, harness, mode, player, refuse_applied_write, report, restart, result_bytes, settled, stop_all, tick, type Harness, type Hooks } from './helpers.ts';
 
 const CONS2 = mode(7501);
-const CONS3 = mode(7502, { min_players: 3, max_players: 3 });
+/** 3 players in Majority: two same results confirm before the third report. */
+const MAJ3 = mode(7502, { result_rule: 'Majority', min_players: 3, max_players: 3 });
 
 afterEach(async () => {
   await stop_all();
@@ -106,16 +107,16 @@ describe('apply retry', () => {
   });
 
   it('marks a withdrawn participant without applying', async () => {
-    const h = await harness({ modes: [CONS3] });
-    const { id, players } = await test_match(h, CONS3.id, 3);
+    const h = await harness({ modes: [MAJ3] });
+    const { id, players } = await test_match(h, MAJ3.id, 3);
     const [a, b, c] = players;
     if (a === undefined || b === undefined || c === undefined) throw new Error('players');
     const withdrawn = await send(c, 'core/Withdraw', new CoreContract.WithdrawRequest());
     expect(withdrawn.envelope.error).toBeNull();
     await report(a, id, result_bytes(1));
-    await report(b, id, result_bytes(2));
+    expect((await report(b, id, result_bytes(1))).status).toBe(Judge.MATCH_JUDGE_STATUS_CONFIRMED);
     await settled(h);
-    expect(calls_of(h, 'apply_match_mismatch').map((x) => x.user_id).sort()).toEqual([a.user_id, b.user_id].sort());
+    expect(calls_of(h, 'apply_match_result').map((x) => x.user_id).sort()).toEqual([a.user_id, b.user_id].sort());
   });
 });
 
@@ -135,17 +136,17 @@ describe('sweep', () => {
   });
 
   it('applies once per index when the other participant apply and a sweep retry overlap', async () => {
-    const h = await harness({ modes: [CONS3], settings: { 'matchmaker.sweepIntervalMs': 1 } });
-    const { id, players } = await test_match(h, CONS3.id, 3);
+    const h = await harness({ modes: [MAJ3], settings: { 'matchmaker.sweepIntervalMs': 1 } });
+    const { id, players } = await test_match(h, MAJ3.id, 3);
     const [a, b] = players;
     if (a === undefined || b === undefined) throw new Error('players');
     await report(a, id, result_bytes(1));
-    await report(b, id, result_bytes(2));
+    expect((await report(b, id, result_bytes(1))).status).toBe(Judge.MATCH_JUDGE_STATUS_CONFIRMED);
     // The after-commit applies and the sweep run at the same time.
     advance_time(h.server, 1n);
     advance_time(h.server, 1n);
     await wait_background(h.server);
-    expect(calls_of(h, 'apply_match_mismatch').map((c) => c.index).sort()).toEqual([0, 1, 2]);
+    expect(calls_of(h, 'apply_match_result').map((c) => c.index).sort()).toEqual([0, 1, 2]);
   });
 
   it('keeps a record with an index not marked past matchmaker.recordRetentionMs, and removes it after every index is marked', async () => {

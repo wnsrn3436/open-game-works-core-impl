@@ -104,12 +104,38 @@ async function live_match(h: Harness, mode_id: number, n: number): Promise<Live>
   };
 }
 
-/** `MATCH_LEAVE` with `forfeit` `true` of index i, its `left_at` committed and the decision after it ended. */
+/** The counts of `storage.lock_game_row` of each match record row, per storage module. */
+const match_lock_counts = new WeakMap<object, Map<string, number>>();
+
+/** Counts the `storage.lock_game_row` calls of the match record row of `match_id` from now. */
+function match_locks(h: Harness, match_id: string): () => number {
+  const storage = storage_module(h.server);
+  let counts = match_lock_counts.get(storage);
+  if (counts === undefined) {
+    const by_match = new Map<string, number>();
+    counts = by_match;
+    match_lock_counts.set(storage, by_match);
+    const original = storage.lock_game_row.bind(storage);
+    vi.spyOn(storage, 'lock_game_row').mockImplementation((handle: Parameters<typeof original>[0], table: string, key: readonly unknown[]) => {
+      if (table === 'matchmaker_match') by_match.set(String(key[0]), (by_match.get(String(key[0])) ?? 0) + 1);
+      return original(handle, table, key);
+    });
+  }
+  const seen = counts;
+  const before = seen.get(match_id) ?? 0;
+  return () => (seen.get(match_id) ?? 0) - before;
+}
+
+/**
+ * `MATCH_LEAVE` with `forfeit` `true` of index i, its `left_at` committed and the decision after it ended. The
+ * decision is an `after_commit` function of the `left_at` write: once it locked the record, `settled` waits for it.
+ */
 async function forfeit(h: Harness, m: Live, index: number): Promise<void> {
+  const locks = match_locks(h, m.id);
   await send_and_wait(m.at(index).conn, leave_frame(m.id, true));
-  await until_participants(h, m.id, (rows) => rows[index]?.left_at !== 0n);
+  await until(() => locks() >= 2);
   await settled(h);
-  await settled(h);
+  expect(participants(h, m.id)[index]?.left_at).not.toBe(0n);
 }
 
 async function test_match(h: Harness, mode_id: number, n: number, users?: readonly TestSession[]): Promise<{ id: string; players: TestSession[] }> {
@@ -218,7 +244,9 @@ describe('FORFEIT', () => {
     expect((await report(m.at(0).session, m.id, result_bytes(1))).status).toBe(Judge.MATCH_JUDGE_STATUS_PENDING);
     // The first lock of the record is the left_at write, the second the decision after its commit.
     const calls = fail_match_lock(h, m.id, 2);
-    await forfeit(h, m, 1);
+    await send_and_wait(m.at(1).conn, leave_frame(m.id, true));
+    await until(() => calls() >= 2);
+    await settled(h);
     vi.restoreAllMocks();
     expect(calls()).toBe(2);
     expect(match_status(h, m.id)).toBe('PENDING');

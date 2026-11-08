@@ -217,6 +217,10 @@ function base_settings(overrides: Record<string, unknown>): Record<string, unkno
     'matchmaker.roomCodeLength': 6,
     'matchmaker.roomCodeMaxPicks': 100,
     'matchmaker.lockstepMaxDurationMs': 3600000,
+    'matchmaker.flagWindowMs': 604800000,
+    'matchmaker.flagDisagreeCount': 5,
+    'matchmaker.flagForfeitCount': 10,
+    'matchmaker.flagMissingCount': 5,
     ...overrides,
   };
 }
