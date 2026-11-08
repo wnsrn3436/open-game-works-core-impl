@@ -215,6 +215,45 @@ describe('apply_match_outcome', () => {
     }
   });
 
+  it('takes as the forfeiter of a FORFEIT match only a participant that left without a report: not one that reported and then left, nor one that neither reported nor left', async () => {
+    const kit = await start();
+    const users = await Promise.all(['rating-forfeiter-shape-a', 'rating-forfeiter-shape-b', 'rating-forfeiter-shape-c'].map((name) => user(kit, name)));
+    const [a, b, c] = users.map((u) => u.user_id) as [bigint, bigint, bigint];
+    const rule = kit.data.RatingRuleTable.get_row(kit.id(FREE));
+    const k = BigInt(rule.k_factor);
+    expect(kit.data.MatchModeTable.get_row(kit.id('[mode_rating_free]')).team_size).toBe(0);
+    expect(rule.placement_matches).toBe(0);
+    const ratings = [1500n, 1500n, 1700n] as const;
+    // Index 0 reported and then left (MATCH_LEAVE with forfeit true): not a forfeiter. Index 1 left without a report: the
+    // forfeiter. Index 2 neither reported nor left (Missing): not a forfeiter.
+    const record: MatchRecord = {
+      ...judged(kit, '[mode_rating_free]', Judge.MATCH_JUDGE_STATUS_FORFEIT, [a, b, c], ratings),
+      participants: [
+        { reported_at: 1000n, left_at: 2000n },
+        { reported_at: 0n, left_at: 1000n },
+        { reported_at: 0n, left_at: 0n },
+      ],
+    };
+    const e_low = expected_score(1500n, 1700n, rule.scale);
+    const e_high = expected_score(1700n, 1500n, rule.scale);
+    expect([e_low, e_high]).toEqual([240n, 760n]);
+    // Index 0: m = 1 (the forfeiter only), Σ = 1000 − 500. As a forfeiter it would get m = 1 against index 2, Σ = 0 − 240, Δ −5.
+    const first = delta(await apply(kit, a, record, 0, []));
+    expect(first).toBe(await floor_div(kit, a, 2n * k * 500n + 1000n, 2000n));
+    expect(first).toBe(10n);
+    // The forfeiter: m = 2 (indexes 0 and 2), Σ = (0 − 500) + (0 − 240). With either other one taken as a forfeiter m would be 1.
+    const forfeiter = delta(await apply(kit, b, record, 1, []));
+    expect(forfeiter).toBe(await floor_div(kit, b, 2n * k * (-500n - e_low) + 1000n * 2n, 2000n * 2n));
+    expect(forfeiter).toBe(-7n);
+    // Index 2: m = 1 (the forfeiter only), Σ = 1000 − 760. As a forfeiter it would get m = 1 against index 0, Σ = 0 − 760, Δ −15.
+    const missing = delta(await apply(kit, c, record, 2, []));
+    expect(missing).toBe(await floor_div(kit, c, 2n * k * (1000n - e_high) + 1000n, 2000n));
+    expect(missing).toBe(5n);
+    expect(await rating_row(kit, a, rule.id)).toMatchObject({ rating: 1510n, season_games: 1, total_games: 1 });
+    expect(await rating_row(kit, b, rule.id)).toMatchObject({ rating: 1493n, season_games: 1, total_games: 1 });
+    expect(await rating_row(kit, c, rule.id)).toMatchObject({ rating: 1505n, season_games: 1, total_games: 1 });
+  });
+
   it('counts in a FORFEIT match of team_size 2 only the opponents of known outcome: none for the teammate of the forfeiter', async () => {
     const kit = await start();
     const users = await Promise.all(['rating-forfeit-team-a', 'rating-forfeit-team-b', 'rating-forfeit-team-c', 'rating-forfeit-team-d'].map((name) => user(kit, name)));
