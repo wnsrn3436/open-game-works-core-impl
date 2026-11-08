@@ -238,11 +238,11 @@ describe.runIf(DB_KIND === 'postgresql')('PostgreSQL DB wait state and DB metric
       ran = true;
       return 'ran';
     });
-    let ended = false;
+    const end = { ended: false };
     void start.finally(() => {
-      ended = true;
+      end.ended = true;
     });
-    while (!ended) {
+    while (!end.ended) {
       states.push(Atomics.load(watch.array, 0));
       await wait(10);
     }
