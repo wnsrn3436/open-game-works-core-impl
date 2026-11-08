@@ -4,6 +4,7 @@
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { MessagePort } from 'node:worker_threads';
 import { member_names } from './collect.ts';
 import type { Env, RoutingDeps, RoutingSettings } from './context.ts';
 import type { DevObject, ModuleObject } from './module_api.ts';
@@ -13,6 +14,14 @@ const ENVS: ReadonlySet<string> = new Set(['LOCAL', 'DEV', 'STG', 'PROD']);
 
 const is_function_or_none = (v: unknown): boolean => v === undefined || v === null || typeof v === 'function';
 const is_object = (v: unknown): boolean => typeof v === 'object' && v !== null;
+
+/** The front link of `create_server`: absent, or the message port to the front and an `Int32Array` over a `SharedArrayBuffer`. */
+function is_front_link_or_none(v: unknown): boolean {
+  if (v === undefined || v === null) return true;
+  if (!is_object(v)) return false;
+  const link = v as Record<string, unknown>;
+  return link.port instanceof MessagePort && link.db_wait instanceof Int32Array && link.db_wait.buffer instanceof SharedArrayBuffer && link.db_wait.length >= 1;
+}
 
 /** Throws a `TypeError` naming the first part of the `create_server` input that has the wrong form. */
 export function check_input(value: unknown): void {
@@ -33,6 +42,7 @@ export function check_input(value: unknown): void {
     [typeof input.register === 'function', 'register is not a function'],
     [typeof input.dev === 'boolean', 'dev is not a boolean'],
     [is_function_or_none(input.register_dev) && is_function_or_none(input.log_writer), 'register_dev or log_writer is not a function'],
+    [is_front_link_or_none(input.front), 'front is not {port: MessagePort, db_wait: Int32Array over a SharedArrayBuffer}'],
   ];
   const failed = checks.find(([ok]) => !ok);
   if (failed !== undefined) throw new TypeError(`create_server: ${failed[1]}`);
@@ -124,26 +134,22 @@ function set_env_override(flat: Record<string, unknown>, key: string, value: unk
   }
 }
 
-export function number_setting(settings: Readonly<Record<string, unknown>>, key: string, fallback: number | null): number {
-  const value = settings[key];
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (fallback !== null && value === undefined) return fallback;
-  throw new Error(`setting ${key} is not a number`);
-}
-
+/**
+ * routing's settings values. The settings check of `create_server` has checked each value against its property of
+ * the settings schema, so they are read as that type here.
+ */
 export function routing_settings(env: Env, settings: Readonly<Record<string, unknown>>): RoutingSettings {
-  const origins = settings['environments.<ENV>.corsAllowedOrigins'];
-  const server_url = settings['environments.<ENV>.serverUrl'];
+  const int = (key: string): number => settings[key] as number;
   return {
-    max_body_bytes: number_setting(settings, 'routing.maxBodyBytes', null),
-    body_read_timeout_ms: number_setting(settings, 'routing.bodyReadTimeoutMs', null),
-    user_rate_limit_per_minute: number_setting(settings, 'routing.userRateLimitPerMinute', null),
-    ip_rate_limit_per_minute: number_setting(settings, 'routing.ipRateLimitPerMinute', null),
-    cors_preflight_max_age_ms: number_setting(settings, 'routing.corsPreflightMaxAgeMs', null),
-    storage_sweep_interval_ms: number_setting(settings, 'routing.storageSweepIntervalMs', null),
-    trusted_proxy_count: env === 'LOCAL' ? 0 : number_setting(settings, 'environments.<ENV>.trustedProxyCount', 0),
-    cors_allowed_origins: Array.isArray(origins) ? origins.filter((o): o is string => typeof o === 'string') : [],
-    server_url: typeof server_url === 'string' ? server_url : '',
+    max_body_bytes: int('routing.maxBodyBytes'),
+    body_read_timeout_ms: int('routing.bodyReadTimeoutMs'),
+    user_rate_limit_per_minute: int('routing.userRateLimitPerMinute'),
+    ip_rate_limit_per_minute: int('routing.ipRateLimitPerMinute'),
+    cors_preflight_max_age_ms: int('routing.corsPreflightMaxAgeMs'),
+    storage_sweep_interval_ms: int('routing.storageSweepIntervalMs'),
+    trusted_proxy_count: env === 'LOCAL' ? 0 : ((settings['environments.<ENV>.trustedProxyCount'] as number | undefined) ?? 0),
+    cors_allowed_origins: (settings['environments.<ENV>.corsAllowedOrigins'] as readonly string[] | undefined) ?? [],
+    server_url: (settings['environments.<ENV>.serverUrl'] as string | undefined) ?? '',
   };
 }
 

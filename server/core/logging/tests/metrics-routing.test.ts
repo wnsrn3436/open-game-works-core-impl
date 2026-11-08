@@ -151,9 +151,7 @@ describe('the request label of cheat paths', () => {
 });
 
 describe('settings check', () => {
-  // Skipped until the settings check of `routing.create_server` (`### server start` of `routing`, the routing job of
-  // this update) is on main: without it the server starts with an empty bucket list. Remove `.skip` with that merge.
-  it.skip('fails server start for logging.metricsDurationBucketsMs [] with keyword minItems', async () => {
+  it('fails server start for logging.metricsDurationBucketsMs [] with keyword minItems', async () => {
     const failure: unknown = await testing.start_test_server(START_AT, undefined, undefined, undefined, undefined, { 'logging.metricsDurationBucketsMs': [] }).then(
       async (server) => {
         await testing.stop_test_server(server);

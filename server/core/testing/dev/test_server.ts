@@ -250,8 +250,13 @@ export async function new_test_instance(parts: TestInstanceParts): Promise<Serve
   });
   if (local) {
     const dev = dev_of(instance);
-    await dev('server-time', 'set_clock', [parts.clock]);
-    await dev('storage', 'set_seed_provider', [parts.seed_of]);
+    try {
+      await dev('server-time', 'set_clock', [parts.clock]);
+      await dev('storage', 'set_seed_provider', [parts.seed_of]);
+    } catch {
+      // Before `start()` these throw only on a server instance whose settings check failed (`routing`): its `start()`
+      // gives the failure reason, which the caller turns into the start failure.
+    }
   }
   return instance;
 }

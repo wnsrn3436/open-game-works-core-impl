@@ -607,3 +607,30 @@ describe('DB adapter', () => {
     },
   );
 });
+
+describe('SQLite open', () => {
+  it('opens server instances started together on one new file, each in its own thread', async () => {
+    const { mkdtempSync, rmSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const folder = mkdtempSync(join(tmpdir(), 'storage-sqlite-open-'));
+    try {
+      for (let round = 0; round < 40; round += 1) {
+        const path = join(folder, `open-${String(round)}.db`);
+        const opened = await Promise.all(
+          [0, 1, 2].map(
+            () =>
+              new Promise<unknown>((resolve, reject) => {
+                const worker = new Worker(new URL('./sqlite_open_worker.ts', import.meta.url), { workerData: { path, wait_ms: 5000 } });
+                worker.once('message', resolve);
+                worker.once('error', reject);
+              }),
+          ),
+        );
+        expect(opened).toEqual(['ok', 'ok', 'ok']);
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }, 60_000);
+});

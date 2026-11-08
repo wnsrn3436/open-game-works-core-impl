@@ -63,6 +63,13 @@ function without_time(envelope: CoreContract.ResponseEnvelope): Uint8Array {
   return copy.encode();
 }
 
+/** A request that ended at a step: its error code, and `ServerError.detail` as `step <n> <step name>: <reason>` (DEV code). */
+function expect_step(sent: Sent, error: number, step: string): void {
+  expect(code(sent)).toBe(error);
+  expect(sent.envelope.error?.detail.startsWith(`step ${step}: `)).toBe(true);
+  expect((sent.envelope.error?.detail.length ?? 0) > `step ${step}: `.length).toBe(true);
+}
+
 vi.mock('../../../generated/contract/game_contract.ts', async (import_original) => (await import('./game_contract_mock.ts')).mock_game_contract(await import_original()));
 
 const servers: TestServer[] = [];
@@ -85,33 +92,35 @@ describe('request processing order', () => {
     const user = session.user_id.toString();
 
     // 2. body limit
-    expect(code(await send(session, 'Echo', echo(), { body: new Uint8Array(65) }))).toBe(E.CORE_ERROR_INVALID_REQUEST);
-    expect(code(await send(session, 'Echo', echo(), { headers: { 'Content-Encoding': 'gzip' } }))).toBe(E.CORE_ERROR_INVALID_REQUEST);
-    expect(code(await send(session, 'Echo', echo(), { headers: { 'Content-Type': 'application/json' } }))).toBe(E.CORE_ERROR_INVALID_REQUEST);
+    expect_step(await send(session, 'Echo', echo(), { body: new Uint8Array(65) }), E.CORE_ERROR_INVALID_REQUEST, '2 body limit');
+    expect_step(await send(session, 'Echo', echo(), { headers: { 'Content-Encoding': 'gzip' } }), E.CORE_ERROR_INVALID_REQUEST, '2 body limit');
+    expect_step(await send(session, 'Echo', echo(), { headers: { 'Content-Type': 'application/json' } }), E.CORE_ERROR_INVALID_REQUEST, '2 body limit');
     // 3. common header
-    expect(code(await send(session, 'Echo', echo(), { headers: { 'X-Ogw-Platform': 'ps5' } }))).toBe(E.CORE_ERROR_INVALID_REQUEST);
+    expect_step(await send(session, 'Echo', echo(), { headers: { 'X-Ogw-Platform': 'ps5' } }), E.CORE_ERROR_INVALID_REQUEST, '3 common header');
     // 5. authentication
-    expect(code(await send(session, 'Echo', echo(), { headers: { Authorization: 'Bearer not-a-token' } }))).toBe(E.CORE_ERROR_UNAUTHORIZED);
+    expect_step(await send(session, 'Echo', echo(), { headers: { Authorization: 'Bearer not-a-token' } }), E.CORE_ERROR_UNAUTHORIZED, '5 authentication');
     // 7. data version
-    expect(code(await send(session, 'Echo', echo(), { headers: { 'X-Ogw-Data-Version': `${'0'.repeat(64)}-${'0'.repeat(64)}` } }))).toBe(E.CORE_ERROR_APP_UPDATE_REQUIRED);
+    expect_step(await send(session, 'Echo', echo(), { headers: { 'X-Ogw-Data-Version': `${'0'.repeat(64)}-${'0'.repeat(64)}` } }), E.CORE_ERROR_APP_UPDATE_REQUIRED, '7 app version and data version');
     // 10. decode
     const garbage = await signed_raw(server, session, 'Echo', new Uint8Array([0xff, 0xff, 0xff]));
     expect(envelope_of(garbage).error?.code).toBe(E.CORE_ERROR_INVALID_REQUEST);
+    expect(envelope_of(garbage).error?.detail).toMatch(/^step 10 decode: \S/);
     // 11. field validation
     const invalid = new CoreContract.ResyncRequest();
     invalid.full = true;
-    expect(code(await send(session, 'Echo', invalid))).toBe(E.CORE_ERROR_INVALID_REQUEST);
+    expect_step(await send(session, 'Echo', invalid), E.CORE_ERROR_INVALID_REQUEST, '11 field validation');
+    expect((await send(session, 'Echo', invalid)).envelope.error?.detail).toBe('step 11 field validation: full: routing_test');
     // 9. kill switch
     expect((await admin(server, 'set_kill_switch', { request_name: 'Echo', enabled: true })).status).toBe(200);
-    expect(code(await send(session, 'Echo', echo()))).toBe(E.CORE_ERROR_FEATURE_DISABLED);
+    expect_step(await send(session, 'Echo', echo()), E.CORE_ERROR_FEATURE_DISABLED, '9 kill switch');
     await admin(server, 'set_kill_switch', { request_name: 'Echo', enabled: false });
     // 6. ban
     expect((await admin(server, 'ban_user', { user_id: user, until_at: '0', reason: 'test' })).status).toBe(200);
-    expect(code(await send(session, 'Echo', echo()))).toBe(E.CORE_ERROR_BANNED);
+    expect_step(await send(session, 'Echo', echo()), E.CORE_ERROR_BANNED, '6 ban');
     await admin(server, 'unban_user', { user_id: user });
     // 4. maintenance
     await admin(server, 'set_maintenance', { enabled: true });
-    expect(code(await send(session, 'Echo', echo()))).toBe(E.CORE_ERROR_MAINTENANCE);
+    expect_step(await send(session, 'Echo', echo()), E.CORE_ERROR_MAINTENANCE, '4 maintenance');
     await admin(server, 'set_maintenance', { enabled: false });
     expect(calls.echo).toBe(0);
 
@@ -292,7 +301,7 @@ describe('idempotency inside the transaction', () => {
       expect(results.map((sent) => code(sent)).sort((x, y) => x - y)).toEqual([0, E.CORE_ERROR_INVALID_REQUEST]);
       expect(calls.echo + calls.probe).toBe(1);
       const rejected = results.find((sent) => code(sent) !== 0);
-      expect(rejected?.envelope.error?.detail).toMatch(/^step 14/);
+      expect(rejected?.envelope.error?.detail).toMatch(/^step 14 idempotency: \S/);
       expect(logs(server, 'security').filter((line) => line.reason === 'request_name_mismatch')).toHaveLength(1);
     } finally {
       open();

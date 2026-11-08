@@ -552,7 +552,7 @@ describe('server start failures', () => {
       args: { env: 'LOCAL', port: 0 },
       server_modules: [],
       data_folder: join(tmpdir(), 'routing-no-such-data-folder'),
-      core_settings: {},
+      core_settings: core_test_server_paths().settings,
       game_settings: {},
       register: () => undefined,
       dev: true,
@@ -567,7 +567,7 @@ describe('server start failures', () => {
   it('does not start a server instance with DEV code on --env STG or PROD', async () => {
     for (const env of ['STG', 'PROD'] as const) {
       const lines: string[] = [];
-      const instance = create_server({ args: { env, port: 0 }, server_modules: [], data_folder: tmpdir(), core_settings: {}, game_settings: {}, register: () => undefined, dev: true, log_writer: (line) => lines.push(line) });
+      const instance = create_server({ args: { env, port: 0 }, server_modules: [], data_folder: tmpdir(), core_settings: core_test_server_paths().settings, game_settings: {}, register: () => undefined, dev: true, log_writer: (line) => lines.push(line) });
       expect(await instance.start()).toContain('DEV code');
       expect(lines.some((line) => line.includes('DEV code'))).toBe(true);
     }

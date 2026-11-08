@@ -122,7 +122,7 @@ describe('ads-reward claim', () => {
       expect(await still_pending(pending, 1000)).toBe(false);
       const sent = await pending;
       expect(error_of(sent)).toBe(CoreError.CORE_ERROR_INVALID_REQUEST);
-      expect(sent.envelope.error?.detail).toMatch(/^step 11 .*\bnotify_id:? nul$/);
+      expect(sent.envelope.error?.detail).toMatch(/^step 11 field validation: (.*\.)?notify_id: nul$/);
     }
     expect(T.read_logs(s.server, 'error', 'error').slice(errors)).toEqual([]);
     expect(error_of(await drive(s.server, claim(session, notify_id)))).toBe(CoreError.CORE_ERROR_AD_REWARD_PENDING);

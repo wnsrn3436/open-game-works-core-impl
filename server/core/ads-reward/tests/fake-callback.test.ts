@@ -57,7 +57,7 @@ describe('ads-reward FakeAdCallback', () => {
     for (const sent_id of ['a\u0000b', `${notify_id.slice(0, 35)}\u0000`, '\u0000']) {
       const sent = await fake_callback(session, sent_id);
       expect(error_of(sent)).toBe(CoreError.CORE_ERROR_INVALID_REQUEST);
-      expect(sent.envelope.error?.detail).toMatch(/^step 11 .*\bnotify_id:? nul$/);
+      expect(sent.envelope.error?.detail).toMatch(/^step 11 field validation: (.*\.)?notify_id: nul$/);
     }
     expect(T.read_logs(s.server, 'error', 'error').slice(errors)).toEqual([]);
     expect(await balance(s.server, session.user_id, GEM())).toBe(0n);

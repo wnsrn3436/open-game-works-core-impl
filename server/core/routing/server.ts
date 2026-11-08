@@ -3,21 +3,23 @@
  * order, content registration, collection and checks, listening), `stop()`, and `dev`.
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
-import { createServer as createNetServer, type Server as NetServer, type Socket } from 'node:net';
+import type { Server as NetServer, Socket } from 'node:net';
 import type { Duplex } from 'node:stream';
 import * as CoreContract from '../../generated/contract/core_contract.ts';
 import * as GameContract from '../../generated/contract/game_contract.ts';
 import * as GameData from '../../generated/data/game_data.ts';
 import { collect_exports, type CollectResult } from './collect.ts';
 import type { HttpFetch, InstanceState, KeySource, ServerArgs, ServerInput } from './context.ts';
+import { FrontAttachment, type FrontLink } from './front_link.ts';
 import { data_version_failure } from './http.ts';
 import { load_module, type LoadedModule } from './loader.ts';
-import { close_server, listen_on, LOOPBACK, loopback_left_free } from './loopback.ts';
+import { listen_port } from './loopback.ts';
 import { outgoing_fetch } from './outgoing_http.ts';
 import type { CoreRpcHandler, DevObject, LogEntry, ModuleObject, ServerTimeModule } from './module_api.ts';
 import { Pipeline } from './pipeline.ts';
 import type { RoutingModule } from './routing_module.ts';
 import { BEFORE_START_DEV_OPERATIONS, CONTENT_REGISTER_OPERATIONS, DEV_ONLY_MODULES, MODULE_DEPENDENCIES } from './spec_tables.ts';
+import { run_settings_check } from './settings_check.ts';
 import { check_input, content_object, HOST_SECRET_DIR, merge_objects, module_settings, preparation_order, read_build_data, read_data_file, read_secret_file, routing_deps, routing_settings, secret_reader } from './start_parts.ts';
 
 export { module_settings, preparation_order } from './start_parts.ts';
@@ -52,6 +54,8 @@ export interface CreateServerInput {
   log_writer?: ((line: string) => void) | null;
   /** Fake adapter overrides by adapter key. */
   fake_adapters?: Readonly<Record<string, unknown>> | null;
+  /** The front link; only `run_server_process` gives it. A server instance made with it is a worker instance. */
+  front?: FrontLink | null;
 }
 
 type InstanceStatus = 'created' | 'starting' | 'started' | 'failed' | 'stopped';
@@ -81,16 +85,6 @@ class StartStopped extends Error {}
 
 const STOPPED_DURING_START = 'the server instance was stopped during server start';
 
-/** How many ports `--port` 0 chooses before server start fails, when each is held on all addresses (`listen_with_loopback`). */
-const PORT_CHOICES = 16;
-
-/** Listens on `port` (all addresses when `host` is not given), or throws the start failure. */
-async function listen_or_fail(server: NetServer, port: number, host?: string): Promise<number> {
-  const listening = await listen_on(server, port, host);
-  if (typeof listening !== 'number') throw new StartFailure(`listen on port ${String(port)} failed: ${host === undefined ? '' : `${host}: `}${listening.message}`);
-  return listening;
-}
-
 export class ServerInstance {
   private readonly input: CreateServerInput;
   private status: InstanceStatus = 'created';
@@ -99,6 +93,10 @@ export class ServerInstance {
   /** The listener on `127.0.0.1:<port>` where the one on all addresses does not hold it (`loopback.ts`). */
   private loopback: NetServer | null = null;
   private readonly sockets = new Set<Socket>();
+  /** The worker side of the front link of a worker instance, once it takes requests. */
+  private front: FrontAttachment | null = null;
+  /** The failure reason of the settings check of `create_server`; null when it passed. */
+  private readonly settings_failure: string | null;
   private readonly prepared = new Map<string, ModuleObject>();
   private readonly dev_objects = new Map<string, DevObject>();
   private readonly order: string[] = [];
@@ -116,6 +114,9 @@ export class ServerInstance {
 
   constructor(input: CreateServerInput) {
     this.input = input;
+    // The settings check runs before any `create_<module>`; on a failure the instance makes no module.
+    this.settings_failure = run_settings_check({ ...input.core_settings, ...input.game_settings }, input.settings_overrides);
+    if (this.settings_failure !== null) this.log({ level: 'error', kind: 'error', user_id: null, request_id: null, request: null, message: this.settings_failure, fields: {} });
     if (input.dev) this.dev = (module, operation, args, user_id) => this.call_dev(module, operation, args, user_id ?? null);
   }
 
@@ -126,6 +127,7 @@ export class ServerInstance {
 
   private call_dev(module: string, operation: string, input: unknown, user_id: bigint | null): unknown {
     const key = `${module}.${operation}`;
+    if (this.settings_failure !== null) throw new Error(`dev: ${key} is called on a server instance whose settings check failed`);
     const args = input === undefined ? [] : Array.isArray(input) ? (input as unknown[]) : [input];
     if (BEFORE_START_DEV_OPERATIONS.has(key)) {
       if (this.status !== 'created') throw new Error(`dev: ${key} is called after start()`);
@@ -156,6 +158,10 @@ export class ServerInstance {
   /** Server start; the port it listens on, or the start failure reason. */
   start(): Promise<number | string> {
     if (this.status !== 'created') throw new Error('start: the server instance has already started');
+    if (this.settings_failure !== null) {
+      this.status = 'failed';
+      return Promise.resolve(this.settings_failure);
+    }
     this.status = 'starting';
     this.starting = this.run_start();
     return this.starting;
@@ -196,6 +202,7 @@ export class ServerInstance {
     this.create_modules(order, loaded, data);
     const routing = this.prepared.get('routing') as unknown as RoutingModule;
     routing.prepared = this.prepared;
+    routing.front = this.input.front?.port ?? null;
     this.create_dev(order, loaded, routing);
     for (const module of order) {
       await this.prepared.get(module)?.begin_start?.();
@@ -307,8 +314,13 @@ export class ServerInstance {
     }
   }
 
-  /** `logging` takes the instance's log lines, and `server-time` gives their time, from when they are made. */
+  /**
+   * `logging` takes the instance's log lines, and `server-time` gives their time, from when they are made. A worker
+   * instance gives `storage` the DB wait state array of its front link as soon as `storage` is made.
+   */
   private watch_module(module: string, object: ModuleObject): void {
+    const front = this.input.front;
+    if (module === 'storage' && front) (object as unknown as { watch_db_wait(array: Int32Array): void }).watch_db_wait(front.db_wait);
     if (module === 'logging') this.logging = object as unknown as { write(entry: LogEntry): void };
     if (module === 'server-time') {
       const server_time = object as unknown as { clock_now(): bigint };
@@ -409,11 +421,24 @@ export class ServerInstance {
   }
 
   /**
-   * Listens on `--port` on all addresses. Where that leaves `127.0.0.1` on the port free for another socket
-   * (`loopback.ts`), it also listens on `127.0.0.1:<port>` with the HTTP server's listener options and hands those
-   * connections to the same HTTP server, so the port the instance listens on is its own on `127.0.0.1` too.
+   * Listens on `--port` (`listen_port`). A worker instance does not listen: it takes the requests of the front from
+   * the message port of its front link, and its port is its `--port`, the port the front listens on.
    */
   private async listen(pipeline: Pipeline): Promise<void> {
+    const port = this.input.args.port ?? 8080;
+    const front = this.input.front;
+    if (front) {
+      this.front = new FrontAttachment(front.port, {
+        handle: (req, res) => {
+          this.on_request(pipeline, req, res);
+        },
+        handle_upgrade: (req, socket, head) => {
+          void pipeline.handle_upgrade(req, socket, head);
+        },
+      });
+      this.listening_port = port;
+      return;
+    }
     const http = createServer((req, res) => {
       this.on_request(pipeline, req, res);
     });
@@ -425,33 +450,15 @@ export class ServerInstance {
       socket.on('close', () => this.sockets.delete(socket));
     });
     this.http = http;
-    const port = this.input.args.port ?? 8080;
-    this.listening_port = (await loopback_left_free()) ? await this.listen_with_loopback(http, port) : await listen_or_fail(http, port);
-  }
-
-  /**
-   * Listens on `127.0.0.1:<port>`, then on all addresses on the port that listener got. With `--port` 0 the OS
-   * chooses the port on `127.0.0.1` only, and another socket can hold it on all addresses (`EADDRINUSE`); then it
-   * chooses again, up to `PORT_CHOICES` times.
-   */
-  private async listen_with_loopback(http: Server, port: number): Promise<number> {
-    for (let choice = 1; ; choice += 1) {
-      const loopback = createNetServer({ allowHalfOpen: true, noDelay: true }, (socket) => {
-        http.emit('connection', socket);
-      });
-      this.loopback = loopback;
-      const held = await listen_or_fail(loopback, port, LOOPBACK);
-      const listening = await listen_on(http, held);
-      if (typeof listening === 'number') return listening;
-      if (port !== 0 || (listening as NodeJS.ErrnoException).code !== 'EADDRINUSE' || choice === PORT_CHOICES) {
-        throw new StartFailure(`listen on port ${String(port)} failed: ${listening.message}`);
-      }
-      this.loopback = null;
-      await close_server(loopback);
-    }
+    const listening = await listen_port(http, port);
+    if (typeof listening === 'string') throw new StartFailure(listening);
+    this.loopback = listening.loopback;
+    this.listening_port = listening.port;
   }
 
   private async teardown(): Promise<void> {
+    this.front?.detach();
+    this.front = null;
     const http = this.http;
     this.http = null;
     const loopback = this.loopback;
