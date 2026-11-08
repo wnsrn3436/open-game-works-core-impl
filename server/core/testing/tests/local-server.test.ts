@@ -68,7 +68,6 @@ describe('start_local_server', () => {
     'two processes with random base 7 give the first and second RunCoreTest of a user the same seeds, whatever other users and request names send between them',
     async () => {
       const [a, b] = await Promise.all([start_local(7n), start_local(7n)]);
-      if (a === undefined || b === undefined) throw new Error('two local servers');
       const [user_a, user_b, other] = await Promise.all([a.login('seed_user'), b.login('seed_user'), a.login('other_user')]);
       const first = [randomUUID(), randomUUID()];
       const second = [randomUUID(), randomUUID()];
@@ -125,7 +124,6 @@ describe('start_local_server', () => {
     'with random base 8 the first RunCoreTest of a user gets base 8, and 2 request workers of routing give the same seeds as 1',
     async () => {
       const [eight, one, two] = await Promise.all([start_local(8n), start_local(7n, { 'routing.requestWorkers': 1 }), start_local(7n, { 'routing.requestWorkers': 2 })]);
-      if (eight === undefined || one === undefined || two === undefined) throw new Error('three local servers');
       const id = randomUUID();
       expect((await run_core_test(await eight.login('base_user'), id)).envelope.error).toBeNull();
       expect(await seed_of(eight.proc, id)).toBe(expected(8n));

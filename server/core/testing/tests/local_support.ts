@@ -196,9 +196,9 @@ export function run_local(game: LocalGame, args: readonly string[], random_base:
  * real time: `start_local_server` writes no line when it listens, so the test asks the port. Gives the HTTP status.
  */
 export async function wait_listening(process_: LocalProcess, port: number, timeout_ms = 60_000): Promise<number> {
-  let ended = false;
+  const state = { ended: false };
   void process_.exited.then(() => {
-    ended = true;
+    state.ended = true;
   });
   const started = Date.now();
   for (;;) {
@@ -209,7 +209,7 @@ export async function wait_listening(process_: LocalProcess, port: number, timeo
     } catch {
       // Not listening yet.
     }
-    if (ended) throw new Error(`the process ended before it listened: ${JSON.stringify(process_.lines())}`);
+    if (state.ended) throw new Error(`the process ended before it listened: ${JSON.stringify(process_.lines())}`);
     if (Date.now() - started > timeout_ms) throw new Error(`the process did not listen on ${String(port)} within ${String(timeout_ms)} ms`);
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
