@@ -51,6 +51,8 @@ export type ToFront =
   | { readonly t: 'send'; readonly id: number }
   /** The server instance closed an upgraded connection (or closed it without a response). */
   | { readonly t: 'sclose'; readonly id: number }
+  /** The worker instance took `bytes` bytes of `data` messages of the request or connection out of its buffer. */
+  | { readonly t: 'pull'; readonly id: number; readonly bytes: number }
   /** The ops report of job `routing_ops_report` (`### ops path`). */
   | { readonly t: 'report'; readonly db_ok: boolean; readonly metrics: readonly MetricFamily[] };
 
@@ -59,12 +61,48 @@ export function own_bytes(chunk: Uint8Array | string): Uint8Array {
   return typeof chunk === 'string' ? new Uint8Array(Buffer.from(chunk)) : new Uint8Array(chunk);
 }
 
+/**
+ * The bytes of `data` messages of one request or upgraded connection that the front sends before the worker
+ * instance pulls them. The front stops reading the client connection while this many are in flight, so a body the
+ * worker instance does not read, or stopped reading, stays in the client connection and not in worker memory.
+ */
+export const FRONT_WINDOW_BYTES = 64 * 1024;
+
 /** Posts bytes to the other side, moving their buffer. */
 export function post_bytes(port: MessagePort, message: ToWorker | ToFront, chunk: Uint8Array): void {
   port.postMessage(message, [chunk.buffer as ArrayBuffer]);
 }
 
 const real_clock = create_system_clock();
+
+/**
+ * The flow of `data` bytes into a stream of the worker side: the bytes pushed into the stream are pulled (a `pull`
+ * message to the front) once the stream takes more, that is when `push` keeps it under its high water mark or when it
+ * reads again.
+ */
+class Inflow {
+  private readonly link: MessagePort;
+  private readonly id: number;
+  private owed = 0;
+
+  constructor(link: MessagePort, id: number) {
+    this.link = link;
+    this.id = id;
+  }
+
+  /** Pushes a chunk of a `data` message into the stream. */
+  take(stream: Readable, chunk: Uint8Array): void {
+    this.owed += chunk.byteLength;
+    if (stream.push(Buffer.from(chunk))) this.pull();
+  }
+
+  /** Tells the front the bytes pushed so far left flight. */
+  pull(): void {
+    if (this.owed === 0) return;
+    this.link.postMessage({ t: 'pull', id: this.id, bytes: this.owed } satisfies ToFront);
+    this.owed = 0;
+  }
+}
 
 /**
  * The real clock when the worker instance received each request from the front: the start of `duration_ms`
@@ -79,9 +117,11 @@ class FrontRequest extends Readable {
   readonly headers: Readonly<Record<string, string | string[] | undefined>>;
   readonly headersDistinct: Readonly<Record<string, string[] | undefined>>;
   readonly socket: { readonly remoteAddress: string | undefined; readonly remotePort: number | undefined };
+  readonly inflow: Inflow;
 
-  constructor(message: Extract<ToWorker, { t: 'req' }>) {
+  constructor(link: MessagePort, message: Extract<ToWorker, { t: 'req' }>) {
     super();
+    this.inflow = new Inflow(link, message.id);
     this.method = message.method;
     this.url = message.url;
     this.headers = message.headers;
@@ -89,7 +129,9 @@ class FrontRequest extends Readable {
     this.socket = { remoteAddress: message.peer.address ?? undefined, remotePort: message.peer.port ?? undefined };
   }
 
-  override _read(): void {}
+  override _read(): void {
+    this.inflow.pull();
+  }
 }
 
 /** The answer of a request: the status and headers of `writeHead` and the body of `end`, sent to the front at `end`. */
@@ -100,10 +142,13 @@ class FrontResponse {
   private head: Record<string, string | number | readonly string[]> = {};
   private sent = false;
   private ended = false;
+  private readonly on_end: () => void;
 
-  constructor(link: MessagePort, id: number) {
+  /** `on_end` runs when the answer is sent: the request takes no more body bytes after it. */
+  constructor(link: MessagePort, id: number, on_end: () => void) {
     this.link = link;
     this.id = id;
+    this.on_end = on_end;
   }
 
   get headersSent(): boolean {
@@ -132,6 +177,7 @@ class FrontResponse {
     this.sent = true;
     const bytes = body === undefined || body === null ? null : own_bytes(body);
     const message: ToFront = { t: 'res', id: this.id, status: this.status, headers: this.head, body: bytes };
+    this.on_end();
     if (bytes === null) this.link.postMessage(message);
     else post_bytes(this.link, message, bytes);
     return this;
@@ -144,6 +190,7 @@ class BridgeSocket extends Duplex {
   private readonly id: number;
   readonly remoteAddress: string | undefined;
   readonly remotePort: number | undefined;
+  readonly inflow: Inflow;
   /** True when the front said the client connection closed. */
   closed_by_front = false;
 
@@ -151,11 +198,14 @@ class BridgeSocket extends Duplex {
     super({ allowHalfOpen: true });
     this.link = link;
     this.id = id;
+    this.inflow = new Inflow(link, id);
     this.remoteAddress = peer.address ?? undefined;
     this.remotePort = peer.port ?? undefined;
   }
 
-  override _read(): void {}
+  override _read(): void {
+    this.inflow.pull();
+  }
 
   override _write(chunk: Buffer, _encoding: BufferEncoding, callback: (error?: Error | null) => void): void {
     const bytes = own_bytes(chunk);
@@ -204,8 +254,9 @@ export class FrontAttachment {
     const socket = this.sockets.get(message.id);
     const request = this.requests.get(message.id);
     if (message.t === 'data') {
-      if (socket !== undefined) socket.push(Buffer.from(message.chunk));
-      else request?.push(Buffer.from(message.chunk));
+      // A request that was answered is not in `requests`: its later bytes are dropped.
+      if (socket !== undefined) socket.inflow.take(socket, message.chunk);
+      else if (request !== undefined) request.inflow.take(request, message.chunk);
       return;
     }
     if (message.t === 'end') {
@@ -226,7 +277,7 @@ export class FrontAttachment {
 
   private start(message: Extract<ToWorker, { t: 'req' }>): void {
     const received = real_clock.now();
-    const request = new FrontRequest(message);
+    const request = new FrontRequest(this.link, message);
     RECEIVED_AT.set(request, received);
     const req = request as unknown as IncomingMessage;
     if (message.upgrade !== null) {
@@ -238,7 +289,10 @@ export class FrontAttachment {
       return;
     }
     this.requests.set(message.id, request);
-    this.handlers.handle(req, new FrontResponse(this.link, message.id) as unknown as ServerResponse);
+    const answered = (): void => {
+      if (this.requests.get(message.id) === request) this.requests.delete(message.id);
+    };
+    this.handlers.handle(req, new FrontResponse(this.link, message.id, answered) as unknown as ServerResponse);
   }
 
   /** Stops taking requests and drops the ones in progress. */

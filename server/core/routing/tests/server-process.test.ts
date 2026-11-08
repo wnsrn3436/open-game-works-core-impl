@@ -71,6 +71,45 @@ function realtime_upgrade(port: number): Promise<string> {
   });
 }
 
+/**
+ * A `POST` to `path` with a `Content-Length` of `total` bytes that sends 1 KiB, waits for the answer head, then sends
+ * the rest in 1 MiB chunks until the connection closes: the answer head and the bytes sent in all.
+ */
+function stream_body(port: number, path: string, total: number): Promise<{ head: string; sent: number }> {
+  return new Promise((resolve) => {
+    const socket = connect(port, '127.0.0.1');
+    let head = '';
+    let sent = 0;
+    let closed = false;
+    const chunk = Buffer.alloc(1024 * 1024);
+    const pump = (): void => {
+      while (!closed && sent < total) {
+        sent += chunk.length;
+        if (!socket.write(chunk)) {
+          socket.once('drain', pump);
+          return;
+        }
+      }
+    };
+    socket.setEncoding('latin1');
+    socket.on('connect', () => {
+      socket.write(`POST ${path} HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Type: application/x-protobuf\r\nContent-Length: ${String(total)}\r\n\r\n`);
+      socket.write(Buffer.alloc(1024));
+      sent = 1024;
+    });
+    socket.on('data', (text: string) => {
+      const was = head.includes('\r\n\r\n');
+      head += text;
+      if (!was && head.includes('\r\n\r\n')) pump();
+    });
+    socket.on('close', () => {
+      closed = true;
+      resolve({ head, sent });
+    });
+    socket.on('error', () => undefined);
+  });
+}
+
 describe('metrics_text', () => {
   it('sums each sample name and label set, puts families in byte order of name, samples in byte order of label text and then of sample name', () => {
     const report = (count: number): MetricFamily[] => [
@@ -161,11 +200,26 @@ describe('server process', () => {
     const probes = running.lines().filter((l) => l.probe === 'RunCoreTest');
     expect(probes).toHaveLength(4);
     expect(probes.every((l) => l.matchmaker === false)).toBe(true);
-    // The realtime worker answers the upgrade (here without a ticket); a request worker closes it without an answer.
+    // The realtime worker answers the upgrade (here without a ticket); a request worker answers it with HTTP 404.
     expect(await realtime_upgrade(port)).toMatch(/^HTTP\/1\.1 /);
+    expect(await realtime_upgrade(port)).not.toMatch(/^HTTP\/1\.1 404 /);
     const without = await game('sqlite');
     const plain = await run_process(without, { port: 0 });
-    expect(await realtime_upgrade(plain.port)).toBe('');
+    expect(await realtime_upgrade(plain.port)).toMatch(/^HTTP\/1\.1 404 /);
+  }, TEST_MS);
+
+  it('closes the connection after an answer that came before the end of the body, and stops reading that body', async () => {
+    const made = await game('sqlite');
+    const { port } = await run_process(made, { port: 0 });
+    const total = 1024 * 1024 * 1024;
+    const { head, sent } = await stream_body(port, '/no/such/path', total);
+    expect(head).toMatch(/^HTTP\/1\.1 404 /);
+    expect(head).toMatch(/\r\nConnection: close\r\n/i);
+    expect(sent).toBeLessThan(total);
+    // A request whose body was read to its end keeps its connection.
+    const server = await remote(made, port);
+    const session = await testing.login(server, 'process_body_stream');
+    expect(error_code(await testing.send(session, 'core/Resync', resync()))).toBe(0);
   }, TEST_MS);
 
   it('returns the reason when a server instance fails server start, writes one error log line with it, accepts no connection after, and the entry point ends with exit code 1', async () => {

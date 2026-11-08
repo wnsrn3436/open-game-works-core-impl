@@ -852,7 +852,7 @@ export class Pipeline {
     });
   }
 
-  /** A WebSocket upgrade request, inside `logging.with_request_ip`: the route of its path, or the connection is closed. */
+  /** A WebSocket upgrade request, inside `logging.with_request_ip`: the route of its path, or HTTP 404 and the connection is closed. */
   handle_upgrade(req: IncomingMessage, socket: Duplex, head: Buffer): Promise<void> {
     return this.s.deps.logging.with_request_ip(this.client_ip_of(req), () => this.upgrade(req, socket, head));
   }
@@ -861,7 +861,8 @@ export class Pipeline {
     const { path, query } = split_url(req.url ?? '/');
     const route = this.find_route(req.method ?? '', path);
     if (route === null) {
-      socket.destroy();
+      // A path without a route gets 404 as on the path table, with no `request` log.
+      socket.end('HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n');
       return;
     }
     const started_at = start_of(req);
