@@ -1,0 +1,12 @@
+{
+  "target": "UnitTestCore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "client/godot/core/unit_test_core/dev/unit_test_core.gd:751",
+      "problem": "`_clear_pre_init_values` clears only TimeCore, but DataCore keeps the same kind of pre-init DEV value: `DataCoreDev.set_test_data_location` (client/godot/core/data_core/dev/data_core_dev.gd:7) sets `DataCore._builtin_location`, which only `DataCore.release` resets (client/godot/core/data_core/data_core.gd:73), and `BootstrapCore._release_entry` (client/godot/core/bootstrap_core/bootstrap_core.gd:1343) calls `release` only on initialized modules. A test that calls `set_test_data_location` and ends before `DataCore.init` leaves the location for the next test, against \"A test does not depend on the results or the run order of other tests\" (skills/client-core/modules/unit-test-core.md:41). This existed before the range; found from the code path, not run. The core agent report lists further modules of this kind (AuthCoreDev, GameUpdateCoreDev, NoticeCoreDev, ResourceCore, AccessibilityCore) that were not checked here",
+      "foundBy": "UnitTestCore round 2"
+    }
+  ]
+}
