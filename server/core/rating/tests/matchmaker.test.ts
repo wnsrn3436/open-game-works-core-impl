@@ -11,7 +11,9 @@ describe('apply_match_outcome in matchmaker.apply_match_result', () => {
       // The first index wins.
       const hook: ApplyMatchResultHook = (ctx, record, index) => {
         const placements = record.user_ids.map((_, i) => (i === 0 ? 0 : 1));
-        outcomes.set(ctx.user_id, core.rating.apply_match_outcome(ctx, record, index, placements));
+        // `apply_match_result` is the apply of a `CONFIRMED` judgement; its `status` is used when `matchmaker` passes it.
+        const input = { ...record, status: record.status ?? CoreContract.MatchJudgeStatus.MATCH_JUDGE_STATUS_CONFIRMED };
+        outcomes.set(ctx.user_id, core.rating.apply_match_outcome(ctx, input, index, placements));
         return 'pass';
       };
       core.routing.register_hook('matchmaker', 'apply_match_result', hook);

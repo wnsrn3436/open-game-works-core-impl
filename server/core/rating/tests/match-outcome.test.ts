@@ -1,10 +1,13 @@
+import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import type { RequestCtx } from '../../storage/index.ts';
+import { read_logs } from '../../testing/dev/index.ts';
 import { expected_score } from '../elo.ts';
 import type { MatchOutcome, MatchRecord } from '../index.ts';
-import { error_logs, expected_tier, in_tx, match, rating_row, rating_rows, set_rating, start, user, type Kit } from './helpers.ts';
+import { error_logs, expected_tier, in_tx, judged, match, rating_row, rating_rows, set_rating, start, user, type Kit } from './helpers.ts';
 
 const BASIC = '[rating_rule_basic]';
 const FREE = '[rating_rule_seasonless]';
+const Judge = CoreContract.MatchJudgeStatus;
 
 function apply(kit: Kit, user_id: bigint, record: MatchRecord, index: number, placements: readonly number[]): Promise<MatchOutcome> {
   return in_tx(kit, user_id, (ctx: RequestCtx) => kit.core.rating.apply_match_outcome(ctx, record, index, placements));
@@ -142,6 +145,11 @@ describe('apply_match_outcome', () => {
       [duel, 0, [0]],
       [duel, 0, [0, 1, 2]],
       [duel, 0, [0, -1]],
+      [duel, 0, []],
+      [judged(kit, '[mode_rating_duel]', Judge.MATCH_JUDGE_STATUS_FORFEIT, ids, [1000n, 1000n], [1]), 0, [0, 1]],
+      [judged(kit, '[mode_rating_duel]', Judge.MATCH_JUDGE_STATUS_PENDING, ids, [1000n, 1000n]), 0, [0, 1]],
+      [judged(kit, '[mode_rating_duel]', Judge.MATCH_JUDGE_STATUS_PENDING, ids, [1000n, 1000n]), 0, []],
+      [judged(kit, '[mode_rating_duel]', Judge.MATCH_JUDGE_STATUS_MISMATCH, ids, [1000n, 1000n]), 0, [0, -1]],
     ];
     for (const [record, index, placements] of invalid) expect(await apply(kit, a.user_id, record, index, placements)).toEqual({ result: 'INVALID_INPUT' });
     expect(await apply(kit, a.user_id, match(kit, '[mode_rating_none]', ids, [1000n, 1000n]), 0, [0, 1])).toEqual({ result: 'NO_RATING' });
@@ -149,5 +157,79 @@ describe('apply_match_outcome', () => {
     expect(await rating_rows(kit, b.user_id)).toEqual([]);
     expect(error_logs(kit, 'rating match outcome input is invalid').length).toBe(invalid.length);
     expect(error_logs(kit, 'rating match outcome for a match mode without a rating rule').length).toBe(1);
+  });
+
+  it('returns VOID for every participant of a MISMATCH match, changes no row and leaves no log', async () => {
+    const kit = await start();
+    const a = await user(kit, 'rating-void-a');
+    const b = await user(kit, 'rating-void-b');
+    await set_rating(kit, a.user_id, BASIC, 1234n);
+    const before = await rating_rows(kit, a.user_id);
+    const ids = [a.user_id, b.user_id];
+    const logs = read_logs(kit.server).length;
+    for (const placements of [[0, 1], []]) {
+      const record = judged(kit, '[mode_rating_duel]', Judge.MATCH_JUDGE_STATUS_MISMATCH, ids, [1000n, 1000n]);
+      expect(await apply(kit, a.user_id, record, 0, placements)).toEqual({ result: 'VOID' });
+      expect(await apply(kit, b.user_id, record, 1, placements)).toEqual({ result: 'VOID' });
+    }
+    expect(read_logs(kit.server).length).toBe(logs);
+    expect(await rating_rows(kit, a.user_id)).toEqual(before);
+    expect(await rating_rows(kit, b.user_id)).toEqual([]);
+  });
+
+  it('gives the non-forfeiter of a 1 vs 1 FORFEIT match of equal ratings floor_div(2K×500 + 1000, 2000) and the forfeiter floor_div(−2K×500 + 1000, 2000) with the empty rank list', async () => {
+    const kit = await start();
+    const users = await Promise.all(['rating-forfeit-a', 'rating-forfeit-b'].map((name) => user(kit, name)));
+    const [a, b] = users.map((u) => u.user_id) as [bigint, bigint];
+    const rule = kit.data.RatingRuleTable.get_row(kit.id(FREE));
+    const k = BigInt(rule.k_factor);
+    // Index 0 forfeited: the outcome comes from the forfeiter, not from rank order.
+    const record = judged(kit, '[mode_rating_free]', Judge.MATCH_JUDGE_STATUS_FORFEIT, [a, b], [1500n, 1500n], [0]);
+    const lose = await apply(kit, a, record, 0, []);
+    const win = await apply(kit, b, record, 1, []);
+    expect(delta(win)).toBe(await floor_div(kit, a, 2n * k * 500n + 1000n, 2000n));
+    expect(delta(lose)).toBe(await floor_div(kit, a, -2n * k * 500n + 1000n, 2000n));
+    expect(delta(win)).toBe(10n);
+    expect(delta(lose)).toBe(-10n);
+    expect(await rating_row(kit, a, rule.id)).toMatchObject({ rating: 1490n, season_games: 1, total_games: 1 });
+    expect(await rating_row(kit, b, rule.id)).toMatchObject({ rating: 1510n, season_games: 1, total_games: 1 });
+  });
+
+  it('counts for the forfeiter of a 3 participant FORFEIT match with team_size 0 the 2 others, and for each other only the forfeiter', async () => {
+    const kit = await start();
+    const users = await Promise.all(['rating-forfeit3-a', 'rating-forfeit3-b', 'rating-forfeit3-c'].map((name) => user(kit, name)));
+    const [a, b, c] = users.map((u) => u.user_id) as [bigint, bigint, bigint];
+    const rule = kit.data.RatingRuleTable.get_row(kit.id(FREE));
+    const k = BigInt(rule.k_factor);
+    expect(kit.data.MatchModeTable.get_row(kit.id('[mode_rating_free]')).team_size).toBe(0);
+    const record = judged(kit, '[mode_rating_free]', Judge.MATCH_JUDGE_STATUS_FORFEIT, [a, b, c], [1500n, 1500n, 1500n], [2]);
+    // The forfeiter: m = 2, Σ = 2 × (0 − 500).
+    const forfeiter = delta(await apply(kit, c, record, 2, []));
+    expect(forfeiter).toBe(await floor_div(kit, c, 2n * k * -1000n + 1000n * 2n, 2000n * 2n));
+    expect(forfeiter).toBe(-10n);
+    // Each other: m = 1, the forfeiter only, Σ = 1000 − 500. With the other non-forfeiter m would be 2 and Δ 5.
+    for (const [id, index] of [[a, 0], [b, 1]] as const) {
+      const other = delta(await apply(kit, id, record, index, []));
+      expect(other).toBe(await floor_div(kit, id, 2n * k * 500n + 1000n, 2000n));
+      expect(other).toBe(10n);
+    }
+  });
+
+  it('counts in a FORFEIT match of team_size 2 only the opponents of known outcome: none for the teammate of the forfeiter', async () => {
+    const kit = await start();
+    const users = await Promise.all(['rating-forfeit-team-a', 'rating-forfeit-team-b', 'rating-forfeit-team-c', 'rating-forfeit-team-d'].map((name) => user(kit, name)));
+    const ids = users.map((u) => u.user_id);
+    const [a, b, c] = ids as [bigint, bigint, bigint, bigint];
+    const rule = kit.data.RatingRuleTable.get_row(kit.id(BASIC));
+    const k = BigInt(rule.placement_k_factor);
+    const tier = expected_tier(kit, BASIC, 1000n);
+    // Index 1 (team 0) forfeited.
+    const record = judged(kit, '[mode_rating_team]', Judge.MATCH_JUDGE_STATUS_FORFEIT, ids, [1000n, 1000n, 1000n, 1000n], [1], [0, 0, 1, 1]);
+    // Index 0, its teammate, has no forfeiter among its opponents: m = 0, the rating stays and the match counts.
+    expect(await apply(kit, a, record, 0, [])).toEqual({ result: 'OK', change: { before: 1000n, after: 1000n, tier_before: tier, tier_after: tier } });
+    expect(await rating_row(kit, a, rule.id)).toMatchObject({ rating: 1000n, season_games: 1, total_games: 1 });
+    // The forfeiter: m = 2 (indexes 2 and 3). Index 2: m = 1 (the forfeiter only).
+    expect(delta(await apply(kit, b, record, 1, []))).toBe(await floor_div(kit, b, 2n * k * -1000n + 1000n * 2n, 2000n * 2n));
+    expect(delta(await apply(kit, c, record, 2, []))).toBe(await floor_div(kit, c, 2n * k * 500n + 1000n, 2000n));
   });
 });
