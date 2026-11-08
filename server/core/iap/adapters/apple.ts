@@ -4,7 +4,21 @@
  * Receipt data is the StoreKit 2 transaction JWS (`jwsRepresentation`) or a transaction ID.
  */
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
-import { is_object, parse_json, read_limited, type AdapterCall, type AdapterFailure, type HttpFetch, type KeySource, type StoreAdapter, type StoreNotification, type StoreTransaction, type SubscriptionSnapshot, type Verification } from '../adapter.ts';
+import {
+  is_object,
+  parse_json,
+  read_limited,
+  type AdapterCall,
+  type AdapterFailure,
+  type HttpFetch,
+  type KeySource,
+  type RefundPage,
+  type StoreAdapter,
+  type StoreNotification,
+  type StoreTransaction,
+  type SubscriptionSnapshot,
+  type Verification,
+} from '../adapter.ts';
 import { decode_jws, roots_of, sign_es256, verify_x5c_jws } from './jws.ts';
 
 /** Apple Root CA - G3 (SHA-256 fingerprint 63343ABFB89A6A03EBB57E9B3F5FA7BE7C4F5C756F3017B3A8C488C3653E9179). */
@@ -105,6 +119,8 @@ function notification_of(id: string, type: string, tx: Record<string, unknown>):
 
 export function create_apple_adapter(options: AppleAdapterOptions): StoreAdapter {
   const bases = options.name === 'iap-apple' ? [PRODUCTION, SANDBOX] : [SANDBOX];
+  /** `list_refunds` asks one environment: production for `iap-apple`, sandbox for `iap-apple-sandbox`. */
+  const refund_base = options.name === 'iap-apple' ? PRODUCTION : SANDBOX;
 
   const bearer = (now: bigint): string => {
     const iat = now / 1000n;
@@ -115,10 +131,15 @@ export function create_apple_adapter(options: AppleAdapterOptions): StoreAdapter
     );
   };
 
-  const get = async (url: string, call: AdapterCall): Promise<Fetched> => {
+  const send = async (url: string, call: AdapterCall, json?: Record<string, unknown>): Promise<Fetched> => {
     let response: Response;
+    const authorization = `Bearer ${bearer(call.now)}`;
+    const init: RequestInit =
+      json === undefined
+        ? { method: 'GET', headers: { authorization }, signal: call.signal }
+        : { method: 'POST', headers: { authorization, 'content-type': 'application/json' }, body: JSON.stringify(json), signal: call.signal };
     try {
-      response = await options.fetch(url, { method: 'GET', headers: { authorization: `Bearer ${bearer(call.now)}` }, signal: call.signal });
+      response = await options.fetch(url, init);
     } catch {
       return 'communication_failure';
     }
@@ -193,6 +214,22 @@ export function create_apple_adapter(options: AppleAdapterOptions): StoreAdapter
     return data.bundleId === options.bundle_id && (data.environment !== 'Production' || data.appAppleId === options.app_apple_id);
   };
 
+  /**
+   * A store notification from its `signedPayload`: the format check, the signature check and the kind mapping of
+   * `### store notification`. A notification history element is read the same way.
+   */
+  const signed_notification = async (token: unknown, now: bigint): Promise<StoreNotification | 'bad_signature' | 'bad_format' | AdapterFailure> => {
+    if (typeof token !== 'string' || decode_jws(token) === null) return 'bad_format';
+    const payload = await signed(token, now);
+    if (typeof payload === 'string') return payload;
+    if (payload === null || !is_app_notification(payload)) return 'bad_signature';
+    const type = payload.notificationType;
+    if (type !== 'REFUND' && !SUBSCRIPTION_TYPES.has(type)) return { notification_id: payload.notificationUUID, kind: 'OTHER', value: '' };
+    const tx = await signed(is_object(payload.data) ? payload.data.signedTransactionInfo : undefined, now);
+    if (tx === null || typeof tx === 'string') return tx ?? 'bad_signature';
+    return notification_of(payload.notificationUUID, type, tx);
+  };
+
   /** The subscription snapshot of a `lastTransactions` item of the status lookup. */
   const snapshot_of = async (item: Record<string, unknown>, now: bigint): Promise<SubscriptionSnapshot | AdapterFailure> => {
     const state = typeof item.status === 'number' ? STATUS_STATES.get(item.status) : undefined;
@@ -218,7 +255,7 @@ export function create_apple_adapter(options: AppleAdapterOptions): StoreAdapter
       const id = apple_transaction_id(receipt);
       if (id === null) return { status: 'INVALID', transaction: null };
       for (const base of bases) {
-        const got = await get(`${base}/inApps/v1/transactions/${id}`, call);
+        const got = await send(`${base}/inApps/v1/transactions/${id}`, call);
         if (typeof got === 'string') return got;
         if (got.status === 404) continue;
         if (got.status === 400) return { status: 'INVALID', transaction: null };
@@ -232,7 +269,7 @@ export function create_apple_adapter(options: AppleAdapterOptions): StoreAdapter
       // `iap-apple-sandbox` asks only sandbox, also for a verified transaction of the production environment.
       const order = latest === null || options.name === 'iap-apple-sandbox' ? bases : latest.test ? [SANDBOX] : [PRODUCTION];
       for (const base of order) {
-        const got = await get(`${base}/inApps/v1/subscriptions/${encodeURIComponent(original_transaction_id)}`, call);
+        const got = await send(`${base}/inApps/v1/subscriptions/${encodeURIComponent(original_transaction_id)}`, call);
         if (typeof got === 'string') return got;
         if (got.status === 404) continue;
         if (got.status !== 200) return 'communication_failure';
@@ -244,17 +281,28 @@ export function create_apple_adapter(options: AppleAdapterOptions): StoreAdapter
 
     acknowledge: () => Promise.resolve(null),
 
+    async list_refunds(window_start, window_end, page_token, call): Promise<RefundPage | AdapterFailure> {
+      const query = page_token === '' ? '' : `?paginationToken=${encodeURIComponent(page_token)}`;
+      const got = await send(`${refund_base}/inApps/v1/notifications/history${query}`, call, { startDate: Number(window_start), endDate: Number(window_end), notificationType: 'REFUND' });
+      if (typeof got === 'string') return got;
+      if (got.status === 400) return 'rejected';
+      if (got.status !== 200 || !is_object(got.json)) return 'communication_failure';
+      const history = Array.isArray(got.json.notificationHistory) ? (got.json.notificationHistory as unknown[]) : [];
+      const transaction_ids: string[] = [];
+      let unverified = 0;
+      for (const element of history) {
+        const read = await signed_notification(is_object(element) ? element.signedPayload : undefined, call.now);
+        if (read === 'timeout' || read === 'communication_failure' || read === 'rejected' || read === 'bad_response') return read;
+        if (read === 'bad_signature' || read === 'bad_format') unverified += 1;
+        else if (read.kind === 'REFUND') transaction_ids.push(read.value);
+      }
+      const more = got.json.hasMore === true && typeof got.json.paginationToken === 'string';
+      return { transaction_ids, next_page_token: more ? (got.json.paginationToken as string) : '', unverified };
+    },
+
     async parse_notification(_headers, body, call): Promise<StoreNotification | 'bad_signature' | 'bad_format' | AdapterFailure> {
       const json = parse_json(body);
-      if (!is_object(json) || typeof json.signedPayload !== 'string' || decode_jws(json.signedPayload) === null) return 'bad_format';
-      const payload = await signed(json.signedPayload, call.now);
-      if (typeof payload === 'string') return payload;
-      if (payload === null || !is_app_notification(payload)) return 'bad_signature';
-      const type = payload.notificationType;
-      if (type !== 'REFUND' && !SUBSCRIPTION_TYPES.has(type)) return { notification_id: payload.notificationUUID, kind: 'OTHER', value: '' };
-      const tx = await signed(is_object(payload.data) ? payload.data.signedTransactionInfo : undefined, call.now);
-      if (tx === null || typeof tx === 'string') return tx ?? 'bad_signature';
-      return notification_of(payload.notificationUUID, type, tx);
+      return signed_notification(is_object(json) ? json.signedPayload : undefined, call.now);
     },
   };
 }

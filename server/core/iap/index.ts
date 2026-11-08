@@ -2,7 +2,8 @@
  * iap: verifies store receipts through adapters and grants each store transaction once; recovers unfinished
  * purchases, handles refunds and subscription changes the stores notify, subscription entitlement, passes and daily
  * rewards, sale conditions and purchase limit periods, monthly spend limits by age band, test transactions and the
- * ownership transfer of store transactions bound to another user.
+ * ownership transfer of store transactions bound to another user. Job `iap_refund_lookup` looks up the refunds the
+ * store lists and its notifications missed.
  */
 import * as CoreContract from '../../generated/contract/core_contract.ts';
 import * as GameData from '../../generated/data/game_data.ts';
@@ -34,6 +35,7 @@ import { read_modules, type HasSocialLink, type IapHookSlots, type IapInput } fr
 import { change_other_subscription_after_commit, grant_order, other_subscription_owner, refund_record, revoke_subscription, subscription_apply, type PrepareValue } from './grant.ts';
 import { handle_notify, recheck, type RouteRequest, type RouteResponse } from './notify.ts';
 import { pass_active, purchase_count, set_daily_claimed } from './purchase_count.ts';
+import { REFUND_LOOKUP_JOB, run_refund_lookup } from './refund_lookup.ts';
 import { monthly_limit_problem, read_settings } from './settings.ts';
 import {
   ACCOUNT_TOKEN,
@@ -53,7 +55,7 @@ import {
 
 export type { PrepareValue, VerifyOutcome } from './grant.ts';
 export type { RouteRequest, RouteResponse } from './notify.ts';
-export type { AdapterCall, AdapterFailure, StoreAdapter, StoreNotification, StoreTransaction, SubscriptionSnapshot, Verification } from './adapter.ts';
+export type { AdapterCall, AdapterFailure, RefundPage, StoreAdapter, StoreNotification, StoreTransaction, SubscriptionSnapshot, Verification } from './adapter.ts';
 export type { HasSocialLink, IapHookSlots } from './deps.ts';
 
 type CoreErrorValue = CoreContract.CoreError;
@@ -227,6 +229,7 @@ export function create_iap(input: IapInput): Iap {
     else c.account_key = key;
     const monthly = monthly_limit_problem(settings);
     if (monthly !== null) start_errors.push(monthly);
+    m.time.schedule_job(REFUND_LOOKUP_JOB, BigInt(settings.refund_lookup_interval_ms), () => run_refund_lookup(c));
   };
 
   const complete_start = (): string | null => {

@@ -12,6 +12,11 @@ export interface IapSettings {
   readonly notify_max_body_bytes: number;
   readonly notify_body_read_timeout_ms: number;
   readonly subscription_sync_interval_ms: number;
+  readonly refund_lookup_interval_ms: number;
+  readonly refund_lookup_back_ms: number;
+  readonly refund_lookup_page_count: number;
+  readonly refund_retry_count: number;
+  readonly refund_retry_batch_size: number;
   readonly withdrawn_record_retention_ms: number;
   readonly fake_subscription_period_ms: number;
   /** Secret names by secret key: `iapAccountToken`, `iapApple`, `iapGoogle`. Empty when game settings name none. */
@@ -70,6 +75,11 @@ export function read_settings(settings: Readonly<Record<string, unknown>>): IapS
     notify_max_body_bytes: integer(settings, 'iap.notifyMaxBodyBytes'),
     notify_body_read_timeout_ms: integer(settings, 'iap.notifyBodyReadTimeoutMs'),
     subscription_sync_interval_ms: integer(settings, 'iap.subscriptionSyncIntervalMs'),
+    refund_lookup_interval_ms: integer(settings, 'iap.refundLookupIntervalMs'),
+    refund_lookup_back_ms: integer(settings, 'iap.refundLookupBackMs'),
+    refund_lookup_page_count: integer(settings, 'iap.refundLookupPageCount'),
+    refund_retry_count: integer(settings, 'iap.refundRetryCount'),
+    refund_retry_batch_size: integer(settings, 'iap.refundRetryBatchSize'),
     withdrawn_record_retention_ms: integer(settings, 'iap.withdrawnRecordRetentionMs'),
     fake_subscription_period_ms: integer(settings, 'iap.fakeSubscriptionPeriodMs'),
     secret_names: {

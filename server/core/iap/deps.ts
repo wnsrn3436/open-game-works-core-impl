@@ -81,7 +81,7 @@ export type IapStorage = Pick<
   | 'register_table'
 >;
 
-export type IapServerTime = Pick<ServerTimeApi, 'now' | 'clock_now' | 'get_day_number' | 'get_period_start' | 'get_next_reset' | 'network_time_limit'>;
+export type IapServerTime = Pick<ServerTimeApi, 'now' | 'clock_now' | 'get_day_number' | 'get_period_start' | 'get_next_reset' | 'network_time_limit' | 'schedule_job'>;
 
 export type IapLogging = Pick<Logging, 'write' | 'track_core_event'>;
 
