@@ -222,8 +222,9 @@ func test_read_commands() -> void:
 	assert_eq(JSONR.count(sound, "playing"), 0)
 	assert_eq(JSONR.count(sound, "haptics"), 0)
 	var stats: String = await run_ok("get_stats")
-	for field: String in ["fps", "frame_ms", "frame_intervals_ms", "static_memory_bytes", "video_memory_bytes", "draw_calls", "primitives",
-			"object_count", "last_scene_load_ms", "boot_ms", "quality_level"]:
+	for field: String in ["fps", "frame_ms", "frame_intervals_ms", "max_frame_interval_ms", "static_memory_bytes",
+			"heap_memory_bytes", "total_memory_bytes", "video_memory_bytes", "draw_calls", "primitives", "object_count",
+			"last_scene_load_ms", "boot_ms", "quality_level"]:
 		assert_true(JSONR.has(stats, field), field)
 	assert_eq(JSONR.text(stats, "quality_level"), "", "no QualityCore")
 	var logs: String = await run_ok("extract_logs")
