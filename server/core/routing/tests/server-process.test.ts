@@ -71,6 +71,48 @@ function realtime_upgrade(port: number): Promise<string> {
   });
 }
 
+/** A client of an upgrade request that keeps its side of the connection open after the answer. */
+interface HeldUpgrade {
+  /** The bytes received. */
+  text(): string;
+  /** True once the server ended its side. */
+  ended(): boolean;
+  /** Writes one byte while the connection is open, so that a connection the server closed ends with `close`; true once it closed. */
+  closed(): boolean;
+  destroy(): void;
+}
+
+/** Sends a WebSocket upgrade of `GET <path>` (without `Sec-WebSocket-Key` when `key` is false) on a connection whose client side stays open. */
+function held_upgrade(port: number, path: string, key = true): HeldUpgrade {
+  const socket = connect({ port, host: '127.0.0.1', allowHalfOpen: true });
+  let text = '';
+  let ended = false;
+  let closed = false;
+  socket.setEncoding('utf8');
+  socket.on('connect', () => {
+    socket.write(`GET ${path} HTTP/1.1\r\nHost: 127.0.0.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n${key ? 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n' : ''}Sec-WebSocket-Version: 13\r\n\r\n`);
+  });
+  socket.on('data', (chunk: string) => {
+    text += chunk;
+  });
+  socket.on('end', () => {
+    ended = true;
+  });
+  socket.on('close', () => {
+    closed = true;
+  });
+  socket.on('error', () => undefined);
+  return {
+    text: () => text,
+    ended: () => ended,
+    closed: () => {
+      if (!closed && ended && !socket.destroyed) socket.write('x');
+      return closed;
+    },
+    destroy: () => socket.destroy(),
+  };
+}
+
 /**
  * A `POST` to `path` with a `Content-Length` of `total` bytes that sends 1 KiB, waits for the answer head, then sends
  * the rest in 1 MiB chunks until the connection closes: the answer head and the bytes sent in all.
@@ -206,6 +248,34 @@ describe('server process', () => {
     const without = await game('sqlite');
     const plain = await run_process(without, { port: 0 });
     expect(await realtime_upgrade(plain.port)).toMatch(/^HTTP\/1\.1 404 /);
+  }, TEST_MS);
+
+  it('closes the connection after the answer to an upgrade it does not take over while the client keeps its side open, so the request is not in progress after it', async () => {
+    const made = await game('sqlite');
+    const { port, ops_port } = await run_process(made, { port: 0, ops_port: 0 });
+    const ops = ops_port as number;
+    const in_progress = async (): Promise<number | null> => sample((await get(ops, '/metrics')).text, 'ogw_requests_in_progress');
+    // `GET /realtime` gets HTTP 404 from the route on a request worker; a path without a route gets it from the path table.
+    const clients = [held_upgrade(port, '/realtime'), held_upgrade(port, '/realtime'), held_upgrade(port, '/no/such/path')];
+    try {
+      await until(() => clients.every((c) => c.ended()));
+      for (const client of clients) expect(client.text()).toMatch(/^HTTP\/1\.1 404 [^]*\r\nConnection: close\r\n\r\n$/);
+      await until(async () => (await in_progress()) === 0);
+      await until(() => clients.every((c) => c.closed()));
+    } finally {
+      for (const client of clients) client.destroy();
+    }
+    // The realtime worker: an upgrade it refuses before the handshake gets its whole answer, and its connection closes.
+    const realtime = await game('sqlite');
+    const matching = await run_process(realtime, { port: 0, matchmaker: true });
+    const refused = held_upgrade(matching.port, '/realtime', false);
+    try {
+      await until(() => refused.ended());
+      expect(refused.text()).toBe('HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
+      await until(() => refused.closed());
+    } finally {
+      refused.destroy();
+    }
   }, TEST_MS);
 
   it('closes the connection after an answer that came before the end of the body, and stops reading that body', async () => {

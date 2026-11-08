@@ -862,13 +862,13 @@ export class Pipeline {
     const route = this.find_route(req.method ?? '', path);
     if (route === null) {
       // A path without a route gets 404 as on the path table, with no `request` log.
-      socket.end('HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n');
+      answer_and_close(socket, 'HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n');
       return;
     }
     const started_at = start_of(req);
     try {
       const output = await route.handler(this.route_request(req, path, query, { socket, head: new Uint8Array(head), raw: req }), this.client_ip_of(req));
-      if (output !== null) socket.end(`HTTP/1.1 ${String(output.status)} \r\nConnection: close\r\n\r\n`);
+      if (output !== null) answer_and_close(socket, `HTTP/1.1 ${String(output.status)} \r\nConnection: close\r\n\r\n`);
       this.route_log(started_at, 0);
     } catch (error) {
       this.error_log(null, `route ${route.key} failed`, error);
@@ -876,4 +876,14 @@ export class Pipeline {
       this.route_log(started_at, E.CORE_ERROR_INTERNAL);
     }
   }
+}
+
+/**
+ * Writes the answer of an upgrade request that is not taken over, and closes the connection once it is written, as
+ * `node:http` closes a `Connection: close` answer: the client does not keep the connection, or its request, open.
+ */
+function answer_and_close(socket: Duplex, head: string): void {
+  socket.end(head, () => {
+    socket.destroy();
+  });
 }

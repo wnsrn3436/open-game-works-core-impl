@@ -480,7 +480,12 @@ class Front {
     else if (message.t === 'send') socket.end();
     else if (message.t === 'sclose') {
       this.done(worker, message.id);
-      socket.destroy();
+      // After the worker instance ended its side, its bytes reach the client before the connection closes.
+      if (socket.writableEnded && !socket.writableFinished)
+        socket.once('finish', () => {
+          socket.destroy();
+        });
+      else socket.destroy();
     } else {
       // A response to an upgrade request that the server instance did not take over: written as it is, then closed.
       const head = `HTTP/1.1 ${String(message.status)} \r\nConnection: close\r\n\r\n`;
