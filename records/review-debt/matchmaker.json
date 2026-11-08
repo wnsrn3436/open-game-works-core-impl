@@ -1,0 +1,12 @@
+{
+  "target": "matchmaker",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/matchmaker/index.ts:103",
+      "problem": "The matchmaker spec (`## API` lines 61-62) exports the admin operations `list_match_flags` and `get_match` with caller `operator`, and the admin-api collected table lists them with role `read`, but `create_matchmaker` exports no admin operation (no `AdminOperation` in server/core/matchmaker/), so `POST /admin/list_match_flags` and `POST /admin/get_match` are 404 at step 3. Unrelated to the changes of the range",
+      "foundBy": "admin-api round 1"
+    }
+  ]
+}
