@@ -110,7 +110,8 @@ function make_item_amount(item_id: number, amount: bigint): CoreContract.ItemAmo
 
 export function create_item_ledger(input: ItemLedgerInput): ItemLedger {
   const deps = modules_of(input.modules);
-  const ledger = new Ledger(integer_setting(input.settings, 'item-ledger.historyRetentionMs'), deps, input.server.dev);
+  const ledger = new Ledger(
+    integer_setting(input.settings, 'item-ledger.historyRetentionMs'), integer_setting(input.settings, 'item-ledger.onceKeyRetentionMs'), deps, input.server.dev);
   const data = input.server.data;
   register_tables(deps.storage);
   const content: ItemLedgerContent = {
