@@ -175,6 +175,7 @@ enum MatchJudgeStatus {
 	MATCH_JUDGE_STATUS_PENDING = 1,
 	MATCH_JUDGE_STATUS_CONFIRMED = 2,
 	MATCH_JUDGE_STATUS_MISMATCH = 3,
+	MATCH_JUDGE_STATUS_FORFEIT = 4,
 }
 
 enum MatchmakerFrameKind {
@@ -1019,6 +1020,86 @@ class LogoutResponse extends ContractMessage:
 
 	func copy_from(_source: ContractMessage) -> void:
 		if not (_source is LogoutResponse):
+			return
+
+
+	func _reset() -> void:
+		pass
+
+
+	func _merge(_bytes: PackedByteArray) -> bool:
+		var reader: ContractMessage._WireReader = ContractMessage._WireReader.new(_bytes)
+		while reader.more():
+			var tag: int = reader.tag()
+			var wire: int = tag & 7
+			reader.skip(wire)
+		return not reader.failed
+
+
+class LogoutOtherDevicesRequest extends ContractRequest:
+
+	func encode() -> PackedByteArray:
+		var out: PackedByteArray = PackedByteArray()
+		return out
+
+
+	func decode(_bytes: PackedByteArray) -> bool:
+		_reset()
+		return _merge(_bytes)
+
+
+	func copy_from(_source: ContractMessage) -> void:
+		if not (_source is LogoutOtherDevicesRequest):
+			return
+
+
+	func _reset() -> void:
+		pass
+
+
+	func _merge(_bytes: PackedByteArray) -> bool:
+		var reader: ContractMessage._WireReader = ContractMessage._WireReader.new(_bytes)
+		while reader.more():
+			var tag: int = reader.tag()
+			var wire: int = tag & 7
+			reader.skip(wire)
+		return not reader.failed
+
+
+	func request_name() -> String:
+		return "core/LogoutOtherDevices"
+
+
+	func is_silent() -> bool:
+		return false
+
+
+	func is_retry() -> bool:
+		return true
+
+
+	func is_sensitive() -> bool:
+		return false
+
+
+	func new_response() -> ContractMessage:
+		return LogoutOtherDevicesResponse.new()
+
+
+class LogoutOtherDevicesResponse extends ContractMessage:
+
+	func encode() -> PackedByteArray:
+		var out: PackedByteArray = PackedByteArray()
+		return out
+
+
+	func decode(_bytes: PackedByteArray) -> bool:
+		_reset()
+		return _merge(_bytes)
+
+
+	func copy_from(_source: ContractMessage) -> void:
+		if not (_source is LogoutOtherDevicesResponse):
 			return
 
 
@@ -8988,6 +9069,8 @@ class MatchmakerFrame extends ContractMessage:
 	var room_status: RoomStatus = RoomStatus.ROOM_STATUS_UNSPECIFIED
 	var request: MatchmakerFrameKind = MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_UNSPECIFIED
 	var left_indices: PackedInt32Array = PackedInt32Array()
+	var forfeit: bool = false
+	var platform: String = ""
 
 
 	func encode() -> PackedByteArray:
@@ -9018,6 +9101,8 @@ class MatchmakerFrame extends ContractMessage:
 		_put_int32(out, 23, room_status)
 		_put_int32(out, 24, request)
 		_put_int32_list(out, 25, left_indices)
+		_put_bool(out, 26, forfeit)
+		_put_string(out, 27, platform)
 		return out
 
 
@@ -9055,6 +9140,8 @@ class MatchmakerFrame extends ContractMessage:
 		room_status = other.room_status
 		request = other.request
 		left_indices = other.left_indices
+		forfeit = other.forfeit
+		platform = other.platform
 
 
 	func _reset() -> void:
@@ -9083,6 +9170,8 @@ class MatchmakerFrame extends ContractMessage:
 		room_status = RoomStatus.ROOM_STATUS_UNSPECIFIED
 		request = MatchmakerFrameKind.MATCHMAKER_FRAME_KIND_UNSPECIFIED
 		left_indices = PackedInt32Array()
+		forfeit = false
+		platform = ""
 
 
 	func _merge(_bytes: PackedByteArray) -> bool:
@@ -9147,6 +9236,10 @@ class MatchmakerFrame extends ContractMessage:
 					request = reader.int32(wire) as MatchmakerFrameKind
 				25:
 					left_indices.append_array(reader.int32_list(wire))
+				26:
+					forfeit = reader.boolean(wire)
+				27:
+					platform = reader.string(wire)
 				_:
 					reader.skip(wire)
 		return not reader.failed
