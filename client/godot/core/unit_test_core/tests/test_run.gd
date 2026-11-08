@@ -5,12 +5,25 @@ extends "res://core/unit_test_core/tests/support/unit_test_core_test_case.gd"
 const STUCK := preload("res://core/unit_test_core/tests/resources/sample_stuck_signal.gd")
 const EARLY := preload("res://core/unit_test_core/tests/resources/sample_run_time_limit.gd")
 const PLATFORM := preload("res://core/unit_test_core/tests/resources/sample_platform.gd")
+const TIME_PRE_INIT := preload("res://core/unit_test_core/tests/resources/sample_time_pre_init.gd")
 
 
 func test_module_a_test_left_initialized_inits_in_the_next_test() -> void:
 	var run: RunState = await run_nested(PackedStringArray(["sample_lifecycle.gd"]))
 	assert_eq(status_of(run, "test_a_leaves_modules_initialized"), "pass")
 	assert_eq(status_of(run, "test_b_initializes_them_again"), "pass")
+
+
+## The values `TimeCore` keeps from before its `init` until its `release` do not stay after a test that did not `init`
+## TimeCore, nor after the run.
+func test_time_core_values_from_before_init_do_not_stay_in_the_next_test_or_after_the_run() -> void:
+	var run: RunState = await run_nested(PackedStringArray(["sample_time_pre_init.gd"]))
+	assert_eq(status_of(run, "test_a_sets_values_before_init_without_init"), "pass")
+	assert_eq(status_of(run, "test_b_does_not_find_them"), "pass")
+	assert_true(LogCore.init() and EventCore.init() and TimeCore.init(), "LogCore, EventCore and TimeCore init")
+	assert_eq(TimeCoreDev.get_frame_step_fps(), 0, "frame step of the last test of the run")
+	var device_seed: int = UtilCore.make_purpose_seed(TIME_PRE_INIT.PURPOSE, UnitTestCore._run.clock.device_time_ms)
+	assert_eq(TimeCore.make_random_seed(TIME_PRE_INIT.PURPOSE), device_seed, "random base of the last test of the run")
 
 
 func test_files_one_by_one_and_all_at_once_give_the_same_results() -> void:
