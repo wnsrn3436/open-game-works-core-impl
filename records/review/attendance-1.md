@@ -1,4 +1,4 @@
-# review attendance round 1
+# review: attendance round 1
 
 ## findings
 
@@ -10,11 +10,13 @@ none
 
 ## out of scope
 
-- server/core/attendance/index.ts:250: medium the server start check of `## data` of the attendance spec ("When there is a row whose `reward` is an empty array and `extra_grant` is `false` ... the server does not start", skills/server-core/modules/attendance.md:159) is not implemented: `complete_start` only checks `extra_grant` rows against a missing `grant_attendance_extra`, nothing else in `server/core` or the core test data invariants (`test-data/data/invariants.csv:7-9` has only `order_column` and `child_exists`) rejects such a row, and `grant_reward` (server/core/attendance/index.ts:220) returns `pass` for an empty `reward`, so a day row `[cal],1,,false` starts the server and `ClaimAttendance` succeeds, writes progress and grants nothing. No test of `server/core/attendance/tests/` covers the `## test` item "When there is a row that violates the data rules, the server does not start". The attendance code is unchanged in the commit range, so this existed before it
+none
 
 ## debt
 
-none
+| id | result | finding | evidence |
+|---|---|---|---|
+| D1 | withdrawn | none | Under `## data used by core` of the `core` skill (open-game-works-core/skills/core/SKILL.md:145), the rules for table rows and cell values in a spec's `## data` are data checks. "The server does not start" in a data rule means the binary build fails on the data check ERROR, so `ogw instance start`, `ogw check` and `ogw build run` never start a server with that data. A server module does not check those rules again at server start, and their `## test` items are checked with data tool tests. The rule at attendance.md:159 is in that check: tools/data-tool/src/checks/attendance.ts:10-18 reports `out_of_range` (an ERROR) for every `attendance_reward` row whose `reward` is an empty list and whose `extra_grant` is `false`. The data tool runs that check for each module in `--modules` (tools/data-tool/src/module-check.ts:31-38). tools/data-tool/tests/attendance-checks.test.ts:61-68 checks the row `[a],2,,false` → `ERROR out_of_range`, exit code 1. Lines 70-96 of the same file cover the other data rules (day order, `required_missing`, orphan day). So `complete_start` (server/core/attendance/index.ts:253) correctly checks only the start-time `grant_attendance_extra` rule, and the `## test` item "When there is a row that violates the data rules, the server does not start" is tested in the data tool, not in server/core/attendance/tests/ |
 
 ## must fix
 
@@ -22,5 +24,5 @@ none
 
 ## unknown
 
-- The commit range changes no file under `server/core/attendance/`. The review covered the changes in the range to the code attendance calls: `storage` (`db/meter.ts` counting adapter and DB meter, `db/postgres.ts`, `tx.ts` seed provider, `index.ts`), `item-ledger` (`ledger.ts` separate `onceKeyRetentionMs` for `once_key` rows, which the per-game-day `once_key` `attendance:<calendar>:<event_round>:<today>` does not depend on), `logging` (`index.ts` metrics on `write`), `routing` (`pipeline.ts` step detail texts, min version check, `duration_ms` clock; `server_process.ts` worker threads, where attendance keeps no in-memory state) and `start.ts`. No change there alters what attendance calls or relies on. `server-time`, `mailbox`, `live-event` and `validation` have no code change in the range (validation only tests)
-- `ogw core test server attendance` was run twice on 910daf01 and failed both times only in the PostgreSQL run, each time in different tests and with `INTERNAL` (error code 8) outside attendance code: `core/cheat/DevLogin failed with error code 8: handler: INTERNAL`, `DevLogin ... rate limit: rate counter transaction failed`, `RunCoreTest failed with code 8`, and claim results of 8 where the test expected 0 or 1. Run 1 failed in claim, dev, hooks and progress tests; run 2 in claim, errors and hooks tests. The SQLite run reported no failure. The cause was not reproduced: the job output gives no server log lines, and the base commit 85f6b36d cannot be tested for comparison (`ogw core test` refuses it: its `core-settings.json` lacks keys the current specs define). Whether the in-range storage or PostgreSQL adapter changes (`db/meter.ts`, `db/postgres.ts`) or the host's PostgreSQL under load cause it is not checked, so no finding is written for it
+- The commit range 625ae189..625ae189 is empty, so the only review targets were the input `## debt` and `## must fix` items
+- tools/data-tool/tests/attendance-checks.test.ts was not run: this worktree has no installed dependencies for tools/data-tool (`npx vitest` fails with `ERR_MODULE_NOT_FOUND`). The D1 judgement comes from reading the check, its wiring and the test
