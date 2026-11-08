@@ -4,6 +4,8 @@
 import { Worker } from 'node:worker_threads';
 import { create_server_time } from '../../server-time/index.ts';
 import { hold_db, hold_lock_key } from '../../testing/dev/index.ts';
+import { DbMeter } from '../db/meter.ts';
+import { SqliteAdapter } from '../db/sqlite.ts';
 import { create_storage_with, type DbMetrics, type Storage } from '../index.ts';
 import { lock_key } from '../tx.ts';
 import { core_settings, DB_KIND, instance, lock_holder, new_db, new_user, request, stop_all, test_server, type DbTarget } from './helpers.ts';
@@ -134,6 +136,37 @@ describe('watch_db_wait', () => {
     const second = storage.read_db_metrics();
     const own = DB_KIND === 'postgresql' ? 1 : 0;
     expect(second.sync_calls - first.sync_calls).toBe(own);
+  });
+});
+
+describe.runIf(DB_KIND === 'sqlite')('SQLite open', () => {
+  it('element 0 is 1 while setting the WAL journal mode waits for another connection to the same file, and its tries and pauses count as one synchronous DB call with their wait', async () => {
+    const db = await new_db('sqlite');
+    const holder = await lock_holder(db);
+    await holder.ok('CREATE TABLE other_instance (id INTEGER)');
+    await holder.ok('BEGIN IMMEDIATE');
+    const hold_ms = 300;
+    const released = holder.run('ROLLBACK', [], hold_ms);
+    const watch = watched();
+    const meter = new DbMeter();
+    meter.watch_with(watch.array);
+    const adapter = new SqliteAdapter(db.db, meter, 5000);
+    const started = performance.now();
+    adapter.open();
+    const waited = performance.now() - started;
+    try {
+      expect((await released).ok).toBe(true);
+      expect(waited).toBeGreaterThanOrEqual(hold_ms - 50);
+      expect(watch.saw_wait()).toBe(true);
+      expect(Atomics.load(watch.array, 0)).toBe(0);
+      const counts = meter.counts();
+      // `PRAGMA busy_timeout = 0`, and every try of `PRAGMA journal_mode = WAL` with the pauses between them.
+      expect(counts.sync_calls).toBe(2);
+      expect(counts.sync_wait_ms).toBeGreaterThanOrEqual(hold_ms - 50);
+      expect(adapter.read.query('PRAGMA journal_mode')[0]?.['journal_mode']).toBe('wal');
+    } finally {
+      adapter.close();
+    }
   });
 });
 
