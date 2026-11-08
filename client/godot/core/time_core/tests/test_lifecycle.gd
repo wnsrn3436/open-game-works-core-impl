@@ -6,6 +6,7 @@ func test_init_check_and_release() -> void:
 	assert_true(LogCore.init())
 	assert_true(EventCore.init())
 	assert_false(TimeCore.is_initialized())
+	_set_before_init()
 	assert_true(TimeCore.init())
 	assert_true(TimeCore.is_initialized())
 	assert_false(TimeCore.init(), "init of an initialized module fails")
@@ -24,6 +25,7 @@ func test_init_check_and_release() -> void:
 
 
 func test_core_node_exit_tree_releases() -> void:
+	_set_before_init()
 	init_modules()
 	_make_state()
 	var node: Node = TimeCore._node
@@ -107,7 +109,8 @@ func _assert_operations_fail() -> void:
 	assert_false(TimeCore.is_paused())
 	assert_eq(TimeCore.get_resume_count(), 0)
 	assert_eq(TimeCore.get_last_background_ms(), 0)
-	assert_eq(UnitTestCore.check_logs(ERROR, TAG), 25)
+	assert_eq(TimeCore.make_random_seed("a"), 0)
+	assert_eq(UnitTestCore.check_logs(ERROR, TAG), 26)
 	TimeCoreDev.step_test_frame(10, false, false)
 	TimeCoreDev.set_step_mode(true)
 	assert_false(TimeCoreDev.is_step_mode())
@@ -115,13 +118,22 @@ func _assert_operations_fail() -> void:
 	assert_eq(TimeCoreDev.get_step_budget(), 0)
 	TimeCoreDev.set_test_clock_read_step(2)
 	assert_eq(TimeCore._test_clock_read_step_ms, 0)
-	assert_eq(UnitTestCore.check_logs(ERROR, TAG), 6)
+	assert_eq(TimeCoreDev.get_frame_step_fps(), 0)
+	assert_eq(UnitTestCore.check_logs(ERROR, TAG), 7)
 	assert_false((Engine.get_main_loop() as SceneTree).paused)
 	assert_eq(Engine.time_scale, 1.0)
 
 
+## Sets the DEV values that are set before `init`: a random base and a frame step. The test clock keeps the frame step
+## from changing the time values.
+func _set_before_init() -> void:
+	TimeCoreDev.set_random_base(5)
+	TimeCoreDev.set_test_frame_step(30)
+
+
 ## Moves every state of TimeCore away from its initial value.
 func _make_state() -> void:
+	TimeCore.make_random_seed("a")
 	sync_to(SERVER_TIME)
 	advance(100)
 	TimeCore.set_time_scale(1500)
@@ -164,5 +176,11 @@ func _assert_initial_state() -> void:
 	assert_eq(TimeCore._pending_game_ms, 0)
 	assert_false(TimeCore._step_mode)
 	assert_eq(TimeCore._step_budget_ms, 0)
+	assert_true(TimeCore._random_seed_counts.is_empty())
+	assert_false(TimeCore._has_random_base)
+	assert_eq(TimeCore._random_base, 0)
+	assert_eq(TimeCore._test_frame_step_fps, 0)
+	assert_eq(TimeCore._frame_step_fps, 0)
+	assert_eq(TimeCore._frame_step_frames, 0)
 	assert_eq(Engine.time_scale, 1.0)
 	assert_false((Engine.get_main_loop() as SceneTree).paused)

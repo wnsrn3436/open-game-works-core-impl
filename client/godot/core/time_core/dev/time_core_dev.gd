@@ -1,6 +1,6 @@
 class_name TimeCoreDev
 extends RefCounted
-## DEV operations of `TimeCore`: the test clock, test frames and step mode.
+## DEV operations of `TimeCore`: the test clock, test frames, step mode, the random base and the frame step.
 
 const _TAG: String = "TimeCore"
 
@@ -107,3 +107,33 @@ static func get_step_budget() -> int:
 		LogCore.log_error(_TAG, "get_step_budget: not initialized")
 		return 0
 	return TimeCore._step_budget_ms
+
+
+## Random base of `TimeCore.make_random_seed`, so that the dev runs given the same base make the same random seeds. Only
+## before `init`; `TimeCore.release` deletes it.
+static func set_random_base(base: int) -> void:
+	if TimeCore._is_initialized:
+		LogCore.log_error(_TAG, "set_random_base: after init; ignored")
+		return
+	TimeCore._has_random_base = true
+	TimeCore._random_base = base
+
+
+## Frame step of `fps` from the next `init`: every engine frame is one fixed step of time. Only before `init`;
+## `TimeCore.release` deletes it. fps below 1 is ignored.
+static func set_test_frame_step(fps: int) -> void:
+	if TimeCore._is_initialized:
+		LogCore.log_error(_TAG, "set_test_frame_step: after init; ignored")
+		return
+	if fps < 1:
+		LogCore.log_error(_TAG, "set_test_frame_step: fps %d is below 1; ignored" % fps)
+		return
+	TimeCore._test_frame_step_fps = fps
+
+
+## fps of the frame step, also while a test clock is in use. 0 without a frame step.
+static func get_frame_step_fps() -> int:
+	if not TimeCore._is_initialized:
+		LogCore.log_error(_TAG, "get_frame_step_fps: not initialized")
+		return 0
+	return TimeCore._frame_step_fps
