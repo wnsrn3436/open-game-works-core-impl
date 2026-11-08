@@ -475,7 +475,11 @@ class Front {
       res.end(message.body === null ? undefined : Buffer.from(message.body));
       return;
     }
-    const socket = handed.socket;
+    this.from_upgrade(worker, handed.socket, message);
+  }
+
+  /** A message of the worker instance about an upgraded connection. */
+  private from_upgrade(worker: WorkerThread, socket: Duplex, message: Exclude<ToFront, { t: 'report' | 'pull' }>): void {
     if (message.t === 'sdata') socket.write(Buffer.from(message.chunk));
     else if (message.t === 'send') socket.end();
     else if (message.t === 'sclose') {
