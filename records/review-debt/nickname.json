@@ -1,12 +1,5 @@
 {
   "target": "nickname",
   "nextId": 2,
-  "items": [
-    {
-      "id": "D1",
-      "location": "settings/core-settings.schema.json:73",
-      "problem": "`admin-api.maxSearchRows` has `\"minimum\": 0` (also in the generated `server/generated/core_settings_schema.json:73`), while `## settings` of the nickname spec (nickname.md:161) and of the admin-api spec (admin-api.md:289) say \"1 or more\". The settings check of server start added in this range (routing.md:80, `server/core/routing/settings_check.ts`) is now the one check of settings values and a module does not check them again, so a value 0 passes server start; then `find_user_by_nickname` runs `LOOKUP` with `LIMIT 0` (`server/core/nickname/index.ts:316`) and returns an empty `users` list for every nickname, and every admin-api query with `limit` (at least 1 and at most `admin-api.maxSearchRows`, admin-api.md:177) is rejected. The schema value predates the range and belongs to admin-api",
-      "foundBy": "nickname round 1"
-    }
-  ]
+  "items": []
 }
