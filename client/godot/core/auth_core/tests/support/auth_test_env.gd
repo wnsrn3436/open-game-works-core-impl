@@ -57,7 +57,7 @@ func settings(values: Dictionary[String, bool]) -> bool:
 ## Inits the module list of AuthCore, loads the core test data and prepares the UI, then inits AuthCore.
 func boot() -> bool:
 	# The state `release` keeps outlives the test that made it: a test starts without it.
-	AuthCore._clear_pending()
+	AuthCoreDev.clear_dev_values()
 	AuthCore._storage_queue = AuthCore._STORAGE_QUEUE.new()
 	if not (
 		UnitTestCore.set_test_settings("UICore.buttonClickIntervalMs", 0)

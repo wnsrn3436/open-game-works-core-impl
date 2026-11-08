@@ -388,6 +388,23 @@ func test_denied_tracking_turns_off_ad_personalization() -> void:
 	assert_false(AuthCore.get_consent().ad_personalization_allowed)
 
 
+func test_fake_tracking_status_holds_across_release_until_clear_dev_values() -> void:
+	assert_true(await env.boot())
+	AuthCoreDev.set_fake_tracking_status(CoreContract.TrackingStatus.TRACKING_STATUS_DENIED)
+	AuthCore.release()
+	assert_true(env.start_auth())
+	_prepare_guest(Env.consent_state())
+	var denied: CoreContract.ConsentUserState = Env.consent_state()
+	denied.tracking = CoreContract.TrackingStatus.TRACKING_STATUS_DENIED
+	Env.respond_consent("core/UpdateConsent", denied)
+	assert_eq(await _boot_login_status(), AuthCore.LoginStatus.SUCCESS)
+	assert_eq(Env.request_count("core/UpdateConsent"), 1, "the kept fake tracking state differs from the server one")
+	assert_false(AuthCore.get_consent().ad_personalization_allowed)
+	assert_eq(AuthCore.get_consent().tracking, CoreContract.TrackingStatus.TRACKING_STATUS_DENIED)
+	AuthCoreDev.clear_dev_values()
+	assert_true(AuthCore.get_consent().ad_personalization_allowed)
+
+
 func test_get_consent_without_session_is_the_failure_value() -> void:
 	assert_true(await env.boot())
 	var info: ConsentInfo = AuthCore.get_consent()
