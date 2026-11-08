@@ -387,21 +387,21 @@ static func _font_size(element: Control) -> float:
 
 ## The OpenType `wght` at which `element` draws its text with the first font of its font chain: the theme font, or the
 ## `base_font` of a `FontVariation`, followed through nested `FontVariation`s. On a `wght` axis of that font, the `wght`
-## of the outermost `FontVariation` that sets one, clamped to the axis, else the axis default; without the axis, the
-## weight class of that font. The axes and the weight class are those of the first text server font of `get_rids()`,
+## of the outermost `FontVariation` (the theme font when it is one), clamped to the axis, else the axis default when
+## that one sets none or the theme font is no `FontVariation`: the engine draws only the coordinates of the outermost
+## `FontVariation` and drops those of the inner ones. Without the axis, the weight class of that font. The axes and the weight class are those of the first text server font of `get_rids()`,
 ## the font the engine draws with: the same as `get_supported_variation_list()` and `get_font_weight()` for a font with
 ## a text server font of its own, and the engine default font for a `SystemFont` that found no system font (as in the
 ## browser runtime), whose `get_supported_variation_list()` is an engine error. 0 when there is no font.
 static func _font_weight(element: Control) -> int:
 	var first: Font = element.get_theme_font(_font_name(element))
 	var tag: int = TextServerManager.get_primary_interface().name_to_tag(_WGHT)
-	var weight: int = _NO_WEIGHT
+	var outermost: FontVariation = first as FontVariation
+	var weight: int = _variation_weight(outermost, tag) if outermost != null else _NO_WEIGHT
 	for i: int in _FONT_VARIATION_DEPTH_MAX:
 		var variation: FontVariation = first as FontVariation
 		if variation == null:
 			break
-		if weight == _NO_WEIGHT:
-			weight = _variation_weight(variation, tag)
 		first = variation.base_font if variation.base_font != null else ThemeDB.fallback_font
 	if first == null or first is FontVariation:
 		return 0
