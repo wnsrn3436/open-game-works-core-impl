@@ -279,6 +279,14 @@ export function stored_patches(bytes: Uint8Array): Map<string, { data_version: s
   return out;
 }
 
+/** The `app` entries of stored deploy list bytes: platform → `min_version`. */
+export function stored_min_versions(bytes: Uint8Array): Map<string, string> {
+  const parsed = JSON.parse(Buffer.from(bytes).toString('utf8')) as { app?: Record<string, AppEntry> };
+  const out = new Map<string, string>();
+  for (const [platform, entry] of Object.entries(parsed.app ?? {})) out.set(platform, entry.min_version);
+  return out;
+}
+
 /** The `Cache-Control` max-age seconds of a cache time: the ms divided by 1000, rounded down. */
 export function max_age_seconds(ms: number): bigint {
   return BigInt(ms) / 1000n;

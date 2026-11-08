@@ -2,7 +2,8 @@
  * The current deploy list cache of one server instance (`game-update` `### serving`). Job `game_update_cache`
  * reads it again; the instance that publishes sets it in the `after_commit` function of that publish.
  */
-import { stored_patches } from './deploy_list.ts';
+import { stored_min_versions, stored_patches } from './deploy_list.ts';
+import type { GameUpdateValidation } from './deps.ts';
 import type { StoredDeployList } from './store.ts';
 
 export interface CachedDeployList {
@@ -12,6 +13,8 @@ export interface CachedDeployList {
   readonly signature: Uint8Array;
   /** App version → `data_version` of its patch entry. */
   readonly data_versions: ReadonlyMap<string, string>;
+  /** Platform → `min_version` of its `app` entry. */
+  readonly min_versions: ReadonlyMap<string, string>;
 }
 
 function cached(row: StoredDeployList): CachedDeployList {
@@ -23,6 +26,7 @@ function cached(row: StoredDeployList): CachedDeployList {
     deploy_list: row.deploy_list,
     signature: Buffer.from(row.signature, 'utf8'),
     data_versions,
+    min_versions: stored_min_versions(row.deploy_list),
   };
 }
 
@@ -41,6 +45,19 @@ export function data_update_ready(
   const data_version = entry?.data_versions.get(app_version);
   if (entry === null || data_version === undefined || !client_data_versions.includes(data_version)) return false;
   return now >= entry.published_at + wait_ms;
+}
+
+/**
+ * `is_below_min_version` on a cached deploy list: the platform has an `app` entry, `validation.parse_version` reads
+ * the app version, and `validation.compare_versions` puts it below that entry's `min_version`.
+ */
+export function below_min_version(entry: CachedDeployList | null, app_version: string, platform: string, validation: GameUpdateValidation): boolean {
+  const min_text = entry?.min_versions.get(platform);
+  if (min_text === undefined) return false;
+  const version = validation.parse_version(app_version);
+  const min_version = validation.parse_version(min_text);
+  if (version === null || min_version === null) return false;
+  return validation.compare_versions(version, min_version) < 0;
 }
 
 export class DeployListCache {

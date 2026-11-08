@@ -4,17 +4,17 @@
  */
 import { create_cdn_r2_adapter, type CdnR2Settings } from './adapters/cdn_r2.ts';
 import { create_admin_operations, type AdminOperations } from './admin.ts';
-import { data_update_ready, DeployListCache } from './cache.ts';
+import { below_min_version, data_update_ready, DeployListCache } from './cache.ts';
 import { is_cdn_adapter, type CdnAdapter } from './cdn.ts';
 import { file_cache_control, is_app_version } from './deploy_list.ts';
-import type { GameUpdateLogging, GameUpdateServer, GameUpdateServerTime, GameUpdateStorage } from './deps.ts';
+import type { GameUpdateLogging, GameUpdateServer, GameUpdateServerTime, GameUpdateStorage, GameUpdateValidation } from './deps.ts';
 import { create_routes, type Routes } from './routes.ts';
 import { is_trusted, load_signing_key, type SigningKey } from './signing.ts';
 import { current_deploy_list, TABLES } from './store.ts';
 
 export type { AdminFailure, AdminOperation, AdminOperations, AdminOutput } from './admin.ts';
 export type { CdnAdapter, OutgoingHttp } from './cdn.ts';
-export type { GameUpdateLogging, GameUpdateServer, GameUpdateServerTime, GameUpdateStorage } from './deps.ts';
+export type { GameUpdateLogging, GameUpdateServer, GameUpdateServerTime, GameUpdateStorage, GameUpdateValidation } from './deps.ts';
 export type { RouteHandler, RouteRequest, RouteResponse, Routes } from './routes.ts';
 
 /** The job that reads the current deploy list again. */
@@ -33,10 +33,15 @@ export interface GameUpdateDevCode {
   create_fake_cdn(): CdnAdapter;
 }
 
-/** The module object of game-update: `is_data_update_ready`, the routes, the admin operations and the lifecycle. */
+/**
+ * The module object of game-update: `is_data_update_ready`, `is_below_min_version`, the routes, the admin operations
+ * and the lifecycle.
+ */
 export interface GameUpdate extends Routes, AdminOperations {
   /** `is_data_update_ready`: whether a client of that app version is to update its data now. */
   is_data_update_ready(app_version: string): boolean;
+  /** `is_below_min_version`: whether that app version is below `min_version` of the `app` entry of that platform. */
+  is_below_min_version(app_version: string, platform: string): boolean;
   begin_start(): void;
   complete_start(): string | null;
   stop(): void;
@@ -72,6 +77,7 @@ function error_text(error: unknown): string {
 /** Makes `game-update` for one server instance. A missing or non-integer setting, or a missing module, throws. */
 export function create_game_update(input: GameUpdateInput): GameUpdate {
   const { settings, server } = input;
+  const validation = module_of(input.modules, 'validation') as GameUpdateValidation;
   const storage = module_of(input.modules, 'storage') as GameUpdateStorage;
   const server_time = module_of(input.modules, 'server-time') as GameUpdateServerTime;
   const logging = module_of(input.modules, 'logging') as GameUpdateLogging;
@@ -174,6 +180,16 @@ export function create_game_update(input: GameUpdateInput): GameUpdate {
     cdn_timeout_ms,
   });
 
+  /** The current deploy list, or null with an error log naming `operation` when the read throws. */
+  const current_or_null = (operation: string) => {
+    try {
+      return { entry: cache.current() };
+    } catch (error) {
+      log_error(`${operation} cannot read the deploy list: ${error_text(error)}`);
+      return null;
+    }
+  };
+
   const routes = create_routes({ current: () => cache.current(), read_db: () => storage.read_db(), deploy_list_max_age_ms, file_max_age_ms });
 
   return {
@@ -181,14 +197,15 @@ export function create_game_update(input: GameUpdateInput): GameUpdate {
     ...admin_operations,
     is_data_update_ready: (app_version) => {
       if (!is_app_version(app_version)) return false;
-      let entry;
-      try {
-        entry = cache.current();
-      } catch (error) {
-        log_error(`is_data_update_ready cannot read the deploy list: ${error_text(error)}`);
-        return false;
-      }
-      return data_update_ready(entry, app_version, client_data_versions, server_time.clock_now(), BigInt(deploy_list_max_age_ms) + BigInt(cache_refresh_ms));
+      const read = current_or_null('is_data_update_ready');
+      if (read === null) return false;
+      return data_update_ready(read.entry, app_version, client_data_versions, server_time.clock_now(), BigInt(deploy_list_max_age_ms) + BigInt(cache_refresh_ms));
+    },
+    is_below_min_version: (app_version, platform) => {
+      if (validation.parse_version(app_version) === null) return false;
+      const read = current_or_null('is_below_min_version');
+      if (read === null) return false;
+      return below_min_version(read.entry, app_version, platform, validation);
     },
     begin_start: () => {
       server_time.schedule_job(CACHE_JOB, BigInt(cache_refresh_ms), refresh_job);
