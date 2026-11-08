@@ -133,6 +133,15 @@ export function withdraw(s: Server): Handler {
   };
 }
 
+/** Deletes the user and answers an error code, so the committed request has `user_deleted` `true` and an error response. */
+export function withdraw_failing(s: Server, code: number): Handler {
+  return (ctx) => {
+    count(WITHDRAW);
+    s.storage.delete_user(ctx);
+    return code;
+  };
+}
+
 export function failing(code: number): Handler {
   return () => {
     count('failing');

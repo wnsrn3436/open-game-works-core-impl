@@ -1,5 +1,5 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
-import { BUMP, WITHDRAW, bump, calls, decode, new_user, rows, send, server, stop_all, token_hash, without_time, withdraw, RETENTION_MS, START_AT } from './helpers.ts';
+import { BUMP, INVALID_REQUEST, WITHDRAW, bump, calls, decode, new_user, rows, send, server, stop_all, token_hash, without_time, withdraw, withdraw_failing, RETENTION_MS, START_AT } from './helpers.ts';
 
 const RESPONSE_ROWS = 'SELECT request_id FROM idempotency_response WHERE user_id = $1';
 const WITHDRAWN_ROWS = 'SELECT request_name, created_at, expires_at FROM idempotency_withdrawn_response WHERE token_hash = $1 AND request_id = $2';
@@ -57,6 +57,18 @@ describe('withdrawn response', () => {
     });
     expect(deleted).toBe(false);
     expect(rows(s, 'SELECT request_id FROM idempotency_withdrawn_response', [])).toEqual([]);
+  });
+
+  it('save_withdrawn_response of a ctx whose user_deleted is true does not save an error response, so a resend with the same request ID is handled again', async () => {
+    const s = await server();
+    const user = await new_user(s);
+    const failed = await send(s, user, WITHDRAW, 'req-w', withdraw_failing(s, INVALID_REQUEST), 'token-w');
+    expect(failed.error?.code).toBe(INVALID_REQUEST);
+    expect(rows(s, WITHDRAWN_ROWS, [token_hash('token-w'), 'req-w'])).toEqual([]);
+    expect(s.idempotency.find_withdrawn_response(s.storage.read_db(), token_hash('token-w'), 'req-w', WITHDRAW, START_AT)).toBeNull();
+    // The resend is not answered with the error response: it reaches the user transaction, which answers WITHDRAWN because the deletion was committed.
+    await expect(send(s, user, WITHDRAW, 'req-w', withdraw_failing(s, INVALID_REQUEST), 'token-w')).rejects.toThrow(/: WITHDRAWN$/);
+    expect(calls.get(WITHDRAW)).toBe(1);
   });
 
   it('does not save the response of a request that deleted its user in idempotency_response', async () => {
