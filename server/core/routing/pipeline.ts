@@ -25,6 +25,7 @@ import type {
   RouteRequest,
   TokenlessHandler,
 } from './module_api.ts';
+import { create_system_clock } from '../server-time/adapters/system_clock.ts';
 import { increment_counter } from './rate_limit.ts';
 import { BAN_EXEMPT_RPC, DATA_HASH_EXEMPT_RPC, NO_ACCESS_TOKEN_RPC, NO_USER_RPC, REPORT_RPC, WITHDRAWN_RESPONSE_RPC } from './spec_tables.ts';
 
@@ -59,6 +60,15 @@ function with_server_time(bytes: Uint8Array, time: bigint): Uint8Array {
   return envelope.encode();
 }
 
+/** Real elapsed time for `duration_ms`: the system clock adapter of `server-time`, never the test clock a DEV run sets. */
+const real_clock = create_system_clock();
+
+/** The real elapsed ms since `started` (`real_clock`): the `duration_ms` of a `request` log line (`logging`). */
+function elapsed_ms(started: bigint): number {
+  const now = real_clock.now();
+  return now > started ? Number(now - started) : 0;
+}
+
 function split_url(url: string): { path: string; query: string } {
   const q = url.indexOf('?');
   return q < 0 ? { path: url, query: '' } : { path: url.slice(0, q), query: url.slice(q + 1) };
@@ -69,6 +79,7 @@ export interface Exchange {
   readonly req: IncomingMessage;
   readonly res: ServerResponse;
   readonly name: string;
+  /** The real clock when routing started handling the request: `duration_ms` is real elapsed time (`logging`). */
   readonly started_at: bigint;
   readonly client_ip: string;
   /** The `Origin` header when it is an allowed origin; null otherwise. */
@@ -168,7 +179,7 @@ export class Pipeline {
       fields: {
         ...annotation.fields,
         error_code,
-        duration_ms: Number(this.s.deps.server_time.clock_now() - exchange.started_at),
+        duration_ms: elapsed_ms(exchange.started_at),
         client_version: exchange.headers?.client_version ?? null,
         platform: exchange.headers?.platform ?? null,
         seed: exchange.seed === null ? null : exchange.seed.toString(),
@@ -251,7 +262,7 @@ export class Pipeline {
       req,
       res,
       name,
-      started_at: this.s.deps.server_time.clock_now(),
+      started_at: real_clock.now(),
       client_ip: this.client_ip_of(req),
       origin,
       headers: null,
@@ -779,7 +790,7 @@ export class Pipeline {
   }
 
   async handle_route(route: RouteEntry, req: IncomingMessage, res: ServerResponse, path: string, query: string, upgrade: RouteRequest['upgrade']): Promise<void> {
-    const started_at = this.s.deps.server_time.clock_now();
+    const started_at = real_clock.now();
     try {
       const output = await route.handler(this.route_request(req, path, query, upgrade), this.client_ip_of(req));
       if (output === null) {
@@ -811,7 +822,7 @@ export class Pipeline {
       request_id: null,
       request: null,
       message: 'request',
-      fields: { error_code, duration_ms: Number(this.s.deps.server_time.clock_now() - started_at), client_version: null, platform: null, seed: null },
+      fields: { error_code, duration_ms: elapsed_ms(started_at), client_version: null, platform: null, seed: null },
     });
   }
 
@@ -827,7 +838,7 @@ export class Pipeline {
       socket.destroy();
       return;
     }
-    const started_at = this.s.deps.server_time.clock_now();
+    const started_at = real_clock.now();
     try {
       const output = await route.handler(this.route_request(req, path, query, { socket, head: new Uint8Array(head), raw: req }), this.client_ip_of(req));
       if (output !== null) socket.end(`HTTP/1.1 ${String(output.status)} \r\nConnection: close\r\n\r\n`);
