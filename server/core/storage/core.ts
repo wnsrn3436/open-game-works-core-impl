@@ -127,6 +127,8 @@ export class TxState {
   broken = false;
   /** The value that the statement which broke the transaction threw. */
   broken_by: unknown = null;
+  /** `fail_transaction` marked it: every later storage operation throws, and its function ends as `FAILED`. */
+  failed = false;
   read_only = 0;
   touched = new Map<string, Touched>();
   item_changes: CoreContract.ItemChange[] = [];
@@ -259,10 +261,19 @@ export function adapter_of(core: StorageCore): DbAdapter {
   return core.adapter;
 }
 
+/**
+ * A transaction that `fail_transaction` marked: every later storage operation on it throws a value that is not a
+ * `StorageMisuse`, as after a failed statement.
+ */
+function not_failed(state: TxState): void {
+  if (state.failed) throw new DbError('lock', 'failed', 'storage: the transaction was marked failed by fail_transaction');
+}
+
 /** The open user transaction of a ctx; misuse when it is not one. */
 export function user_state_of(core: StorageCore, ctx: unknown): TxState {
   const state = typeof ctx === 'object' && ctx !== null ? core.states.get(ctx) : undefined;
   if (state?.kind !== 'user' || !state.active) throw new StorageMisuse('storage: the ctx is not of an open transaction');
+  not_failed(state);
   return state;
 }
 
@@ -270,6 +281,7 @@ export function user_state_of(core: StorageCore, ctx: unknown): TxState {
 export function any_state_of(core: StorageCore, ctx_or_tx: unknown): TxState {
   const state = typeof ctx_or_tx === 'object' && ctx_or_tx !== null ? core.states.get(ctx_or_tx) : undefined;
   if (state === undefined || !state.active) throw new StorageMisuse('storage: the ctx or game tx is not of an open transaction');
+  not_failed(state);
   return state;
 }
 
