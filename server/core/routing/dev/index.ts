@@ -164,7 +164,7 @@ class RoutingDev {
     const { entry, body } = admitted;
     if (name === DEV_LOGIN) {
       if (state.deps.admin_api.is_maintenance()) pipeline.fail(exchange, E.CORE_ERROR_MAINTENANCE, 'step 4 maintenance');
-      else await pipeline.process_tokenless(exchange, entry.info, entry.handler as TokenlessHandler, (m) => this.validate(state, entry.info, m));
+      else await pipeline.process_tokenless(exchange, entry.info, entry.handler as TokenlessHandler, (m) => this.validate(state, entry.info, m), false);
       return;
     }
     const storage: StorageModule = state.deps.storage;

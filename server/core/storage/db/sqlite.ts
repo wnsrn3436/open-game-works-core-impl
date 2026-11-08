@@ -207,6 +207,16 @@ class Transaction implements DbTxConn {
   }
 }
 
+/** The pause between two tries of setting WAL at open. */
+const WAL_RETRY_MS = 5;
+const WAL_PAUSE = new Int32Array(new SharedArrayBuffer(4));
+
+/** True for `SQLITE_BUSY` and `SQLITE_LOCKED` (`database is locked`). */
+function is_busy(error: unknown): boolean {
+  const code = (error as { errcode?: unknown } | null)?.errcode;
+  return code === 5 || code === 6 || (error instanceof Error && error.message.includes('database is locked'));
+}
+
 /**
  * SQLite: WAL journal, one write connection whose transactions open with `BEGIN IMMEDIATE` one at a time, and a
  * separate read connection. A transaction waits for the one before it on this connection up to the lock wait limit
@@ -221,11 +231,17 @@ export class SqliteAdapter implements DbAdapter {
   private handles: DatabaseSync[] = [];
   private readonly mutex = new Mutex();
   private readonly meter: DbMeter | null;
+  private readonly open_wait_ms: number;
 
-  /** `meter`: where the synchronous DB calls go (`DbMeter`). */
-  constructor(path: string, meter: DbMeter | null = null) {
+  /**
+   * `meter`: where the synchronous DB calls go (`DbMeter`). `open_wait_ms`: how long setting the journal mode at
+   * open waits for another connection to the same file (`storage.schemaLockWaitMs`), so server instances started
+   * together on one new file open one at a time, as their schema step runs.
+   */
+  constructor(path: string, meter: DbMeter | null = null, open_wait_ms = 0) {
     this.path = path;
     this.meter = meter;
+    this.open_wait_ms = open_wait_ms;
   }
 
   open(): void {
@@ -233,7 +249,7 @@ export class SqliteAdapter implements DbAdapter {
       const write = new DatabaseSync(this.path, { readBigInts: true });
       this.handles.push(write);
       write.exec('PRAGMA busy_timeout = 0');
-      write.exec('PRAGMA journal_mode = WAL');
+      this.set_wal(write);
       const read = new DatabaseSync(this.path, { readOnly: true, readBigInts: true });
       this.handles.push(read);
       this.writer = new Connection(write, this.meter);
@@ -242,6 +258,24 @@ export class SqliteAdapter implements DbAdapter {
       this.close();
       const failure = db_error(error);
       throw new DbError('connection', failure.code, `cannot open SQLite database ${this.path}: ${failure.message}`);
+    }
+  }
+
+  /**
+   * `PRAGMA journal_mode = WAL`. While another connection opens the same new file, SQLite answers it with
+   * `SQLITE_BUSY` without its busy handler, so it tries again every `WAL_RETRY_MS`, blocking the thread like the
+   * schema step of server start, for up to `open_wait_ms`.
+   */
+  private set_wal(write: DatabaseSync): void {
+    const tries = Math.max(1, Math.ceil(this.open_wait_ms / WAL_RETRY_MS));
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        write.exec('PRAGMA journal_mode = WAL');
+        return;
+      } catch (error) {
+        if (attempt >= tries || !is_busy(error)) throw error;
+        Atomics.wait(WAL_PAUSE, 0, 0, WAL_RETRY_MS);
+      }
     }
   }
 

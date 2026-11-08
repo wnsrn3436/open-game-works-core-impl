@@ -8,6 +8,8 @@ import type { CheatPaths, InstanceState, ServerInput } from './context.ts';
 import type { AdminOperation, CoreRpcHandler, DevObject, LoggingModule, ModuleObject, ServerTimeModule, StorageModule } from './module_api.ts';
 import type { Pipeline } from './pipeline.ts';
 import { register_rate_counter } from './rate_limit.ts';
+import type { MessagePort } from 'node:worker_threads';
+import type { ToFront } from './front_link.ts';
 
 export interface RoutingInput {
   settings: Readonly<Record<string, unknown>>;
@@ -30,11 +32,6 @@ export interface RoutingDevAttachment {
 
 type Window = 'before' | 'open' | 'closed';
 
-function as_number(value: unknown, key: string): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error(`core setting ${key} is not a number`);
-  return value;
-}
-
 export class RoutingModule {
   private readonly input: RoutingInput;
   private window: Window = 'before';
@@ -49,6 +46,8 @@ export class RoutingModule {
   /** Every prepared module of the server instance; set before `register`. */
   prepared: ReadonlyMap<string, ModuleObject> = new Map();
   dev: RoutingDevAttachment | null = null;
+  /** The message port of the front link of a worker instance; set before `begin_start`. Null for other instances. */
+  front: MessagePort | null = null;
 
   constructor(input: RoutingInput) {
     this.input = input;
@@ -149,7 +148,8 @@ export class RoutingModule {
     const server_time = this.input.modules['server-time'] as unknown as ServerTimeModule;
     const logging = this.input.modules.logging as unknown as LoggingModule;
     register_rate_counter(storage);
-    const interval = as_number(this.input.settings['routing.storageSweepIntervalMs'], 'routing.storageSweepIntervalMs');
+    // The settings check of `create_server` has checked the values: they are read as their types.
+    const interval = this.input.settings['routing.storageSweepIntervalMs'] as number;
     const error = (message: string, stack_trace: string | null): void => {
       logging.write({ level: 'error', kind: 'error', user_id: null, request_id: null, request: null, message, fields: { stack_trace } });
     };
@@ -167,6 +167,26 @@ export class RoutingModule {
         return true;
       });
       await step('run_user_changes', async () => (await storage.run_user_changes()) !== 'FAILED');
+    });
+    if (this.front !== null) this.schedule_ops_report(this.front, storage, server_time, logging);
+  }
+
+  /**
+   * Job `routing_ops_report` of a worker instance (`### ops path`): the DB probe `SELECT 1` with `storage.read_db`,
+   * then whether it passed and the metric families of `logging.read_metrics` to the front.
+   */
+  private schedule_ops_report(front: MessagePort, storage: StorageModule, server_time: ServerTimeModule, logging: LoggingModule): void {
+    const interval = this.input.settings['routing.opsReportIntervalMs'] as number;
+    server_time.schedule_job('routing_ops_report', BigInt(interval), () => {
+      let db_ok = false;
+      try {
+        (storage.read_db() as { query(sql: string, params: readonly unknown[]): unknown }).query('SELECT 1', []);
+        db_ok = true;
+      } catch {
+        // A failed DB probe is the report's `db_ok` false.
+      }
+      const report: ToFront = { t: 'report', db_ok, metrics: logging.read_metrics() };
+      front.postMessage(report);
     });
   }
 

@@ -301,7 +301,7 @@ function adapter_for(input: StorageInput, settings: StorageSettings, meter: DbMe
   const target = input.server.db;
   const pg = (connection_string: string): DbAdapter => new PostgresAdapter(connection_string, pg_limits(settings), undefined, meter);
   if (target === 'postgresql') return counting_adapter(pg(secret(input, 'db', '--db postgresql: the secret db')), meter);
-  if (target !== null) return counting_adapter(new SqliteAdapter(target, meter), meter);
+  if (target !== null) return counting_adapter(new SqliteAdapter(target, meter, settings.schema_lock_wait_ms), meter);
   const name = input.settings['environments.<ENV>.secrets.db'];
   if (typeof name !== 'string' || name === '') throw new DbError('connection', 'secret', `game settings environments.${input.server.env}.secrets.db names no secret`);
   return counting_adapter(pg(secret(input, name, `the secret ${name}`)), meter);

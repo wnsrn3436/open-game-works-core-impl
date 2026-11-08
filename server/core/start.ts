@@ -1,14 +1,14 @@
 /**
- * The server process start point: `node core/start.ts <server start arguments>` with `server/` as cwd. It makes a
- * server instance with `routing`'s `create_server` and starts it.
+ * The server process start point: `node core/start.ts <server start arguments>` with `server/` as cwd. It runs the
+ * server process with `routing`'s `run_server_process`: a front on the main thread and worker threads that each make
+ * one server instance. When that returns a server start failure reason, the process ends with exit code 1.
  */
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { create_server, type RegisterFunction, type ServerArgs } from './routing/index.ts';
+import { run_server_process, type ServerProcessArgs } from './routing/index.ts';
 
 const ENVS = new Set(['LOCAL', 'DEV', 'STG', 'PROD']);
 
-type ArgValues = Omit<Partial<ServerArgs>, 'env'> & { env: string | null };
+type ArgValues = Omit<Partial<ServerProcessArgs>, 'env'> & { env: string | null };
 
 /** The server start arguments that take a value, and what each value sets. */
 const VALUE_FLAGS: Readonly<Record<string, (args: ArgValues, value: string) => string | null>> = {
@@ -19,6 +19,11 @@ const VALUE_FLAGS: Readonly<Record<string, (args: ArgValues, value: string) => s
   '--port': (args, value) => {
     if (!/^[0-9]+$/.test(value) || Number(value) > 65535) return `--port ${value} is not a port number`;
     args.port = Number(value);
+    return null;
+  },
+  '--ops-port': (args, value) => {
+    if (!/^[0-9]+$/.test(value) || Number(value) > 65535) return `--ops-port ${value} is not a port number`;
+    args.ops_port = Number(value);
     return null;
   },
   '--db': (args, value) => {
@@ -40,7 +45,7 @@ function check_env(args: ArgValues): string | null {
 }
 
 /** Parses the server start arguments; a string is the reason they are wrong. */
-export function parse_server_args(argv: readonly string[]): ServerArgs | string {
+export function parse_server_args(argv: readonly string[]): ServerProcessArgs | string {
   const args: ArgValues = { env: null };
   for (let i = 0; i < argv.length; i += 1) {
     const flag = argv[i] ?? '';
@@ -59,20 +64,8 @@ export function parse_server_args(argv: readonly string[]): ServerArgs | string 
   const problem = check_env(args);
   if (problem !== null) return problem;
   const { env, ...rest } = args;
-  return { ...rest, env: env as ServerArgs['env'] };
-}
-
-const core_dir = fileURLToPath(new URL('./', import.meta.url));
-const server_dir = fileURLToPath(new URL('../', import.meta.url));
-
-/** True when the server code holds core `dev/` folders or `server/dev/`. */
-function has_dev_code(): boolean {
-  if (existsSync(`${server_dir}dev`)) return true;
-  return readdirSync(core_dir, { withFileTypes: true }).some((e) => e.isDirectory() && existsSync(`${core_dir}${e.name}/dev`));
-}
-
-function read_json(path: string): unknown {
-  return JSON.parse(readFileSync(path, 'utf8'));
+  if (rest.ops_port !== undefined && rest.ops_port !== 0 && rest.ops_port === (rest.port ?? 8080)) return '--ops-port must differ from --port';
+  return { ...rest, env: env as ServerProcessArgs['env'] };
 }
 
 async function main(): Promise<number> {
@@ -81,33 +74,14 @@ async function main(): Promise<number> {
     process.stderr.write(`${args}\n`);
     return 2;
   }
-  const dev = has_dev_code();
-  const settings = read_json(`${server_dir}generated/core_settings.json`) as Record<string, unknown>;
-  const server_modules = read_json(`${server_dir}generated/server_modules.json`) as string[];
-  const content = (await import(new URL('../main.ts', import.meta.url).href)) as { register: RegisterFunction };
-  const content_dev = dev && existsSync(`${server_dir}dev/main.ts`) ? ((await import(new URL('../dev/main.ts', import.meta.url).href)) as { registerDev: RegisterFunction }) : null;
-  const server = create_server({
-    args,
-    server_modules,
-    data_folder: `${server_dir}build/data`,
-    core_settings: settings,
-    game_settings: {},
-    register: content.register,
-    dev,
-    register_dev: content_dev?.registerDev ?? null,
-  });
-  const started = await server.start();
-  if (typeof started === 'string') return 1;
-  const stop = (): void => {
-    void server.stop().then(() => process.exit(0));
-  };
-  process.once('SIGTERM', stop);
-  process.once('SIGINT', stop);
-  return -1;
+  // The front runs until SIGTERM or SIGINT, or a worker thread ends, and then ends the process itself.
+  const started = await run_server_process(args);
+  return typeof started === 'string' ? 1 : -1;
 }
 
 if (process.argv[1] !== undefined && fileURLToPath(import.meta.url) === process.argv[1]) {
   void main().then((code) => {
-    if (code >= 0) process.exit(code);
+    // Every worker thread has ended when a start failure is returned: the process ends once stdout is written.
+    if (code >= 0) process.exitCode = code;
   });
 }

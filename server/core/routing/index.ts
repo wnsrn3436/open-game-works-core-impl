@@ -4,6 +4,8 @@
  */
 export { create_routing, RoutingModule, type RoutingInput } from './routing_module.ts';
 export { create_server, module_settings, ServerInstance, type CreateServerInput, type RegisterFunction } from './server.ts';
+export { run_server_process, type ServerProcessArgs, type ServerProcessPorts } from './server_process.ts';
+export type { FrontLink } from './front_link.ts';
 export type { Env, HttpFetch, KeySource, ServerArgs, ServerInput } from './context.ts';
 export type {
   AdminOperation,

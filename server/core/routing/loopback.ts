@@ -11,7 +11,7 @@ import { createServer, type AddressInfo, type Server } from 'node:net';
 export const LOOPBACK = '127.0.0.1';
 
 /** Listens on `port` (all addresses when `host` is not given): the port it listens on, or the listen error. */
-export function listen_on(server: Server, port: number, host?: string): Promise<number | Error> {
+export function listen_on(server: Server | import('node:http').Server, port: number, host?: string): Promise<number | Error> {
   return new Promise((resolve) => {
     const on_error = (error: Error): void => {
       resolve(error);
@@ -55,4 +55,40 @@ let loopback_free: Promise<boolean> | null = null;
 export function loopback_left_free(): Promise<boolean> {
   loopback_free ??= check_loopback_free();
   return loopback_free;
+}
+
+/** How many ports `--port` 0 chooses before listening fails, when each is held on all addresses (`listen_port`). */
+const PORT_CHOICES = 16;
+
+/** A server that listens on a port: the port, and the listener on `127.0.0.1:<port>` when it needs one. */
+export interface Listening {
+  readonly port: number;
+  readonly loopback: Server | null;
+}
+
+/**
+ * Listens on `port` on all addresses with the HTTP (or net) server `server`. Where that leaves `127.0.0.1` on the
+ * port free for another socket, it also listens on `127.0.0.1:<port>` with a net server that hands its connections to
+ * `server` (`connection` event), so the port is its own on `127.0.0.1` too. It listens on `127.0.0.1:<port>` first,
+ * then on all addresses on the port that listener got. With `port` 0 the OS chooses the port on `127.0.0.1` only, and
+ * another socket can hold it on all addresses (`EADDRINUSE`); then it chooses again, up to `PORT_CHOICES` times.
+ * A string is the failure reason; nothing listens then.
+ */
+export async function listen_port(server: Server | import('node:http').Server, port: number): Promise<Listening | string> {
+  const failed = (host: string | null, error: Error): string => `listen on port ${String(port)} failed: ${host === null ? '' : `${host}: `}${error.message}`;
+  if (!(await loopback_left_free())) {
+    const listening = await listen_on(server, port);
+    return typeof listening === 'number' ? { port: listening, loopback: null } : failed(null, listening);
+  }
+  for (let choice = 1; ; choice += 1) {
+    const loopback = createServer({ allowHalfOpen: true, noDelay: true }, (socket) => {
+      server.emit('connection', socket);
+    });
+    const held = await listen_on(loopback, port, LOOPBACK);
+    if (typeof held !== 'number') return failed(LOOPBACK, held);
+    const listening = await listen_on(server, held);
+    if (typeof listening === 'number') return { port: listening, loopback };
+    await close_server(loopback);
+    if (port !== 0 || (listening as NodeJS.ErrnoException).code !== 'EADDRINUSE' || choice === PORT_CHOICES) return failed(null, listening);
+  }
 }

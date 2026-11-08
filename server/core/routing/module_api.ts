@@ -184,6 +184,7 @@ export interface LoggingModule extends ModuleLifecycle {
   annotate_request_log(ctx: RequestCtx, fields: Record<string, LogValue>, min_level: LogLevel): unknown;
   take_request_log_annotation(ctx: RequestCtx): { fields: Readonly<Record<string, LogValue>>; min_level: LogLevel };
   count_report_request(user_id: bigint): Promise<'pass' | ErrorCode>;
+  read_metrics(): import('../logging/index.ts').MetricFamily[];
 }
 
 export interface ValidationModule extends ModuleLifecycle {
@@ -192,6 +193,7 @@ export interface ValidationModule extends ModuleLifecycle {
 
 export interface GameUpdateModule extends ModuleLifecycle {
   is_data_update_ready(app_version: string): boolean;
+  is_below_min_version(app_version: string, platform: string): boolean;
 }
 
 /** The content admin operation and the admin operation a module exports (`admin-api`). Routing passes it on. */
