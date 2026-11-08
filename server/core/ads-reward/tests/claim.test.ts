@@ -128,4 +128,3 @@ describe('ads-reward claim', () => {
     expect(error_of(await drive(s.server, claim(session, notify_id)))).toBe(CoreError.CORE_ERROR_AD_REWARD_PENDING);
   });
 });
-});
