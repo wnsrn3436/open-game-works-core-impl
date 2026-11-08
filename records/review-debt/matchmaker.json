@@ -1,12 +1,18 @@
 {
   "target": "matchmaker",
-  "nextId": 2,
+  "nextId": 3,
   "items": [
     {
       "id": "D1",
       "location": "server/core/matchmaker/index.ts:103",
       "problem": "The matchmaker spec (`## API` lines 61-62) exports the admin operations `list_match_flags` and `get_match` with caller `operator`, and the admin-api collected table lists them with role `read`, but `create_matchmaker` exports no admin operation (no `AdminOperation` in server/core/matchmaker/), so `POST /admin/list_match_flags` and `POST /admin/get_match` are 404 at step 3. Unrelated to the changes of the range",
       "foundBy": "admin-api round 1"
+    },
+    {
+      "id": "D2",
+      "location": "server/core/matchmaker/realtime.ts:382",
+      "problem": "`HELLO` handling runs only `data_version_error(frame.data_version, frame.client_version)` (server/core/matchmaker/realtime.ts:342-348), which never calls `game-update.is_below_min_version`, and the matchmaker reads neither a `platform` field of the frame nor that operation (`grep platform server/core/matchmaker/*.ts` finds nothing; server/core/matchmaker/index.ts:118 binds only `is_data_update_ready`). The matchmaker spec `HELLO` handling (skills/server-core/modules/matchmaker.md:114) and its `## test` item (matchmaker.md:399) require `CLOSE`(`APP_UPDATE_REQUIRED`) for `client_version` `1.1.9` and `platform` `android` under a deploy list with android `min_version` `1.2.0`, and `CLOSE`(`INVALID_REQUEST`) for a non-empty `platform` that `validation.is_platform` rejects; with this code that `HELLO` gets `HELLO_ACK`. game-update.md lists `matchmaker` as a caller of `is_below_min_version`",
+      "foundBy": "game-update round 1"
     }
   ]
 }
