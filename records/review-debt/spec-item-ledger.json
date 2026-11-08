@@ -1,0 +1,18 @@
+{
+  "target": "spec item-ledger",
+  "nextId": 3,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/server-core/modules/item-ledger.md:174",
+      "problem": "The `once_key` table is used by change order step 2 (item-ledger.md:102), `revoke_items` (item-ledger.md:118) and the user snapshot clone. It has no table name, column list or key columns anywhere in the defining documents, although `storage.register_table` needs all three (skills/server-core/modules/storage.md:74). The rewritten line keeps this pre-existing gap. The history table (item-ledger.md:169,171) likewise has no column types and no table name",
+      "foundBy": "spec item-ledger"
+    },
+    {
+      "id": "D2",
+      "location": "skills/server-core/modules/item-ledger.md:207",
+      "problem": "The new error row and line 172 do not say which module leaves the `error` log. Lines 59 and 88 say that item-ledger itself throws and leaves the log, while routing logs failed requests (skills/server-core/modules/storage.md:335). The same question is open for the older throw rows of this table, so the number of `error` lines per failure is not set for any of them",
+      "foundBy": "spec item-ledger"
+    }
+  ]
+}
