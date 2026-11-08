@@ -8,7 +8,7 @@ none
 
 | id | result | evidence |
 |---|---|---|
-| R1-1 | fixed | `client/godot/core/sound_core/tests/test_dev_feedback.gd:112-117` now calls `play` with a `null` scope and with a released `PANEL` scope while play skip is on, and asserts `INVALID_HANDLE` and one SoundCore error log each. Restored the defect in a temporary detached worktree of `ad5d17bb` (removed after the run) by moving `if _play_skip: return INVALID_HANDLE` above the `scope == null or scope.released` check in `client/godot/core/sound_core/sound_core.gd:369-373`; `ogw core test godot SoundCore --file client/godot/core/sound_core/tests/test_dev_feedback.gd` failed on `test_play_skip_returns_the_invalid_handle_without_load_log_or_event_and_keeps_earlier_plays` with `[0] expected to equal [1]: the scope check still logs for a missing scope; [0] expected to equal [1]: the scope check still logs for a released scope`. The same file passes on the unmodified checkout |
+| R1-1 | fixed | Commit 55c0a25d sets `SoundCore.busLoudnessLufs.Bgm` back to -20 in settings/core-settings.json:307 and client/godot/generated/core_settings.json:307 (both -20 at 7d72e5fd; no `-28` is left in settings/, client/godot/generated/ or client/godot/core/sound_core/). Its message gives the cause (c8fe1d02 changed the value with no cause or evidence; the harness defines no value for the key) and keeps the earlier default, as the fix direction of R1-1 says. R1-1 is a `spec` finding (commit message without cause and evidence), not a `test evidence` finding, so no defect restore was needed. Client SoundCore only checks that the key exists (client/godot/core/sound_core/sound_core.gd:519-522), so no SoundCore behavior or test depends on the value |
 
 ## out of scope
 
@@ -24,5 +24,7 @@ none
 
 ## unknown
 
-- Only `client/godot/core/sound_core/tests/test_dev_feedback.gd` was run (native headless, `--file`). The whole SoundCore suite and the `--web` run were not run in this review: the range changes only that test file in SoundCore, and `ogw review run` runs the core tests of the dependent modules
-- The other changes in the range (`client/godot/core/qa_core/`, `client/godot/core/tween_core/`, `records/`) are outside the target. They were searched for references to SoundCore and contain none
+- No test was run: the range changes nothing of SoundCore except the core settings value, which SoundCore code only checks for existence. The report of mw7ukr3va3f8f3 records `ogw core test godot` and `--web` passes for SoundCore and its dependents on 55c0a25d; this review did not run them again
+- The TimeCore change of the range (279c6798: `set_test_frame_step` renamed to `set_frame_step`, engine fps read removed) is outside the target. SoundCore and its tests were searched and do not call the frame step (`frame_step`, `set_test_frame_step`); SoundCore reads only `TimeCore.get_real_time`, `is_paused` and `make_random_seed`, which that change does not touch
+- The other changes of the range (InputCore, QACore tests, contract-tool, server, `records/`) are outside the target and were not reviewed
+- Whether -20 is the right BGM loudness target against reference games was not judged; the harness gives no value to compare with
