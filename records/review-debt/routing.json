@@ -1,18 +1,5 @@
 {
   "target": "routing",
   "nextId": 3,
-  "items": [
-    {
-      "id": "D1",
-      "location": "server/core/routing/server_process.ts:383",
-      "problem": "In the server process the front reads the whole request body of every `--port` request and posts each chunk to the worker (`req.on('data')` with no limit and no backpressure), and the worker pushes it into the `FrontRequest` buffer (server/core/routing/front_link.ts:208) whether or not the request handling reads it; `read_body` only pauses that stream when the limit is passed (server/core/routing/http.ts:192), and an admin request refused at steps 1 to 3 never reads it. So a client without `Authorization` that sends `POST /admin/x` with a body of any size gets 401 while the whole body is still read by the front and kept in the worker's memory until the client ends it. This breaks the admin-api rule that steps 1 to 3 do not read the body and that a request without `Authorization` is 401 without the body being read even when it is larger than `admin-api.maxBodyBytes`, and lets an unauthenticated client grow worker memory with the body size (a worker that ends ends the process, server_process.ts:279). Fix in routing: stop forwarding (or close the client side) once the worker answers or its `read_body` gives up, and apply backpressure",
-      "foundBy": "admin-api round 1"
-    },
-    {
-      "id": "D2",
-      "location": "server/core/routing/pipeline.ts:871",
-      "problem": "A route handler of an upgrade that returns a status (`output !== null`) gets `socket.end(status line)`, the same half-open end as R2-1 (unchanged since 301b3dd8). On a request worker or the realtime worker the front then calls `done` only when the client closes, so a client that keeps its side open after that answer holds the connection and its in-progress count with no time limit. Read from the code (`front_link.ts:210-224`, `server_process.ts:433-437`, `:480`); not run separately from R2-1",
-      "foundBy": "routing round 2"
-    }
-  ]
+  "items": []
 }
