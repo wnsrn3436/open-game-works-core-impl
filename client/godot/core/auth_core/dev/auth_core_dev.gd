@@ -1,6 +1,7 @@
 class_name AuthCoreDev
 extends RefCounted
-## DEV operations of AuthCore: dev login, the fake social account, access token expiry and the fake tracking state.
+## DEV operations of AuthCore: dev login, the fake social account, access token expiry, the fake tracking state, the
+## DEV token storage and clearing those values between tests.
 
 const _WAIT := preload("res://core/auth_core/auth_wait.gd")
 const _DEV_TOKEN_STORAGE := preload("res://core/auth_core/dev/adapters/dev_token_storage.gd")
@@ -56,3 +57,17 @@ static func set_fake_tracking_status(status: CoreContract.TrackingStatus) -> voi
 ## `ogw-secure-storage` singleton.
 static func use_dev_token_storage() -> void:
 	AuthCore._dev_storage = _DEV_TOKEN_STORAGE.new()
+
+
+## Deletes the values of `set_fake_social_account`, `set_fake_tracking_status` and `use_dev_token_storage`, which
+## `release` keeps, and the pending token. Starts a delete of the storage item of the scope in the storage AuthCore uses
+## now, after the storage operations in progress; its result is dropped. Callers waiting for a storage operation end
+## with their failure value. Works before `init`, while initialized and after `release`, without a log.
+static func clear_dev_values() -> void:
+	AuthCore._end_storage_waits()
+	AuthCore._fake_social_account = ""
+	AuthCore._fake_tracking = -1
+	AuthCore._dev_storage = null
+	AuthCore._clear_pending()
+	if AuthCore._is_initialized and not AuthCore._storage_scope.is_empty() and AuthCore._storage != null:
+		AuthCore._run_storage(AuthCore._storage, AuthCore.StorageOp.REMOVE, AuthCore._storage_scope, "", null)

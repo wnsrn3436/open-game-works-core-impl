@@ -61,6 +61,8 @@ static var _replaced_popup_open: bool = false
 ## Consent of the last consent apply. `null` when there is none.
 static var _applied_consent: ConsentInfo = null
 static var _waits: Array[_WAIT] = []
+## Waits of the callers of storage operations. `release` and `clear_dev_values` end them as failures.
+static var _storage_waits: Array[_WAIT] = []
 static var _popup_waits: Array[_POPUP_WAIT] = []
 # Settings `init` reads.
 static var _refresh_margin_ms: int = 0
@@ -81,7 +83,7 @@ static var _google_server_client_id: String = ""
 static var _google_ios_client_id: String = ""
 static var _google_desktop_client_id: String = ""
 
-# DEV state. The DEV operations read and write it.
+# DEV state. The DEV operations read and write it. `release` keeps it; `clear_dev_values` deletes it.
 ## Fake account name of `set_fake_social_account`. Empty when it was not set.
 static var _fake_social_account: String = ""
 ## `CoreContract.TrackingStatus` of `set_fake_tracking_status`. -1 when it was not set.
@@ -170,6 +172,7 @@ static func _clean_up(detach: bool) -> void:
 	_waits = []
 	for wait: _WAIT in waits:
 		wait.finish()
+	_end_storage_waits()
 	var popup_waits: Array[_POPUP_WAIT] = _popup_waits
 	_popup_waits = []
 	for popup_wait: _POPUP_WAIT in popup_waits:
@@ -226,9 +229,6 @@ static func _clean_up(detach: bool) -> void:
 	_google_server_client_id = ""
 	_google_ios_client_id = ""
 	_google_desktop_client_id = ""
-	_fake_social_account = ""
-	_fake_tracking = -1
-	_dev_storage = null
 	_test_storage = null
 	_test_url_opener = Callable()
 	_test_persist_requester = Callable()
@@ -991,11 +991,11 @@ static func _storage_call(op: StorageOp, text: String = "") -> _STORAGE.Outcome:
 		return _STORAGE.Outcome.new(_STORAGE.Status.FAILED)
 	var life: RefCounted = _life
 	var wait: _WAIT = _WAIT.new()
-	_waits.append(wait)
+	_storage_waits.append(wait)
 	_run_storage(_storage, op, _storage_scope, text, wait)
 	if not wait.finished:
 		await wait.done
-	_waits.erase(wait)
+	_storage_waits.erase(wait)
 	if life != _life or not wait.result is _STORAGE.Outcome:
 		return _STORAGE.Outcome.new(_STORAGE.Status.FAILED)
 	var outcome: _STORAGE.Outcome = wait.result as _STORAGE.Outcome
@@ -1005,6 +1005,15 @@ static func _storage_call(op: StorageOp, text: String = "") -> _STORAGE.Outcome:
 		LogCore.log_error(_TAG, "login token storage write: NotFound")
 		return _STORAGE.Outcome.new(_STORAGE.Status.FAILED)
 	return outcome
+
+
+## Ends the waits of the callers of storage operations as failures. The operations go on in their order, and their
+## late results are dropped.
+static func _end_storage_waits() -> void:
+	var waits: Array[_WAIT] = _storage_waits
+	_storage_waits = []
+	for wait: _WAIT in waits:
+		wait.finish()
 
 
 ## Runs one storage operation after the one started before it. `wait` gets the outcome; `null` drops it.

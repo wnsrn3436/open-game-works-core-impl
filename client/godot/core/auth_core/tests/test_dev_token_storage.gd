@@ -51,6 +51,8 @@ static func _run_on(platforms: PackedStringArray) -> bool:
 ## Inits AuthCore again with no test storage, so that it chooses the platform storage.
 func _restart_with_platform_storage(give_dev_storage: bool) -> void:
 	AuthCore.release()
+	# `release` keeps the DEV token storage; a run that does not give it starts without it.
+	AuthCoreDev.clear_dev_values()
 	AuthCore.set_storage_scope(Env.SCOPE)
 	if give_dev_storage:
 		AuthCoreDev.use_dev_token_storage()
@@ -151,8 +153,12 @@ func test_browser_runtime_keeps_the_login_token_in_the_browser_storage_even_with
 	assert_eq(WebStorage.new().remove_item(Env.SCOPE).status, Storage.Status.OK)
 
 
-func test_release_drops_the_dev_token_storage() -> void:
+func test_release_keeps_the_dev_token_storage_and_clear_dev_values_drops_it() -> void:
 	assert_true(await env.boot())
 	_restart_with_platform_storage(true)
+	var dev_storage: RefCounted = AuthCore._dev_storage
+	assert_not_null(dev_storage)
 	AuthCore.release()
+	assert_true(AuthCore._dev_storage == dev_storage)
+	AuthCoreDev.clear_dev_values()
 	assert_null(AuthCore._dev_storage)

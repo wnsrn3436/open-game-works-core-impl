@@ -63,9 +63,6 @@ func test_release_clears_state_and_removes_the_core_node() -> void:
 	assert_eq(AuthCore._refresh_margin_ms, 0)
 	assert_eq(AuthCore._terms_popup_key, "")
 	assert_false(AuthCore._ad_push)
-	assert_eq(AuthCore._fake_social_account, "")
-	assert_eq(AuthCore._fake_tracking, -1)
-	assert_null(AuthCore._dev_storage)
 	assert_null(AuthCore._test_storage)
 	assert_false(AuthCore._test_url_opener.is_valid())
 	assert_eq(AuthCore.get_login_remote_config().entries.size(), 0)
@@ -84,6 +81,28 @@ func test_release_keeps_the_pending_token() -> void:
 	assert_eq(AuthCore._pending_token, "token-pending")
 	assert_eq(AuthCore._pending_sent_token, "token-old")
 	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 1)
+
+
+func test_release_keeps_the_dev_values_until_clear_dev_values() -> void:
+	assert_true(await env.boot())
+	AuthCoreDev.set_fake_social_account("dana")
+	AuthCoreDev.set_fake_tracking_status(CoreContract.TrackingStatus.TRACKING_STATUS_DENIED)
+	AuthCoreDev.use_dev_token_storage()
+	var dev_storage: RefCounted = AuthCore._dev_storage
+	AuthCore.release()
+	assert_eq(AuthCore._fake_social_account, "dana")
+	assert_eq(AuthCore._fake_tracking, CoreContract.TrackingStatus.TRACKING_STATUS_DENIED)
+	assert_true(AuthCore._dev_storage == dev_storage)
+	assert_true(env.start_auth())
+	assert_eq(AuthCore._fake_social_account, "dana")
+	assert_eq(AuthCore._fake_tracking, CoreContract.TrackingStatus.TRACKING_STATUS_DENIED)
+	assert_true(AuthCore._dev_storage == dev_storage)
+	AuthCore.release()
+	AuthCoreDev.clear_dev_values()
+	assert_eq(AuthCore._fake_social_account, "")
+	assert_eq(AuthCore._fake_tracking, -1)
+	assert_null(AuthCore._dev_storage)
+	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)
 
 
 func test_core_node_freed_outside_release_cleans_up_without_errors() -> void:

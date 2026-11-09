@@ -80,6 +80,24 @@ func test_fake_account_name_gives_the_same_credential_after_release_and_init() -
 	assert_eq(await _fake_credential(), first)
 
 
+func test_fake_account_name_holds_across_release_until_clear_dev_values() -> void:
+	env.adapters[CoreContract.LoginProvider.LOGIN_PROVIDER_GOOGLE] = FakeSocialAdapter.new()
+	assert_true(await env.boot())
+	await _restart_auth()
+	AuthCoreDev.set_fake_social_account("erin")
+	await _restart_auth()
+	assert_eq(await _fake_credential(), "fake:erin")
+	AuthCore.release()
+	AuthCoreDev.clear_dev_values()
+	assert_true(env.start_auth())
+	Env.agree_terms()
+	Env.respond_terms()
+	assert_eq(await AuthCore.prepare_terms(), AuthCore.TermsStatus.AGREED)
+	var default_credential: String = await _fake_credential()
+	assert_ne(default_credential, "fake:erin")
+	assert_eq(default_credential, "fake:" + LocalDataCore.get_value_string(LocalDataCore.FileKind.DEVICE, "AuthCore.fake_account", ""))
+
+
 func test_default_fake_account_is_kept_per_app_storage() -> void:
 	env.adapters[CoreContract.LoginProvider.LOGIN_PROVIDER_GOOGLE] = FakeSocialAdapter.new()
 	assert_true(await env.boot())
