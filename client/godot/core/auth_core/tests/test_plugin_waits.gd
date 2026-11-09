@@ -222,7 +222,7 @@ func test_a_storage_operation_release_left_ends_at_the_time_limit_and_the_next_i
 	assert_eq(_plugin.started, PackedInt64Array([1]))
 	AuthCore.release()
 	await flow.wait()
-	assert_eq((flow.result as Storage.Outcome).status, Storage.Status.FAILED, "release ends the caller's wait")
+	assert_null(flow.result, "release ends the caller's wait")
 	var polls: int = _plugin.polls
 	await UnitTestCore.wait_frames(3)
 	assert_gt(_plugin.polls, polls, "the storage operation goes on after release")

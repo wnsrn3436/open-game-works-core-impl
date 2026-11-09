@@ -105,6 +105,36 @@ func test_release_keeps_the_dev_values_until_clear_dev_values() -> void:
 	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)
 
 
+func test_release_before_init_deletes_the_pre_init_values_and_keeps_the_dev_values_and_the_pending_token() -> void:
+	assert_true(await env.boot())
+	AuthCore.release()
+	await UnitTestCore.wait_frames(2)
+	AuthCore.set_storage_scope(Env.SCOPE)
+	AuthCore.set_social_adapter(CoreContract.LoginProvider.LOGIN_PROVIDER_GOOGLE, env.google)
+	AuthCoreDev.set_fake_social_account("erin")
+	AuthCoreDev.set_fake_tracking_status(CoreContract.TrackingStatus.TRACKING_STATUS_DENIED)
+	AuthCoreDev.use_dev_token_storage()
+	var dev_storage: RefCounted = AuthCore._dev_storage
+	AuthCore._pending_token = "token-pending"
+	AuthCore._pending_sent_token = "token-sent"
+	AuthCore._test_storage = env.storage
+	var calls: int = env.storage.calls.size()
+	AuthCore.release()
+	await UnitTestCore.wait_frames(2)
+	assert_false(AuthCore.is_initialized())
+	assert_eq(AuthCore._storage_scope, "")
+	assert_eq(AuthCore._social_adapters.size(), 0)
+	assert_null(AuthCore._test_storage)
+	assert_eq(AuthCore._fake_social_account, "erin")
+	assert_eq(AuthCore._fake_tracking, CoreContract.TrackingStatus.TRACKING_STATUS_DENIED)
+	assert_true(AuthCore._dev_storage == dev_storage)
+	assert_eq(AuthCore._pending_token, "token-pending")
+	assert_eq(AuthCore._pending_sent_token, "token-sent")
+	assert_eq(env.storage.calls.size(), calls, "release before init starts no storage operation")
+	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)
+	assert_eq(UnitTestCore.check_logs("warn", "AuthCore"), 0)
+
+
 func test_core_node_freed_outside_release_cleans_up_without_errors() -> void:
 	assert_true(await env.boot())
 	var node: Node = AuthCore._node
