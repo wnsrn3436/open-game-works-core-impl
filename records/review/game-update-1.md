@@ -10,7 +10,7 @@ none
 
 ## out of scope
 
-- server/core/matchmaker/realtime.ts:382: medium `HELLO` handling runs only `data_version_error(frame.data_version, frame.client_version)` (server/core/matchmaker/realtime.ts:342-348), which never calls `game-update.is_below_min_version`, and the matchmaker reads neither a `platform` field of the frame nor that operation (`grep platform server/core/matchmaker/*.ts` finds nothing; server/core/matchmaker/index.ts:118 binds only `is_data_update_ready`). The matchmaker spec `HELLO` handling (skills/server-core/modules/matchmaker.md:114) and its `## test` item (matchmaker.md:399) require `CLOSE`(`APP_UPDATE_REQUIRED`) for `client_version` `1.1.9` and `platform` `android` under a deploy list with android `min_version` `1.2.0`, and `CLOSE`(`INVALID_REQUEST`) for a non-empty `platform` that `validation.is_platform` rejects; with this code that `HELLO` gets `HELLO_ACK`. game-update.md lists `matchmaker` as a caller of `is_below_min_version`
+none
 
 ## debt
 
@@ -22,6 +22,7 @@ none
 
 ## unknown
 
-- Checked: the commits 06103b5d and ad3660ee, the only ones of the range that touch server/core/game-update (cache.ts, deploy_list.ts, deps.ts, index.ts, tests/helpers.ts, tests/min-version.test.ts), against `### minimum app version`, `## API` and `## test` of game-update.md and `parse_version` / `compare_versions` of validation.md; the production wiring of the `validation` module input (server/core/routing/spec_tables.ts:25 dependency list, server/core/routing/server.ts create_modules); the routing caller server/core/routing/pipeline.ts:632. `ogw core test server game-update` passed
-- Not checked: the routing step 7 behavior and tests (server/core/routing/pipeline.ts, server/core/routing/tests/min-version.test.ts) beyond the call into game-update, as they belong to the `routing` target
-- Not checked: the other changes of the range outside server/core/game-update (other modules), as they do not call or get called by the changed game-update code except the callers named above
+- Checked: `git log 625ae189..15b40fbe -- server/core/game-update` lists no commit, so the range changes no game-update code or test. Read the changes of the range in the modules that game-update calls (`storage`, `logging`; `validation` and `server-time` are unchanged): storage `fail_transaction` (server/core/storage/core.ts `not_failed` in `user_state_of` / `any_state_of`, server/core/storage/tx.ts `body` and `fail_transaction`) only changes a transaction that `fail_transaction` marked, and game-update never calls it (server/core/game-update/admin.ts:97-186, index.ts:93-193 call only `run_game_transaction`, `db`, `read_db`, `lock_game_row`, `after_commit`, `register_table`); the only production caller is server/core/item-ledger/ledger.ts:448, which game-update does not depend on (game-update.md `## dependency`). The logging change (server/core/logging/metrics.ts `alerts` comment and tests) does not change `logging.write`, which game-update calls. The admin-api change (server/core/admin-api/operations.ts `list_item_history` source names) does not touch the admin transaction that runs the game-update handler functions
+- Checked: the matchmaker `HELLO` minimum app version path that an earlier review wrote as out of scope now calls `game_update.is_below_min_version` and `validation.is_platform` (server/core/matchmaker/realtime.ts:424-429)
+- `ogw core test server game-update` passed (no test record: the checkout has uncommitted changes, the deleted earlier review file)
+- Not checked: the other changes of the range (iap, item-ledger, session, auth, idempotency, nickname, routing records), as game-update neither calls them nor is called by them
