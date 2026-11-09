@@ -1,0 +1,18 @@
+{
+  "target": "mailbox",
+  "nextId": 3,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/mailbox/tables.ts:28",
+      "problem": "`mailbox_once_key` keeps the raw `once_key` as part of its primary key `(user_id, once_key)` (server/core/storage/schema.ts:197), and no mailbox input rule limits the length of `once_key` (mailbox.md:79 only refuses U+0000). On PostgreSQL a btree entry over 2704 bytes cannot be inserted, so `send_mail` with a `once_key` of about 3000 incompressible bytes, or `grant_or_mail` whose `add_items` is `LIMIT_EXCEEDED`/`REJECTED` with such a change-source `once_key`, fails at `Tables.insert_once_key` (server/core/mailbox/index.ts:227) and the request is `INTERNAL` instead of a `MailResult`. Commit 8ba7373a fixed the same problem in `item_ledger_once_key` by keeping the SHA-256 form (item-ledger.md:174); the mailbox spec and table were not changed. Fix: keep a fixed-length form (e.g. SHA-256) in `mailbox_once_key` as item-ledger does, or set a byte limit on `once_key` as an `INVALID_INPUT` condition",
+      "foundBy": "mailbox round 1"
+    },
+    {
+      "id": "D2",
+      "location": "server/core/mailbox/index.ts:211",
+      "problem": "`send_mail` accepts a `once_key` that holds an unpaired surrogate (mail_input check refuses only U+0000). The driver writes the string as UTF-8, where every unpaired surrogate becomes U+FFFD, so two different `once_key`s such as `a\\uD800` and `a\\uDBFF` are the same `mailbox_once_key` row, and the second `send_mail` returns `ALREADY_SENT` with the mail ID of the first and sends no mail. Commit 8ba7373a made item-ledger refuse such a `once_key` (item-ledger.md:59), but the mailbox spec (mailbox.md:79) does not. Fix: make an unpaired surrogate in `once_key` an `INVALID_INPUT` condition of the mailbox spec and of `check_mail_input`",
+      "foundBy": "mailbox round 1"
+    }
+  ]
+}
