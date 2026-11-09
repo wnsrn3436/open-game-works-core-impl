@@ -394,7 +394,6 @@ static func _close_run(run: _RUN) -> void:
 		_record(run, run.test)
 	run.test = null
 	BootstrapCoreDev.shutdown()
-	_clear_pre_init_values()
 	_report_logs_between_tests(run)
 	_report_script_errors_between_tests(run)
 	if run.results.is_empty():
@@ -642,7 +641,6 @@ static func _setup_test() -> void:
 		run.previous_test = run.test.name
 	run.test = null
 	BootstrapCoreDev.shutdown()
-	_clear_pre_init_values()
 	_delete_new_files(run.storage_files)
 	GameDataDev.clear_settings()
 	CoreSettings._clear_test_values()
@@ -742,15 +740,6 @@ static func _test_functions(test: GutTest) -> PackedStringArray:
 			if text.begins_with(_TEST_PREFIX) and not names.has(text):
 				names.append(text)
 	return names
-
-
-## Clears the values `TimeCore` keeps from before its `init` until its `release` (the random base and the frame step of
-## `TimeCoreDev`): `BootstrapCore.shutdown` releases only initialized modules, so a value set by a test that did not
-## reach `TimeCore.init` would stay in the next test. `TimeCore.release` of a module that is not initialized only
-## clears its state; its test clock is registered again by `_register_replacements`.
-static func _clear_pre_init_values() -> void:
-	if not TimeCore.is_initialized():
-		TimeCore.release()
 
 
 static func _register_replacements(run: _RUN) -> void:

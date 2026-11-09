@@ -88,6 +88,12 @@ func after_derived_containers() -> void:
 	pass
 
 
+## Runs in `shutdown` before the module releases, while the scope text of `AuthCore` is still set:
+## `AuthCore.clear_dev_values`.
+func before_shutdown_release() -> void:
+	pass
+
+
 ## Module list entries of the DEV modules. The boot adds them at the end of a module list of a boot without test
 ## replacements, and `shutdown` releases them first.
 func dev_modules() -> Array[CoreModuleEntry]:

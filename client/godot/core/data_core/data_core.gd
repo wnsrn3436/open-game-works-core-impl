@@ -56,6 +56,13 @@ static func init() -> bool:
 
 
 static func release() -> void:
+	if not _is_initialized:
+		# Not initialized: deletes only what was set before `init` (the test data location) and the built-in version
+		# read from it.
+		_builtin_location = _DEFAULT_LOCATION
+		_builtin_version_read = false
+		_builtin_version = ""
+		return
 	var old: DataCoreSession = _session
 	_session = DataCoreSession.new()
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree

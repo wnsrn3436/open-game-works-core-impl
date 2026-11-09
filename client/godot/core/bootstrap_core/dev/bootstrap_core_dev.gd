@@ -216,6 +216,10 @@ func after_derived_containers() -> void:
 	registration.register_all()
 
 
+func before_shutdown_release() -> void:
+	AuthCoreDev.clear_dev_values()
+
+
 ## `QACore`, the DEV module of a DEV build module list.
 func dev_modules() -> Array[CoreModuleEntry]:
 	var entry := CoreModuleEntry.new()

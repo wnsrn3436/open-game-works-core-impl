@@ -89,6 +89,8 @@ static func init() -> bool:
 
 static func release() -> void:
 	if not _is_initialized:
+		# Not initialized: deletes only what was set before `init` (the native adapter).
+		_adapter = null
 		return
 	var node: Node = _node
 	if is_instance_valid(node):

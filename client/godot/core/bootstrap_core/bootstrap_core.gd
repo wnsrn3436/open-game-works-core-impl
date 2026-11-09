@@ -1272,7 +1272,9 @@ static func _request_quit() -> void:
 # --- DEV shutdown ---
 
 
-## `shutdown`: back to the state before the first `start_boot`. Releases every lifecycle module but `UnitTestCore`.
+## `shutdown`: back to the state before the first `start_boot`. Calls `AuthCore.clear_dev_values`, then releases every
+## lifecycle module but `UnitTestCore`, also the modules that are not initialized: their `release` deletes only the
+## values set before `init`.
 static func _shutdown() -> void:
 	_ensure_node()
 	_find_dev()
@@ -1285,6 +1287,8 @@ static func _shutdown() -> void:
 	if _content_inited:
 		_content_inited = false
 		_call_content_release()
+	if _dev != null:
+		_dev.before_shutdown_release()
 	var released: Dictionary[String, bool] = {}
 	for i: int in range(_modules.size() - 1, -1, -1):
 		var entry: CoreModuleEntry = _modules[i]
@@ -1340,9 +1344,10 @@ static func _release_entry(entry: CoreModuleEntry, released: Dictionary[String, 
 	if entry.name == _UNIT_TEST_CORE or released.has(entry.name):
 		return
 	released[entry.name] = true
+	# The trace holds the releases of initialized modules; a module that is not initialized is released too.
 	if _to_bool(entry.is_initialized.call()):
 		_trace_call("%s.release" % entry.name)
-		entry.release.call()
+	entry.release.call()
 
 
 # --- helpers ---
