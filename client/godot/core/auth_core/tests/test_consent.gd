@@ -126,6 +126,47 @@ func test_below_minimum_age_blocks_and_writes_the_marker() -> void:
 	assert_eq(Env.request_names().size(), requests)
 
 
+func test_clear_dev_values_during_the_age_block_remove_ends_the_session_and_fails_boot_login() -> void:
+	assert_true(env.settings({"consent.ageConfirmation": true}))
+	assert_true(await env.boot())
+	_prepare_guest(_unconfirmed())
+	var blocked: CoreContract.ConsentUserState = Env.consent_state()
+	blocked.below_minimum_age = true
+	Env.respond_consent("core/ConfirmAge", blocked)
+	var flow: Flow = _start_boot_login()
+	assert_true(await Env.wait_popup("auth_test_age"))
+	assert_true(AuthCore.is_logged_in())
+	var removes: int = env.storage.count("remove")
+	env.storage.hold = true
+	Env.type_text(0, "2015")
+	Env.type_text(1, "1")
+	assert_true(await Env.tap("auth_test_age_confirm"))
+	for i: int in 60:
+		if env.storage.count("remove") > removes:
+			break
+		await UnitTestCore.wait_frames(1)
+	assert_eq(env.storage.count("remove"), removes + 1, "the age block remove waits")
+	assert_false(flow.finished, "boot_login waits for the remove")
+	AuthCoreDev.clear_dev_values()
+	await flow.wait()
+	assert_eq(_status(flow), AuthCore.LoginStatus.FAILED)
+	assert_false(AuthCore.is_logged_in())
+	assert_eq(AuthCore._pending_token, "")
+	assert_null(AuthCore._provider)
+	# With the AuthCore session provider still set, this send would ask AuthCore for a token and log an error.
+	assert_false(await NetworkCore.send(CoreContract.UpdatePushConsentRequest.new()), "no session provider")
+	assert_eq(Env.request_count("core/UpdatePushConsent"), 0)
+	assert_false(_analytics_allowed())
+	assert_true(LocalDataCore.read_file("auth/age_blocked", 1).ok)
+	assert_eq(env.recorder.session_ends, PackedInt32Array([AuthCore.SessionEndReason.AGE_BLOCKED]))
+	env.storage.release_held()
+	await UnitTestCore.wait_frames(5)
+	assert_eq(env.stored_text(), "")
+	assert_eq(env.recorder.session_ends, PackedInt32Array([AuthCore.SessionEndReason.AGE_BLOCKED]))
+	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)
+	assert_eq(UnitTestCore.check_logs("warn", "AuthCore"), 0)
+
+
 func test_age_below_minimum_auto_login_is_age_blocked_without_marker() -> void:
 	assert_true(await env.boot())
 	Env.mark_installed()

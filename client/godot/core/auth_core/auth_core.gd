@@ -1001,13 +1001,27 @@ static func _show_session_replaced() -> void:
 ## `release` or `clear_dev_values` ended the wait: the caller then returns its failure value with no further work and
 ## no log.
 static func _storage_call(op: StorageOp, text: String = "") -> _STORAGE.Outcome:
+	var life: RefCounted = _life
+	return await _storage_end(op, _storage_begin(op, text), life)
+
+
+## Starts a storage operation as `_storage_call` and returns its wait without waiting, so that the caller can do
+## in-memory work after the operation is in the queue. `_storage_end` gives its outcome. `null` when there is no
+## storage scope, after the error log.
+static func _storage_begin(op: StorageOp, text: String = "") -> _WAIT:
 	if _storage_scope.is_empty() or _storage == null:
 		LogCore.log_error(_TAG, "login token storage %s: no storage scope" % _op_name(op))
-		return _STORAGE.Outcome.new(_STORAGE.Status.FAILED)
-	var life: RefCounted = _life
+		return null
 	var wait: _WAIT = _WAIT.new()
 	_storage_waits.append(wait)
 	_run_storage(_storage, op, _storage_scope, text, wait)
+	return wait
+
+
+## Outcome of a wait of `_storage_begin` started at `life`, as `_storage_call`. A `null` wait is `Failed`.
+static func _storage_end(op: StorageOp, wait: _WAIT, life: RefCounted) -> _STORAGE.Outcome:
+	if wait == null:
+		return _STORAGE.Outcome.new(_STORAGE.Status.FAILED)
 	if not wait.finished:
 		await wait.done
 	_storage_waits.erase(wait)
@@ -1190,7 +1204,8 @@ static func prepare_consent() -> ConsentResult:
 	if _session == null:
 		return ConsentResult.FAILED
 	if _session.consent.below_minimum_age:
-		await _block_age()
+		if not await _block_age():
+			return ConsentResult.FAILED
 		return ConsentResult.AGE_BLOCKED
 	if _privacy_choices and _session.consent.privacy_version != _consent_version:
 		var param: _POPUP_PARAM = _POPUP_PARAM.new()
@@ -1395,22 +1410,26 @@ static func _consent_info() -> ConsentInfo:
 	return info
 
 
-## Below the minimum age: server `auth` deleted the account.
-static func _block_age() -> void:
+## Below the minimum age: server `auth` deleted the account. The session ends in memory, with the marker written,
+## before the wait for the storage remove, so a wait that `release` or `clear_dev_values` ends leaves no half-ended
+## session. `false` when that wait was ended: the caller then returns its failure value.
+static func _block_age() -> bool:
 	var life: RefCounted = _life
 	var session: _SESSION = _session
+	var remove: _WAIT = _storage_begin(StorageOp.REMOVE)
 	_session = null
 	_clear_pending()
-	var removed: _STORAGE.Outcome = await _storage_call(StorageOp.REMOVE)
-	if life != _life or removed == null:
-		return
-	if removed.status != _STORAGE.Status.OK and removed.status != _STORAGE.Status.NOT_FOUND:
-		LogCore.log_error(_TAG, "age block: storage item was not removed")
 	var marker: FileResult = LocalDataCore.write_file(_AGE_BLOCK_MARKER, PackedByteArray([_MARKER_BYTE]))
 	if not marker.ok:
 		LogCore.log_error(_TAG, "age block marker write %s" % _file_error_name(marker.error))
 	if session != null:
 		_end_session(SessionEndReason.AGE_BLOCKED)
+	var removed: _STORAGE.Outcome = await _storage_end(StorageOp.REMOVE, remove, life)
+	if removed == null:
+		return false
+	if removed.status != _STORAGE.Status.OK and removed.status != _STORAGE.Status.NOT_FOUND:
+		LogCore.log_error(_TAG, "age block: storage item was not removed")
+	return true
 
 
 ## Birth year and month from the age popup; opens it again when it closes without confirm. 0 on failure.
