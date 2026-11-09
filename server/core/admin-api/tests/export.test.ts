@@ -1,6 +1,6 @@
 // export_personal_data and list_payments.
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
-import { admin, audits, has_module, login, MISSING_USER, send, start, stop, withdraw, type Server, type Session } from './helpers.ts';
+import { admin, audits, GOLD, grant, has_module, items, login, MISSING_USER, send, start, stop, withdraw, type Server, type Session } from './helpers.ts';
 
 /** Reports one client error whose message is `message`: a row of `logging_client_error`, scope `user`. */
 async function report_error(session: Session, message: string): Promise<void> {
@@ -51,7 +51,20 @@ describe('export_personal_data', () => {
     // Tables registered without the column are not in the file.
     expect(Object.keys(tables)).not.toContain('admin_api_switch');
     expect(Object.keys(tables)).not.toContain('admin_api_operation');
-    expect(Object.keys(tables)).not.toContain('item_ledger_history');
+    expect(Object.keys(tables)).not.toContain('item_ledger_once_key');
+    expect(Object.keys(tables)).not.toContain('item_ledger_history_seq');
+  });
+
+  it('holds the item_ledger_history rows of the user, with column source the ItemChangeSource element name', async () => {
+    server = await start();
+    const a = await login(server, 'export_history_a');
+    const b = await login(server, 'export_history_b');
+    expect((await grant(server, a.user_id, 'h1', items(GOLD, 5n))).status).toBe(200);
+    expect((await grant(server, b.user_id, 'h2', items(GOLD, 7n))).status).toBe(200);
+    const reply = await admin(server, 'export_personal_data', { user_id: a.user_id });
+    expect(reply.status).toBe(200);
+    const rows = (reply.json.tables as Tables).item_ledger_history ?? [];
+    expect(rows.map((row) => [row.user_id, row.source, row.once_key])).toEqual([[a.user_id, 'ITEM_CHANGE_SOURCE_ADMIN', 'admin:grant_items:h1']]);
   });
 
   it('answers 404 for a user that does not exist and 413 for a file over admin-api.maxExportBytes', async () => {

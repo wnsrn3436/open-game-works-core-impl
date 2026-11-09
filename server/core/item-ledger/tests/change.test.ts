@@ -1,4 +1,5 @@
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
+import type { RequestCtx } from '../../storage/index.ts';
 import type { ItemBalanceChange } from '../index.ts';
 import {
   amount, balance, balance_entries, change_rows, flush, history, id, items, logs, put_row, request, row, set_balance, Source, start, stop, tx, user, type Env,
@@ -310,23 +311,45 @@ describe('add, subtract, exchange', () => {
 });
 
 describe('change source', () => {
-  test('a caller source Recovery or Overflow throws with an error log and the request is INTERNAL', async () => {
+  test('a caller source Recovery or Overflow changes nothing and throws without a log of item-ledger; a request that does not catch it is INTERNAL', async () => {
     const { user_id } = await user(env);
     for (const source of [Source.ITEM_CHANGE_SOURCE_RECOVERY, Source.ITEM_CHANGE_SOURCE_OVERFLOW]) {
-      const errors = logs(env, 'error').length;
+      const lines = env.server.lines.length;
       await expect(request(env, user_id, (ctx) => env.module.add_items(ctx, items(['[gold]', 1]), { source }))).rejects.toThrow();
-      expect(logs(env, 'error').length).toBe(errors + 1);
+      expect(env.server.lines.length).toBe(lines);
     }
     expect(await balance(env, user_id, '[gold]')).toBe(0n);
   });
 
-  test('content code with once_key shop:1 throws: INTERNAL, nothing changes, an error log; shop:<request ID> from shop applies', async () => {
+  test('a caller source Recovery or Overflow that the handler catches changed nothing, and the request goes on to commit its other changes', async () => {
     const { user_id } = await user(env);
-    const errors = (logs(env, 'error')).length;
+    for (const source of [Source.ITEM_CHANGE_SOURCE_RECOVERY, Source.ITEM_CHANGE_SOURCE_OVERFLOW]) {
+      const lines = env.server.lines.length;
+      const r = await request(env, user_id, (ctx) => {
+        let thrown = false;
+        try {
+          env.module.add_items(ctx, items(['[gold]', 1]), { source, once_key: `caught-${String(source)}` });
+        } catch {
+          thrown = true;
+        }
+        return [thrown, env.ledger.add_items(ctx, items(['[potion]', 1]))];
+      });
+      expect(r.out).toEqual([true, 'OK']);
+      expect(change_rows(r.delta.item_changes).map((c) => c[0])).toEqual([id('[potion]')]);
+      expect(env.server.lines.length).toBe(lines);
+    }
+    expect(await balance(env, user_id, '[gold]')).toBe(0n);
+    expect(await balance(env, user_id, '[potion]')).toBe(2n);
+    expect(history(env, user_id).map((h) => h.item_id)).toEqual([id('[potion]'), id('[potion]')]);
+  });
+
+  test('content code with once_key shop:1 changes nothing and throws without a log of item-ledger: INTERNAL when not caught; shop:<request ID> from shop applies', async () => {
+    const { user_id } = await user(env);
+    const lines = env.server.lines.length;
     await expect(request(env, user_id, (ctx) => env.ledger.add_items(ctx, items(['[gold]', 1]), { once_key: 'shop:1' }))).rejects.toThrow();
     expect(await balance(env, user_id, '[gold]')).toBe(0n);
     expect(history(env, user_id)).toEqual([]);
-    expect((logs(env, 'error')).length).toBeGreaterThan(errors);
+    expect(env.server.lines.length).toBe(lines);
     // The once_key table has no shop:1: the same key from shop applies.
     const r = await request(env, user_id, (ctx) => env.module.add_items(ctx, items(['[gold]', 1]), { source: Source.ITEM_CHANGE_SOURCE_SHOP, ref: '5', once_key: 'shop:1' }));
     expect(r.out).toBe('OK');
@@ -355,12 +378,61 @@ describe('change source', () => {
     ]);
   });
 
-  test('a core module call without a source throws with an error log', async () => {
+  test('a core module call without a source changes nothing and throws without a log', async () => {
     const { user_id } = await user(env);
-    const errors = logs(env, 'error').length;
+    const lines = env.server.lines.length;
     await expect(request(env, user_id, (ctx) => env.module.add_items(ctx, items(['[gold]', 1]), {}))).rejects.toThrow();
-    expect(logs(env, 'error').length).toBe(errors + 1);
+    expect(env.server.lines.length).toBe(lines);
     expect(await balance(env, user_id, '[gold]')).toBe(0n);
+  });
+
+  test('content add_items with a core once_key prefix that the handler catches: the request is OK with no change and no log of item-ledger', async () => {
+    const { user_id } = await user(env);
+    const lines = env.server.lines.length;
+    const r = await request(env, user_id, (ctx) => {
+      try {
+        env.ledger.add_items(ctx, items(['[gold]', 1]), { once_key: 'mail:9' });
+        return 'applied';
+      } catch {
+        return 'thrown';
+      }
+    });
+    expect(r.out).toBe('thrown');
+    expect(r.delta.item_changes).toEqual([]);
+    expect(balance_entries(r.delta.user_state)).toEqual([]);
+    expect(env.server.lines.length).toBe(lines);
+    expect(await balance(env, user_id, '[gold]')).toBe(0n);
+    expect(history(env, user_id)).toEqual([]);
+  });
+
+  test('a once_key with an unpaired surrogate, from content code or a core module, changes nothing and throws without a log', async () => {
+    const { user_id } = await user(env);
+    const calls: [string, (ctx: RequestCtx) => unknown][] = [
+      ['content add_items', (ctx) => env.ledger.add_items(ctx, items(['[gold]', 1]), { once_key: 'a\uD800b' })],
+      ['content subtract_items', (ctx) => env.ledger.subtract_items(ctx, items(['[gold]', 1]), { once_key: '\uDC00' })],
+      ['content revoke_items', (ctx) => env.ledger.revoke_items(ctx, items(['[gold]', 1]), { once_key: 'x\uD83D' })],
+      ['core add_items', (ctx) => env.module.add_items(ctx, items(['[gold]', 1]), { source: Source.ITEM_CHANGE_SOURCE_SHOP, ref: '1', once_key: 'shop:\uDFFF' })],
+      ['core exchange_items', (ctx) => env.module.exchange_items(ctx, [], items(['[gold]', 1]), { source: Source.ITEM_CHANGE_SOURCE_SHOP, ref: '1', once_key: 'shop:\uD800' })],
+    ];
+    await set_balance(env, user_id, '[gold]', 3);
+    for (const [name, call] of calls) {
+      const lines = env.server.lines.length;
+      const r = await request(env, user_id, (ctx) => {
+        try {
+          call(ctx);
+          return 'applied';
+        } catch {
+          return 'thrown';
+        }
+      });
+      expect(r.out, name).toBe('thrown');
+      expect(r.delta.item_changes, name).toEqual([]);
+      expect(env.server.lines.length, name).toBe(lines);
+    }
+    expect(await balance(env, user_id, '[gold]')).toBe(3n);
+    // A well-formed surrogate pair has UTF-8 bytes and applies.
+    const r = await request(env, user_id, (ctx) => env.ledger.add_items(ctx, items(['[gold]', 1]), { once_key: 'pair-\uD83D\uDE00' }));
+    expect(r.out).toBe('OK');
   });
 
   test('content add_items with source Recovery outside with_hook_change_source records source Request', async () => {

@@ -269,8 +269,14 @@ export async function put_row(env: Env, user_id: bigint, name: string, values: P
   });
 }
 
-export function history(env: Env, user_id: bigint): readonly HistoryRow[] {
-  return env.module.list_history(user_id, 0n, 2n ** 62n, 0n, 1000);
+/** A history row of `list_history` with `source` as its `ItemChangeSource` element name, for reading in a test. */
+export type HistoryView = Omit<HistoryRow, 'source'> & { readonly source: string };
+
+const SOURCE_NAMES: ReadonlyMap<number, string> = new Map(Object.entries(Source).map(([name, value]) => [value, name]));
+
+/** The rows of `list_history`, each `source` as its element name. */
+export function history(env: Env, user_id: bigint): readonly HistoryView[] {
+  return env.module.list_history(user_id, 0n, 2n ** 62n, 0n, 1000).map((row) => ({ ...row, source: SOURCE_NAMES.get(row.source) ?? `unknown ${String(row.source)}` }));
 }
 
 /** The `ItemBalanceUserState` entries of a delta, as `[item ID, row or 'deleted']`. */

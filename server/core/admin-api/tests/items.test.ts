@@ -84,6 +84,8 @@ describe('grant_items and revoke_items', () => {
     expect(history.status).toBe(200);
     const keys = (history.json.entries as Record<string, unknown>[]).map((row) => row.once_key);
     expect(keys).toEqual(['admin:grant_items:x', 'admin:revoke_items:x']);
+    // The ItemChangeSource of each row is its element name.
+    expect((history.json.entries as Record<string, unknown>[]).map((row) => row.source)).toEqual(['ITEM_CHANGE_SOURCE_ADMIN', 'ITEM_CHANGE_SOURCE_ADMIN']);
     // The audit lines item-ledger writes inside the handler function name the operator (logging.with_audit_actor).
     const revoked = logs(server, 'audit').filter((line) => line.message === 'items revoked');
     expect(revoked.map((line) => [line.actor, line.once_key])).toEqual([['ogw', 'admin:revoke_items:x']]);
