@@ -10,7 +10,7 @@ none
 
 ## out of scope
 
-- server/core/matchmaker/results.ts:378: high `write_change` writes the `ENDED` participant change (`MATCH_LEAVE` with `forfeit` `false`) as `left_at`, the same as `LEFT`, and matchmaker has no `ended_at` at all (no match in `server/core/matchmaker`). The matchmaker spec (`### participant change` writes `ended_at` for `ENDED`; forfeiter definition: `MATCH_LEAVE` with `forfeit` `false` does not make a forfeiter; `## test`: "`MATCH_LEAVE` with `forfeit` `false` writes `ended_at` and leaves `left_at` 0. A report of that participant sent after it is saved and judged") requires the opposite. Run path: in a 2-participant match, index 1 sends `MATCH_LEAVE` with `forfeit` `false` before reporting → p2p-signaling returns `ENDED` → `left_at` of index 1 is written → its later `ReportMatchResult` is not saved (step 6) and, when index 0 reported, the match is judged `FORFEIT` with index 1 as forfeiter instead of the report being judged / `MISMATCH`
+none
 
 ## debt
 
@@ -22,6 +22,7 @@ none
 
 ## unknown
 
-- Checked the only change of the commit range to the target, 2ddcd747 (`server/core/p2p-signaling/sessions.ts`, `tests/helpers.ts`, `tests/leave.test.ts`, `tests/rejoin.test.ts`), against `skills/server-core/modules/p2p-signaling.md` (participant change kinds, left index, `MATCH_LEAVE`, `## test` last item). `ogw core test server p2p-signaling` passes. The new tests fail when `forfeit` is ignored or inverted (the `ENDED`/`LEFT` asserts) and when the `ENDED` path does not add a left index (the `left_indices` [2, 3] and `ok` `false` asserts); this was reasoned from the asserts, not run as a restored defect
-- Whether `matchmaker` passes the `forfeit` field of the client frame unchanged to `handle_frame` and handles `MATCH_LEAVE` before a following close (`matchmaker` spec frame order) was not checked: it is `matchmaker` code, outside the target
-- The client side (`client/godot/core/realtime_core`) changes of the range that send `forfeit` were not reviewed: outside the target
+- The commit range 625ae189..49e9c4bd has no change under `server/core/p2p-signaling/` (`git diff --stat` of the range on that folder is empty), and the defining documents have no spec changes (input `## spec changes` is `none`)
+- Checked the range changes in the modules the target calls or starts in its tests: `server-time` has none; `logging` changes only a doc comment of `Metrics.alerts` (`server/core/logging/metrics.ts:208`) and its tests, and the target calls only `logging.write` (`server/core/p2p-signaling/index.ts:116`); `storage` adds `fail_transaction` (`server/core/storage/tx.ts:373`, `server/core/storage/core.ts:268`), which the target does not call (it calls no storage operation; `storage` is started only by `server/core/p2p-signaling/tests/helpers.ts:144` as a dependency of `logging`). The range changes in other modules (iap, item-ledger, admin-api, session, auth, client core) were not reviewed: outside the target, and none of them reaches the target code
+- `ogw core test server p2p-signaling` passes on this checkout (run with an uncommitted deletion of an earlier review file in `records/`, so no test record was kept)
+- Behavior of the target that the range does not change was not reviewed again: with a commit range, only problems caused or revealed by the range are findings
