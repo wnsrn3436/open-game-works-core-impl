@@ -1,12 +1,5 @@
 {
   "target": "logging",
   "nextId": 2,
-  "items": [
-    {
-      "id": "D1",
-      "location": "server/core/logging/metrics.ts:160",
-      "problem": "`#slot` prunes at the time of each line written, so after a line at a later test clock time, a judgement or line at an earlier time after `set_time` moved the clock back no longer counts the lines dropped at that later time. `### alert signal` sets no upper bound on the window and does not say what happens when the clock goes back. The behaviour existed before this range, where the old `#slot` also pruned at each line. The spec needs to say what a judgement counts after the clock went back, or the implementation has to keep every line",
-      "foundBy": "logging round 2"
-    }
-  ]
+  "items": []
 }
