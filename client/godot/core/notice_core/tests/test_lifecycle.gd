@@ -152,7 +152,14 @@ func test_release_before_init_drops_the_image_downloader() -> void:
 	assert_eq(NoticeCore._downloader_override, null)
 	assert_eq(errors(), 0, "release before init leaves no log")
 	assert_eq(warns(), 0, "release before init leaves no log")
-	LogCore.release()
+
+
+func test_downloader_dropped_before_init_is_not_used_by_a_later_init() -> void:
+	# `LogCore` is not initialized before `start`, so that the log collector of `UnitTestCore` stays registered for the whole test.
+	var dropped: _HANGING = _HANGING.new()
+	NoticeCoreDev.set_image_downloader(dropped)
+	NoticeCore.release()
+	assert_eq(NoticeCore._downloader_override, null)
 	if not await start():
 		fail_test("setup failed")
 		return
