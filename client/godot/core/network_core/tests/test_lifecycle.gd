@@ -68,6 +68,43 @@ func test_init_and_release() -> void:
 	NetworkCore.release()
 
 
+func _assert_engine_transport() -> void:
+	if OS.get_name() == "Web":
+		assert_true(NetworkCore._active_transport is NetworkCore._WEB_TRANSPORT, "the web engine transport")
+	else:
+		assert_true(NetworkCore._active_transport is NetworkCore._HTTP_TRANSPORT, "the engine HTTP transport")
+
+
+func test_release_before_the_first_init_deletes_the_set_transport() -> void:
+	var transport: NetworkTransport = NetworkTransport.new()
+	NetworkCoreDev.set_transport(transport)
+	assert_eq(NetworkCore._transport, transport)
+	NetworkCore.release()
+	assert_false(NetworkCore.is_initialized())
+	assert_eq(NetworkCore._transport, null)
+	await start_network()
+	assert_ne(NetworkCore._active_transport, transport)
+	_assert_engine_transport()
+	assert_eq(error_logs(), 0)
+	assert_eq(warn_logs(), 0)
+
+
+func test_release_after_release_deletes_the_set_transport_without_a_log() -> void:
+	await start_network()
+	NetworkCore.release()
+	var transport: NetworkTransport = NetworkTransport.new()
+	NetworkCoreDev.set_transport(transport)
+	assert_eq(NetworkCore._transport, transport)
+	NetworkCore.release()
+	assert_false(NetworkCore.is_initialized())
+	assert_eq(NetworkCore._transport, null)
+	assert_eq(error_logs(), 0, "a release of a module that is not init leaves no log")
+	assert_eq(warn_logs(), 0, "a release of a module that is not init leaves no log")
+	assert_true(NetworkCore.init())
+	assert_ne(NetworkCore._active_transport, transport)
+	_assert_engine_transport()
+
+
 func test_calls_before_init_and_after_release_fail() -> void:
 	await start_network()
 	NetworkCore.release()
