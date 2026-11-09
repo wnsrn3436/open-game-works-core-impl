@@ -175,6 +175,8 @@ static func init() -> bool:
 
 static func release() -> void:
 	if not _is_initialized:
+		# Not initialized: deletes only what was set before `init` (the transport).
+		_transport = null
 		return
 	var node: Node = _node
 	if is_instance_valid(node) and EventCore.is_initialized():

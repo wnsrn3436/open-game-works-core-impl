@@ -84,6 +84,9 @@ static func init() -> bool:
 
 static func release() -> void:
 	if not _is_initialized:
+		# Not initialized: deletes only what was set before `init` (the ads adapter and the ad units).
+		_adapter = null
+		_ad_units = {}
 		return
 	var adapter: AdsAdapter = _adapter
 	var calls: Array[_CALL] = _calls

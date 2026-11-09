@@ -84,6 +84,9 @@ static func init() -> bool:
 
 static func release() -> void:
 	if not _is_initialized:
+		# Not initialized: deletes only what was set before `init` (the push adapter and the notification adapter).
+		_push = null
+		_notification = null
 		return
 	_clean_up(true)
 

@@ -123,6 +123,8 @@ static func init() -> bool:
 
 static func release() -> void:
 	if not _is_initialized:
+		# Not initialized: deletes only what was set before `init` (the downloader).
+		_downloader_override = null
 		return
 	var node: _CORE_NODE = _node
 	node.released = true

@@ -151,8 +151,20 @@ static func init() -> bool:
 
 static func release() -> void:
 	if not _is_initialized:
+		_clear_pre_init_values()
 		return
 	_clean_up(true)
+
+
+## `release` of an AuthCore that is not initialized: deletes only what was set before `init` (the scope text, the
+## social adapters and the test replacements), and keeps what `release` keeps.
+static func _clear_pre_init_values() -> void:
+	_storage_scope = ""
+	_social_adapters = {}
+	_test_storage = null
+	_test_url_opener = Callable()
+	_test_persist_requester = Callable()
+	_test_tracking = null
 
 
 static func is_initialized() -> bool:

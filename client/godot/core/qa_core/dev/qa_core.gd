@@ -231,6 +231,9 @@ static func init() -> bool:
 ## debug screen.
 static func release() -> void:
 	if not _is_initialized:
+		# Not initialized: deletes only the test launch values a test set before `init`.
+		_test_launch_values = {}
+		_has_test_launch_values = false
 		return
 	var node: _NODE = _node
 	_cleanup()

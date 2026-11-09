@@ -143,6 +143,8 @@ static func init() -> bool:
 
 static func release() -> void:
 	if not _is_initialized:
+		# Not initialized: deletes only what was set before `init` (the transport).
+		_transport = null
 		return
 	_cleanup(true)
 
