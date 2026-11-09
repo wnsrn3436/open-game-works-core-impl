@@ -1,0 +1,12 @@
+{
+  "target": "coupon",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/coupon/index.ts:352",
+      "problem": "`run_hook` catches every throw of `on_coupon_redeemed` and leaves its own `error` log `on_coupon_redeemed threw`, also when the throw is an `item-ledger` hook failure that `item-ledger` already logged. Core `## error handling` (skills/core/SKILL.md) says failures of the same cause are logged only once, and `item-ledger` `## hook` (skills/server-core/modules/item-ledger.md:189) sets the logs of a hook failure in a request as one `item-ledger` `error` log plus the `routing` step 13 `error` log. Reproduced on SQLite and PostgreSQL with a temporary test in a scratch worktree: `on_coupon_redeemed` calls content `add_items`, and `validate_item_change` throws on that call. `RedeemCoupon` is `INTERNAL` with three `error` lines of one request ID: `hook validate_item_change threw`, `on_coupon_redeemed threw`, `request transaction failed`. The coupon line was already a second line for the same cause before this range (item-ledger logged and rethrew, and coupon logged again). The range adds the `routing` line, which the spec sets. So the extra line comes from code that this range does not change",
+      "foundBy": "coupon round 1"
+    }
+  ]
+}
