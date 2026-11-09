@@ -55,6 +55,20 @@ func test_init_again_after_release_works_like_the_first_init() -> void:
 	assert_eq(RealtimeCore.match_info().match_id, MATCH_ID)
 
 
+func test_release_without_init_deletes_the_transport_without_a_log() -> void:
+	await start_realtime(true, false)
+	assert_eq(RealtimeCore._transport, transport)
+	RealtimeCore.release()
+	assert_false(RealtimeCore.is_initialized())
+	assert_null(RealtimeCore._transport)
+	assert_eq(error_logs(), 0)
+	assert_eq(warn_logs(), 0)
+	assert_true(RealtimeCore.init())
+	assert_eq((await RealtimeCore.join_match(MODE_ID)).status, RealtimeCore.MatchJoinStatus.FAILED)
+	assert_eq(error_logs(), 1)
+	assert_eq(transport.calls.size(), 0)
+
+
 func test_operations_outside_init_log_errors_and_return_failure_values() -> void:
 	await start_realtime(true, false)
 	assert_eq((await RealtimeCore.join_match(MODE_ID)).status, RealtimeCore.MatchJoinStatus.FAILED)
