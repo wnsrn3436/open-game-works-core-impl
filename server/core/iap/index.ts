@@ -32,7 +32,7 @@ import {
   type StoreBinding,
 } from './context.ts';
 import { read_modules, type HasSocialLink, type IapHookSlots, type IapInput } from './deps.ts';
-import { change_other_subscription_after_commit, grant_order, other_subscription_owner, refund_record, revoke_subscription, subscription_apply, type PrepareValue } from './grant.ts';
+import { change_other_subscription_after_commit, expire_gone_subscription, grant_order, other_subscription_owner, refund_record, revoke_subscription, subscription_apply, type PrepareValue } from './grant.ts';
 import { handle_notify, recheck, type RouteRequest, type RouteResponse } from './notify.ts';
 import { pass_active, purchase_count, set_daily_claimed } from './purchase_count.ts';
 import { REFUND_LOOKUP_JOB, run_refund_lookup } from './refund_lookup.ts';
@@ -379,8 +379,11 @@ export function create_iap(input: IapInput): Iap {
     if (verification.status === 'VALID' && tx !== null) {
       const product = product_by_sku(c.data, found.store, tx.sku);
       if (product !== null && product.type === ProductType.Subscription) {
-        snapshot = await lookup_subscription(c, found.binding, found.store, tx.original_transaction_id, tx, user_id);
-        if (snapshot === null) return CoreError.CORE_ERROR_IAP_VERIFY_UNAVAILABLE;
+        const looked = await lookup_subscription(c, found.binding, found.store, tx.original_transaction_id, tx, user_id);
+        if (looked === null) return CoreError.CORE_ERROR_IAP_VERIFY_UNAVAILABLE;
+        // In the grant order a lookup result `gone` is the adapter result `INVALID` without store transaction info.
+        if (looked === 'gone') return { store: found.store, status: 'INVALID', transaction: null, snapshot: null };
+        snapshot = looked;
       }
     }
     return { store: found.store, status: verification.status, transaction: tx, snapshot };
@@ -404,9 +407,13 @@ export function create_iap(input: IapInput): Iap {
         failed = true;
         continue;
       }
-      const result = await m.storage.run_user_transaction(user_id, (ctx) => subscription_apply(c, ctx, store, row.original_transaction_id, snapshot));
+      const gone = snapshot === 'gone';
+      const result = await m.storage.run_user_transaction(user_id, (ctx) =>
+        gone ? expire_gone_subscription(c, ctx, store, row.original_transaction_id) : subscription_apply(c, ctx, store, row.original_transaction_id, snapshot),
+      );
       if (result !== 'COMMITTED') {
-        log_user(c, user_id, 'error', 'error', 'iap subscription apply of SyncSubscriptions failed', { store: row.store, result });
+        const what = gone ? 'iap change of a gone subscription of SyncSubscriptions failed' : 'iap subscription apply of SyncSubscriptions failed';
+        log_user(c, user_id, 'error', 'error', what, { store: row.store, result });
         failed = true;
       }
     }

@@ -4,7 +4,7 @@
  * Receipt data is the Play Billing `Purchase.getOriginalJson()` text.
  */
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
-import { is_object, parse_json, read_limited, type AckKind, type AdapterCall, type AdapterFailure, type HttpFetch, type KeySource, type RefundPage, type StoreAdapter, type StoreNotification, type StoreTransaction, type SubscriptionSnapshot, type Verification } from '../adapter.ts';
+import { is_object, parse_json, read_limited, type AckKind, type AdapterCall, type AdapterFailure, type HttpFetch, type KeySource, type LookupGone, type RefundPage, type StoreAdapter, type StoreNotification, type StoreTransaction, type SubscriptionSnapshot, type Verification } from '../adapter.ts';
 import { sign_rs256, verify_rs256_jwks } from './jws.ts';
 
 const API = 'https://androidpublisher.googleapis.com/androidpublisher/v3/applications';
@@ -346,10 +346,12 @@ export function create_google_adapter(options: GoogleAdapterOptions): StoreAdapt
       return options.is_subscription_sku(r.product_id) ? verify_subscription(r, call) : verify_product(r, call);
     },
 
-    async lookup_subscription(original_transaction_id, _latest, call): Promise<SubscriptionSnapshot | AdapterFailure> {
+    async lookup_subscription(original_transaction_id, _latest, call): Promise<SubscriptionSnapshot | LookupGone | AdapterFailure> {
       const got = await subscription(original_transaction_id, call);
       if (typeof got === 'string') return got;
-      if (got.status !== 200) return got.status === 404 || got.status === 410 ? 'rejected' : 'communication_failure';
+      // 410: Google no longer answers for a purchase token whose subscription ended long ago. The grant order reads it as INVALID.
+      if (got.status === 410) return 'gone';
+      if (got.status !== 200) return got.status === 404 ? 'rejected' : 'communication_failure';
       return snapshot_of(got.json, call.now);
     },
 

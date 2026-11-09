@@ -250,15 +250,19 @@ export async function handle_notify(c: IapContext, request: RouteRequest): Promi
   }
 }
 
-/** The work of a `REFUND` notification: the `GRANTED` payment record outside the transaction and, for a subscription, the lookup. */
+/**
+ * The work of a `REFUND` notification: the `GRANTED` payment record outside the transaction and, for a subscription, the
+ * lookup. A lookup result `gone` goes on without a snapshot: the `REFUND` processing order then does no subscription apply.
+ */
 async function refund_work(c: IapContext, store: Store, binding: StoreBinding, notification: StoreNotification, lookup: boolean): Promise<Work | RouteResponse> {
   const rec = select_payment(c.m.storage.read_db(), store_name(store), notification.value, c.m.time.clock_now());
   if (rec === null || rec.result !== 'GRANTED') return OK;
   const product = product_of_record(c.data, store, rec);
   let snapshot: SubscriptionSnapshot | null = null;
   if (product !== null && product.type === ProductType.Subscription) {
-    snapshot = await lookup_subscription(c, binding, store, rec.original_transaction_id, null, rec.user_id);
-    if (snapshot === null) return FAILED;
+    const looked = await lookup_subscription(c, binding, store, rec.original_transaction_id, null, rec.user_id);
+    if (looked === null) return FAILED;
+    snapshot = looked === 'gone' ? null : looked;
   }
   return {
     store,
@@ -273,12 +277,24 @@ async function refund_work(c: IapContext, store: Store, binding: StoreBinding, n
   };
 }
 
+/**
+ * `idempotency.claim_notify` alone in one game transaction, then HTTP 200: a `SUBSCRIPTION` notification whose lookup
+ * result is `gone` (that subscription ended long ago; `SyncSubscriptions` changes its record to `EXPIRED`).
+ */
+async function claim_only(c: IapContext, source: string, notification: StoreNotification, user_id: bigint): Promise<RouteResponse> {
+  const result = await c.m.storage.run_game_transaction((tx) => c.m.idempotency.claim_notify(tx, source, notification.notification_id));
+  if (result !== 'FAILED') return OK;
+  log_user(c, user_id, 'error', 'error', 'iap store notification processing failed', { kind: notification.kind });
+  return FAILED;
+}
+
 /** The work of a `SUBSCRIPTION` notification: the subscription record outside the transaction and the lookup. */
 async function subscription_work(c: IapContext, store: Store, binding: StoreBinding, notification: StoreNotification): Promise<Work | RouteResponse> {
   const sub = select_subscription(c.m.storage.read_db(), store_name(store), notification.value, c.m.time.clock_now());
   if (sub === null) return OK;
   const snapshot = await lookup_subscription(c, binding, store, notification.value, null, sub.user_id);
   if (snapshot === null) return FAILED;
+  if (snapshot === 'gone') return claim_only(c, binding.name, notification, sub.user_id);
   return {
     store,
     source: binding.name,
