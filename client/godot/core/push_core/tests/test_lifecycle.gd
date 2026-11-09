@@ -110,6 +110,30 @@ func test_calls_before_init_log_and_return_the_failure_value() -> void:
 	assert_eq(Env.errors(), 0, "release before init logs nothing")
 
 
+func test_release_before_init_deletes_the_adapters_set_before_init() -> void:
+	assert_true(await Env.start_dependencies())
+	var push: TestPush = TestPush.new()
+	push.launch_push = 55
+	var notification: TestNotification = TestNotification.new()
+	PushCore.set_push_adapter(push)
+	PushCore.set_notification_adapter(notification)
+	PushCore.release()
+	assert_eq(Env.errors(), 0, "release before init logs nothing")
+	assert_false(PushCore.is_initialized())
+	assert_true(PushCore.init(), "init without setting the adapters again")
+	assert_null(PushCore._push)
+	assert_null(PushCore._notification)
+	assert_eq(PushCore.get_permission(), PushCore.PermissionStatus.UNSUPPORTED)
+	assert_eq(PushCore.take_launch_push(), 0)
+	assert_eq(push.launch_push, 55, "the deleted push adapter is not asked for the launch push")
+	assert_true(await Env.login())
+	await Env.settle()
+	assert_eq(Env.request_count(Env.REGISTER), 0, "a login with no push adapter registers no device token")
+	assert_eq(push.token_calls, 0)
+	assert_eq(notification.read_calls, 0)
+	assert_eq(Env.errors(), 0)
+
+
 func test_adapters_set_after_init_are_ignored_with_an_error() -> void:
 	var push: TestPush = TestPush.new()
 	var notification: TestNotification = TestNotification.new()
