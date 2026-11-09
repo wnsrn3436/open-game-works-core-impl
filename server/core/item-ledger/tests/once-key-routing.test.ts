@@ -30,10 +30,10 @@ function register(given: Readonly<Record<string, unknown>>): void {
   core_test_register(given, ['RunCoreTest']);
 }
 
-function module_of<T>(server: TestServer, name: string): T {
+function module_of(server: TestServer, name: string): unknown {
   const module = server.running().instance.modules().get(name);
   if (module === undefined) throw new Error(`the server instance has no ${name} module`);
-  return module as unknown as T;
+  return module;
 }
 
 /** The committed `[gold]` balance of the user (no row is 0). */
@@ -43,11 +43,12 @@ async function gold(server: TestServer, user_id: bigint): Promise<bigint> {
 }
 
 function history(server: TestServer, user_id: bigint): readonly HistoryRow[] {
-  return module_of<{ list_history(user_id: bigint, from: bigint, to: bigint, after_seq: bigint, max_rows: number): readonly HistoryRow[] }>(server, 'item-ledger').list_history(user_id, 0n, 2n ** 62n, 0n, 1000);
+  const ledger = module_of(server, 'item-ledger') as { list_history(user_id: bigint, from: bigint, to: bigint, after_seq: bigint, max_rows: number): readonly HistoryRow[] };
+  return ledger.list_history(user_id, 0n, 2n ** 62n, 0n, 1000);
 }
 
 function once_key_rows(server: TestServer, user_id: bigint): number {
-  const db = module_of<{ read_db(): DbHandle }>(server, 'storage').read_db();
+  const db = (module_of(server, 'storage') as { read_db(): DbHandle }).read_db();
   return db.query(`SELECT once_key FROM ${ONCE_KEY_TABLE} WHERE user_id = $1`, [user_id]).length;
 }
 
@@ -76,7 +77,7 @@ describe('content once_key with a core once_key prefix through routing', () => {
       const logs = request_logs(server, refused);
       expect(logs.errors.map((line) => [line.level, line.message])).toEqual([['error', 'unhandled exception']]);
       expect(logs.request.map((line) => line.error_code)).toEqual([CoreContract.CoreError.CORE_ERROR_INTERNAL]);
-      expect(String(logs.errors[0]?.stack_trace ?? '')).not.toBe('');
+      expect(typeof logs.errors[0]?.stack_trace === 'string' && logs.errors[0].stack_trace !== '').toBe(true);
       expect(logs.ledger).toEqual([]);
       expect(await gold(server, session.user_id)).toBe(0n);
       expect(history(server, session.user_id)).toEqual([]);
