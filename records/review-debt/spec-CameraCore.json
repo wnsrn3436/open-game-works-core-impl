@@ -1,0 +1,12 @@
+{
+  "target": "spec CameraCore",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "skills/client-core/modules/camera-core.md:42",
+      "problem": "The `caller` cell of `stop_shake` still names `QACore`, but `skills/client-core/modules/qa-core.md:23` says `CameraCore` is used only to subscribe to `CameraCore.CameraShakeStartedEvent`, and no QACore command or behavior calls `stop_shake` (grep of `skills/client-core/modules/qa-core.md` finds no `stop_shake`). The only QACore call of `CameraCore.stop_shake` was in `### feedback switch` (\"When feedback off turns on, QACore also calls `CameraCore.stop_shake`\"), which commit 182a362 removed together with `set_shake_skip`. The two defining documents now state different callers of `stop_shake`. Fix: drop `QACore` from that caller cell so it is `content code`",
+      "foundBy": "spec CameraCore"
+    }
+  ]
+}
