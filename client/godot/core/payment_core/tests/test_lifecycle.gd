@@ -100,6 +100,22 @@ func test_init_again_without_a_store_adapter_fails_prepare_and_rejects_purchase(
 	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 2)
 
 
+func test_release_before_init_deletes_the_store_adapter() -> void:
+	assert_true(start_modules())
+	assert_true(await prepare_modules())
+	assert_true(start_auth(false))
+	var adapter: FakeStore = FakeStore.new(CoreContract.IapStore.IAP_STORE_APPLE)
+	PaymentCore.set_store_adapter(adapter)
+	PaymentCore.release()
+	assert_eq(UnitTestCore.check_logs("warn", "PaymentCore"), 0, "release before init logs nothing")
+	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 0)
+	assert_true(PaymentCore.init())
+	assert_false(PaymentCore.is_supported(), "the store adapter set before the release is gone")
+	assert_false(await PaymentCore.prepare())
+	assert_eq(UnitTestCore.check_logs("error", "PaymentCore"), 1, "prepare: no store adapter")
+	assert_false(adapter.on_purchase_updated.is_valid(), "init did not start the deleted adapter")
+
+
 func test_release_stops_a_running_purchase_with_its_failure_value() -> void:
 	assert_true(await start())
 	respond_check()
