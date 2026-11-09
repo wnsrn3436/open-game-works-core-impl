@@ -1,5 +1,6 @@
 extends UnitTestCase
-## `init`, `release`, the state `release` leaves, `release` during `present` and `set_ads_adapter` after `init`.
+## `init`, `release`, the state `release` leaves, `release` during `present`, `set_ads_adapter` after `init` and `release`
+## before `init`.
 
 const Env := preload("res://core/ad_core/tests/support/ad_test_env.gd")
 const Flow := preload("res://core/ad_core/tests/support/ad_flow.gd")
@@ -110,3 +111,22 @@ func test_release_during_present_fails_the_show_and_clears_everything() -> void:
 	assert_eq(AdCore.get_ready_state(Env.id("[ad_interstitial_plain]")), AdCore.AdReadyState.NOT_READY)
 	assert_true(await AdCore.start())
 	assert_eq(env.adapter.count("initialize"), 1)
+
+
+func test_release_before_init_deletes_the_ads_adapter_and_the_ad_units() -> void:
+	assert_true(await env.boot())
+	AdCore.release()
+	env.adapter.calls.clear()
+	AdCore.set_ads_adapter(env.adapter, env.ad_units)
+	assert_eq(AdCore._adapter, env.adapter)
+	assert_gt(AdCore._ad_units.size(), 0)
+	AdCore.release()
+	assert_false(AdCore.is_initialized())
+	assert_null(AdCore._adapter)
+	assert_eq(AdCore._ad_units.size(), 0)
+	assert_eq(env.adapter.calls.size(), 0)
+	assert_eq(UnitTestCore.check_logs("error", "AdCore"), 0)
+	assert_eq(UnitTestCore.check_logs("warn", "AdCore"), 0)
+	assert_true(AdCore.init())
+	assert_eq(AdCore.get_ready_state(_basic()), AdCore.AdReadyState.UNSUPPORTED)
+	assert_eq(AdCore.get_ready_state(Env.id("[ad_interstitial_plain]")), AdCore.AdReadyState.UNSUPPORTED)
