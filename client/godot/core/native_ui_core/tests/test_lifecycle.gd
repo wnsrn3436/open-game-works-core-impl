@@ -80,6 +80,21 @@ func test_set_native_adapter_before_init_and_after_release_works() -> void:
 	assert_eq(errors(), 0)
 
 
+func test_release_before_init_deletes_the_adapter_without_logs() -> void:
+	assert_true(await start_modules(FakeNativeUiAdapter.new(), false))
+	NativeUiCore.release()
+	assert_false(NativeUiCore.is_initialized())
+	assert_null(NativeUiCore._adapter)
+	assert_eq(errors(), 0)
+	assert_eq(warns(), 0)
+	assert_true(NativeUiCore.init())
+	assert_null(NativeUiCore._adapter)
+	assert_eq(NativeUiCore.request_review(), REVIEW_UNSUPPORTED)
+	assert_false(NativeUiCore.can_share())
+	assert_eq(errors(), 0)
+	assert_eq(warns(), 0)
+
+
 func test_operations_before_init_log_an_error() -> void:
 	assert_true(await start_modules(FakeNativeUiAdapter.new(), false))
 	assert_eq(NativeUiCore.request_review(), REVIEW_FAILED)
