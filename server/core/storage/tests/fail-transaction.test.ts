@@ -81,19 +81,46 @@ describe('fail_transaction', () => {
         () => storage.run_savepoint(ctx, () => 'pass'),
         () => storage.run_read_only(ctx, () => 1),
         () => storage.random_u32(ctx),
-        () => {
-          storage.fail_transaction(ctx);
-        },
       ];
       for (const call of calls) errors.push(thrown(call));
       return 'pass';
     });
     expect(result).toBe('FAILED');
-    expect(errors).toHaveLength(14);
+    expect(errors).toHaveLength(13);
     for (const error of errors) {
       expect(error).toBeInstanceOf(Error);
       expect(error).not.toBeInstanceOf(StorageMisuse);
     }
+  });
+
+  it('a second fail_transaction on a transaction it already marked does nothing, and the transaction stays FAILED with no write', async () => {
+    const { storage } = await instance({ register: tables });
+    const user = await new_user(storage);
+    const before = raw_rows(storage, 'user_state', user);
+    let second: unknown = 'not called';
+    const result = await request(storage, user, (ctx) => {
+      storage.put_state(ctx, quest(1n, 5n));
+      storage.fail_transaction(ctx);
+      second = thrown(() => {
+        storage.fail_transaction(ctx);
+      });
+      return { done: true };
+    });
+    expect(second).toBeNull();
+    expect(result).toBe('FAILED');
+    expect(raw_rows(storage, 'user_state', user)).toEqual(before);
+    let game_second: unknown = 'not called';
+    const game = await storage.run_game_transaction((tx: GameTx) => {
+      storage.db(tx).query(INSERT, [1n, 1n]);
+      storage.fail_transaction(tx);
+      game_second = thrown(() => {
+        storage.fail_transaction(tx);
+      });
+      return { inserted: true };
+    });
+    expect(game_second).toBeNull();
+    expect(game).toBe('FAILED');
+    expect(counter_ids(storage)).toEqual([]);
   });
 
   it('a query through a db handle taken before fail_transaction throws, and run_game_transaction is FAILED with no write, also when the function returns a value', async () => {

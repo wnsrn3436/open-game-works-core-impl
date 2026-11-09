@@ -1,4 +1,5 @@
 /** The history table and the `once_key` table (`## behavior` storage and client delivery). */
+import { createHash } from 'node:crypto';
 import * as CoreContract from '../../generated/contract/core_contract.ts';
 import type { ColumnType, DbHandle, Storage } from '../storage/index.ts';
 import { read_big, write_big } from './items.ts';
@@ -48,12 +49,16 @@ const ONCE_KEY_COLUMNS: readonly TableColumn[] = [
 export const HISTORY_TIME_INDEX: readonly string[] = ['user_id', 'time'];
 
 export function register_tables(storage: Storage): void {
-  storage.register_table(HISTORY_TABLE, 'user', HISTORY_COLUMNS, ['user_id', 'seq'], 'expires_at', false, null, [HISTORY_TIME_INDEX]);
+  // Personal data user column `user_id`: the history is the user's purchase and spending record.
+  storage.register_table(HISTORY_TABLE, 'user', HISTORY_COLUMNS, ['user_id', 'seq'], 'expires_at', false, 'user_id', [HISTORY_TIME_INDEX]);
   storage.register_table(HISTORY_SEQ_TABLE, 'user', HISTORY_SEQ_COLUMNS, ['user_id'], null, false);
   storage.register_table(ONCE_KEY_TABLE, 'user', ONCE_KEY_COLUMNS, ['user_id', 'once_key'], 'expires_at', true);
 }
 
-/** One history row. `source` is the `ItemChangeSource` element name. */
+/**
+ * One history row as `list_history` gives it. The table keeps `source` as the `ItemChangeSource` element name; here it is
+ * the enum value, 0 for a saved name that is no element of this build's `ItemChangeSource`.
+ */
 export interface HistoryRow {
   seq: bigint;
   time: bigint;
@@ -64,20 +69,34 @@ export interface HistoryRow {
   balance_after: bigint;
   overflow: bigint;
   shortfall: bigint;
-  source: string;
+  source: CoreContract.ItemChangeSource;
   ref: string;
   once_key: string;
   request_id: string | null;
   ends_at_after: bigint;
 }
 
-/** A history row before `seq` and `time` are given. */
-export type NewHistoryRow = Omit<HistoryRow, 'seq' | 'time' | 'user_id' | 'request_id'>;
+/** A history row before `seq` and `time` are given, with `source` the element name the table keeps. */
+export type NewHistoryRow = Omit<HistoryRow, 'seq' | 'time' | 'user_id' | 'request_id' | 'source'> & { source: string };
 
 const SOURCE_NAMES: ReadonlyMap<number, string> = new Map(Object.entries(CoreContract.ItemChangeSource).map(([k, v]) => [v, k]));
 
 export function source_name(source: CoreContract.ItemChangeSource): string {
   return SOURCE_NAMES.get(source) ?? String(source);
+}
+
+/** The `ItemChangeSource` value of a saved element name; 0 for a name that is no element of this build's enum. */
+export function source_value(name: unknown): CoreContract.ItemChangeSource {
+  if (typeof name !== 'string' || !Object.hasOwn(CoreContract.ItemChangeSource, name)) return CoreContract.ItemChangeSource.ITEM_CHANGE_SOURCE_UNSPECIFIED;
+  return CoreContract.ItemChangeSource[name as keyof typeof CoreContract.ItemChangeSource];
+}
+
+/**
+ * The form the `once_key` table keeps a `once_key` in: the lowercase hex SHA-256 of its UTF-8 bytes, a key of 64
+ * characters for a `once_key` of any length. The caller refuses a `once_key` with an unpaired surrogate first.
+ */
+export function once_key_hash(once_key: string): string {
+  return createHash('sha256').update(once_key, 'utf8').digest('hex');
 }
 
 /** A value as its column pair: the `big_` column is null when the value fits in the int64 column. */
@@ -152,21 +171,24 @@ function read_row(r: DbRow): HistoryRow {
     seq: int64(r['seq']), time: int64(r['time']), user_id: int64(r['user_id']), item_id: Number(r['item_id']),
     delta: join(r['delta'], r['big_delta']), balance_after: join(r['balance_after'], r['big_balance_after']),
     overflow: join(r['overflow'], r['big_overflow']), shortfall: join(r['shortfall'], r['big_shortfall']),
-    source: String(r['source']), ref: String(r['ref']), once_key: String(r['once_key']),
+    source: source_value(r['source']), ref: String(r['ref']), once_key: String(r['once_key']),
     request_id: r['request_id'] === null || r['request_id'] === undefined ? null : String(r['request_id']),
     ends_at_after: int64(r['ends_at_after']),
   };
 }
 
-/** True when the user has a `once_key` row that has not expired. */
+/** True when the user has a `once_key` row of the SHA-256 form of `once_key` that has not expired. */
 export function has_once_key(db: DbHandle, user_id: bigint, once_key: string, now: bigint): boolean {
-  return db.query(`SELECT 1 AS found FROM ${ONCE_KEY_TABLE} WHERE user_id = $1 AND once_key = $2 AND expires_at > $3`, [user_id, once_key, now]).length > 0;
+  return db.query(`SELECT 1 AS found FROM ${ONCE_KEY_TABLE} WHERE user_id = $1 AND once_key = $2 AND expires_at > $3`, [user_id, once_key_hash(once_key), now]).length > 0;
 }
 
-/** Writes the `once_key` row in one upsert: an expired row that the sweep has not removed yet is written over. */
+/**
+ * Writes the `once_key` row of the SHA-256 form of `once_key` in one upsert: an expired row that the sweep has not
+ * removed yet is written over.
+ */
 export function put_once_key(db: DbHandle, user_id: bigint, once_key: string, expires_at: bigint): void {
   db.query(
     `INSERT INTO ${ONCE_KEY_TABLE} (user_id, once_key, expires_at) VALUES ($1, $2, $3) ON CONFLICT (user_id, once_key) DO UPDATE SET expires_at = excluded.expires_at`,
-    [user_id, once_key, expires_at],
+    [user_id, once_key_hash(once_key), expires_at],
   );
 }

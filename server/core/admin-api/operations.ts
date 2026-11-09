@@ -10,6 +10,9 @@ import { read_states } from './states.ts';
 import { ban_in_force, delete_ban, KILL_SWITCH_KIND, MAINTENANCE_KIND, read_ban, read_switches, write_ban, write_switch, type BanRow } from './tables.ts';
 import type { AdminApiModules, AdminInput, AdminOutput, AdminTransaction, FieldMap, FieldType, HandlerFailure, Role } from './types.ts';
 
+/** The element names of `ItemChangeSource` by value. */
+const SOURCE_NAMES: ReadonlyMap<number, string> = new Map(Object.entries(CoreContract.ItemChangeSource).map(([name, value]) => [value, name]));
+
 /** An admin-api operation: the handler function form plus what admin-api's own operations need. */
 export interface OwnOperation {
   readonly name: string;
@@ -213,7 +216,9 @@ function item_operations(c: OperationContext): OwnOperation[] {
     input: { user_id: { type: INT64 }, from_at: { type: INT64 }, to_at: { type: INT64 }, after_seq: { type: INT64 }, limit: { type: INT32 } },
     user_target: null,
     execute(input) {
-      const entries = item_ledger.list_history(input.user_id as bigint, input.from_at as bigint, input.to_at as bigint, input.after_seq as bigint, input.limit as number);
+      const rows = item_ledger.list_history(input.user_id as bigint, input.from_at as bigint, input.to_at as bigint, input.after_seq as bigint, input.limit as number);
+      // A base proto enum value of output JSON is its element name.
+      const entries = rows.map((row) => ({ ...row, source: SOURCE_NAMES.get(row.source) ?? 'ITEM_CHANGE_SOURCE_UNSPECIFIED' }));
       return Promise.resolve(ok({ entries }));
     },
   };

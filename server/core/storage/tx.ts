@@ -367,9 +367,13 @@ export function run_read_only<T>(core: StorageCore, ctx_or_tx: unknown, fn: () =
 
 /**
  * `fail_transaction`: marks the transaction failed, as a failed statement does. Every later `query` and storage
- * operation on it throws, and it rolls back and is `FAILED` when its function ends, by return or by throw.
+ * operation on it throws, and it rolls back and is `FAILED` when its function ends, by return or by throw. A call on a
+ * transaction it already marked does nothing.
  */
 export function fail_transaction(core: StorageCore, ctx_or_tx: unknown): void {
+  // A second call on a transaction this already marked does nothing.
+  const marked = typeof ctx_or_tx === 'object' && ctx_or_tx !== null ? core.states.get(ctx_or_tx) : undefined;
+  if (marked?.active === true && marked.failed) return;
   const state = any_state_of(core, ctx_or_tx);
   state.failed = true;
   state.broken = true;

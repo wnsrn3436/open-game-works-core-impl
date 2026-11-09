@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+import * as CoreContract from '../../../generated/contract/core_contract.ts';
 import { index_name } from '../../storage/schema.ts';
 import type { RequestCtx } from '../../storage/index.ts';
 import { HISTORY_SEQ_TABLE, HISTORY_TABLE, HISTORY_TIME_INDEX, ONCE_KEY_TABLE } from '../history.ts';
@@ -236,5 +238,60 @@ describe('history', () => {
     expect(env.module.list_history(user_id, t0 + 1000n, t0 + 1001n, 0n, 100).map((h) => h.item_id)).toEqual([id('[ticket]')]);
     expect(env.module.list_history(user_id, t0, t0 + 1000n, 0n, 100).length).toBe(8);
     expect(env.module.list_history(user_id + 1000n, 0n, 2n ** 62n, 0n, 100)).toEqual([]);
+  });
+
+  test('a once_key of 5000 characters is applied once; the once_key table keeps the lowercase hex SHA-256 of its UTF-8 bytes and the history the once_key', async () => {
+    const { user_id } = await user(env);
+    const once_key = `k-\u00e9\uD83D\uDE00-${'x'.repeat(4994)}`;
+    expect(once_key.length).toBe(5000);
+    expect(await tx(env, user_id, (ctx) => env.ledger.add_items(ctx, items(['[gold]', 3]), { once_key }))).toBe('OK');
+    expect(await tx(env, user_id, (ctx) => env.ledger.add_items(ctx, items(['[gold]', 3]), { once_key }))).toBe('ALREADY_APPLIED');
+    expect(await tx(env, user_id, (ctx) => env.ledger.revoke_items(ctx, items(['[gold]', 1]), { once_key }))).toBe('ALREADY_APPLIED');
+    expect(await balance(env, user_id, '[gold]')).toBe(3n);
+    const keys = env.storage.read_db().query(`SELECT once_key FROM ${ONCE_KEY_TABLE} WHERE user_id = $1`, [user_id]).map((r) => r.once_key);
+    expect(keys).toEqual([createHash('sha256').update(Buffer.from(once_key, 'utf8')).digest('hex')]);
+    expect(String(keys[0])).toMatch(/^[0-9a-f]{64}$/);
+    expect(history(env, user_id).map((h) => h.once_key)).toEqual([once_key]);
+    // Another once_key that shares the first 4999 characters is another key.
+    expect(await tx(env, user_id, (ctx) => env.ledger.add_items(ctx, items(['[gold]', 1]), { once_key: `${once_key.slice(0, -1)}y` }))).toBe('OK');
+    expect(await balance(env, user_id, '[gold]')).toBe(4n);
+  });
+
+  test('column source keeps the ItemChangeSource element name; list_history gives the enum value, and 0 for a saved name this build does not know', async () => {
+    const { user_id } = await user(env);
+    await tx(env, user_id, (ctx) => env.ledger.add_items(ctx, items(['[gold]', 2])));
+    await tx(env, user_id, (ctx) => env.module.add_items(ctx, items(['[gold]', 1]), { source: CoreContract.ItemChangeSource.ITEM_CHANGE_SOURCE_SHOP, ref: '5' }));
+    const saved = env.storage.read_db().query(`SELECT seq, source FROM ${HISTORY_TABLE} WHERE user_id = $1 ORDER BY seq ASC`, [user_id]);
+    expect(saved.map((r) => r.source)).toEqual(['ITEM_CHANGE_SOURCE_REQUEST', 'ITEM_CHANGE_SOURCE_SHOP']);
+    const last = big(saved.at(-1)?.seq);
+    // A row of a newer core whose source is no element of this build's ItemChangeSource.
+    // `toString` is a property of every object but no element of the enum.
+    const unknown = ['ITEM_CHANGE_SOURCE_FROM_A_NEWER_CORE', 'toString'];
+    await tx(env, user_id, (ctx) => {
+      unknown.forEach((name, i) => {
+        env.storage.db(ctx).query(
+          `INSERT INTO ${HISTORY_TABLE} (user_id, seq, time, item_id, delta, balance_after, overflow, shortfall, source, ref, once_key, request_id, ends_at_after, ` +
+            'big_delta, big_balance_after, big_overflow, big_shortfall, expires_at) VALUES ($1, $2, $3, $4, 1, 4, 0, 0, $5, $6, $7, NULL, 0, NULL, NULL, NULL, NULL, $8)',
+          [user_id, last + 1n + BigInt(i), ctx.request_time, id('[gold]'), name, `new-${String(i)}`, '', now(env) + 1_000_000n],
+        );
+      });
+    });
+    const rows = env.module.list_history(user_id, 0n, 2n ** 62n, 0n, 100);
+    expect(rows.map((h) => h.source)).toEqual([
+      CoreContract.ItemChangeSource.ITEM_CHANGE_SOURCE_REQUEST, CoreContract.ItemChangeSource.ITEM_CHANGE_SOURCE_SHOP, 0, 0,
+    ]);
+    expect(rows.map((h) => h.ref)).toEqual(['', '5', 'new-0', 'new-1']);
+  });
+
+  test('the history table is registered with personal data user column user_id: the user export holds the rows of that user only', async () => {
+    const { user_id } = await user(env);
+    const other = await user(env);
+    await tx(env, user_id, (ctx) => env.ledger.add_items(ctx, items(['[gold]', 2])));
+    await tx(env, other.user_id, (ctx) => env.ledger.add_items(ctx, items(['[gold]', 9])));
+    const tables = env.storage.export_user_rows(env.storage.read_db(), user_id);
+    const rows = tables[HISTORY_TABLE] ?? [];
+    expect(rows.map((r) => [r.user_id, r.item_id, r.delta, r.source])).toEqual([[user_id.toString(), id('[gold]'), '2', 'ITEM_CHANGE_SOURCE_REQUEST']]);
+    expect(Object.keys(tables)).not.toContain(ONCE_KEY_TABLE);
+    expect(Object.keys(tables)).not.toContain(HISTORY_SEQ_TABLE);
   });
 });
