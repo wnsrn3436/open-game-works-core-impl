@@ -2,7 +2,9 @@
 
 ## findings
 
-none
+| id | aspect | severity | location | evidence | fix | spec change | confidence |
+|---|---|---|---|---|---|---|---|
+| R1-1 | spec | medium | client/godot/core/payment_core/payment_core.gd:126 | Commit ad967246 adds `_adapter = null` to `release` of a PaymentCore that is not `init`ed. This implements the lifecycle rule of `core` SKILL.md:73 (a `release` before `init` deletes the values set by operations called before `init`; for PaymentCore that is `set_store_adapter`, payment-core.md:44, and the fake adapter that the DEV operations of `PaymentCoreDev` drive). No PaymentCore test checks it. Every `set_store_adapter` call in the tests (tests/support/payment_test_case.gd:143, :154, tests/test_adapter.gd:10, tests/test_plugin_adapter.gd:28, tests/test_prepare.gd:139) is followed by `PaymentCore.init()` in the same test. Every `PaymentCore.release()` call (tests/test_lifecycle.gd:10, :58, :95, :110, :122, tests/test_plugin_adapter.gd:114, :128) runs on an `init`ed module, which goes through `_clean_up`. The new BootstrapCore test (client/godot/core/bootstrap_core/tests/test_boot_shutdown_pre_init.gd) covers only DataCore and ResourceCore. So deleting line 126 fails no test: run path `PaymentCore.set_store_adapter(FakeStoreAdapter.new(APPLE))` → `PaymentCore.release()` → `PaymentCore.init()` → `PaymentCore.is_supported()` returns `true` instead of `false`, and in the unit test runner the adapter of a test that ended before `init` reaches the next test through `BootstrapCoreDev.shutdown` | Add a PaymentCore lifecycle test: set a store adapter, call `release` without `init`, then `init`, and assert that `is_supported()` is `false`, `prepare()` is `false` and no PaymentCore log is left by the `release` | no | 85 |
 
 ## previous
 
@@ -22,11 +24,6 @@ none
 
 ## unknown
 
-- The commit range 85f6b36d..3a76bdaa changes no file under `client/godot/core/payment_core/` and no PaymentCore settings key. The changes it makes to modules that PaymentCore depends on were read against what PaymentCore uses:
-  - AuthCore (`client/godot/core/auth_core/auth_core.gd`): `link_account` still sets `linked_providers` of the session before it returns `SUCCESS`, so the `AuthCore.list_linked_providers` check of the guest warning (`client/godot/core/payment_core/payment_core.gd:474`) sees the link. The new `logout_other_devices` keeps the session and publishes no `LoginCompletedEvent` or `SessionEndedEvent`, so it does not change the login session that PaymentCore tracks
-  - TimeCore (`client/godot/core/time_core/time_core.gd`): the DEV frame step changes only the per-frame real increment that feeds `get_real_time`. PaymentCore sets and checks the store call time limit and the delivery retry time with `TimeCore.get_real_time` only (`client/godot/core/payment_core/payment_core.gd:378`, `:947`, `:999`, `:1010`), so both still measure real elapsed time of TimeCore. `make_random_seed` is not used by PaymentCore
-  - LogCore: comment-only changes
-  - Server `iap` (refund lookup job and its settings `iap.refundLookup*`, `iap.refundRetry*`) and base proto (`LogoutOtherDevices`, MatchmakerFrame fields, `MATCH_JUDGE_STATUS_FORFEIT`): no message or setting that PaymentCore sends, reads or handles changed (`CheckPurchase`, `VerifyPurchase`, `RecoverPurchase`, `SyncSubscriptions`, `ClaimIapDaily`, `IapPurchaseUserState`, `SubscriptionUserState`)
-- `ogw core test godot PaymentCore` passed at 3a76bdaa
-- The real store adapter `client/godot/core/payment_core/adapters/plugin_store_adapter.gd`, the fake store adapter `client/godot/core/payment_core/dev/adapters/fake_store_adapter.gd` and the PaymentCore test files were not reviewed line by line, because the range does not change them or the definitions they rely on
-- The store-side behavior of the real adapters (Apple, Google SDK) cannot be checked on this host
+- I did not run the core tests or restore the defect in a separate worktree. R1-1 rests on reading every `set_store_adapter` and `release` call in client/godot/core/payment_core/tests and the BootstrapCore tests changed in the range
+- In the commit range, only commit ad967246 changes PaymentCore code (client/godot/core/payment_core/payment_core.gd, +2 lines). The changes in that range to its dependencies (AuthCore storage and consent, NetworkCore and DataCore pre-init release, server `iap` gone subscription lookup) were read only where PaymentCore calls them or relies on them. The server `iap` change keeps the `CheckPurchase` and `VerifyPurchase` responses that PaymentCore reads (a gone lookup is returned as status `INVALID`), and it was not reviewed further: it is outside this target
+- The same pre-init `release` changes of AdCore, NetworkCore, NoticeCore, PushCore, GameUpdateCore, NativeUICore and RealtimeCore in ad967246 are outside this target and were not checked for tests
