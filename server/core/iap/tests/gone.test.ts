@@ -4,6 +4,7 @@
  */
 import { generateKeyPairSync } from 'node:crypto';
 import * as CoreContract from '../../../generated/contract/core_contract.ts';
+import type { GameTx } from '../../storage/index.ts';
 import { storage_module } from '../../storage/tests/helpers.ts';
 import * as testing from '../../testing/dev/index.ts';
 import type { StoreAdapter } from '../adapter.ts';
@@ -161,6 +162,38 @@ describe('the lookup result gone', () => {
     expect(await subscription_record(server, a.user_id, 'gs-1')).toEqual(record);
     expect(await notify(server, GOOGLE, 'gs-1', { state: 'REVOKED', ends_at: START.toString(), auto_renew: false }, 'gs-n2')).toBe(200);
     expect((await subscription_record(server, a.user_id, 'gs-1'))?.['state']).toBe('SUBSCRIPTION_STATE_REVOKED');
+  });
+
+  it('a SUBSCRIPTION notification whose lookup is GONE and whose claim transaction fails is HTTP 500 with one error log, and the same notification ID sent again is handled', async () => {
+    const server = await start();
+    const a = await testing.login(server, 'a');
+    expect(status_of(await verify(a, GOOGLE, receipt('vip_google', 'gc-1', await account_token(a))))).toBe(Status.PURCHASE_STATUS_GRANTED);
+    await testing.wait_background(server);
+    const record = await subscription_record(server, a.user_id, 'gc-1');
+    const fake = fake_store(server, GOOGLE);
+    fake.set_result('lookup_subscription', 'GONE');
+    // The next game transaction (the claim of the notification) fails.
+    const storage = storage_module(server);
+    const run = storage.run_game_transaction.bind(storage);
+    const armed = { fail: true };
+    storage.run_game_transaction = <T>(fn: (tx: GameTx) => T): Promise<T | 'FAILED'> => {
+      if (!armed.fail) return run(fn);
+      armed.fail = false;
+      return Promise.resolve('FAILED');
+    };
+    const errors = testing.read_logs(server, 'error').length;
+    const sent = await notify(server, GOOGLE, 'gc-1', null, 'gc-n1');
+    storage.run_game_transaction = run;
+    expect(armed.fail).toBe(false);
+    expect(sent).toBe(500);
+    const logged = testing.read_logs(server, 'error').slice(errors);
+    expect(logged).toHaveLength(1);
+    expect(logged[0]?.message).toBe('iap store notification processing failed');
+    expect(await subscription_record(server, a.user_id, 'gc-1')).toEqual(record);
+    // The store sends the same notification ID again: it was not claimed, so it is handled.
+    fake.set_result('lookup_subscription', null);
+    expect(await notify(server, GOOGLE, 'gc-1', { state: 'REVOKED', ends_at: START.toString(), auto_renew: false }, 'gc-n1')).toBe(200);
+    expect((await subscription_record(server, a.user_id, 'gc-1'))?.['state']).toBe('SUBSCRIPTION_STATE_REVOKED');
   });
 
   it('for a withdrawn user, a SUBSCRIPTION notification whose lookup is GONE only claims, and a REFUND marks the payment record REFUNDED and leaves the subscription record as it was', async () => {
