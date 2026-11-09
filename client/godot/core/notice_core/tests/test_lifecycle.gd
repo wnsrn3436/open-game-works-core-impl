@@ -142,17 +142,20 @@ func test_set_image_downloader_after_init_is_ignored() -> void:
 
 
 func test_release_before_init_drops_the_image_downloader() -> void:
+	# `LogCore` before `init` writes only to the console, so it is initialized for the logs of `release` to be seen.
+	assert_true(LogCore.init())
 	var dropped: _HANGING = _HANGING.new()
 	NoticeCoreDev.set_image_downloader(dropped)
 	assert_eq(NoticeCore._downloader_override, dropped)
 	NoticeCore.release()
 	assert_false(NoticeCore.is_initialized())
 	assert_eq(NoticeCore._downloader_override, null)
+	assert_eq(errors(), 0, "release before init leaves no log")
+	assert_eq(warns(), 0, "release before init leaves no log")
+	LogCore.release()
 	if not await start():
 		fail_test("setup failed")
 		return
-	assert_eq(errors(), 0, "release before init leaves no log")
-	assert_eq(warns(), 0, "release before init leaves no log")
 	assert_ne(NoticeCore._downloader, dropped)
 	var base: String = await UnitTestCore.start_http_server()
 	assert_false(base.is_empty())
