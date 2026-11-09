@@ -137,6 +137,101 @@ func test_clear_dev_values_fails_the_waiting_caller_and_deletes_after_the_operat
 	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)
 
 
+## Waits until the fake storage has started `count` operations of `kind`. `false` when it did not within 60 frames.
+func _wait_storage(kind: String, count: int) -> bool:
+	for i: int in 60:
+		if env.storage.count(kind) >= count:
+			return true
+		await UnitTestCore.wait_frames(1)
+	return env.storage.count(kind) >= count
+
+
+func test_clear_dev_values_during_the_auto_login_write_fails_boot_login_without_a_pending_token() -> void:
+	assert_true(await env.boot())
+	Env.mark_installed()
+	Env.agree_terms()
+	env.store("token-old")
+	Env.respond_terms()
+	Env.respond_auto_login(741, "token-new")
+	env.storage.hold = true
+	var flow: Flow = Flow.new()
+	flow.start(func(f: Flow) -> void:
+		f.result = await AuthCore.boot_login()
+		f.finish())
+	assert_true(await _wait_storage("read", 1))
+	# Ends the held read and keeps holding: the AutoLogin response can come in the same frame as the read.
+	env.storage.released.emit()
+	assert_true(await _wait_storage("write", 1), "the AutoLogin write waits")
+	assert_eq(Env.request_count("core/AutoLogin"), 1)
+	AuthCoreDev.clear_dev_values()
+	await flow.wait()
+	assert_eq((flow.result as LoginResult).status, AuthCore.LoginStatus.FAILED)
+	assert_false(AuthCore.is_logged_in())
+	assert_eq(AuthCore._pending_token, "")
+	assert_eq(AuthCore._pending_sent_token, "")
+	env.storage.release_held()
+	await UnitTestCore.wait_frames(5)
+	assert_eq(env.storage.ended.slice(-2), PackedStringArray(["write " + Env.SCOPE, "remove " + Env.SCOPE]))
+	assert_false(env.storage.items.has(Env.SCOPE))
+	assert_false(AuthCore.is_logged_in())
+	assert_eq(AuthCore._pending_token, "")
+	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)
+	assert_eq(UnitTestCore.check_logs("warn", "AuthCore"), 0)
+
+
+func test_clear_dev_values_during_the_link_account_write_fails_the_link_without_a_log() -> void:
+	assert_true(await env.boot())
+	var login: LoginResult = await env.boot_guest(742, "token-a")
+	assert_eq(login.status, AuthCore.LoginStatus.SUCCESS)
+	var response: CoreContract.LinkAccountResponse = CoreContract.LinkAccountResponse.new()
+	response.linked_providers = PackedInt32Array([CoreContract.LoginProvider.LOGIN_PROVIDER_GOOGLE])
+	Env.respond("core/LinkAccount", response)
+	var writes: int = env.storage.count("write")
+	env.storage.hold = true
+	var flow: Flow = Flow.new()
+	flow.start(func(f: Flow) -> void:
+		f.status = await AuthCore.link_account(CoreContract.LoginProvider.LOGIN_PROVIDER_GOOGLE)
+		f.finish())
+	assert_true(await _wait_storage("write", writes + 1), "the link write waits")
+	AuthCoreDev.clear_dev_values()
+	await flow.wait()
+	assert_eq(flow.status, AuthCore.LinkStatus.FAILED)
+	assert_eq(AuthCore._pending_token, "", "a cut write keeps no pending token")
+	assert_true(AuthCore.is_logged_in(), "the session is not a DEV value")
+	env.storage.release_held()
+	await UnitTestCore.wait_frames(5)
+	assert_eq(env.storage.ended.slice(-2), PackedStringArray(["write " + Env.SCOPE, "remove " + Env.SCOPE]))
+	assert_eq(AuthCore._pending_token, "")
+	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)
+	assert_eq(UnitTestCore.check_logs("warn", "AuthCore"), 0)
+
+
+func test_clear_dev_values_during_the_withdraw_remove_fails_the_withdraw_without_ending_the_session() -> void:
+	assert_true(await env.boot())
+	var login: LoginResult = await env.boot_guest(743, "token-a")
+	assert_eq(login.status, AuthCore.LoginStatus.SUCCESS)
+	Env.respond("core/Withdraw", CoreContract.WithdrawResponse.new())
+	var removes: int = env.storage.count("remove")
+	env.storage.hold = true
+	var flow: Flow = Flow.new()
+	flow.start(func(f: Flow) -> void:
+		f.flag = await AuthCore.withdraw()
+		f.finish())
+	assert_true(await _wait_storage("remove", removes + 1), "the withdraw remove waits")
+	AuthCoreDev.clear_dev_values()
+	await flow.wait()
+	assert_false(flow.flag)
+	assert_true(AuthCore.is_logged_in())
+	assert_eq(env.recorder.session_ends.size(), 0)
+	assert_eq(env.recorder.restarts, 0)
+	env.storage.release_held()
+	await UnitTestCore.wait_frames(5)
+	assert_eq(env.storage.ended.slice(-2), PackedStringArray(["remove " + Env.SCOPE, "remove " + Env.SCOPE]))
+	assert_eq(env.recorder.session_ends.size(), 0)
+	assert_eq(UnitTestCore.check_logs("error", "AuthCore"), 0)
+	assert_eq(UnitTestCore.check_logs("warn", "AuthCore"), 0)
+
+
 func test_clear_dev_values_after_release_deletes_the_pending_token_and_starts_no_delete() -> void:
 	assert_true(await env.boot())
 	env.storage.script("write", Storage.Status.FAILED)
