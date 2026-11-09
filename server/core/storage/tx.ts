@@ -209,8 +209,9 @@ async function open_user(core: StorageCore, user_id: bigint, fields: RequestFiel
 }
 
 /**
- * Runs a body. A body that ends by return or by throw after a statement of this transaction broke it ends it as
- * `FAILED`; the one exception is a body that throws the `sql` failure of the statement that broke it, which rolls
+ * Runs a body. A body of a transaction that `fail_transaction` marked ends as `FAILED`, by return or by throw. Any other
+ * body that ends by return or by throw after a statement of this transaction broke it ends it as `FAILED`; the one
+ * exception is a body that throws the `sql` failure of the statement that broke it, which rolls
  * back and throws. Any other throw rolls back and throws, also a lock or connection failure of a `read_db` statement:
  * it is not a statement of this transaction.
  */
@@ -220,6 +221,8 @@ async function body<T>(core: StorageCore, state: TxState, fn: () => T): Promise<
     value = in_context(core, state, fn);
   } catch (error) {
     await rollback(core, state);
+    // `fail_transaction` comes before every other rule for the throw, the statement failure rule included.
+    if (state.failed) return 'FAILED';
     if (state.broken && (error !== state.broken_by || is_db_failure(error))) return 'FAILED';
     throw error;
   }
@@ -360,6 +363,16 @@ export function run_read_only<T>(core: StorageCore, ctx_or_tx: unknown, fn: () =
   } finally {
     state.read_only -= 1;
   }
+}
+
+/**
+ * `fail_transaction`: marks the transaction failed, as a failed statement does. Every later `query` and storage
+ * operation on it throws, and it rolls back and is `FAILED` when its function ends, by return or by throw.
+ */
+export function fail_transaction(core: StorageCore, ctx_or_tx: unknown): void {
+  const state = any_state_of(core, ctx_or_tx);
+  state.failed = true;
+  state.broken = true;
 }
 
 export function after_commit(core: StorageCore, ctx: unknown, fn: () => unknown): void {

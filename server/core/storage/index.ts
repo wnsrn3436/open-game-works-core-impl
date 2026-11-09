@@ -72,6 +72,7 @@ import {
   add_item_mail,
   after_commit,
   db,
+  fail_transaction,
   lock_game_row,
   lock_game_row_content,
   make_seed,
@@ -174,6 +175,7 @@ export interface Storage {
   run_read_only<T>(ctx_or_tx: RequestCtx | GameTx, fn: () => T): T;
   lock_game_row(ctx_or_tx: RequestCtx | GameTx, table: string, key: readonly unknown[]): 'FAILED' | undefined;
   after_commit(ctx_or_tx: RequestCtx | GameTx, fn: () => unknown): void;
+  fail_transaction(ctx_or_tx: RequestCtx | GameTx): void;
   on_commit(ctx_or_tx: RequestCtx | GameTx, fn: () => void): void;
   send_user_change(ctx: RequestCtx, target_id: bigint, name: string, payload: Uint8Array): void;
   register_user_change(name: string, apply: UserChangeApply, fail: UserChangeFail): void;
@@ -469,6 +471,9 @@ export function create_storage_with(input: StorageInput, contract: StorageContra
     },
     on_commit: (ctx_or_tx, fn) => {
       on_commit(core, ctx_or_tx, fn);
+    },
+    fail_transaction: (ctx_or_tx) => {
+      fail_transaction(core, ctx_or_tx);
     },
     send_user_change: (ctx, target_id, name, payload) => {
       send_user_change(core, ctx, target_id, name, payload);
