@@ -29,18 +29,6 @@ static func force_failure(kind: int) -> void:
 	NetworkCore._dev_attempt_hook = _forced_attempt
 
 
-## Takes every transport result as received `delay_ms` later. 0 stops it.
-static func force_delay(delay_ms: int) -> void:
-	if not NetworkCore._is_initialized:
-		LogCore.log_error(_TAG, "force_delay called before init")
-		return
-	if delay_ms < 0:
-		LogCore.log_error(_TAG, "force_delay got a negative delay: %d" % delay_ms)
-		return
-	NetworkCore._forced_delay_ms = delay_ms
-	NetworkCore._dev_received_hook = _delay_result
-
-
 ## Fills `buffer` from index 0 with the request records in the order they ended. Returns the filled count.
 static func get_request_records(buffer: Array[NetworkRequestRecord]) -> int:
 	if not NetworkCore._is_initialized:
@@ -121,16 +109,6 @@ static func _forced_attempt(req: NetworkCore._REQUEST) -> bool:
 	req.outcome = NetworkCore._OUTCOME_FAILED
 	req.failure = NetworkCore._new_failure(NetworkCore._forced_failure as NetworkCore.FailureKind, req)
 	req.note = "forced failure"
-	return true
-
-
-## Holds the transport result of `w` for the forced delay; the timeout and the time sync take the delayed time.
-static func _delay_result(w: NetworkCore._WAITER) -> bool:
-	var delay_ms: int = NetworkCore._forced_delay_ms
-	if delay_ms <= 0:
-		return false
-	w.received_monotonic += delay_ms
-	w.deliver_at = TimeCore.get_real_time() + delay_ms
 	return true
 
 

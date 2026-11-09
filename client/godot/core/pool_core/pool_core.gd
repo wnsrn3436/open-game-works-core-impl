@@ -47,15 +47,6 @@ static var _pending_keys: PackedStringArray = PackedStringArray()
 static var _flush_scheduled: bool = false
 ## The prefab loads `prefill` waits for. `release` ends them.
 static var _waiters: Array[_PREFAB_WAITER] = []
-## Effect skip, set by `PoolCoreDev.set_effect_skip`: an auto-return borrow publishes no `EffectSpawnedEvent` and is
-## taken back before the frame is drawn.
-static var _effect_skip: bool = false
-## The handles of the auto-return borrows of the effect skip waiting for the take-back, as `[0, _skip_count)`.
-static var _skip_handles: Array[Vector4i] = []
-static var _skip_count: int = 0
-static var _skip_scheduled: bool = false
-## The deferred take-back, made in `init` with the session bound.
-static var _skip_flush: Callable = Callable()
 
 
 static func init() -> bool:
@@ -73,8 +64,6 @@ static func init() -> bool:
 	_max_pool_size = CoreSettings.get_int(_MAX_POOL_SIZE_KEY)
 	_session = RefCounted.new()
 	_ending_owner_ids.resize(_INITIAL_SLOTS)
-	_skip_handles.resize(_INITIAL_SLOTS)
-	_skip_flush = PoolCore._flush_effect_skip.bind(_session)
 	_listener = PoolCore._on_scope_released
 	ResourceCore.add_scope_release_listener(_listener)
 	_node = _NODE_SCRIPT.new()
@@ -431,46 +420,10 @@ static func _lend(pool: _POOL, instance: PoolObject, binding: _OWNER_BINDING) ->
 		binding.count += 1
 	_set_visible(instance, entry.visible)
 	var handle: Vector4i = _make_handle(instance.get_instance_id(), entry.generation)
-	var session: RefCounted = _session
 	instance.on_borrow()
-	if not entry.auto_return:
-		return handle
-	if not _effect_skip:
+	if entry.auto_return:
 		EventCore.publish(EventCore.acquire(EffectSpawnedEvent))
-	elif session == _session:
-		_add_skip(handle)
 	return handle
-
-
-## Records an auto-return borrow of the effect skip for the take-back before the frame is drawn.
-static func _add_skip(handle: Vector4i) -> void:
-	if _skip_count == _skip_handles.size():
-		_skip_handles.resize(_skip_count * 2)
-	_skip_handles[_skip_count] = handle
-	_skip_count += 1
-	if not _skip_scheduled:
-		_skip_scheduled = true
-		_skip_flush.call_deferred()
-
-
-## Deferred: takes back the auto-return borrows of the effect skip as `notify_finished` does. A handle that is no longer
-## valid was returned or destroyed before and is skipped. A borrow made by an `on_return` here is taken back here too.
-static func _flush_effect_skip(session: RefCounted) -> void:
-	if session != _session:
-		return
-	_skip_scheduled = false
-	var i: int = 0
-	while i < _skip_count:
-		var handle: Vector4i = _skip_handles[i]
-		_skip_handles[i] = _EMPTY_HANDLE
-		i += 1
-		var instance: PoolObject = _instance_of(handle)
-		if instance == null or (instance._pool_entry as _ENTRY).state != _ENTRY.State.BORROWED:
-			continue
-		_take_back(instance, "effect skip")
-		if session != _session:
-			return
-	_skip_count = 0
 
 
 ## Takes back a borrowed or returning `instance` with the return order of the spec.
@@ -856,11 +809,6 @@ static func _reset() -> void:
 	_pending_keys = PackedStringArray()
 	_flush_scheduled = false
 	_waiters = []
-	_effect_skip = false
-	_skip_handles = []
-	_skip_count = 0
-	_skip_scheduled = false
-	_skip_flush = Callable()
 
 
 ## Called by the core node when it leaves the tree. Outside `release` this is a tree teardown: clear like `release`

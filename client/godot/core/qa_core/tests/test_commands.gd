@@ -40,8 +40,7 @@ const BUILTIN_ARGS: Dictionary[String, String] = {
 	"set_user_state": "kind,item,value", "set_item_balance": "item,balance",
 	"delete_user_state": "kind,item", "set_mission_progress": "mission,progress,claimed",
 	"set_reset_counter": "counter,count", "set_quality_level": "level", "set_text_scale": "permille",
-	"force_network_failure": "kind", "set_network_delay": "ms", "set_feedback_off": "mode",
-	"set_reward_presentation_off": "mode", "expire_access_token": "",
+	"force_network_failure": "kind", "expire_access_token": "",
 	"set_social_account": "account", "simulate_push": "message,mode", "set_push_permission": "status",
 	"drop_peer": "participant", "drop_matchmaker": "", "set_test_screen": "width,height,fill_mode",
 	"set_virtual_notch": "left,top,right,bottom", "set_virtual_keyboard": "height",
@@ -216,7 +215,7 @@ func test_the_argument_ms_adds_to_the_time_limit() -> void:
 	assert_true(await start())
 	var limits: Dictionary[String, int] = {
 		"drag 1 1 2 2 300": 300, "key A 200": 200, "key A": 0, "capture_video 500": 500, "step 100": 100,
-		"tap 1 1": 0, "set_network_delay 700": 0,
+		"tap 1 1": 0, "set_server_time_offset 700": 0,
 	}
 	for line: String in limits:
 		var parts: PackedStringArray = line.split(" ")

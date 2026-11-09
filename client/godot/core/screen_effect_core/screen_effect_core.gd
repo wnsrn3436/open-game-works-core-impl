@@ -22,9 +22,6 @@ static var _overlays: Array[ColorRect] = []
 ## Current handle of each channel, indexed by `ScreenEffectChannel`. `null` when the channel has no effect.
 static var _current: Array[ScreenEffectHandle] = []
 static var _tween_options: TweenOptions = null
-## World skip of `ScreenEffectCoreDev.set_world_skip`: `World` requests that pass the input check end `Completed` at
-## once without touching the overlay.
-static var _world_skip: bool = false
 
 
 static func init() -> bool:
@@ -99,8 +96,6 @@ static func fade(
 		or not _check_opacity("fade", target_opacity) or not _check_duration("fade", duration_ms)
 	):
 		return _failed_handle()
-	if _is_skipped(channel):
-		return _skipped_handle(channel, owner_object)
 	var handle: ScreenEffectHandle = _new_handle(channel, owner_object)
 	var replaced: ScreenEffectHandle = _make_current(channel, handle)
 	var overlay: ColorRect = _overlays[channel]
@@ -135,8 +130,6 @@ static func flash(
 		or not _check_duration("flash", fall_ms)
 	):
 		return _failed_handle()
-	if _is_skipped(channel):
-		return _skipped_handle(channel, owner_object)
 	var peak: float = minf(max_opacity, _flash_limit)
 	var handle: ScreenEffectHandle = _new_handle(channel, owner_object)
 	var replaced: ScreenEffectHandle = _make_current(channel, handle)
@@ -170,8 +163,6 @@ static func play_preset(
 		return _failed_handle()
 	if not _check_preset(definition, _overlays[channel]):
 		return _failed_handle()
-	if _is_skipped(channel):
-		return _skipped_handle(channel, owner_object)
 	var handle: ScreenEffectHandle = _new_handle(channel, owner_object)
 	var replaced: ScreenEffectHandle = _make_current(channel, handle)
 	var overlay: ColorRect = _overlays[channel]
@@ -317,7 +308,6 @@ static func _reset_state() -> void:
 	_overlays = []
 	_current = []
 	_tween_options = null
-	_world_skip = false
 
 
 static func _layer_of(channel: int) -> UICore.UILayer:
@@ -333,18 +323,6 @@ static func _layer_of(channel: int) -> UICore.UILayer:
 static func _failed_handle() -> ScreenEffectHandle:
 	var handle: ScreenEffectHandle = ScreenEffectHandle.new()
 	handle._finish(ScreenEffectResult.FAILED)
-	return handle
-
-
-## True when the World skip is on and `channel` is `World`.
-static func _is_skipped(channel: int) -> bool:
-	return _world_skip and channel == ScreenEffectChannel.WORLD
-
-
-## A handle of a skipped request: `Completed`, and never the current handle of its channel, so it controls no overlay.
-static func _skipped_handle(channel: int, owner: Object) -> ScreenEffectHandle:
-	var handle: ScreenEffectHandle = _new_handle(channel, owner)
-	handle._finish(ScreenEffectResult.COMPLETED)
 	return handle
 
 

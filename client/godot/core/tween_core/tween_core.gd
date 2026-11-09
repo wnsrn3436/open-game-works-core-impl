@@ -76,19 +76,6 @@ static var _load_preset_call: Callable = Callable()
 ## A deferred `_flush_end_due` call is queued, and the session it was queued in.
 static var _flush_queued: bool = false
 static var _flush_session: RefCounted = null
-## DEV finite skip, set by `TweenCoreDev.set_finite_skip`.
-static var _finite_skip: bool = false
-## `_skip_end`, made in `init`.
-static var _skip_end_call: Callable = Callable()
-## A deferred `_skip_end` call is queued, and the session it was queued in.
-static var _skip_queued: bool = false
-static var _skip_session: RefCounted = null
-## Last request number of a skipped tween.
-static var _skip_seq: int = 0
-## Process frame whose skip end started.
-static var _skip_frame: int = -1
-## Skipped tweens requested after the skip end of their frame started wait for the skip end of the next frame.
-static var _skip_waiting: bool = false
 
 static var _slot_count: int = 0
 static var _generation: PackedInt64Array = PackedInt64Array()
@@ -136,7 +123,6 @@ static func init() -> bool:
 	_session = RefCounted.new()
 	_default_options = TweenOptions.new()
 	_flush = _flush_end_due
-	_skip_end_call = _skip_end
 	_load_preset_call = _load_preset
 	_grow(_INITIAL_SLOTS)
 	var node: Node = _CORE_NODE.new()
@@ -283,7 +269,6 @@ static func play_value(
 	record.change_count = 1
 	record.cycle_ms = change.duration
 	record.repeat_count = 1
-	record.finite_skip = _finite_skip
 	var handle: int = record.handle
 	_begin(record)
 	return handle
@@ -474,7 +459,6 @@ static func _set_property_record(slot: int, target_id: int, options: TweenOption
 	record.time_basis = options.time_basis
 	record.tag = options.tag
 	record.callback = options.callback
-	record.finite_skip = _finite_skip
 	if options.input_block:
 		record.block_token = InputBlockCore.block(_REASON_TAG, options.block_pass_list)
 
@@ -543,8 +527,7 @@ static func _load_definition(record: _RECORD, definition: TweenDefinition) -> vo
 
 
 ## Starts the progress of a loaded record and publishes `TweenStartedEvent`. A record without cycle time ends with
-## `Completed` before the frame ends. A record requested during the finite skip that does not repeat forever ends in a
-## skip end, without progress and without the event.
+## `Completed` before the frame ends.
 static func _begin(record: _RECORD) -> void:
 	record.last_time = _now(record.time_basis)
 	record.cycle_index = 0
@@ -554,22 +537,15 @@ static func _begin(record: _RECORD) -> void:
 	if record.block_token != 0 and record.repeat_count == 0:
 		LogCore.log_error(_TAG, "an input block tween repeats forever; its block is lifted")
 		_unblock(record)
-	if record.finite_skip and record.repeat_count != 0:
-		_queue_skip_end(record)
-		return
 	if record.cycle_ms == 0:
-		_queue_end_due(record)
+		record.end_due = true
+		if not _flush_queued:
+			_flush_queued = true
+			_flush_session = _session
+			_flush.call_deferred()
 	var event: TweenStartedEvent = EventCore.acquire(TweenStartedEvent) as TweenStartedEvent
 	if event != null:
 		EventCore.publish(event)
-
-
-static func _queue_end_due(record: _RECORD) -> void:
-	record.end_due = true
-	if not _flush_queued:
-		_flush_queued = true
-		_flush_session = _session
-		_flush.call_deferred()
 
 
 ## Deferred call: ends the tweens that started with an end condition in their playing operation.
@@ -587,60 +563,12 @@ static func _flush_end_due() -> void:
 				return
 
 
-## Numbers a skipped tween and queues the skip end of this frame, or of the next frame when the skip end of this frame
-## has started.
-static func _queue_skip_end(record: _RECORD) -> void:
-	_skip_seq += 1
-	record.skip_due = true
-	record.skip_seq = _skip_seq
-	if _skip_frame == Engine.get_process_frames():
-		_skip_waiting = true
-	else:
-		_queue_skip_call()
-
-
-static func _queue_skip_call() -> void:
-	_skip_waiting = false
-	if not _skip_queued:
-		_skip_queued = true
-		_skip_session = _session
-		_skip_end_call.call_deferred()
-
-
-## Deferred call, the skip end of a frame: ends with `Completed` the skipped tweens requested before it started, and with
-## `TargetDestroyed` those whose target or receiver was destroyed while they waited. A skipped tween requested during
-## it, by a completion callback or by code resuming after a `wait_end`, has a higher request number and waits for the
-## skip end of the next frame.
-static func _skip_end() -> void:
-	if not _is_initialized or _skip_session != _session:
-		return
-	_skip_queued = false
-	_skip_session = null
-	_skip_frame = Engine.get_process_frames()
-	var last: int = _skip_seq
-	var session: RefCounted = _session
-	for slot: int in _slot_count:
-		if _active[slot] == 0:
-			continue
-		var record: _RECORD = _records[slot]
-		if record.skip_due and record.skip_seq <= last:
-			_end(slot, TweenEndReason.TARGET_DESTROYED if _is_gone(record) else TweenEndReason.COMPLETED)
-			# a callback released TweenCore
-			if session != _session:
-				return
-
-
 # --- frame ---
 
 
-## Frame processing of the core node: the skip end of the skipped tweens that wait for this frame, target destruction
-## and progress. A skipped tween does not progress, and the skip end checks its target destruction.
+## Frame processing of the core node: target destruction and progress.
 static func _on_frame() -> void:
-	if not _is_initialized:
-		return
-	if _skip_waiting and _skip_frame != Engine.get_process_frames():
-		_queue_skip_call()
-	if _active_count == 0 or not TimeCore.is_initialized():
+	if not _is_initialized or _active_count == 0 or not TimeCore.is_initialized():
 		return
 	var real_now: int = TimeCore.get_real_time()
 	var game_now: int = TimeCore.get_game_time()
@@ -650,7 +578,7 @@ static func _on_frame() -> void:
 		if _active[slot] == 0:
 			continue
 		var record: _RECORD = _records[slot]
-		if record.end_due or record.skip_due:
+		if record.end_due:
 			continue
 		if _is_gone(record):
 			_end(slot, TweenEndReason.TARGET_DESTROYED)
@@ -1460,13 +1388,6 @@ static func _end_state() -> void:
 	_load_preset_call = Callable()
 	_flush_queued = false
 	_flush_session = null
-	_finite_skip = false
-	_skip_end_call = Callable()
-	_skip_queued = false
-	_skip_session = null
-	_skip_seq = 0
-	_skip_frame = -1
-	_skip_waiting = false
 	_slot_count = 0
 	_generation = PackedInt64Array()
 	_active = PackedByteArray()

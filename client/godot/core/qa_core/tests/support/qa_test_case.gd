@@ -50,7 +50,6 @@ const TOUCH_INDEX_COUNT: int = 4
 const TIME_SCALE_MAX_PERMILLE: int = 4000
 const BASE_RESOLUTION: Vector2i = Vector2i(1280, 720)
 const FRAME_INTERVAL_MAX_COUNT: int = 600
-const REWARD_WINDOW_MS: int = 1000
 
 ## Click callback labels of the buttons a test made, in click order.
 var clicks: PackedStringArray = PackedStringArray()
@@ -81,7 +80,6 @@ func before_each() -> void:
 	set_int("QACore.timeScaleMaxPermille", TIME_SCALE_MAX_PERMILLE)
 	set_int("QACore.touchIndexCount", TOUCH_INDEX_COUNT)
 	set_int("QACore.frameIntervalMaxCount", FRAME_INTERVAL_MAX_COUNT)
-	set_int("QACore.rewardPresentationWindowMs", REWARD_WINDOW_MS)
 	set_int("UICore.buttonClickIntervalMs", 0)
 	set_string("UICore.dimResource", "")
 	set_string("UICore.loadingIconResource", "")

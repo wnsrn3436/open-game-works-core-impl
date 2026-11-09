@@ -109,7 +109,6 @@ export const SETTING_TYPES: Readonly<Record<string, string>> = {
   'QACore.feedbackWindowMs': 'integer',
   'QACore.frameIntervalMaxCount': 'integer',
   'QACore.idleThresholdMs': 'integer',
-  'QACore.rewardPresentationWindowMs': 'integer',
   'QACore.softlockBlockMs': 'object',
   'QACore.softlockNoResponseInputs': 'integer',
   'QACore.softlockNoResponseMs': 'integer',

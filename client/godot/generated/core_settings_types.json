@@ -140,7 +140,6 @@
   "QACore.timeScaleMaxPermille": "integer",
   "QACore.touchIndexCount": "integer",
   "QACore.frameIntervalMaxCount": "integer",
-  "QACore.rewardPresentationWindowMs": "integer",
   "baseResolution": "array<integer>",
   "targetFps": "integer",
   "QualityCore.levels": "object",

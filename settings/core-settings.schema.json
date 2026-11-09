@@ -1961,11 +1961,6 @@
       "type": "integer",
       "minimum": 1,
       "x-owner": "human"
-    },
-    "QACore.rewardPresentationWindowMs": {
-      "type": "integer",
-      "minimum": 1,
-      "x-owner": "human"
     }
   },
   "required": [
@@ -2383,8 +2378,7 @@
     "QACore.stepMaxMs",
     "QACore.timeScaleMaxPermille",
     "QACore.touchIndexCount",
-    "QACore.frameIntervalMaxCount",
-    "QACore.rewardPresentationWindowMs"
+    "QACore.frameIntervalMaxCount"
   ],
   "additionalProperties": false
 }

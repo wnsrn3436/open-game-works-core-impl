@@ -464,7 +464,6 @@
   "QACore.softlockNoResponseInputs": 5,
   "QACore.stepMaxMs": 60000,
   "QACore.frameIntervalMaxCount": 3600,
-  "QACore.rewardPresentationWindowMs": 2000,
   "storage.dbAnswerWaitMs": 5000,
   "AdCore.sdkCallTimeoutMs": 30000,
   "AuthCore.storageCallTimeoutMs": 5000,

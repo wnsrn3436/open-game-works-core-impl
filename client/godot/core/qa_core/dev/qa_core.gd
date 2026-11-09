@@ -42,7 +42,6 @@ const _KEY_STEP_MAX: String = "QACore.stepMaxMs"
 const _KEY_TIME_SCALE_MAX: String = "QACore.timeScaleMaxPermille"
 const _KEY_TOUCH_INDEX_COUNT: String = "QACore.touchIndexCount"
 const _KEY_FRAME_INTERVAL_MAX: String = "QACore.frameIntervalMaxCount"
-const _KEY_REWARD_WINDOW: String = "QACore.rewardPresentationWindowMs"
 const _KEY_BASE_RESOLUTION: String = "baseResolution"
 ## Reason tags of `QACore.softlockBlockMs`: the block reasons that forced release does not cover.
 const _SOFTLOCK_REASONS: PackedStringArray = ["scene", "cutscene", "tutorial", "ad", "boot"]
@@ -68,14 +67,6 @@ const _MIN_JPG_QUALITY: int = 10
 const _MAX_JPG_QUALITY: int = 1000
 ## Microseconds of one hundredth of a ms, the precision of `frame_intervals_ms`.
 const _USEC_PER_CENTI_MS: int = 10
-## The module states of the feedback switch, by index of `_module_states`.
-const _STATE_DEV_MUTE: int = 0
-const _STATE_PLAY_SKIP: int = 1
-const _STATE_SHAKE_SKIP: int = 2
-const _STATE_WORLD_SKIP: int = 3
-const _STATE_EFFECT_SKIP: int = 4
-const _STATE_FINITE_SKIP: int = 5
-const _STATE_COUNT: int = 6
 
 static var _is_initialized: bool = false
 static var _node: _NODE = null
@@ -94,7 +85,6 @@ static var _softlock_inputs: int = 0
 static var _step_max_ms: int = 0
 static var _time_scale_max_permille: int = 0
 static var _touch_index_count: int = 0
-static var _reward_window_ms: int = 0
 static var _base_resolution: Vector2i = Vector2i.ZERO
 ## Softlock block elapsed time by reason tag.
 static var _softlock_block_ms: Dictionary[String, int] = {}
@@ -174,15 +164,6 @@ static var _skip_frame_interval: bool = false
 ## holds it. 0 when none was put in since then.
 static var _frame_interval_max_usec: int = 0
 
-## The two switches of the feedback switch, whether the reward window is open, and the telemetry time of its last
-## reward moment.
-static var _feedback_off: bool = false
-static var _reward_presentation_off: bool = false
-static var _reward_window_open: bool = false
-static var _reward_moment_time: int = 0
-## The module states as QACore last set them, by `_STATE_*` index.
-static var _module_states: Array[bool] = [false, false, false, false, false, false]
-
 
 # --- lifecycle ---
 
@@ -226,7 +207,7 @@ static func init() -> bool:
 	return true
 
 
-## Ends the waiting and running commands with `ok` = `false`, turns both feedback switches off, disconnects, and clears
+## Ends the waiting and running commands with `ok` = `false`, disconnects, and clears
 ## the registrations, the telemetry, the frame interval record, the event subscriptions, the held input records and the
 ## debug screen.
 static func release() -> void:
@@ -265,10 +246,6 @@ static func _cleanup() -> void:
 		commands.append(_video)
 	for command: _COMMAND in commands:
 		_finish(command, false, _JSON.text(_RELEASED), PackedByteArray())
-	_feedback_off = false
-	_reward_presentation_off = false
-	_reward_window_open = false
-	_apply_module_states()
 	if _channel != null:
 		_channel.close()
 	if is_instance_valid(node):
@@ -295,7 +272,6 @@ static func _cleanup() -> void:
 	_step_max_ms = 0
 	_time_scale_max_permille = 0
 	_touch_index_count = 0
-	_reward_window_ms = 0
 	_base_resolution = Vector2i.ZERO
 	_softlock_block_ms = {}
 	_queue = []
@@ -344,7 +320,6 @@ static func _cleanup() -> void:
 	_last_frame_point_usec = -1
 	_skip_frame_interval = false
 	_frame_interval_max_usec = 0
-	_reward_moment_time = 0
 	# The commands waiting for a frame see the new session and stop.
 	if is_instance_valid(node):
 		node.frame_started.emit()
@@ -411,10 +386,8 @@ static func mark(kind: MarkKind, id_value: int = 0) -> void:
 	_telemetry.add_mark(_MARK_NAMES[kind])
 	if kind == MarkKind.REWARD:
 		_telemetry.add_reward("Mark", id_value, 1)
-		_on_reward_moment()
 	elif kind == MarkKind.GOAL:
 		_telemetry.add_goal()
-		_on_reward_moment()
 	if kind == MarkKind.RESPONSE:
 		_telemetry.add_response(time)
 	else:
@@ -658,14 +631,13 @@ static func _on_deferred_frame() -> void:
 
 
 ## The start of a frame from the core node of `node`, frame code, at frame point `point_usec`: records the frame
-## interval, closes a reward window that has run its length, then puts in the device inputs that wait. The records of
+## interval, then puts in the device inputs that wait. The records of
 ## them and the commands that wait for the frame start go on deferred, in the flush right after `process_frame`, which
 ## still comes before the frame's process callbacks.
 static func _on_frame_start(node: _NODE, point_usec: int) -> void:
 	if not _is_initialized or node != _node:
 		return
 	_record_frame_point(point_usec)
-	_check_reward_window()
 	while _frame_input_count < _pending_inputs.size():
 		if not _is_initialized or node != _node or not InputCore.is_initialized():
 			return
@@ -966,7 +938,6 @@ static func _on_item_changes(changes: Array[CoreContract.ItemChange]) -> void:
 		if amount < 1:
 			continue
 		_telemetry.add_reward("Item", change.item_id, mini(amount, _ARGS.MAX_SAFE_INTEGER))
-		_on_reward_moment()
 
 
 # --- debug screen ---
@@ -1217,90 +1188,6 @@ static func _interval_ms_text(usec: int) -> String:
 	return "%d.%02d" % [whole, fraction]
 
 
-# --- feedback switch ---
-
-
-## `set_feedback_off`. Turning it on also stops the shake of `CameraCore`, so no shake shows while it is on.
-static func _set_feedback_off(on: bool) -> void:
-	var turned_on: bool = on and not _feedback_off
-	_feedback_off = on
-	if turned_on and CameraCore.is_initialized():
-		CameraCore.stop_shake()
-	_apply_module_states()
-
-
-## `set_reward_presentation_off`. Turning it off closes the reward window.
-static func _set_reward_presentation_off(on: bool) -> void:
-	_reward_presentation_off = on
-	if not on:
-		_reward_window_open = false
-	_apply_module_states()
-
-
-## A reward moment: while reward presentation off is on, opens the reward window, or keeps it open from now.
-static func _on_reward_moment() -> void:
-	if not _reward_presentation_off:
-		return
-	_reward_moment_time = _telemetry.now()
-	if not _reward_window_open:
-		_reward_window_open = true
-		_apply_module_states()
-
-
-## Frame code at frame start: closes the reward window once `QACore.rewardPresentationWindowMs` advanced ms have passed
-## since its last reward moment.
-static func _check_reward_window() -> void:
-	if not _reward_window_open or _telemetry.now() - _reward_moment_time < _reward_window_ms:
-		return
-	_reward_window_open = false
-	_apply_module_states()
-
-
-## Sets each module state that differs from what the switches and the reward window need now, so a state both need
-## stays on while either does. A module outside the module list is left out.
-static func _apply_module_states() -> void:
-	for state: int in _STATE_COUNT:
-		var wanted: bool = _wanted_state(state)
-		if wanted == _module_states[state]:
-			continue
-		_module_states[state] = wanted
-		_set_module_state(state, wanted)
-
-
-## Whether the switches and the reward window need module state `state` on now. Frame code.
-static func _wanted_state(state: int) -> bool:
-	match state:
-		_STATE_DEV_MUTE:
-			return _feedback_off
-		_STATE_PLAY_SKIP, _STATE_FINITE_SKIP:
-			return _reward_window_open
-		_:
-			return _feedback_off or _reward_window_open
-
-
-static func _set_module_state(state: int, on: bool) -> void:
-	match state:
-		_STATE_DEV_MUTE:
-			if SoundCore.is_initialized():
-				SoundCoreDev.set_dev_mute(SoundCore.SoundBus.SFX, on)
-				SoundCoreDev.set_dev_mute(SoundCore.SoundBus.UI, on)
-		_STATE_PLAY_SKIP:
-			if SoundCore.is_initialized():
-				SoundCoreDev.set_play_skip(on)
-		_STATE_SHAKE_SKIP:
-			if CameraCore.is_initialized():
-				CameraCoreDev.set_shake_skip(on)
-		_STATE_WORLD_SKIP:
-			if ScreenEffectCore.is_initialized():
-				ScreenEffectCoreDev.set_world_skip(on)
-		_STATE_EFFECT_SKIP:
-			if PoolCore.is_initialized():
-				PoolCoreDev.set_effect_skip(on)
-		_STATE_FINITE_SKIP:
-			if TweenCore.is_initialized():
-				TweenCoreDev.set_finite_skip(on)
-
-
 # --- step mode ---
 
 
@@ -1322,7 +1209,7 @@ static func _read_settings() -> bool:
 		_KEY_VIDEO_FPS: 1, _KEY_VIDEO_MAX: 1, _KEY_CAPTURE_JPG_QUALITY: _MIN_JPG_QUALITY,
 		_KEY_FEEDBACK_WINDOW: 0, _KEY_IDLE_THRESHOLD: 0, _KEY_TELEMETRY_MAX: 0, _KEY_SOFTLOCK_NO_RESPONSE: 0,
 		_KEY_SOFTLOCK_INPUTS: 1, _KEY_STEP_MAX: 1, _KEY_TIME_SCALE_MAX: _NORMAL_TIME_SCALE, _KEY_TOUCH_INDEX_COUNT: 1,
-		_KEY_FRAME_INTERVAL_MAX: 1, _KEY_REWARD_WINDOW: 1,
+		_KEY_FRAME_INTERVAL_MAX: 1,
 	}
 	for key: String in int_keys:
 		if not CoreSettings.has_int(key) or CoreSettings.get_int(key) < int_keys[key]:
@@ -1352,7 +1239,6 @@ static func _read_settings() -> bool:
 	_step_max_ms = CoreSettings.get_int(_KEY_STEP_MAX)
 	_time_scale_max_permille = CoreSettings.get_int(_KEY_TIME_SCALE_MAX)
 	_touch_index_count = CoreSettings.get_int(_KEY_TOUCH_INDEX_COUNT)
-	_reward_window_ms = CoreSettings.get_int(_KEY_REWARD_WINDOW)
 	_base_resolution = Vector2i(base[0], base[1])
 	_softlock_block_ms = block_ms
 	_telemetry.feedback_window_ms = CoreSettings.get_int(_KEY_FEEDBACK_WINDOW)

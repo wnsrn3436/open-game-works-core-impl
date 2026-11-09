@@ -70,7 +70,6 @@ static func state_json() -> String:
 		_JSON.pair("time_scale", _JSON.integer(TimeCore.get_time_scale() if TimeCore.is_initialized() else 1000)),
 		_JSON.pair("step_mode", _JSON.boolean(TimeCore.is_initialized() and TimeCoreDev.is_step_mode())),
 		_JSON.pair("step_budget_ms", _JSON.integer(TimeCoreDev.get_step_budget() if TimeCore.is_initialized() else 0)),
-		_JSON.pair("frame_step_fps", _JSON.integer(TimeCoreDev.get_frame_step_fps() if TimeCore.is_initialized() else 0)),
 		_JSON.pair("window_size", _JSON.size(ResolutionCore.get_window_size() if ResolutionCore.is_initialized() else Vector2i.ZERO)),
 		_JSON.pair("game_area", _JSON.rect(_window_rect(ResolutionCore.get_game_area() if ResolutionCore.is_initialized() else Rect2()))),
 		_JSON.pair("visible_game_area", _JSON.rect(_window_rect(ResolutionCore.get_visible_game_area() if ResolutionCore.is_initialized() else Rect2()))),

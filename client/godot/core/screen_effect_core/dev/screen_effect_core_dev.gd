@@ -25,12 +25,3 @@ static func get_overlay_state(channel: ScreenEffectCore.ScreenEffectChannel) -> 
 	state.visible = overlay.visible
 	return state
 
-
-## World skip on or off. While it is on, a `World` `fade`, `flash` or `play_preset` that passes its input check returns a
-## `Completed` handle without replacing the current `World` handle, changing the overlay, starting a tween or sending
-## `ScreenEffectStartedEvent`. A `World` effect that plays when it turns on goes on. Other channels are not skipped.
-static func set_world_skip(skipped: bool) -> void:
-	if not ScreenEffectCore._is_initialized:
-		LogCore.log_error(_TAG, "set_world_skip called before init")
-		return
-	ScreenEffectCore._world_skip = skipped

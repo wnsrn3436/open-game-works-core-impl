@@ -7,8 +7,6 @@ signal done
 var fired: bool = false
 ## Real elapsed time at which the wait times out; -1 for none.
 var timeout_at: int = -1
-## Real elapsed time at which a delayed transport result is taken as received; -1 for none.
-var deliver_at: int = -1
 var timed_out: bool = false
 ## A `NetworkTransport` call.
 var is_transport: bool = false
