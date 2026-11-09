@@ -142,3 +142,52 @@ func test_set_downloader_after_init_is_ignored() -> void:
 	assert_true(await GameUpdateCore.check_update(make_source()))
 	assert_eq(other.calls.size(), 0)
 	assert_eq(downloader.count_calls(LIST_URL), 1)
+
+
+func warns() -> int:
+	return UnitTestCore.check_logs("warn", TAG)
+
+
+func _assert_engine_downloader() -> void:
+	if OS.get_name() == "Web":
+		assert_true(GameUpdateCore._downloader is _WEB_DOWNLOADER, "the fetch downloader in the browser runtime")
+	else:
+		assert_true(GameUpdateCore._downloader is _HTTP_DOWNLOADER, "the engine HTTP downloader")
+
+
+func test_release_before_init_drops_the_set_downloader() -> void:
+	# The modules are initialized first so that `LogCore` records the logs of `release`.
+	if not await _init_modules():
+		fail_test("setup failed")
+		return
+	var dropped: _DOWNLOADER = _DOWNLOADER.new()
+	GameUpdateCoreDev.set_downloader(dropped)
+	assert_eq(GameUpdateCore._downloader_override, dropped)
+	GameUpdateCore.release()
+	assert_false(GameUpdateCore.is_initialized())
+	assert_eq(GameUpdateCore._downloader_override, null)
+	assert_eq(dropped.cancel_count, 0, "release before init does not call the set downloader")
+	assert_eq(errors(), 0, "release before init leaves no log")
+	assert_eq(warns(), 0, "release before init leaves no log")
+	assert_true(GameUpdateCore.init())
+	assert_ne(GameUpdateCore._downloader, dropped)
+	_assert_engine_downloader()
+
+
+func test_release_after_release_drops_the_set_downloader() -> void:
+	if not await start():
+		fail_test("setup failed")
+		return
+	GameUpdateCore.release()
+	var dropped: _DOWNLOADER = _DOWNLOADER.new()
+	GameUpdateCoreDev.set_downloader(dropped)
+	assert_eq(GameUpdateCore._downloader_override, dropped)
+	GameUpdateCore.release()
+	assert_false(GameUpdateCore.is_initialized())
+	assert_eq(GameUpdateCore._downloader_override, null)
+	assert_eq(dropped.cancel_count, 0, "release of a module that is not init does not call the set downloader")
+	assert_eq(errors(), 0, "release of a module that is not init leaves no log")
+	assert_eq(warns(), 0, "release of a module that is not init leaves no log")
+	assert_true(GameUpdateCore.init())
+	assert_ne(GameUpdateCore._downloader, dropped)
+	_assert_engine_downloader()
