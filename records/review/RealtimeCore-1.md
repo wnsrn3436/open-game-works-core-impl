@@ -2,7 +2,9 @@
 
 ## findings
 
-none
+| id | aspect | severity | location | evidence | fix | spec change | confidence |
+|---|---|---|---|---|---|---|---|
+| R1-1 | spec | medium | client/godot/core/realtime_core/realtime_core.gd:179 | Commit ad967246 adds `_transport = null` to `release` of a RealtimeCore that is not initialized, as `## lifecycle` of `core` requires (a `release` of a module that is not `init`ed deletes the values its pre-`init` operations set; `set_transport` is the pre-`init` operation of RealtimeCore, `### API` of `realtime-core`). No test checks this. The only assert on `RealtimeCore._transport` is `_assert_initial_state` in `client/godot/core/realtime_core/tests/test_lifecycle.gd:143`, and it runs only after `init` and `release` or the tree teardown, where `_teardown` (`realtime_core.gd:1323`) clears the transport. `test_boot_shutdown_pre_init.gd` covers only `DataCore` and `ResourceCore`. Path with no failing test when the line is deleted: `start_realtime(true, false)` (`test_operations_outside_init_log_errors_and_return_failure_values`) calls `set_transport` with no `init`; `shutdown` then calls the non-init `release`; nothing reads `_transport` afterwards before the next test calls `set_transport` again or `init` + `release` clears it. | Add a core test: `set_transport(t)` with no `init`, `RealtimeCore.release()`, then `_transport` is `null` with no log; then `init` with no `set_transport` makes `join_match` fail with the no-transport error log. The test fails when the `_transport = null` line of the non-init `release` is removed | no | 85 |
 
 ## previous
 
@@ -22,7 +24,6 @@ none
 
 ## unknown
 
-- Checked the RealtimeCore changes of commit 189e4830 in the range: the forfeit flag of transport `close` (`client/godot/core/realtime_core/realtime_transport.gd`, `p2p_realtime_transport.gd`, `realtime_core.gd`, `dev/lockstep_realtime_transport.gd`, `dev/sim_realtime_transport.gd`, `client/godot/core/unit_test_core/dev/unit_test_realtime_transport.gd`), `HELLO` `platform` from `CoreBuildInfo.platform`, and their tests. Every `close` call of `realtime_core.gd` passes `true` only from `_end_match_now` with `Left` or `BackgroundTimeout` (`realtime_core.gd:766`), and the transport's own `MATCH_LEAVE`s pass `false` (`p2p_realtime_transport.gd:328`, `p2p_realtime_transport.gd:331`), matching `### transport` and `### P2P transport` of the spec. `ogw core test godot RealtimeCore UnitTestCore` passed on this checkout
-- Server handling of `forfeit` in `matchmaker` and `p2p-signaling` was not checked: those are server modules outside this target
-- Whether the server applies a `MATCH_LEAVE` queued behind a `MATCH_REJOIN` on a rejoin connection whose `MATCH_REJOINED` has not arrived yet was not checked against a real server: it depends on the frame order handling of `matchmaker` (server module outside this target), and the fake WebSocket server in the tests does not judge forfeits
-- The web export (`--web`) run of the tests was not run
+- Of the commit range, only `client/godot/core/realtime_core/realtime_core.gd` (2 lines in ad967246) is RealtimeCore code; the other changed files are other modules (server core, AuthCore, BootstrapCore, DataCore, NetworkCore and others) and were read only to see how `BootstrapCore` `shutdown` now calls `RealtimeCore.release` before `init` (`client/godot/core/bootstrap_core/bootstrap_core.gd:1343`). They are not reviewed here
+- The rest of RealtimeCore, which this range does not change, was not reviewed
+- Core tests were not run. The missing test of R1-1 was found by searching the tests for reads of `RealtimeCore._transport` and calls of `RealtimeCore.release`, not by running a copy with the line removed
