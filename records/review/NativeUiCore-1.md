@@ -2,7 +2,9 @@
 
 ## findings
 
-none
+| id | aspect | severity | location | evidence | fix | spec change | confidence |
+|---|---|---|---|---|---|---|---|
+| R1-1 | spec | medium | client/godot/core/native_ui_core/native_ui_core.gd:93 | Commit ad967246 adds the behavior of `release` of a NativeUiCore that is not `init`ed: it deletes the adapter that `set_native_adapter` set before `init` (rule of `## lifecycle` of skills/core/SKILL.md: a `release` of a module that is not `init`ed deletes the values its operations called before `init` set, calls no other module and leaves no log). No test checks it: every test of client/godot/core/native_ui_core/tests calls `release` only after `init` (test_lifecycle.gd:11, :22, :46, :76, support/native_ui_test_case.gd:57), and every test that reads `_adapter` or `can_share` sets the adapter itself first through `start_modules` (support/native_ui_test_case.gd:47) or `reboot`, so a value left by the previous test is always overwritten. client/godot/core/bootstrap_core/tests/test_boot_shutdown_pre_init.gd checks only `DataCore` and `ResourceCore`, and no bootstrap test reads `NativeUiCore._adapter`. Run path: with line 93 deleted, `set_native_adapter(fake)` then `release()` without `init`, then `init()` gives `can_share() == true` and the fake adapter, against the rule, and no test fails | Add a test to test_lifecycle.gd: after `start_modules(FakeNativeUiAdapter.new(), false)`, call `NativeUiCore.release()` without `init`, then `init()`; check `_adapter` is null, `request_review()` is `Unsupported`, `can_share()` is `false`, and there is no error and no warn log | no | 88 |
 
 ## previous
 
@@ -22,6 +24,6 @@ none
 
 ## unknown
 
-- The commit range 85f6b36d..be55f330 changes no file under `client/godot/core/native_ui_core/` and no `NativeUiCore.*` settings key (`settings/core-settings.json`, `settings/core-settings.schema.json`, `client/godot/generated/core_settings.json`). The dependency changes in the range were read for effects on NativeUiCore: `client/godot/core/log_core/log_core.gd` (comments only), `client/godot/core/time_core/time_core.gd` and `client/godot/core/time_core/dev/time_core_dev.gd` (`make_random_seed`, DEV frame step, which change the real and game frame increments but not `get_device_time`, nor the background and foreground events NativeUiCore subscribes to). No change to `EventCore`, `LocalDataCore`, `UICore` or `BootstrapCore` is in the range. No finding comes from them
-- The module code (`native_ui_core.gd`, `native_ui_core_node.gd`, `native_ui_wait.gd`, the adapters, the DEV code) and the test list were read against the spec; no problem of severity `medium` or higher was found to write in `## out of scope`
-- Core tests were not run: no code of the target changed in the range, and no finding needed a run to check it. The render pass behaviors (`capture_screen` frame and `Debug` layer timing, clipboard) and the browser runtime and native plugin paths were checked by reading only
+- I did not run the core tests (`ogw core test`). The finding comes from reading the code and tests: grep of client/godot for `NativeUiCore` and `set_native_adapter` found no test outside client/godot/core/native_ui_core/tests that sets or reads the NativeUiCore adapter
+- Of the commit range, only client/godot/core/native_ui_core/native_ui_core.gd changed in NativeUiCore (2 lines in `release`). The code it calls and the code that calls it (`_clean_up`, `set_native_adapter`, `init`, `NativeUiCoreDev`, `BootstrapCore._shutdown` / `_release_entry`, `BootstrapCore` native adapter setup) were read. `_fake_review_result` and `_fake_share_result` are set only after `init` (`NativeUiCoreDev._check_initialized`), so the adapter is the only value an operation called before `init` sets, and the not-init `release` deletes it without calling another module or logging
+- The platform adapters (adapters/native_ui_plugin_adapter.gd, adapters/native_ui_web_adapter.gd), the core node, the capture and share paths, and the rest of the tests did not change in the range and were not reviewed again
