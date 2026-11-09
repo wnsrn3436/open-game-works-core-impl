@@ -59,19 +59,31 @@ describe('fail_transaction', () => {
       storage.fail_transaction(ctx);
       const calls: (() => unknown)[] = [
         () => storage.db(ctx),
-        () => storage.put_state(ctx, wallet(1n)),
+        () => {
+          storage.put_state(ctx, wallet(1n));
+        },
         () => storage.list_state(ctx, QuestUserState),
-        () => storage.delete_state(ctx, QuestUserState, 1n),
+        () => {
+          storage.delete_state(ctx, QuestUserState, 1n);
+        },
         () => storage.read_public_state(ctx, [user], QuestUserState),
         () => storage.take_response_delta(ctx),
         () => storage.lock_game_row(ctx, 'test_counter', [1n]),
-        () => storage.content.lock_game_row(ctx, 'game_state', [BossGameState, 1n]),
-        () => storage.after_commit(ctx, () => undefined),
-        () => storage.on_commit(ctx, () => undefined),
+        () => {
+          storage.content.lock_game_row(ctx, 'game_state', [BossGameState, 1n]);
+        },
+        () => {
+          storage.after_commit(ctx, () => undefined);
+        },
+        () => {
+          storage.on_commit(ctx, () => undefined);
+        },
         () => storage.run_savepoint(ctx, () => 'pass'),
         () => storage.run_read_only(ctx, () => 1),
         () => storage.random_u32(ctx),
-        () => storage.fail_transaction(ctx),
+        () => {
+          storage.fail_transaction(ctx);
+        },
       ];
       for (const call of calls) errors.push(thrown(call));
       return 'pass';
@@ -206,8 +218,12 @@ describe('fail_transaction', () => {
   it('with an invalid ctx or game tx, or one whose transaction ended, throws a StorageMisuse; the next transaction of that user commits', async () => {
     const { storage } = await instance();
     const user = await new_user(storage);
-    expect(thrown(() => storage.fail_transaction({} as RequestCtx))).toBeInstanceOf(StorageMisuse);
-    expect(thrown(() => storage.fail_transaction(null as unknown as RequestCtx))).toBeInstanceOf(StorageMisuse);
+    expect(thrown(() => {
+        storage.fail_transaction({} as RequestCtx);
+      })).toBeInstanceOf(StorageMisuse);
+    expect(thrown(() => {
+        storage.fail_transaction(null as unknown as RequestCtx);
+      })).toBeInstanceOf(StorageMisuse);
     let kept: RequestCtx | null = null;
     expect(
       await request(storage, user, (ctx) => {
@@ -216,7 +232,9 @@ describe('fail_transaction', () => {
         return { done: true };
       }),
     ).toBe('FAILED');
-    expect(thrown(() => storage.fail_transaction(kept as unknown as RequestCtx))).toBeInstanceOf(StorageMisuse);
+    expect(thrown(() => {
+        storage.fail_transaction(kept as unknown as RequestCtx);
+      })).toBeInstanceOf(StorageMisuse);
     expect(
       await request(storage, user, (ctx) => {
         storage.put_state(ctx, quest(3n, 1n));
