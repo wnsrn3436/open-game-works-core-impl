@@ -1,5 +1,5 @@
 /** Adapter calls under the `iap.verifyTimeoutMs` time limit, with the `error` log of a failure. */
-import { is_failure, within_limit, type AckKind, type AdapterCall, type StoreTransaction, type SubscriptionSnapshot, type Verification } from './adapter.ts';
+import { is_failure, within_limit, type AckKind, type AdapterCall, type LookupGone, type StoreTransaction, type SubscriptionSnapshot, type Verification } from './adapter.ts';
 import { log_user, store_name, type IapContext, type Store, type StoreBinding } from './context.ts';
 
 /** Runs one adapter call under `iap.verifyTimeoutMs`. */
@@ -19,7 +19,7 @@ export async function verify_receipt(c: IapContext, binding: StoreBinding, store
   return result;
 }
 
-/** Subscription status lookup; a failure or time limit is null after an `error` log. */
+/** Subscription status lookup; a failure or time limit is null after an `error` log. `gone` is no failure. */
 export async function lookup_subscription(
   c: IapContext,
   binding: StoreBinding,
@@ -27,7 +27,7 @@ export async function lookup_subscription(
   original_transaction_id: string,
   latest: StoreTransaction | null,
   user_id: bigint | null,
-): Promise<SubscriptionSnapshot | null> {
+): Promise<SubscriptionSnapshot | LookupGone | null> {
   const result = await call_adapter(c, (call) => binding.adapter.lookup_subscription(original_transaction_id, latest, call));
   if (is_failure(result)) {
     log_user(c, user_id, 'error', 'error', 'iap subscription status lookup failed', { store: store_name(store), adapter: binding.name, failure: result });

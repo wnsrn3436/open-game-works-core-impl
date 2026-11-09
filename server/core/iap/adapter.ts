@@ -50,6 +50,13 @@ export interface SubscriptionSnapshot {
   readonly test: boolean;
 }
 
+/**
+ * The subscription status lookup result `gone` (`### store notification`, `SyncSubscriptions`): the store no longer
+ * answers for that subscription because it ended long ago (`iap-google` HTTP 410), so there is no snapshot. In the
+ * grant order it is `INVALID` without store transaction info.
+ */
+export type LookupGone = 'gone';
+
 export type AckKind = 'consume' | 'acknowledge' | 'subscription_acknowledge';
 
 export type NotificationKind = 'REFUND' | 'SUBSCRIPTION' | 'OTHER';
@@ -85,8 +92,11 @@ export interface AdapterCall {
 
 export interface StoreAdapter {
   verify(receipt: string, call: AdapterCall): Promise<Verification | AdapterFailure>;
-  /** `latest` is the store transaction just verified, or null when the lookup comes from a notification or a sync. */
-  lookup_subscription(original_transaction_id: string, latest: StoreTransaction | null, call: AdapterCall): Promise<SubscriptionSnapshot | AdapterFailure>;
+  /**
+   * `latest` is the store transaction just verified, or null when the lookup comes from a notification or a sync.
+   * `gone` is the lookup result of a subscription the store no longer answers for.
+   */
+  lookup_subscription(original_transaction_id: string, latest: StoreTransaction | null, call: AdapterCall): Promise<SubscriptionSnapshot | LookupGone | AdapterFailure>;
   acknowledge(transaction: StoreTransaction, kind: AckKind, call: AdapterCall): Promise<null | AdapterFailure>;
   /**
    * `list_refunds`: one page of the refunds of the window `[window_start, window_end)` (Unix ms). `rejected` is the store

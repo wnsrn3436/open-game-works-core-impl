@@ -218,7 +218,7 @@ export function without_purchase_time(server: TestServer, store: CoreContract.Ia
   const store_lookup = adapter.lookup_subscription.bind(adapter);
   adapter.lookup_subscription = async (original, latest, call) => {
     const got = await store_lookup(original, latest, call);
-    return is_failure(got) ? got : { ...got, purchased_at: null };
+    return is_failure(got) || got === 'gone' ? got : { ...got, purchased_at: null };
   };
 }
 

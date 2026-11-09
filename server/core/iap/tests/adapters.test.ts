@@ -134,15 +134,34 @@ describe('fake adapter', () => {
     controller.set_result('lookup_subscription', { state: 'GRACE_PERIOD', ends_at: 99 });
     adapter.set_snapshot('s-1', { latest_transaction_id: 's-2', state: 'SUBSCRIPTION_STATE_EXPIRED' });
     const once = await adapter.lookup_subscription('s-1', null, call());
-    expect(is_failure(once) ? null : [once.state, once.ends_at, once.latest_transaction_id]).toEqual([CoreContract.SubscriptionState.SUBSCRIPTION_STATE_EXPIRED, 99n, 's-2']);
+    expect(is_failure(once) || once === 'gone' ? null : [once.state, once.ends_at, once.latest_transaction_id]).toEqual([CoreContract.SubscriptionState.SUBSCRIPTION_STATE_EXPIRED, 99n, 's-2']);
     const after = await adapter.lookup_subscription('s-1', null, call());
-    expect(is_failure(after) ? null : [after.state, after.latest_transaction_id]).toEqual([CoreContract.SubscriptionState.SUBSCRIPTION_STATE_GRACE_PERIOD, 's-1']);
+    expect(is_failure(after) || after === 'gone' ? null : [after.state, after.latest_transaction_id]).toEqual([CoreContract.SubscriptionState.SUBSCRIPTION_STATE_GRACE_PERIOD, 's-1']);
     expect(await adapter.lookup_subscription('unknown', null, call())).toBe('rejected');
     controller.set_failure('lookup_subscription', 'communication_failure');
     expect(await adapter.lookup_subscription('s-1', null, call())).toBe('communication_failure');
     expect(() => {
       controller.set_result('lookup_subscription', { state: 'SLEEPING' });
     }).toThrow();
+  });
+
+  it('gives the lookup result gone for the controller result GONE until it is set again; a one-time snapshot wins over it once', async () => {
+    const { adapter, controller } = create_fake_adapter('iap-google');
+    await adapter.verify('fake:vip_google:g-1:tok', call());
+    controller.set_result('lookup_subscription', 'GONE');
+    expect(await adapter.lookup_subscription('g-1', null, call())).toBe('gone');
+    expect(await adapter.lookup_subscription('unknown', null, call())).toBe('gone');
+    adapter.set_snapshot('g-1', { state: 'EXPIRED', ends_at: 5 });
+    expect(await adapter.lookup_subscription('g-1', null, call())).toMatchObject({ state: CoreContract.SubscriptionState.SUBSCRIPTION_STATE_EXPIRED, ends_at: 5n, latest_transaction_id: 'g-1' });
+    expect(await adapter.lookup_subscription('g-1', null, call())).toBe('gone');
+    controller.set_failure('lookup_subscription', 'timeout');
+    expect(await adapter.lookup_subscription('g-1', null, call())).toBe('timeout');
+    controller.set_failure('lookup_subscription', null);
+    controller.set_result('lookup_subscription', null);
+    expect(await adapter.lookup_subscription('g-1', null, call())).toMatchObject({ state: CoreContract.SubscriptionState.SUBSCRIPTION_STATE_ACTIVE });
+    const apple = create_fake_adapter('iap-apple');
+    apple.controller.set_result('lookup_subscription', 'GONE');
+    expect(await apple.adapter.lookup_subscription('a-1', null, call())).toBe('gone');
   });
 
   it('records purchase acknowledgements with their kind and fails them by the controller', async () => {
@@ -613,6 +632,18 @@ describe('iap-google', () => {
       expect((await google(fetch).lookup_subscription('sub-token', null, call())) as { purchased_at: bigint | null }).toMatchObject({ purchased_at: null });
     }
     expect(await google(answer({ subscriptionState: 'SUBSCRIPTION_STATE_UNKNOWN', startTime: '2026-03-01T00:00:00Z', lineItems: [line] }).fetch).lookup_subscription('sub-token', null, call())).toBe('rejected');
+  });
+
+  it('a subscriptionsv2 answer with HTTP status 410 is the lookup result gone in the subscription status lookup and INVALID without store transaction info in receipt verification; 404 and 500 stay adapter call failures of the lookup', async () => {
+    const answer = (status: number) => http((url) => (url.endsWith('/token') ? json_response(200, { access_token: 'at' }) : json_response(status, {})));
+    const sub = JSON.stringify({ packageName: 'com.example.app', productId: 'vip_google', purchaseToken: 'sub-token' });
+    expect(await google(answer(410).fetch).lookup_subscription('sub-token', null, call())).toBe('gone');
+    expect(await google(answer(410).fetch).verify(sub, call())).toEqual({ status: 'INVALID', transaction: null });
+    expect(await google(answer(404).fetch).lookup_subscription('sub-token', null, call())).toBe('rejected');
+    expect(await google(answer(500).fetch).lookup_subscription('sub-token', null, call())).toBe('communication_failure');
+    // The token endpoint keeps its rule: an answer that is not 200 with access_token is an adapter call failure, not gone.
+    const refused = http((url) => (url.endsWith('/token') ? json_response(410, {}) : json_response(410, {})));
+    expect(await google(refused.fetch).lookup_subscription('sub-token', null, call())).toBe('rejected');
   });
 
   it('a 200 answer whose body is not a JSON object is an adapter call failure for a product, a subscription and a subscription lookup', async () => {

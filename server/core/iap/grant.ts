@@ -248,6 +248,15 @@ export function revoke_subscription(c: IapContext, ctx: RequestCtx, sub: Subscri
 }
 
 /**
+ * The change of a lookup result `gone`: writes `EXPIRED` with `auto_renew` false, keeps `ends_at` and the product, then
+ * subscription recompute.
+ */
+function expire_subscription(c: IapContext, ctx: RequestCtx, sub: SubscriptionRow): void {
+  upsert_subscription(db_of(c, ctx), { ...sub, state: 'SUBSCRIPTION_STATE_EXPIRED', auto_renew: false, updated_at: now_of(c, ctx) });
+  subscription_recompute(c, ctx, sub.product_id);
+}
+
+/**
  * Only ownership transfer moves a subscription. The user other than `user_id` whose the subscription record or its
  * binding is (`### subscription`, another user's subscription), or null.
  */
@@ -257,8 +266,11 @@ export function other_subscription_owner(user_id: bigint, binding: BindingRow | 
   return null;
 }
 
-/** What another user C's change after the commit does to C's subscription: subscription apply, or the `revoke_test_grant` change. */
-export type OtherSubscriptionChange = { readonly kind: 'apply'; readonly snapshot: SubscriptionSnapshot } | { readonly kind: 'revoke'; readonly ends_at: bigint };
+/**
+ * What another user C's change after the commit does to C's subscription: subscription apply, the `revoke_test_grant`
+ * change, or the change of a lookup result `gone` of `SyncSubscriptions`.
+ */
+export type OtherSubscriptionChange = { readonly kind: 'apply'; readonly snapshot: SubscriptionSnapshot } | { readonly kind: 'revoke'; readonly ends_at: bigint } | { readonly kind: 'gone' };
 
 /** C's out-of-request change. It changes nothing when the subscription record or its binding is no longer C's. Failure is an `error` log only. */
 function change_other_subscription(c: IapContext, owner: bigint, store: Store, original_transaction_id: string, change: OtherSubscriptionChange): Promise<void> {
@@ -270,7 +282,8 @@ function change_other_subscription(c: IapContext, owner: bigint, store: Store, o
       const now = c.m.time.clock_now();
       const sub = select_subscription(db, store_name(store), original_transaction_id, now);
       if (sub === null || other_subscription_owner(ctx.user_id, select_binding(db, store_name(store), original_transaction_id, now), sub) !== null) return 'pass';
-      revoke_subscription(c, ctx, sub, change.ends_at);
+      if (change.kind === 'gone') expire_subscription(c, ctx, sub);
+      else revoke_subscription(c, ctx, sub, change.ends_at);
       return 'pass';
     })
     .then(
@@ -307,6 +320,25 @@ function lock_own_subscription(c: IapContext, ctx: RequestCtx, store: Store, ori
   const before = select_subscription(db, store_name(store), original_transaction_id, now);
   const other = other_subscription_owner(ctx.user_id, binding, before);
   return other === null ? { before } : { other };
+}
+
+/**
+ * The change of a lookup result `gone` of `SyncSubscriptions` in the ctx user's transaction: locks the binding row and
+ * reads the subscription record. For another user's subscription it changes nothing and makes the change in that user's
+ * change after the commit.
+ */
+export function expire_gone_subscription(c: IapContext, ctx: RequestCtx, store: Store, original_transaction_id: string): Pass | CoreErrorValue {
+  if (!lock_grant_rows(c, ctx, store, '', '', () => original_transaction_id)) return CoreError.CORE_ERROR_INTERNAL;
+  const db = db_of(c, ctx);
+  const now = c.m.time.clock_now();
+  const sub = select_subscription(db, store_name(store), original_transaction_id, now);
+  const other = other_subscription_owner(ctx.user_id, select_binding(db, store_name(store), original_transaction_id, now), sub);
+  if (other !== null) {
+    change_other_subscription_after_commit(c, ctx, other, store, original_transaction_id, { kind: 'gone' });
+    return 'pass';
+  }
+  if (sub !== null) expire_subscription(c, ctx, sub);
+  return 'pass';
 }
 
 /**

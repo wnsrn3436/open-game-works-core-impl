@@ -5,7 +5,7 @@
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import * as CoreContract from '../../../../generated/contract/core_contract.ts';
-import { is_object, parse_json, type AckKind, type AdapterFailure, type RefundPage, type StoreAdapter, type StoreNotification, type StoreTransaction, type SubscriptionSnapshot, type Verification, type VerifyStatus } from '../../adapter.ts';
+import { is_object, parse_json, type AckKind, type AdapterFailure, type LookupGone, type RefundPage, type StoreAdapter, type StoreNotification, type StoreTransaction, type SubscriptionSnapshot, type Verification, type VerifyStatus } from '../../adapter.ts';
 
 /** One call the fake adapter received. */
 export interface FakeCall {
@@ -20,8 +20,9 @@ export interface FakeCall {
  *   (all but `result` optional). A field left out, and an unset result, is a test transaction, the purchase time
  *   `server-time.clock_now` of the call, game settings `appId` and a device receipt; an unset result is `VALID`
  * - `lookup_subscription`: a subscription snapshot `{state, ends_at, auto_renew, latest_transaction_id, sku,
- *   purchased_at, test}` or a part of one, or null to unset. A field left out comes from the last store transaction
- *   verified for that original transaction ID: `ACTIVE`, purchase time + `iap.fakeSubscriptionPeriodMs`, `true`
+ *   purchased_at, test}` or a part of one, `GONE` (the lookup result `gone`), or null to unset. A field left out comes
+ *   from the last store transaction verified for that original transaction ID: `ACTIVE`, purchase time +
+ *   `iap.fakeSubscriptionPeriodMs`, `true`
  * - `acknowledge`: no result. Its calls carry `{transaction_id, kind}` (`consume`, `acknowledge`,
  *   `subscription_acknowledge`)
  * - `list_refunds`: result `{transaction_ids, next_page_token}` (both optional), or null to unset; unset is an empty list
@@ -167,7 +168,7 @@ export function create_fake_adapter(adapter_key: string): { adapter: FakeStoreAd
   const calls: FakeCall[] = [];
   const failures = new Map<string, AdapterFailure>();
   let verify: VerifySetting = { status: 'VALID', test: true, purchased_at: null, app_id: null, device_receipt: true };
-  let lookup: Partial<SubscriptionSnapshot> | null = null;
+  let lookup: Partial<SubscriptionSnapshot> | LookupGone | null = null;
   let refunds: RefundPage = refund_setting(null);
   const snapshots = new Map<string, Partial<SubscriptionSnapshot>>();
   const verified = new Map<string, StoreTransaction>();
@@ -202,7 +203,9 @@ export function create_fake_adapter(adapter_key: string): { adapter: FakeStoreAd
       if (failure !== undefined) return failure;
       const once = snapshots.get(original_transaction_id);
       snapshots.delete(original_transaction_id);
-      return snapshot_from({ ...(lookup ?? {}), ...(once ?? {}) }, verified.get(original_transaction_id) ?? latest, call.fake_subscription_period_ms);
+      if (lookup === 'gone' && once === undefined) return 'gone';
+      const base = lookup === 'gone' ? {} : (lookup ?? {});
+      return snapshot_from({ ...base, ...(once ?? {}) }, verified.get(original_transaction_id) ?? latest, call.fake_subscription_period_ms);
     },
     acknowledge(transaction: StoreTransaction, kind: AckKind) {
       calls.push({ operation: 'acknowledge', input: { transaction_id: transaction.transaction_id, kind } });
@@ -240,7 +243,7 @@ export function create_fake_adapter(adapter_key: string): { adapter: FakeStoreAd
       if (operation === 'verify') {
         verify = verify_setting(result);
       } else if (operation === 'lookup_subscription') {
-        lookup = result === null ? null : snapshot_part(result);
+        lookup = result === null ? null : result === 'GONE' ? 'gone' : snapshot_part(result);
       } else if (operation === 'list_refunds') {
         refunds = refund_setting(result);
       } else {
