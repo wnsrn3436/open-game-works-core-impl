@@ -1,0 +1,12 @@
+{
+  "target": "item-ledger",
+  "nextId": 2,
+  "items": [
+    {
+      "id": "D1",
+      "location": "server/core/item-ledger/history.ts:182",
+      "problem": "Commit 8ba7373a changes the `item_ledger_once_key` column from the raw `once_key` to its SHA-256 form (`has_once_key` and `put_once_key` now hash the value), and nothing converts rows written in the old form: no module of `server/core/` other than `item-ledger/history.ts` refers to `item_ledger_once_key`, and `migration` has no `once_key` conversion. Released v0.10.0 contains 625ae189 but not 8ba7373a, so it writes raw rows. Run path: a server on v0.10.0 writes a row with `once_key` `rating:<rule>:<season>` (server/core/rating/index.ts:259) or `play_session_refund:<play_session_id>` (server/core/play-session/index.ts:320); after the core upgrade the same change is sent again within `item-ledger.onceKeyRetentionMs`; `has_once_key` looks for `sha256(once_key)`, does not find the raw row, and the change is applied a second time instead of `ALREADY_APPLIED`. The same path reaches `import_user_snapshot`: a snapshot exported from a v0.10.0 server passes check 4 (its `core_version` is lower), its `item_ledger_once_key` records are saved as they are (server/core/user-snapshot-clone/index.ts:399), and the clone does not hold the `once_key` judgement of the source user. A one-time conversion at upgrade would not cover these rows, because they are imported later. So the item-ledger fix also needs a decision on the user-snapshot-clone side: convert the rows on import, or refuse snapshots made with the older row form",
+      "foundBy": "user-snapshot-clone round 1"
+    }
+  ]
+}
