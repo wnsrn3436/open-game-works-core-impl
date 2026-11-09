@@ -92,19 +92,16 @@ static var _loading_token: int = 0
 
 static var _error_display_hook: Callable = Callable()
 
-## DEV state, read and written by the DEV code: the failure kind it forces (`FailureKind` or -1), the delay it
-## forces and dev access. Then the request records (oldest first) and their count, which `init` reads in a run with
+## DEV state, read and written by the DEV code: the failure kind it forces (`FailureKind` or -1) and dev access.
+## Then the request records (oldest first) and their count, which `init` reads in a run with
 ## DEV code and 0 otherwise; the DEV code reads the records.
 static var _forced_failure: int = -1
-static var _forced_delay_ms: int = 0
 static var _dev_access: String = ""
 static var _request_records: Array[RefCounted] = []
 static var _dev_request_record_count: int = 0
 ## DEV hooks: static functions the DEV code sets. Empty in a build without DEV code.
 ## `(req) -> bool`: true when it ended the send attempt, with `req.outcome`, `req.failure` and `req.note` set.
 static var _dev_attempt_hook: Callable = Callable()
-## `(w) -> bool`: true when it holds the transport result of `w` until `w.deliver_at`.
-static var _dev_received_hook: Callable = Callable()
 ## `(req) -> String`: a header line `req` carries in addition; an empty string for none.
 static var _dev_header_hook: Callable = Callable()
 
@@ -365,12 +362,10 @@ static func _reset_state() -> void:
 	_loading_token = 0
 	_error_display_hook = Callable()
 	_forced_failure = -1
-	_forced_delay_ms = 0
 	_dev_access = ""
 	_request_records = []
 	_dev_request_record_count = 0
 	_dev_attempt_hook = Callable()
-	_dev_received_hook = Callable()
 	_dev_header_hook = Callable()
 
 
@@ -632,10 +627,6 @@ static func _drive_transport(w: _WAITER, transport: NetworkTransport, url: Strin
 		return
 	w.result = r
 	w.received_monotonic = TimeCore.get_monotonic_time()
-	if _dev_received_hook.is_valid():
-		var held: bool = _dev_received_hook.call(w)
-		if held:
-			return
 	_fire(w)
 
 
@@ -681,7 +672,7 @@ static func _on_frame() -> void:
 	for w: _WAITER in _waiters:
 		if w.fired:
 			continue
-		if (w.deliver_at >= 0 and now >= w.deliver_at) or (w.timeout_at >= 0 and now >= w.timeout_at):
+		if w.timeout_at >= 0 and now >= w.timeout_at:
 			due = true
 	if _blocked and not _loading_shown and now - _block_started_at > _loading_icon_delay_ms and InputBlockCore.is_active(_block_token):
 		due = true
@@ -701,9 +692,7 @@ static func _run_due() -> void:
 	for w: _WAITER in _waiters.duplicate():
 		if w.fired:
 			continue
-		if w.deliver_at >= 0 and now >= w.deliver_at and (w.timeout_at < 0 or w.deliver_at <= w.timeout_at):
-			_fire(w)
-		elif w.timeout_at >= 0 and now >= w.timeout_at:
+		if w.timeout_at >= 0 and now >= w.timeout_at:
 			w.timed_out = true
 			_fire(w)
 	if not _is_initialized:

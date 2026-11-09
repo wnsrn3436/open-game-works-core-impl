@@ -1,10 +1,8 @@
 extends "res://core/qa_core/tests/support/qa_test_case.gd"
-## `heap_memory_bytes` and `total_memory_bytes` of `get_stats` in native, headless and browser runs, and
-## `frame_step_fps` of `get_state`.
+## `heap_memory_bytes` and `total_memory_bytes` of `get_stats` in native, headless and browser runs.
 
 ## The platforms whose resident memory the engine-specific rules read.
 const RESIDENT_PLATFORMS: PackedStringArray = ["android", "linux"]
-const FRAME_STEP_FPS: int = 60
 
 
 func test_memory_stats_are_integers_of_0_or_more() -> void:
@@ -53,21 +51,3 @@ func test_a_browser_run_gives_the_webassembly_memory_and_the_page_heap() -> void
 	assert_true(JSONR.integer(second, "total_memory_bytes") >= heap_after)
 	assert_eq(errors() + warns(), 0)
 
-
-func test_frame_step_fps_with_a_test_clock() -> void:
-	TimeCoreDev.set_frame_step(FRAME_STEP_FPS)
-	assert_true(await start())
-	assert_eq(JSONR.integer(await state(), "frame_step_fps"), FRAME_STEP_FPS)
-
-
-func test_frame_step_fps_without_a_test_clock() -> void:
-	TimeCoreDev.set_test_clock(null)
-	TimeCoreDev.set_frame_step(FRAME_STEP_FPS)
-	assert_true(await start())
-	assert_eq(JSONR.integer(await state(), "frame_step_fps"), FRAME_STEP_FPS)
-
-
-func test_frame_step_fps_is_0_without_a_frame_step() -> void:
-	assert_true(await start())
-	assert_eq(JSONR.integer(await state(), "frame_step_fps"), 0)
-	assert_eq(errors() + warns(), 0)

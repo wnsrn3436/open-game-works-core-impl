@@ -18,7 +18,7 @@ func _assert_initial_state() -> void:
 	for value: int in [NetworkCore._request_timeout_ms, NetworkCore._retry_count, NetworkCore._retry_delay_ms, NetworkCore._retry_delay_factor_permille,
 			NetworkCore._retry_delay_max_ms, NetworkCore._max_retry_age_ms, NetworkCore._loading_icon_delay_ms, NetworkCore._response_max_bytes,
 			NetworkCore._dev_request_record_count, NetworkCore._next_handle, NetworkCore._block_token, NetworkCore._block_started_at,
-			NetworkCore._loading_token, NetworkCore._forced_delay_ms]:
+			NetworkCore._loading_token]:
 		assert_eq(value, 0)
 	assert_eq(NetworkCore._transport, null)
 	assert_eq(NetworkCore._active_transport, null)
@@ -42,7 +42,7 @@ func _assert_initial_state() -> void:
 	assert_eq(NetworkCore._forced_failure, -1)
 	assert_eq(NetworkCore._dev_access, "")
 	assert_true(NetworkCore._request_records.is_empty())
-	for hook: Callable in [NetworkCore._dev_attempt_hook, NetworkCore._dev_received_hook, NetworkCore._dev_header_hook]:
+	for hook: Callable in [NetworkCore._dev_attempt_hook, NetworkCore._dev_header_hook]:
 		assert_true(hook.is_null(), "release drops the DEV hooks")
 	assert_false(_root_has_core_node())
 
@@ -57,7 +57,6 @@ func test_init_and_release() -> void:
 	add_ok(INTERACTION)
 	assert_true(await NetworkCore.send(request(INTERACTION)))
 	NetworkCoreDev.force_failure(-1)
-	NetworkCoreDev.force_delay(0)
 	NetworkCoreDev.set_dev_access("dev-access")
 	NetworkCore.release()
 	await UnitTestCore.wait_frames(1)

@@ -15,12 +15,6 @@ var value_kind: int = 0
 var pending: bool = false
 ## Started with an end condition in the playing operation: it ends with `Completed` before the frame ends.
 var end_due: bool = false
-## Requested while the DEV finite skip was on: unless it repeats forever, it ends in a skip end without progress.
-var finite_skip: bool = false
-## Waits for a skip end: a finite tween requested during the DEV finite skip.
-var skip_due: bool = false
-## Request number of `skip_due`. A skip end ends the tweens numbered before it started.
-var skip_seq: int = 0
 ## Its end processing runs. Ending it again does nothing.
 var ending: bool = false
 var time_basis: int = 0
@@ -58,9 +52,6 @@ func reset() -> void:
 	pending = false
 	end_due = false
 	ending = false
-	finite_skip = false
-	skip_due = false
-	skip_seq = 0
 	time_basis = 0
 	tag = ""
 	callback = Callable()

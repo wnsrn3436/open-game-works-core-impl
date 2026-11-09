@@ -66,13 +66,11 @@ func test_time_scale_and_network_setups() -> void:
 	assert_true(await start())
 	await run_ok("set_time_scale", PackedStringArray(["1500"]))
 	assert_eq(TimeCore.get_time_scale(), 1500, "set_time_scale ran")
-	await run_ok("set_network_delay", PackedStringArray(["0"]))
 	await run_ok("force_network_failure", PackedStringArray(["timeout"]))
 	await run_ok("force_network_failure", PackedStringArray(["connection_failed"]))
 	await run_ok("force_network_failure", PackedStringArray(["none"]))
 	assert_false((await run("force_network_failure", PackedStringArray(["slow"]))).ok)
-	assert_false((await run("set_network_delay", PackedStringArray(["-1"]))).ok)
-	assert_eq(warns(), 2)
+	assert_eq(warns(), 1)
 
 
 func test_force_network_failure_fails_the_requests_until_none() -> void:
@@ -89,26 +87,6 @@ func test_force_network_failure_fails_the_requests_until_none() -> void:
 	add_ok("core/cheat/SetTimeOffset")
 	await run_ok("set_server_time_offset", PackedStringArray(["5"]))
 	assert_eq(request_count(), 1, "none lets the requests through")
-
-
-func test_set_network_delay_delays_the_responses_until_0() -> void:
-	assert_true(await start())
-	var delay_ms: int = 300
-	await run_ok("set_network_delay", PackedStringArray([str(delay_ms)]))
-	add_ok("core/cheat/SetTimeOffset")
-	var delayed: Pending = start_command("set_server_time_offset", PackedStringArray(["5"]))
-	await UnitTestCore.wait_frames(6)
-	assert_eq(request_count(), 1, "the request went out")
-	assert_false(delayed.done, "the response waits for the delay")
-	await advance(delay_ms)
-	await UnitTestCore.wait_frames(4)
-	assert_true(delayed.done, "the response comes after the delay")
-	assert_true(delayed.result.ok)
-	await run_ok("set_network_delay", PackedStringArray(["0"]))
-	add_ok("core/cheat/SetTimeOffset")
-	var direct: Pending = start_command("set_server_time_offset", PackedStringArray(["6"]))
-	await UnitTestCore.wait_frames(6)
-	assert_true(direct.done, "0 takes the delay away")
 
 
 func test_quit_requests_the_app_exit_after_the_response() -> void:

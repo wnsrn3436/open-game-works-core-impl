@@ -4,8 +4,6 @@ extends PoolObject
 
 var borrow_count: int = 0
 var return_count: int = 0
-## `Engine.get_process_frames()` at the last `on_return`.
-var return_frame: int = -1
 
 
 func on_borrow() -> void:
@@ -14,4 +12,3 @@ func on_borrow() -> void:
 
 func on_return() -> void:
 	return_count += 1
-	return_frame = Engine.get_process_frames()

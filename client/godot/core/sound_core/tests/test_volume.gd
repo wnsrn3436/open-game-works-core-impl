@@ -98,13 +98,12 @@ func test_saved_volume_out_of_range_or_nan_loads_the_default_without_log() -> vo
 	assert_eq(errors(), 0)
 
 
-func test_reset_volume_settings_gives_defaults_at_once_removes_the_keys_and_keeps_dev_mute() -> void:
+func test_reset_volume_settings_gives_defaults_at_once_and_removes_the_keys() -> void:
 	assert_true(await start_modules())
 	SoundCore.set_volume(SoundCore.SoundBus.BGM, 0.3)
 	SoundCore.set_mute(SoundCore.SoundBus.SFX, true)
 	SoundCore.set_volume(SoundCore.SoundBus.MASTER, 0.5)
 	SoundCore.set_haptic_enabled(false)
-	SoundCoreDev.set_dev_mute(SoundCore.SoundBus.VOICE, true)
 	var frame: int = Engine.get_process_frames()
 	SoundCore.reset_volume_settings()
 	_assert_default_values()
@@ -113,7 +112,6 @@ func test_reset_volume_settings_gives_defaults_at_once_removes_the_keys_and_keep
 		assert_almost_eq(AudioServer.get_bus_volume_db(index), 0.0, 0.0001, "level of bus " + str(bus))
 		assert_false(AudioServer.is_bus_mute(index), "mute of bus " + str(bus))
 	assert_eq(Engine.get_process_frames(), frame, "applied in the frame of the call")
-	assert_true(AudioServer.is_bus_mute(bus_index(SoundCore.SoundBus.VOICE)), "DEV mute stays")
 	_assert_no_saved_keys()
 	SoundCore.release()
 	assert_true(SoundCore.init())

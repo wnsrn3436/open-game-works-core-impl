@@ -91,8 +91,6 @@ static var _extent_max: Vector2 = Vector2.ZERO
 static var _trauma: float = 0.0
 ## Shake scale, permille. Kept while cameras are attached and detached.
 static var _shake_scale: int = _FULL_SHAKE_SCALE
-## Shake skip of `CameraCoreDev.set_shake_skip`. Kept while cameras are attached and detached.
-static var _shake_skip: bool = false
 static var _random: UtilRandom = null
 ## Real elapsed time of the noise since its seed, ms. It runs while there is trauma.
 static var _noise_elapsed_ms: int = 0
@@ -393,15 +391,12 @@ static func clear_bounds() -> void:
 	_bounds = Rect2()
 
 
-## Adds `amount` to the trauma, cut at 1, and publishes `CameraShakeStartedEvent`. Does neither while the shake skip
-## is on.
+## Adds `amount` to the trauma, cut at 1, and publishes `CameraShakeStartedEvent`.
 static func shake(amount: float) -> void:
 	if not _check_camera("shake"):
 		return
 	if not is_finite(amount) or amount <= 0.0:
 		LogCore.log_error(_TAG, "shake: the amount is not a number above 0")
-		return
-	if _shake_skip:
 		return
 	_trauma = minf(1.0, _trauma + amount)
 	if EventCore.is_initialized():
@@ -514,7 +509,6 @@ static func _clean_up() -> void:
 	_extent_min = Vector2.ZERO
 	_extent_max = Vector2.ZERO
 	_shake_scale = _FULL_SHAKE_SCALE
-	_shake_skip = false
 	_random = null
 	_noise_elapsed_ms = 0
 	_noise_step = 0

@@ -1,14 +1,14 @@
 extends "res://core/network_core/tests/support/network_test_case.gd"
-## DEV operations: cheat sends, dev access, forced failure and delay, request records, and their absence from the
-## module code that STG and PROD builds keep.
+## DEV operations: cheat sends, dev access, forced failure, request records, and their absence from the module code
+## that STG and PROD builds keep.
 
 const _MODULE_DIR: String = "res://core/network_core"
 const _DEV_PATH: String = "res://core/network_core/dev/network_core_dev.gd"
 ## Names of the DEV code the module code outside `dev/` must not hold: its classes, the cheat sends, the dev access
-## header and the forced failure and delay. The module code keeps the request records in a run with DEV code.
+## header and the forced failure. The module code keeps the request records in a run with DEV code.
 const _DEV_WORDS: PackedStringArray = [
 	"NetworkCoreDev", "NetworkRequestRecord", "/dev/", "Dev-Access", "_send_cheat", "_send_auth_cheat",
-	"forced failure", "_forced_failure as", "_forced_delay_ms >",
+	"forced failure", "_forced_failure as",
 ]
 
 
@@ -55,7 +55,7 @@ func test_dev_access_goes_only_to_cheat_requests() -> void:
 	assert_false(log_text().contains("dev-access-secret-5d1"))
 
 
-func test_force_failure_and_force_delay() -> void:
+func test_force_failure() -> void:
 	await start_network()
 	NetworkCoreDev.force_failure(NetworkCore.FailureKind.TIMEOUT)
 	var kinds: PackedInt32Array = PackedInt32Array()
@@ -67,23 +67,10 @@ func test_force_failure_and_force_delay() -> void:
 	assert_eq(request_count(), 0, "no transport")
 	assert_eq(provider.get_calls, 0, "no token")
 	NetworkCoreDev.force_failure(-1)
-	NetworkCoreDev.force_delay(2000)
-	add_ok(SILENT, SERVER_TIME)
-	var sent: Sent = start_send(request(SILENT))
-	await advance(1999)
-	assert_false(sent.done, "the result is taken 2000 ms later")
-	await advance(1)
-	assert_true(await wait_sent(sent))
-	assert_eq(TimeCore.get_server_time(), SERVER_TIME + 1000, "the sync takes the delayed time")
-	NetworkCoreDev.force_delay(TIMEOUT_MS + 1)
 	add_ok(SILENT)
-	add_ok(SILENT)
-	var late: Sent = start_send(request(SILENT), Callable(), on_failure)
-	await advance(TIMEOUT_MS)
-	await advance(TIMEOUT_MS)
-	assert_false(await wait_sent(late), "a delay over the timeout times out")
-	assert_eq(kinds[kinds.size() - 1], NetworkCore.FailureKind.TIMEOUT)
-	assert_eq(error_logs(), 2)
+	assert_true(await NetworkCore.send(request(SILENT)), "-1 clears the forced failure")
+	assert_eq(request_count(), 1)
+	assert_eq(error_logs(), 1)
 
 
 func test_request_records() -> void:
