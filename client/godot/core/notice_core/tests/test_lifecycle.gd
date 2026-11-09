@@ -139,3 +139,31 @@ func test_set_image_downloader_after_init_is_ignored() -> void:
 	NoticeCoreDev.set_image_downloader(downloader)
 	assert_eq(errors(), 1)
 	assert_eq(NoticeCore._downloader_override, null)
+
+
+func test_release_before_init_drops_the_image_downloader() -> void:
+	var dropped: _HANGING = _HANGING.new()
+	NoticeCoreDev.set_image_downloader(dropped)
+	assert_eq(NoticeCore._downloader_override, dropped)
+	NoticeCore.release()
+	assert_false(NoticeCore.is_initialized())
+	assert_eq(NoticeCore._downloader_override, null)
+	if not await start():
+		fail_test("setup failed")
+		return
+	assert_eq(errors(), 0, "release before init leaves no log")
+	assert_eq(warns(), 0, "release before init leaves no log")
+	assert_ne(NoticeCore._downloader, dropped)
+	var base: String = await UnitTestCore.start_http_server()
+	assert_false(base.is_empty())
+	if base.is_empty():
+		return
+	var image: Image = Image.create_empty(2, 2, false, Image.FORMAT_RGBA8)
+	image.fill(Color.RED)
+	var no_headers: Array[PackedStringArray] = []
+	assert_true(await UnitTestCore.add_http_response(base, "/a.png", 200, no_headers, image.save_png_to_buffer()))
+	var with_image: CoreContract.Notice = active_notice(1, BANNER)
+	with_image.image_url = base + "/a.png"
+	assert_true(await fetch_with([with_image]))
+	assert_not_null(await NoticeCore.load_image(1), "the default downloader loads the image")
+	assert_eq(dropped.urls.size(), 0, "the dropped downloader gets no download")
